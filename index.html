@@ -3150,8 +3150,8 @@
           <div class="rc-io-label">Target</div>
           <div class="rc-io-val-row">
             <div class="rc-io-val" id="metaTarget">${dur(eff)}</div>
-            ${hasCustomTarget ? `<span class="custom-target-chip">Custom</span>` : ''}
-            ${hasCustomTarget ? `<button class="rc-io-edit-btn" title="Reset to weekly target" onclick="event.stopPropagation();clearTodayTarget()" style="color:var(--muted-fg)">✕</button>` : ''}
+            ${!hasCustomTarget ? `<span class="custom-target-chip">Recommended</span>` : ''}
+            ${hasCustomTarget  ? `<button class="rc-io-edit-btn" title="Reset to recommended" onclick="event.stopPropagation();clearTodayTarget()" style="color:var(--muted-fg)">✕</button>` : ''}
           </div>
         </div>
       </div>`;

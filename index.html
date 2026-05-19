@@ -2456,6 +2456,20 @@
   </div>
 
   <!-- Email Draft Modal -->
+  <div class="email-modal-overlay" id="outsideShiftOverlay">
+    <div class="email-modal" style="padding:28px 20px 32px">
+      <div class="email-modal-head" style="margin-bottom:8px">
+        <span class="email-modal-title" style="font-size:16px">Working outside your schedule?</span>
+      </div>
+      <p style="font-size:13px;color:var(--muted-fg);margin:0 0 24px;line-height:1.5">
+        Your regular shift hours are <strong style="color:var(--foreground)" id="outsideShiftRange"></strong>.
+      </p>
+      <div style="display:flex;gap:10px">
+        <button class="shift-combo-btn" style="flex:1;background:var(--muted);color:var(--foreground);border:1.5px solid var(--border)" onclick="closeOutsideShiftModal()">Cancel</button>
+        <button class="shift-combo-btn" style="flex:1" onclick="overrideOutsideShift()">Override</button>
+      </div>
+    </div>
+  </div>
   <div class="email-modal-overlay" id="emailModalOverlay">
     <div class="email-modal">
       <div class="email-modal-head">
@@ -2697,11 +2711,19 @@
     function parseLogin(raw) {
       const s = raw.trim().toUpperCase().replace(/\s+/g, ' ');
       if (s.includes('AM') || s.includes('PM')) return parse(raw);
-      const d = parse(raw);
-      if (!d) return null;
-      const h = d.getHours();
-      if (h === 0 || h === 12 || h > 12) return d; // midnight, noon, or unambiguous 24h
-      return parse(raw + ' ' + shiftDefaultAP());
+      const dNoAP = parse(raw);
+      if (!dNoAP) return null;
+      const h = dNoAP.getHours(), m = dNoAP.getMinutes();
+      if (h === 0 || h > 12) return dNoAP; // midnight or unambiguous 24h
+      // Build AM and PM candidates and pick the one in the past closest to now
+      const now = new Date();
+      const dAM = new Date(); dAM.setHours(h === 12 ? 0 : h, m, 0, 0);
+      const dPM = new Date(); dPM.setHours(h === 12 ? 12 : h + 12, m, 0, 0);
+      const amPast = dAM <= now, pmPast = dPM <= now;
+      if (amPast && pmPast) return dAM > dPM ? dAM : dPM; // both past → more recent
+      if (amPast) return dAM;
+      if (pmPast) return dPM;
+      return shiftDefaultAP() === 'PM' ? dPM : dAM; // both future → fall back to shift
     }
 
     // ── NOTIFY (in-tab fallback) ────────────────────────
@@ -4404,6 +4426,47 @@
       }
     }
 
+    let _pendingLoginP = null;
+    function _startSession(p) {
+      el('loginInput').classList.remove('err');
+      el('errMsg').classList.remove('show');
+      const hint = el('loginApHint'); if (hint) hint.style.display = 'none';
+      loginDate = p; wasDone = false; notifSent = false; autoStopped = false;
+      if (el('metaLogin')) el('metaLogin').textContent = short(p);
+      setCalcBtnState('running');
+      el('shiftInputRow').classList.add('active-state');
+      el('shiftActiveLabel').textContent = `Started at ${short(p)}`;
+      el('autostopBanner').classList.remove('show');
+      persistSession();
+      selectDay(todayKey());
+      render();
+      if (ticker) clearInterval(ticker);
+      ticker = setInterval(render, 1000);
+      scheduleNotifications(loginDate.toISOString());
+    }
+    function isOutsideShift(p) {
+      const c = cfg();
+      const s = parse(c.shiftStart || '09:00 AM'), e = parse(c.shiftEnd || '06:00 PM');
+      if (!s || !e) return false;
+      return p < s || p > e;
+    }
+    function showOutsideShiftModal(p) {
+      _pendingLoginP = p;
+      const c = cfg();
+      const r = el('outsideShiftRange');
+      if (r) r.textContent = `${c.shiftStart || '09:00 AM'} – ${c.shiftEnd || '06:00 PM'}`;
+      el('outsideShiftOverlay')?.classList.add('open');
+    }
+    function closeOutsideShiftModal() {
+      _pendingLoginP = null;
+      el('outsideShiftOverlay')?.classList.remove('open');
+    }
+    function overrideOutsideShift() {
+      const p = _pendingLoginP;
+      el('outsideShiftOverlay')?.classList.remove('open');
+      _pendingLoginP = null;
+      if (p) _startSession(p);
+    }
     function calculate() {
       const raw = el('loginInput').value.trim();
       let p;
@@ -4412,24 +4475,10 @@
         if (!p) { showErr("Couldn't parse that. Try: 11:30, 1130, 11:30 AM, or 13:30"); return; }
         if (p > new Date()) { showErr("That time hasn't happened yet — custom time can't be in the future."); return; }
       } else {
-        p = new Date(); // use current time
+        p = new Date();
       }
-      el('loginInput').classList.remove('err');
-      el('errMsg').classList.remove('show');
-      const _hint = el('loginApHint'); if (_hint) _hint.style.display = 'none';
-      loginDate = p; wasDone = false; notifSent = false; autoStopped = false;
-      if (el('metaLogin')) el('metaLogin').textContent = short(p);
-      // Switch CTA to "Pause" combo active state
-      setCalcBtnState('running');
-      el('shiftInputRow').classList.add('active-state');
-      el('shiftActiveLabel').textContent = `Started at ${short(p)}`;
-      el('autostopBanner').classList.remove('show');
-      persistSession();
-      selectDay(todayKey()); // snap selector back to today
-      render();
-      if (ticker) clearInterval(ticker);
-      ticker = setInterval(render, 1000);
-      scheduleNotifications(loginDate.toISOString()); // schedule Web Push for this shift
+      if (isOutsideShift(p)) { showOutsideShiftModal(p); return; }
+      _startSession(p);
     }
 
     function clearLogin() {

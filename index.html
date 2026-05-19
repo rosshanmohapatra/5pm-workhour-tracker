@@ -407,11 +407,12 @@
     .rc-elapsed-label { font-size: 11px; font-weight: 600; letter-spacing: .08em;
       text-transform: uppercase; color: var(--muted-fg); margin-top: 2px; }
     .progress-wrap { display: flex; flex-direction: column; gap: 6px; }
-    .progress-track { height: 4px; background: var(--muted); border-radius: 99px; overflow: hidden; }
+    .progress-bar-row { display: flex; align-items: center; gap: 10px; }
+    .progress-track { flex: 1; height: 4px; background: var(--muted); border-radius: 99px; overflow: hidden; }
     .progress-fill { height: 100%; background: var(--foreground); border-radius: 99px;
       transition: width .8s ease; }
     .progress-fill.done { background: var(--success); }
-    .progress-label { font-size: 12px; color: var(--muted-fg); }
+    .progress-label { font-size: 20px; font-weight: 600; color: var(--muted-fg); white-space: nowrap; }
     .rc-meta { display: flex; gap: 16px; flex-wrap: wrap; }
     .rc-meta-item { font-size: 12px; color: var(--muted-fg); }
     .rc-meta-item b { color: var(--foreground); }
@@ -1414,10 +1415,12 @@
             </div>
           </div>
           <div class="progress-wrap">
-            <div class="progress-track">
-              <div class="progress-fill" id="progFill" style="width:0%"></div>
+            <div class="progress-bar-row">
+              <div class="progress-track">
+                <div class="progress-fill" id="progFill" style="width:0%"></div>
+              </div>
+              <div class="progress-label" id="progLabel"></div>
             </div>
-            <div class="progress-label" id="progLabel">Enter your login time below to begin tracking</div>
           </div>
           <div id="rcToday"></div>
           <div id="stayHint" class="stay-hint" style="display:none">

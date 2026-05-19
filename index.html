@@ -691,6 +691,10 @@
       transform: translateY(100%); transition: transform .25s cubic-bezier(.32,1,.54,1);
       max-height: 85vh; overflow-y: auto; border: 1px solid var(--border); border-bottom: none; }
     .email-modal-overlay.open .email-modal { transform: translateY(0); }
+    .center-overlay { align-items: center !important; padding: 20px; }
+    .center-overlay .email-modal { border-radius: 16px !important; border-bottom: 1px solid var(--border) !important;
+      max-width: 360px; transform: scale(.95); transition: transform .2s cubic-bezier(.32,1,.54,1), opacity .2s; }
+    .center-overlay.open .email-modal { transform: scale(1); }
     .email-modal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
     .email-modal-title { font-size: 15px; font-weight: 700; color: var(--foreground); }
     .email-modal-close { width: 30px; height: 30px; border-radius: 50%; background: var(--muted);
@@ -1457,9 +1461,12 @@
           <button type="button" class="shift-tp-btn" id="loginTpBtn" onclick="openTpModal('loginInput',event,'Log In',calculate)" title="Pick start time">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M16.5 13C17.0523 13 17.5 12.5523 17.5 12C17.5 11.4477 17.0523 11 16.5 11H13V5.5C13 4.94772 12.5523 4.5 12 4.5C11.4477 4.5 11 4.94772 11 5.5V12C11 12.5523 11.4477 13 12 13H16.5Z" fill="currentColor"/><path fill-rule="evenodd" clip-rule="evenodd" d="M12 1C5.92487 1 1 5.92487 1 12C1 18.0751 5.92487 23 12 23C18.0751 23 23 18.0751 23 12C23 5.92487 18.0751 1 12 1ZM3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12Z" fill="currentColor"/></svg>
           </button>
-          <input class="shift-combo-input" id="loginInput" type="text" inputmode="numeric"
+          <!-- Absorbs iOS/browser credential autofill away from the real input -->
+          <input type="text" autocomplete="username" tabindex="-1" aria-hidden="true" style="display:none;position:absolute;left:-9999px">
+          <input type="password" autocomplete="current-password" tabindex="-1" aria-hidden="true" style="display:none;position:absolute;left:-9999px">
+          <input class="shift-combo-input" id="loginInput" type="tel" inputmode="numeric"
             placeholder="Enter Log In Time" autocomplete="off" readonly
-            spellcheck="false" data-lpignore="true" data-form-type="other">
+            spellcheck="false" data-lpignore="true" data-form-type="other" aria-label="Login time">
           <span class="shift-combo-active-label" id="shiftActiveLabel">—</span>
           <div id="calcBtnWrap" style="position:relative;display:flex;align-items:stretch">
             <button class="shift-combo-btn" id="calcBtn">Quick Start</button>
@@ -2473,7 +2480,7 @@
   </div>
 
   <!-- Email Draft Modal -->
-  <div class="email-modal-overlay" id="outsideShiftOverlay">
+  <div class="email-modal-overlay center-overlay" id="outsideShiftOverlay">
     <div class="email-modal" style="padding:28px 20px 32px">
       <div class="email-modal-head" style="margin-bottom:8px">
         <span class="email-modal-title" style="font-size:16px">Working outside your schedule?</span>
@@ -3208,7 +3215,7 @@
           <div class="rc-io-label">Target</div>
           <div class="rc-io-val-row">
             <div class="rc-io-val" id="metaTarget">${dur(eff)}</div>
-            ${!hasCustomTarget ? `<span class="custom-target-chip">Recommended</span>` : ''}
+            ${!hasCustomTarget && cfg().recommendTimings !== false ? `<span class="custom-target-chip">Recommended</span>` : ''}
             ${hasCustomTarget  ? `<button class="rc-io-edit-btn" title="Reset to recommended" onclick="event.stopPropagation();clearTodayTarget()" style="color:var(--muted-fg)">✕</button>` : ''}
           </div>
         </div>
@@ -6110,6 +6117,7 @@ ${sig}`
     });
     el('emailModalClose').addEventListener('click', closeEmailModal);
     el('emailModalOverlay').addEventListener('click', e => { if (e.target === el('emailModalOverlay')) closeEmailModal(); });
+    el('outsideShiftOverlay').addEventListener('click', e => { if (e.target === el('outsideShiftOverlay')) closeOutsideShiftModal(); });
     el('emailCopySubjectBtn').addEventListener('click', () => {
       const inp = el('emailModalSubject');
       navigator.clipboard.writeText(inp.value).then(() => {

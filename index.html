@@ -5,7 +5,7 @@
   <!-- Apply theme before first paint to avoid flash -->
   <script>(function(){var s=localStorage.getItem('wh_theme');var p=window.matchMedia('(prefers-color-scheme:dark)').matches;if(s?s==='dark':p)document.documentElement.classList.add('dark');})()</script>
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
@@ -1092,6 +1092,8 @@
       font-family: var(--font); cursor: pointer; transition: opacity .12s;
     }
     .tp-set-btn:hover { opacity: .88; }
+    /* Hide AM/PM wheel when picker is used for duration input */
+    .tp-modal.tp-duration-mode #tpWheelAp { display: none; }
 
     /* ── Onboarding ── */
     .ob-overlay { position: fixed; inset: 0; z-index: 2000; background: rgba(0,0,0,.55);
@@ -1417,7 +1419,7 @@
             </div>
             <div class="progress-label" id="progLabel">Enter your login time below to begin tracking</div>
           </div>
-          <div id="rcToday"><div class="wk-target-row"><span class="section-label">Recommended</span><div class="wk-target-right"><span class="wk-target-val">9h 00m</span><span class="hint-sep">&nbsp;+&nbsp;</span><span class="hint-makeup">1h 00m</span></div></div></div>
+          <div id="rcToday"></div>
           <div id="stayHint" class="stay-hint" style="display:none">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M12 18.5C12.5523 18.5 13 18.0523 13 17.5L13 10.5C13 9.94772 12.5523 9.5 12 9.5C11.4477 9.5 11 9.94772 11 10.5L11 17.5C11 18.0523 11.4477 18.5 12 18.5Z" fill="currentColor"/><path d="M12 8.5C12.8284 8.5 13.5 7.82843 13.5 7C13.5 6.17157 12.8284 5.5 12 5.5C11.1716 5.5 10.5 6.17157 10.5 7C10.5 7.82843 11.1716 8.5 12 8.5Z" fill="currentColor"/><path fill-rule="evenodd" clip-rule="evenodd" d="M1 12C1 18.0751 5.92487 23 12 23C18.0751 23 23 18.0751 23 12C23 5.92487 18.0751 1 12 1C5.92487 1 1 5.92487 1 12ZM12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12C21 16.9706 16.9706 21 12 21Z" fill="currentColor"/></svg>
             <span id="stayHintText"></span>
@@ -2599,6 +2601,10 @@
     }
 
     function effSecs() {
+      // Per-day override — set from the Target chip on the Today card
+      const _tk = todayKey(), _log = dayLog(_tk) || {};
+      if (_log.todayTargetH != null) return _log.todayTargetH * 3600;
+
       const c = cfg(), daily = c.dailyH * 3600;
       if (!c.weeklyOn) return daily;
       const wk = week(), tk = todayKey();
@@ -3127,49 +3133,10 @@
 
     // ── TARGET HTML ────────────────────────────────────
     function buildTargetHtml(eff) {
-      const c = cfg();
-      const diff = eff - c.dailyH * 3600;
       const tk = todayKey();
       const log = dayLog(tk) || {};
-      const earlyTarget = log.earlyLeaveTarget || null; // user-set personal leave target
-      const leaveDate = loginDate ? new Date(loginDate.getTime() + eff * 1000) : null;
-      let rightHtml;
-      if (eff === 0) {
-        rightHtml = `<span class="hint-early">Done for the week!</span>`;
-      } else if (Math.abs(diff) < 300) {
-        rightHtml = `<span class="wk-target-val">${dur(eff)}</span>`;
-      } else if (diff < 0) {
-        rightHtml = `<span class="wk-target-val">${dur(eff)}</span><span class="hint-sep">&nbsp;—&nbsp;</span><span class="hint-early">${dur(Math.abs(diff))} saved</span>`;
-      } else {
-        const cappedDiff = Math.min(diff, 3600); // cap surplus display at +1hr above daily target
-        rightHtml = `<span class="wk-target-val">${dur(c.dailyH * 3600)}</span><span class="hint-sep">&nbsp;+&nbsp;</span><span class="hint-makeup">${dur(cappedDiff)}</span>`;
-      }
-      const inVal  = loginDate ? short(loginDate) : '—';
-      // Log Out: show personal target if set, otherwise projected leave
-      const outVal   = earlyTarget ? earlyTarget : (leaveDate ? short(leaveDate) : '—');
-      const outLabel = 'Log Out';
-
-      // Early leave target status
-      let eltStatusHtml = '';
-      if (earlyTarget && loginDate) {
-        const tgt = parse(earlyTarget);
-        if (tgt) {
-          const now = new Date();
-          const worked = Math.max(0, Math.floor((now - loginDate) / 1000)) + _sessionAccSecs;
-          const tgtSecs = Math.floor((tgt - loginDate) / 1000);
-          if (tgtSecs > 0) {
-            const surplusSecs = worked - tgtSecs;
-            if (surplusSecs >= 0) {
-              eltStatusHtml = `<span style="font-size:12px;color:var(--success);font-weight:500">You can leave now · +${dur(surplusSecs)} surplus</span>`;
-            } else {
-              const remaining = tgtSecs - worked;
-              eltStatusHtml = `<span style="font-size:12px;color:var(--blue);font-weight:500">${dur(remaining)} until target</span>`;
-            }
-          }
-        }
-      }
-
-      const clockSvg = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none"><path d="M16.5 13C17.0523 13 17.5 12.5523 17.5 12C17.5 11.4477 17.0523 11 16.5 11H13V5.5C13 4.94772 12.5523 4.5 12 4.5C11.4477 4.5 11 4.94772 11 5.5V12C11 12.5523 11.4477 13 12 13H16.5Z" fill="currentColor"/><path fill-rule="evenodd" clip-rule="evenodd" d="M12 1C5.92487 1 1 5.92487 1 12C1 18.0751 5.92487 23 12 23C18.0751 23 23 18.0751 23 12C23 5.92487 18.0751 1 12 1ZM3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12Z" fill="currentColor"/></svg>`;
+      const hasCustomTarget = log.todayTargetH != null;
+      const inVal = loginDate ? short(loginDate) : '—';
 
       const ioHtml = `<div class="rc-io-row">
         <div class="rc-io-box${loginDate ? ' editable' : ''}" id="inTimeBox" ${loginDate ? `onclick="openTpModal('inTimeEditInput',event,'Log In',()=>saveInTimeEdit())"` : ''}>
@@ -3179,22 +3146,16 @@
           </div>
           <input type="hidden" id="inTimeEditInput" value="${inVal}">
         </div>
-        <div class="rc-io-box editable" id="outTimeBox" onclick="openTpModal('outTargetEditInput',event,'Log Out',()=>saveOutTargetEdit(),${earlyTarget ? '()=>clearOutTarget()' : 'null'})">
-          <div class="rc-io-label">Log Out</div>
+        <div class="rc-io-box editable" id="outTimeBox" onclick="openDailyTargetPicker(event)">
+          <div class="rc-io-label">Target</div>
           <div class="rc-io-val-row">
-            <div class="rc-io-val" id="metaTarget">${outVal}</div>
-            ${earlyTarget ? `<span class="custom-target-chip">Custom</span>` : ''}
-            ${earlyTarget ? `<button class="rc-io-edit-btn" title="Clear target" onclick="event.stopPropagation();clearOutTarget()" style="color:var(--muted-fg)">✕</button>` : ''}
+            <div class="rc-io-val" id="metaTarget">${dur(eff)}</div>
+            ${hasCustomTarget ? `<span class="custom-target-chip">Custom</span>` : ''}
+            ${hasCustomTarget ? `<button class="rc-io-edit-btn" title="Reset to weekly target" onclick="event.stopPropagation();clearTodayTarget()" style="color:var(--muted-fg)">✕</button>` : ''}
           </div>
-          <input type="hidden" id="outTargetEditInput" value="${earlyTarget||''}">
-          ${eltStatusHtml ? `<div style="margin-top:4px">${eltStatusHtml}</div>` : ''}
         </div>
       </div>`;
-      const recDismissed = localStorage.getItem('wh_rec_ack_' + tk);
-      const recAckHtml = (!recDismissed && loginDate && eff > 0)
-        ? `<div class="rec-ack-row" id="recAckRow"><span class="rec-ack-q">Will you hit your target today?</span><div class="rec-ack-btns"><button class="rec-ack-btn yes" onclick="ackRec('yes')">Yes</button><button class="rec-ack-btn" onclick="ackRec('no')">No</button></div></div>`
-        : '';
-      return `<div class="wk-target-row"><span class="section-label">Recommended</span><div class="wk-target-right">${rightHtml}</div></div>${recAckHtml}${ioHtml}`;
+      return ioHtml;
     }
 
     function ackRec(answer) {
@@ -3237,6 +3198,7 @@
 
     // ── WHEEL TIME PICKER ────────────────────────────────
     let _tpTargetId = null, _tpCallback = null, _tpClearFn = null;
+    let _tpDurationMode = false; // true when picker is collecting a duration (h + m), not a clock time
     let _tpHIdx = 11, _tpMIdx = 0, _tpApIdx = 0;
     const TP_HOURS = ['01','02','03','04','05','06','07','08','09','10','11','12'];
     const TP_MINS  = Array.from({length:60}, (_, i) => String(i).padStart(2, '0'));
@@ -3376,6 +3338,57 @@
       setTimeout(() => document.addEventListener('mousedown', _tpOutsideClick), 10);
     }
 
+    // Opens the wheel picker in duration mode — user picks H + M for today's target
+    function openDailyTargetPicker(event) {
+      if (event) { event.stopPropagation(); event.preventDefault(); }
+      _tpDurationMode = true;
+      // Pre-fill wheels from the current effective target
+      const eff = effSecs();
+      const totalMins = Math.round(eff / 60);
+      const h = Math.max(1, Math.min(12, Math.floor(totalMins / 60)));
+      const m = Math.min(59, totalMins % 60);
+      _tpHIdx  = h - 1;   // TP_HOURS is ['01'..'12'], index 0='01'
+      _tpMIdx  = m;
+      _tpApIdx = 0;
+      _tpTargetId = null;
+      _tpCallback = null;
+      const tk = todayKey(), log = dayLog(tk) || {};
+      _tpClearFn = log.todayTargetH != null ? clearTodayTarget : null;
+      const cancelBtn = el('tpCancelBtn');
+      if (cancelBtn) cancelBtn.textContent = _tpClearFn ? 'Reset' : 'Cancel';
+      const modal = el('tpModal');
+      if (!modal) return;
+      modal.classList.add('tp-duration-mode');
+      const titleEl = el('tpModalTitle');
+      if (titleEl) titleEl.textContent = 'Target';
+      // Position near the tapped element
+      const refEl = event?.currentTarget || event?.target;
+      const refRect = refEl?.getBoundingClientRect();
+      if (refRect) {
+        const GAP = 8, mW = 256, mH = 280, pad = 8;
+        let top = refRect.bottom + GAP, left = refRect.left;
+        if (left + mW > window.innerWidth - pad) left = window.innerWidth - mW - pad;
+        if (left < pad) left = pad;
+        if (top + mH > window.innerHeight - pad) top = Math.max(pad, refRect.top - mH - GAP);
+        if (top < pad) top = pad;
+        modal.style.top = top + 'px'; modal.style.left = left + 'px';
+      }
+      _tpPopulateWheel('tpWheelH',  TP_HOURS, _tpHIdx);
+      _tpPopulateWheel('tpWheelM',  TP_MINS,  _tpMIdx);
+      _tpPopulateWheel('tpWheelAp', TP_AMPM,  _tpApIdx);
+      modal.classList.add('open');
+      setTimeout(() => document.addEventListener('mousedown', _tpOutsideClick), 10);
+    }
+
+    // Removes the per-day target override, reverting to the weekly calc
+    function clearTodayTarget() {
+      const tk = todayKey(), ex = dayLog(tk) || {};
+      const updated = { ...ex };
+      delete updated.todayTargetH;
+      saveDayLog(tk, updated);
+      if (loginDate) render(); else renderEmptyState();
+    }
+
     function _tpOutsideClick(e) {
       const modal = el('tpModal');
       if (modal && modal.classList.contains('open') && !modal.contains(e.target)) {
@@ -3387,7 +3400,8 @@
     }
 
     function closeTpModal() {
-      el('tpModal')?.classList.remove('open');
+      _tpDurationMode = false;
+      el('tpModal')?.classList.remove('open', 'tp-duration-mode');
       document.removeEventListener('mousedown', _tpOutsideClick);
       _tpTargetId = null; _tpCallback = null; _tpClearFn = null;
       const cancelBtn = el('tpCancelBtn');
@@ -3400,6 +3414,16 @@
     }
 
     function confirmTpModal() {
+      // Duration mode: save H + M as today's target hours, skip clock-time logic
+      if (_tpDurationMode) {
+        const h = _tpHIdx + 1;   // 1–12 hours
+        const m = _tpMIdx;       // 0–59 minutes
+        const tk = todayKey(), ex = dayLog(tk) || {};
+        saveDayLog(tk, { ...ex, todayTargetH: h + m / 60 });
+        closeTpModal();
+        if (loginDate) render(); else renderEmptyState();
+        return;
+      }
       if (!_tpTargetId) { closeTpModal(); return; }
       const inp = el(_tpTargetId);
       if (inp) {

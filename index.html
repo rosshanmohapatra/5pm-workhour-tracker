@@ -405,7 +405,7 @@
     .rc-rem-text { font-size: 11px; font-weight: 600; color: var(--muted-fg); letter-spacing: .06em; text-transform: uppercase; line-height: 1; }
     .rc-worked { font-size: 36px; font-weight: 700; letter-spacing: -1.5px; line-height: 1; }
     .rc-elapsed-label { font-size: 11px; font-weight: 600; letter-spacing: .08em;
-      text-transform: uppercase; color: var(--success); margin-top: 2px; }
+      text-transform: uppercase; color: var(--muted-fg); margin-top: 2px; }
     .progress-wrap { display: flex; flex-direction: column; gap: 6px; }
     .progress-track { height: 4px; background: var(--muted); border-radius: 99px; overflow: hidden; }
     .progress-fill { height: 100%; background: var(--foreground); border-radius: 99px;
@@ -1453,7 +1453,7 @@
           <button type="button" class="shift-tp-btn" id="loginTpBtn" onclick="openTpModal('loginInput',event)" title="Pick start time">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M16.5 13C17.0523 13 17.5 12.5523 17.5 12C17.5 11.4477 17.0523 11 16.5 11H13V5.5C13 4.94772 12.5523 4.5 12 4.5C11.4477 4.5 11 4.94772 11 5.5V12C11 12.5523 11.4477 13 12 13H16.5Z" fill="currentColor"/><path fill-rule="evenodd" clip-rule="evenodd" d="M12 1C5.92487 1 1 5.92487 1 12C1 18.0751 5.92487 23 12 23C18.0751 23 23 18.0751 23 12C23 5.92487 18.0751 1 12 1ZM3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12Z" fill="currentColor"/></svg>
           </button>
-          <input class="shift-combo-input" id="loginInput" type="text" placeholder="Enter Time" autocomplete="off" spellcheck="false">
+          <input class="shift-combo-input" id="loginInput" type="text" placeholder="Enter Log In Time" autocomplete="off" spellcheck="false">
           <span class="shift-combo-active-label" id="shiftActiveLabel">—</span>
           <div id="calcBtnWrap" style="position:relative;display:flex;align-items:stretch">
             <button class="shift-combo-btn" id="calcBtn">Quick Start</button>
@@ -3717,7 +3717,6 @@
       const now = new Date(), eff = effSecs();
       const worked  = Math.max(0, Math.floor((now - loginDate) / 1000)) + _sessionAccSecs;
       el('rcElapsedLabel').textContent = 'Elapsed';
-      el('rcElapsedLabel').style.color = '';
       if (Math.floor(Date.now()/1000) % 30 === 0) persistSession(); // every 30s
       const isDone  = eff > 0 && worked >= eff;
       const leaveDate = new Date(loginDate.getTime() + eff * 1000);
@@ -4375,6 +4374,11 @@
         btn.textContent = 'Quick Start';
         wrap?.classList.remove('split-btn-wrap');
         if (chev) chev.style.display = 'none';
+        // "Enter" on first use, "Update" once today already has a session
+        const loginInp = el('loginInput');
+        if (loginInp) loginInp.placeholder = dayLog(todayKey())?.loginTime
+          ? 'Update Log In Time'
+          : 'Enter Log In Time';
       }
     }
 

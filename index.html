@@ -2644,7 +2644,7 @@
       if (_log.todayTargetH != null) return _log.todayTargetH * 3600;
 
       const c = cfg(), daily = c.dailyH * 3600;
-      if (!c.weeklyOn) return daily;
+      if (!c.weeklyOn || c.recommendTimings === false) return daily;
       const wk = week(), tk = todayKey();
       const target = adjustedWeeklyTarget(wk);
       let before = 0, rem = 0, pastToday = false;

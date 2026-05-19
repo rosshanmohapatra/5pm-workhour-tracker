@@ -3761,7 +3761,7 @@
       el('progFill').classList.toggle('done', isDone);
       el('progLabel').textContent = isDone
         ? `Target reached · ${dur(worked)} logged`
-        : `${Math.floor(pct)}% (${dur(worked)})`;
+        : `${Math.floor(pct)}%`;
 
       el('rcToday').innerHTML = buildTargetHtml(eff);
 

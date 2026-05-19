@@ -368,10 +368,9 @@
       flex-shrink: 0; }
     .shift-combo-active-label { flex: 1; font-size: 13px; font-weight: 500;
       color: var(--muted-fg); display: none; }
-    .shift-combo.active-state .shift-combo-input { display: none; }
     .shift-combo.active-state .shift-combo-active-label { display: none; }
-    .shift-combo-login-label { flex: 1; font-size: 15px; color: var(--muted-fg); cursor: pointer;
-      padding: 0 2px; user-select: none; }
+    .login-ap-hint { font-size: 11px; font-weight: 500; color: var(--warning, #f59e0b);
+      padding: 2px 4px; display: none; }
     .shift-resume-row { display: flex; gap: 8px; }
     .shift-resume-btn { flex: 1; height: 40px; border-radius: 10px; border: 1.5px solid var(--success-border);
       background: var(--success-bg); color: var(--success); font-size: 13px; font-weight: 600;
@@ -1458,8 +1457,9 @@
           <button type="button" class="shift-tp-btn" id="loginTpBtn" onclick="openTpModal('loginInput',event,'Log In',calculate)" title="Pick start time">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M16.5 13C17.0523 13 17.5 12.5523 17.5 12C17.5 11.4477 17.0523 11 16.5 11H13V5.5C13 4.94772 12.5523 4.5 12 4.5C11.4477 4.5 11 4.94772 11 5.5V12C11 12.5523 11.4477 13 12 13H16.5Z" fill="currentColor"/><path fill-rule="evenodd" clip-rule="evenodd" d="M12 1C5.92487 1 1 5.92487 1 12C1 18.0751 5.92487 23 12 23C18.0751 23 23 18.0751 23 12C23 5.92487 18.0751 1 12 1ZM3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12Z" fill="currentColor"/></svg>
           </button>
-          <input type="hidden" id="loginInput">
-          <div class="shift-combo-login-label" id="loginLabel" onclick="openTpModal('loginInput',event,'Log In',calculate)">Enter Log In Time</div>
+          <input class="shift-combo-input" id="loginInput" type="text" inputmode="numeric"
+            placeholder="Enter Log In Time" autocomplete="off" readonly
+            spellcheck="false" data-lpignore="true" data-form-type="other">
           <span class="shift-combo-active-label" id="shiftActiveLabel">—</span>
           <div id="calcBtnWrap" style="position:relative;display:flex;align-items:stretch">
             <button class="shift-combo-btn" id="calcBtn">Quick Start</button>
@@ -1480,6 +1480,7 @@
           <button class="shift-resume-btn" id="resumeBtn">Resume</button>
         </div>
         <div class="err-msg" id="errMsg">Couldn't parse that. Try: 11:30, 1130, 11:30 AM, or 13:30</div>
+        <div class="login-ap-hint" id="loginApHint"></div>
       </div>
 
 
@@ -2689,6 +2690,18 @@
       if (ap) { if (ap === 'PM' && h !== 12) h += 12; if (ap === 'AM' && h === 12) h = 0; }
       if (h > 23 || m > 59 || s > 59) return null;
       const d = new Date(); d.setHours(h, m, s, 0); return d;
+    }
+    function shiftDefaultAP() {
+      return (cfg().shiftStart || '09:00 AM').toUpperCase().includes('PM') ? 'PM' : 'AM';
+    }
+    function parseLogin(raw) {
+      const s = raw.trim().toUpperCase().replace(/\s+/g, ' ');
+      if (s.includes('AM') || s.includes('PM')) return parse(raw);
+      const d = parse(raw);
+      if (!d) return null;
+      const h = d.getHours();
+      if (h === 0 || h === 12 || h > 12) return d; // midnight, noon, or unambiguous 24h
+      return parse(raw + ' ' + shiftDefaultAP());
     }
 
     // ── NOTIFY (in-tab fallback) ────────────────────────
@@ -4372,19 +4385,20 @@
         btn.textContent = 'Pause'; btn.classList.add('pause-shift');
         wrap?.classList.add('split-btn-wrap');
         if (chev) { chev.style.display = ''; chev.className = 'split-chevron-btn pause-shift-chev'; }
-        const loginLabelR = el('loginLabel');
-        if (loginLabelR) loginLabelR.textContent = 'Update Log In Time';
+        const loginInpR = el('loginInput');
+        if (loginInpR) { loginInpR.value = ''; loginInpR.placeholder = 'Update Log In Time'; }
       } else if (state === 'ended') {
         btn.textContent = 'Resume'; btn.classList.add('resume-shift');
         wrap?.classList.add('split-btn-wrap');
         if (chev) { chev.style.display = ''; chev.className = 'split-chevron-btn resume-shift-chev'; }
+        const loginInpE = el('loginInput');
+        if (loginInpE) loginInpE.placeholder = 'Update Log In Time';
       } else { // 'start' — plain full-width button, no split styling
         btn.textContent = 'Quick Start';
         wrap?.classList.remove('split-btn-wrap');
         if (chev) chev.style.display = 'none';
-        // "Enter" on first use, "Update" once today already has a session
-        const loginLabel = el('loginLabel');
-        if (loginLabel) loginLabel.textContent = dayLog(todayKey())?.loginTime
+        const loginInp = el('loginInput');
+        if (loginInp) loginInp.placeholder = dayLog(todayKey())?.loginTime
           ? 'Update Log In Time'
           : 'Enter Log In Time';
       }
@@ -4394,7 +4408,7 @@
       const raw = el('loginInput').value.trim();
       let p;
       if (raw) {
-        p = parse(raw);
+        p = parseLogin(raw);
         if (!p) { showErr("Couldn't parse that. Try: 11:30, 1130, 11:30 AM, or 13:30"); return; }
         if (p > new Date()) { showErr("That time hasn't happened yet — custom time can't be in the future."); return; }
       } else {
@@ -4402,6 +4416,7 @@
       }
       el('loginInput').classList.remove('err');
       el('errMsg').classList.remove('show');
+      const _hint = el('loginApHint'); if (_hint) _hint.style.display = 'none';
       loginDate = p; wasDone = false; notifSent = false; autoStopped = false;
       if (el('metaLogin')) el('metaLogin').textContent = short(p);
       // Switch CTA to "Pause" combo active state
@@ -6097,10 +6112,28 @@ ${sig}`
         el('outTargetEditWrap')?.classList.remove('open');
       }
     });
+    // Remove readonly on first interaction so iOS doesn't offer autofill
+    el('loginInput').addEventListener('focus', () => el('loginInput').removeAttribute('readonly'));
+    el('loginInput').addEventListener('touchstart', () => {
+      el('loginInput').removeAttribute('readonly'); el('loginInput').focus();
+    }, { passive: true });
     el('loginInput').addEventListener('keydown', e => { if (e.key === 'Enter') calculate(); });
     el('loginInput').addEventListener('input', () => {
       el('loginInput').classList.remove('err');
       el('errMsg').classList.remove('show');
+      // Show hint if entered AP conflicts with shift default
+      const raw = el('loginInput').value.trim().toUpperCase();
+      const hint = el('loginApHint');
+      if (hint) {
+        const defAP = shiftDefaultAP();
+        const enteredAP = raw.includes('PM') ? 'PM' : raw.includes('AM') ? 'AM' : null;
+        if (enteredAP && enteredAP !== defAP) {
+          hint.textContent = `Your shift begins at ${cfg().shiftStart || '09:00 AM'}`;
+          hint.style.display = '';
+        } else {
+          hint.style.display = 'none';
+        }
+      }
     });
     el('loginInput').addEventListener('blur', () => {
       el('loginInput').classList.remove('err');

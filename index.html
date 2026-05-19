@@ -684,8 +684,10 @@
     /* Email modal */
     .email-modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.5);
       display: flex; align-items: flex-end; justify-content: center;
-      z-index: 1000; opacity: 0; pointer-events: none; transition: opacity .2s; }
-    .email-modal-overlay.open { opacity: 1; pointer-events: all; }
+      z-index: 1000; opacity: 0; pointer-events: none; visibility: hidden;
+      transition: opacity .2s, visibility 0s .2s; }
+    .email-modal-overlay.open { opacity: 1; pointer-events: all; visibility: visible;
+      transition: opacity .2s, visibility 0s 0s; }
     .email-modal { background: var(--card); border-radius: 18px 18px 0 0;
       width: 100%; max-width: 480px; padding: 24px 20px 32px;
       transform: translateY(100%); transition: transform .25s cubic-bezier(.32,1,.54,1);
@@ -1461,11 +1463,8 @@
           <button type="button" class="shift-tp-btn" id="loginTpBtn" onclick="openTpModal('loginInput',event,'Log In',calculate)" title="Pick start time">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M16.5 13C17.0523 13 17.5 12.5523 17.5 12C17.5 11.4477 17.0523 11 16.5 11H13V5.5C13 4.94772 12.5523 4.5 12 4.5C11.4477 4.5 11 4.94772 11 5.5V12C11 12.5523 11.4477 13 12 13H16.5Z" fill="currentColor"/><path fill-rule="evenodd" clip-rule="evenodd" d="M12 1C5.92487 1 1 5.92487 1 12C1 18.0751 5.92487 23 12 23C18.0751 23 23 18.0751 23 12C23 5.92487 18.0751 1 12 1ZM3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12Z" fill="currentColor"/></svg>
           </button>
-          <!-- Absorbs iOS/browser credential autofill away from the real input -->
-          <input type="text" autocomplete="username" tabindex="-1" aria-hidden="true" style="display:none;position:absolute;left:-9999px">
-          <input type="password" autocomplete="current-password" tabindex="-1" aria-hidden="true" style="display:none;position:absolute;left:-9999px">
           <input class="shift-combo-input" id="loginInput" type="tel" inputmode="numeric"
-            placeholder="Enter Log In Time" autocomplete="off" readonly
+            placeholder="Enter Log In Time" autocomplete="one-time-code" readonly
             spellcheck="false" data-lpignore="true" data-form-type="other" aria-label="Login time">
           <span class="shift-combo-active-label" id="shiftActiveLabel">—</span>
           <div id="calcBtnWrap" style="position:relative;display:flex;align-items:stretch">
@@ -6214,11 +6213,8 @@ ${sig}`
         el('outTargetEditWrap')?.classList.remove('open');
       }
     });
-    // Remove readonly on first interaction so iOS doesn't offer autofill
+    // Remove readonly on focus — prevents autofill on initial render without disrupting touch chain
     el('loginInput').addEventListener('focus', () => el('loginInput').removeAttribute('readonly'));
-    el('loginInput').addEventListener('touchstart', () => {
-      el('loginInput').removeAttribute('readonly'); el('loginInput').focus();
-    }, { passive: true });
     el('loginInput').addEventListener('keydown', e => { if (e.key === 'Enter') calculate(); });
     el('loginInput').addEventListener('input', () => {
       el('loginInput').classList.remove('err');

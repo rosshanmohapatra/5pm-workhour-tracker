@@ -369,9 +369,7 @@
     .shift-combo-active-label { flex: 1; font-size: 13px; font-weight: 500;
       color: var(--muted-fg); display: none; }
     .shift-combo.active-state .shift-combo-input { display: none; }
-    .shift-combo.active-state .shift-combo-active-label { display: block; }
-    .shift-combo.active-state .shift-combo-login-label { display: none; }
-    .shift-combo.active-state .shift-tp-btn { display: none; }
+    .shift-combo.active-state .shift-combo-active-label { display: none; }
     .shift-combo-login-label { flex: 1; font-size: 15px; color: var(--muted-fg); cursor: pointer;
       padding: 0 2px; user-select: none; }
     .shift-resume-row { display: flex; gap: 8px; }
@@ -4374,6 +4372,8 @@
         btn.textContent = 'Pause'; btn.classList.add('pause-shift');
         wrap?.classList.add('split-btn-wrap');
         if (chev) { chev.style.display = ''; chev.className = 'split-chevron-btn pause-shift-chev'; }
+        const loginLabelR = el('loginLabel');
+        if (loginLabelR) loginLabelR.textContent = 'Update Log In Time';
       } else if (state === 'ended') {
         btn.textContent = 'Resume'; btn.classList.add('resume-shift');
         wrap?.classList.add('split-btn-wrap');

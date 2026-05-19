@@ -1773,33 +1773,48 @@
             </div>
             <input type="hidden" id="inpWorkDays" value="5">
 
-            <!-- Leave Early Plan (multi-select) -->
-            <div class="target-day-block">
-              <div class="target-day-head">
-                <div class="form-label">Leave Early</div>
-                <div class="form-sub">Days you're likely to leave early.</div>
+            <!-- Recommend Timings Toggle -->
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;cursor:pointer" onclick="el('inpRecommendTimings').click()">
+              <div>
+                <div class="form-label">Recommend Timings</div>
+                <div class="form-sub">Suggests when to stay late or leave early to hit your weekly target.</div>
               </div>
-              <div class="target-day-picker" id="targetDayPicker">
-                <button type="button" class="plan-btn" data-tday="1">Monday</button>
-                <button type="button" class="plan-btn" data-tday="2">Tuesday</button>
-                <button type="button" class="plan-btn" data-tday="3">Wednesday</button>
-                <button type="button" class="plan-btn" data-tday="4">Thursday</button>
-                <button type="button" class="plan-btn" data-tday="5">Friday</button>
-              </div>
+              <label class="toggle" onclick="event.stopPropagation()">
+                <input type="checkbox" id="inpRecommendTimings" checked onchange="onRecommendTimingsChange(this.checked)">
+                <span class="toggle-track"></span>
+              </label>
             </div>
 
-            <!-- Stay Late Plans (multi-select) -->
-            <div class="target-day-block">
-              <div class="target-day-head">
-                <div class="form-label">Stay Late</div>
-                <div class="form-sub">Days you're likely to stay late.</div>
+            <!-- Leave Early + Stay Late (hidden when Recommend Timings is off) -->
+            <div id="recommendTimingsBlock">
+              <!-- Leave Early Plan (multi-select) -->
+              <div class="target-day-block">
+                <div class="target-day-head">
+                  <div class="form-label">Leave Early</div>
+                  <div class="form-sub">Days you're likely to leave early.</div>
+                </div>
+                <div class="target-day-picker" id="targetDayPicker">
+                  <button type="button" class="plan-btn" data-tday="1">Monday</button>
+                  <button type="button" class="plan-btn" data-tday="2">Tuesday</button>
+                  <button type="button" class="plan-btn" data-tday="3">Wednesday</button>
+                  <button type="button" class="plan-btn" data-tday="4">Thursday</button>
+                  <button type="button" class="plan-btn" data-tday="5">Friday</button>
+                </div>
               </div>
-              <div class="target-day-picker" id="dayPicker">
-                <button type="button" class="plan-btn" data-sday="0">Monday</button>
-                <button type="button" class="plan-btn selected" data-sday="1">Tuesday</button>
-                <button type="button" class="plan-btn" data-sday="2">Wednesday</button>
-                <button type="button" class="plan-btn selected" data-sday="3">Thursday</button>
-                <button type="button" class="plan-btn" data-sday="4">Friday</button>
+
+              <!-- Stay Late Plans (multi-select) -->
+              <div class="target-day-block">
+                <div class="target-day-head">
+                  <div class="form-label">Stay Late</div>
+                  <div class="form-sub">Days you're likely to stay late.</div>
+                </div>
+                <div class="target-day-picker" id="dayPicker">
+                  <button type="button" class="plan-btn" data-sday="0">Monday</button>
+                  <button type="button" class="plan-btn selected" data-sday="1">Tuesday</button>
+                  <button type="button" class="plan-btn" data-sday="2">Wednesday</button>
+                  <button type="button" class="plan-btn selected" data-sday="3">Thursday</button>
+                  <button type="button" class="plan-btn" data-sday="4">Friday</button>
+                </div>
               </div>
             </div>
 
@@ -2418,13 +2433,15 @@
       <div class="dialog-body">
         <div id="wpDayRows"></div>
         <div style="height:1px;background:var(--border);margin:4px 0 12px"></div>
-        <div class="form-field">
-          <div class="form-label" style="font-size:12px">Early Leave</div>
-          <div class="target-day-picker" id="wpTargetDay" style="margin-top:6px"></div>
-        </div>
-        <div class="form-field" style="margin-top:12px">
-          <div class="form-label" style="font-size:12px">Stay Late</div>
-          <div class="target-day-picker" id="wpLateDays" style="margin-top:6px"></div>
+        <div id="wpRecommendBlock">
+          <div class="form-field">
+            <div class="form-label" style="font-size:12px">Early Leave</div>
+            <div class="target-day-picker" id="wpTargetDay" style="margin-top:6px"></div>
+          </div>
+          <div class="form-field" style="margin-top:12px">
+            <div class="form-label" style="font-size:12px">Stay Late</div>
+            <div class="target-day-picker" id="wpLateDays" style="margin-top:6px"></div>
+          </div>
         </div>
       </div>
       <div class="dialog-foot">
@@ -2541,7 +2558,7 @@
     }
 
     // ── CONFIG ─────────────────────────────────────────
-    const CFG_DEF = { dailyH:9, weeklyH:45, weeklyOn:true, lateDays:[], earlyLeaveEntries:[], lateEntries:[], notifOn:false, notifTarget:true, notifKickstart:true, notifOvertime:true, name:'', position:'', targetDay:null, autoStopBuf:0.5, tzOffset:330, shiftType:'morning', workDays:5 };
+    const CFG_DEF = { dailyH:9, weeklyH:45, weeklyOn:true, lateDays:[], earlyLeaveEntries:[], lateEntries:[], notifOn:false, notifTarget:true, notifKickstart:true, notifOvertime:true, name:'', position:'', targetDay:null, autoStopBuf:0.5, tzOffset:330, shiftType:'morning', workDays:5, recommendTimings:true };
     function cfg() { const r=Store.getCfg(); return r?{...CFG_DEF,...r}:{...CFG_DEF}; }
 
     // ── ANON USER ID (persists across sessions, used as push subscription key) ──
@@ -3599,6 +3616,7 @@
     // ── STAY HINT (Recommended action for target day) ──
     function buildStayHint() {
       const c = cfg();
+      if (!c.recommendTimings) return null;
       if (!c.weeklyOn || !loginDate) return null;
       const wk = week(), tk = todayKey();
       const todayIdx = wk.findIndex(d => d.key === tk);
@@ -4524,6 +4542,10 @@
       const _nsg = el('notifSubGroup');
       if (_nsg && c.notifOn) { _nsg.style.maxHeight = '400px'; _nsg.style.opacity = '1'; _nsg.style.pointerEvents = ''; }
       const satToggle = el('inpIncludeSat'); if (satToggle) satToggle.checked = (c.workDays === 6);
+      const recToggle = el('inpRecommendTimings');
+      if (recToggle) { recToggle.checked = c.recommendTimings !== false; }
+      const recBlock = el('recommendTimingsBlock');
+      if (recBlock) recBlock.style.display = c.recommendTimings !== false ? '' : 'none';
       el('pcTabDaily')?.classList.toggle('active', !c.weeklyOn);
       el('pcTabWeekly')?.classList.toggle('active', !!c.weeklyOn);
       switchStTab(c.weeklyOn ? 'weekly' : 'daily');
@@ -4612,6 +4634,20 @@
       el('inpWeeklyM').value = wm;
     }
 
+    function onRecommendTimingsChange(checked) {
+      autoSaveSettings();
+      const recBlock = el('recommendTimingsBlock');
+      if (recBlock) recBlock.style.display = checked ? '' : 'none';
+      const wpBlock = el('wpRecommendBlock');
+      if (wpBlock) wpBlock.style.display = checked ? '' : 'none';
+      const npLate = el('npStayLate');
+      if (npLate) npLate.style.display = checked ? '' : 'none';
+      const npEarly = el('npEarlyLeave');
+      if (npEarly) npEarly.style.display = checked ? '' : 'none';
+      // Re-render to hide/show stayHint
+      if (loginDate) render(); else renderEmptyState();
+    }
+
     function toggleIncludeSaturday(checked) {
       const n = checked ? 6 : 5;
       const inp = el('inpWorkDays'); if (inp) inp.value = n;
@@ -4673,8 +4709,9 @@
       const shiftType  = deriveShiftType(shiftStart);
       const now = nowTz();
       const workDays = parseInt(el('inpWorkDays')?.value || '5', 10) || 5;
+      const recommendTimings = el('inpRecommendTimings')?.checked ?? true;
       saveCfg({ dailyH: daily, weeklyH, weeklyOn: on, lateDays, earlyLeaveDays, notifOn, notifTarget, notifKickstart, notifOvertime, name, position,
-                targetDay, shiftType, shiftStart, shiftEnd, tzOffset, workDays,
+                targetDay, shiftType, shiftStart, shiftEnd, tzOffset, workDays, recommendTimings,
                 autoStopBuf: cfg().autoStopBuf || 0.5 });
       renderDaySelector(); // refresh strip in case work-days changed
       updateWeeklyCalc();
@@ -5371,6 +5408,10 @@ ${sig}`
       el('npLeaveAt').textContent     = '—';
       el('npHoursLeft').textContent   = '—';
       el('npErr').classList.remove('show');
+      // Apply recommend timings: hide Early Leave + Stay Late chips when disabled
+      const rec = cfg().recommendTimings !== false;
+      el('npEarlyLeave').style.display = rec ? '' : 'none';
+      el('npStayLate').style.display   = rec ? '' : 'none';
       el('newPlanOverlay').classList.add('open');
     }
 
@@ -5847,6 +5888,10 @@ ${sig}`
         btn.addEventListener('click', () => btn.classList.toggle('selected'));
       });
 
+      // Apply recommend timings visibility
+      const rec = cfg().recommendTimings !== false;
+      const wpBlock = el('wpRecommendBlock');
+      if (wpBlock) wpBlock.style.display = rec ? '' : 'none';
       el('weekPlanOverlay').classList.add('open');
     }
 

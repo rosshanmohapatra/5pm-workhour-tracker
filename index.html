@@ -1102,6 +1102,20 @@
     .tp-set-btn:hover { opacity: .88; }
     /* Hide AM/PM wheel when picker is used for duration input */
     .tp-modal.tp-duration-mode #tpWheelAp { display: none; }
+    /* Tab bar inside wheel time picker */
+    .tp-tab-bar { display:flex; border-bottom:1px solid var(--border); }
+    .tp-tab {
+      flex:1; height:36px; background:transparent; border:none;
+      border-bottom:2px solid transparent; margin-bottom:-1px;
+      color:var(--muted-fg); font-size:12px; font-weight:600;
+      font-family:var(--font); cursor:pointer; letter-spacing:.03em;
+      transition:color .12s, border-color .12s;
+    }
+    .tp-tab.active { color:var(--foreground); border-bottom-color:var(--foreground); }
+    /* Duration display in Today card */
+    .rc-io-duration { display:flex; align-items:center; gap:4px; flex-wrap:nowrap; }
+    .rc-io-duration .rc-io-val { font-size:13px; }
+    .rc-io-duration-arrow { color:var(--muted-fg); flex-shrink:0; display:flex; align-items:center; }
 
     /* ── Onboarding ── */
     .ob-overlay { position: fixed; inset: 0; z-index: 2000; background: rgba(0,0,0,.55);
@@ -1464,7 +1478,7 @@
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M16.5 13C17.0523 13 17.5 12.5523 17.5 12C17.5 11.4477 17.0523 11 16.5 11H13V5.5C13 4.94772 12.5523 4.5 12 4.5C11.4477 4.5 11 4.94772 11 5.5V12C11 12.5523 11.4477 13 12 13H16.5Z" fill="currentColor"/><path fill-rule="evenodd" clip-rule="evenodd" d="M12 1C5.92487 1 1 5.92487 1 12C1 18.0751 5.92487 23 12 23C18.0751 23 23 18.0751 23 12C23 5.92487 18.0751 1 12 1ZM3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12Z" fill="currentColor"/></svg>
           </button>
           <input class="shift-combo-input" id="loginInput" type="tel" inputmode="numeric"
-            name="search_login_time" placeholder="Enter Log In Time"
+            name="f-t9x2" placeholder="Enter Log In Time"
             autocomplete="one-time-code" readonly
             spellcheck="false" data-lpignore="true" data-form-type="other" aria-label="Login time">
           <span class="shift-combo-active-label" id="shiftActiveLabel">—</span>
@@ -2287,6 +2301,10 @@
   <div id="tpModal" class="tp-modal">
     <div class="tp-modal-header">
       <span class="tp-modal-title" id="tpModalTitle">Set Time</span>
+    </div>
+    <div id="tpTabBar" class="tp-tab-bar" style="display:none">
+      <button class="tp-tab" id="tpTabLogin" onclick="_tpSwitchTab('login')">Login</button>
+      <button class="tp-tab" id="tpTabLogout" onclick="_tpSwitchTab('logout')">Logout</button>
     </div>
     <div class="tp-wheels-wrap">
       <div class="tp-wheels">
@@ -3203,14 +3221,39 @@
       const hasCustomTarget = log.todayTargetH != null;
       const inVal = loginDate ? short(loginDate) : '—';
 
-      const ioHtml = `<div class="rc-io-row">
-        <div class="rc-io-box${loginDate ? ' editable' : ''}" id="inTimeBox" ${loginDate ? `onclick="openTpModal('inTimeEditInput',event,'Log In',()=>saveInTimeEdit())"` : ''}>
-          <div class="rc-io-label">Log In</div>
+      // Duration card (active session) — shows "LoginTime → LogoutTime", opens tab picker
+      let leftCardHtml;
+      if (loginDate) {
+        const logoutDate = new Date(loginDate.getTime() + eff * 1000);
+        const outVal = short(logoutDate);
+        leftCardHtml = `
+        <div class="rc-io-box editable" id="inTimeBox" onclick="openLoginLogoutPicker(event)">
+          <div class="rc-io-label">Duration</div>
           <div class="rc-io-val-row">
-            <div class="rc-io-val" id="metaLogin">${inVal}</div>
+            <div class="rc-io-duration">
+              <span class="rc-io-val" id="metaLogin">${inVal}</span>
+              <span class="rc-io-duration-arrow">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none"><path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </span>
+              <span class="rc-io-val" id="metaLogout">${outVal}</span>
+            </div>
           </div>
           <input type="hidden" id="inTimeEditInput" value="${inVal}">
-        </div>
+        </div>`;
+      } else {
+        // No active session — plain Log In card
+        leftCardHtml = `
+        <div class="rc-io-box" id="inTimeBox">
+          <div class="rc-io-label">Log In</div>
+          <div class="rc-io-val-row">
+            <div class="rc-io-val" id="metaLogin">—</div>
+          </div>
+          <input type="hidden" id="inTimeEditInput" value="—">
+        </div>`;
+      }
+
+      const ioHtml = `<div class="rc-io-row">
+        ${leftCardHtml}
         <div class="rc-io-box editable" id="outTimeBox" onclick="openDailyTargetPicker(event)">
           <div class="rc-io-label">Target</div>
           <div class="rc-io-val-row">
@@ -3264,6 +3307,10 @@
     // ── WHEEL TIME PICKER ────────────────────────────────
     let _tpTargetId = null, _tpCallback = null, _tpClearFn = null;
     let _tpDurationMode = false; // true when picker is collecting a duration (h + m), not a clock time
+    let _tpTabMode = false;      // true when picker has Login/Logout tabs
+    let _tpActiveTab = 'login';  // 'login' | 'logout'
+    let _tpLoginState  = { h: 11, m: 0, ap: 0 };
+    let _tpLogoutState = { h: 11, m: 0, ap: 1 };
     let _tpHIdx = 11, _tpMIdx = 0, _tpApIdx = 0;
     const TP_HOURS = ['01','02','03','04','05','06','07','08','09','10','11','12'];
     const TP_MINS  = Array.from({length:60}, (_, i) => String(i).padStart(2, '0'));
@@ -3445,6 +3492,82 @@
       setTimeout(() => document.addEventListener('mousedown', _tpOutsideClick), 10);
     }
 
+    // Opens tpModal with Login/Logout tabs for the Duration card
+    function openLoginLogoutPicker(event) {
+      if (!loginDate) return;
+      if (event) { event.stopPropagation(); event.preventDefault(); }
+      _tpTabMode = true;
+      _tpDurationMode = false;
+      _tpActiveTab = 'login';
+      _tpTargetId = null; _tpCallback = null; _tpClearFn = null;
+
+      // Pre-fill login wheels
+      const lH = loginDate.getHours(), lM = loginDate.getMinutes();
+      _tpLoginState = { h: (lH % 12 || 12) - 1, m: lM, ap: lH >= 12 ? 1 : 0 };
+
+      // Pre-fill logout wheels (login + today's effective target)
+      const logoutDate = new Date(loginDate.getTime() + effSecs() * 1000);
+      const loH = logoutDate.getHours(), loM = logoutDate.getMinutes();
+      _tpLogoutState = { h: (loH % 12 || 12) - 1, m: loM, ap: loH >= 12 ? 1 : 0 };
+
+      // Start on login tab
+      _tpHIdx = _tpLoginState.h; _tpMIdx = _tpLoginState.m; _tpApIdx = _tpLoginState.ap;
+
+      // Show tab bar, mark login active
+      const tabBar = el('tpTabBar');
+      if (tabBar) tabBar.style.display = 'flex';
+      el('tpTabLogin')?.classList.add('active');
+      el('tpTabLogout')?.classList.remove('active');
+
+      const modal = el('tpModal');
+      if (!modal) return;
+      const titleEl = el('tpModalTitle');
+      if (titleEl) titleEl.textContent = 'Log In';
+      const cancelBtn = el('tpCancelBtn');
+      if (cancelBtn) cancelBtn.textContent = 'Cancel';
+
+      const refEl = event?.currentTarget || event?.target;
+      const refRect = refEl?.getBoundingClientRect();
+      if (refRect) {
+        const GAP = 8, mW = 256, mH = 330, pad = 8;
+        let top = refRect.bottom + GAP, left = refRect.left;
+        if (left + mW > window.innerWidth - pad) left = window.innerWidth - mW - pad;
+        if (left < pad) left = pad;
+        if (top + mH > window.innerHeight - pad) top = Math.max(pad, refRect.top - mH - GAP);
+        if (top < pad) top = pad;
+        modal.style.top = top + 'px'; modal.style.left = left + 'px';
+      }
+      _tpPopulateWheel('tpWheelH',  TP_HOURS, _tpHIdx);
+      _tpPopulateWheel('tpWheelM',  TP_MINS,  _tpMIdx);
+      _tpPopulateWheel('tpWheelAp', TP_AMPM,  _tpApIdx);
+      modal.classList.add('open');
+      setTimeout(() => document.addEventListener('mousedown', _tpOutsideClick), 10);
+    }
+
+    // Switches between Login and Logout tabs in tab-mode picker
+    function _tpSwitchTab(tab) {
+      if (!_tpTabMode || _tpActiveTab === tab) return;
+      // Save current tab's wheel state
+      if (_tpActiveTab === 'login') {
+        _tpLoginState = { h: _tpHIdx, m: _tpMIdx, ap: _tpApIdx };
+      } else {
+        _tpLogoutState = { h: _tpHIdx, m: _tpMIdx, ap: _tpApIdx };
+      }
+      _tpActiveTab = tab;
+      // Load the other tab's state
+      const st = tab === 'login' ? _tpLoginState : _tpLogoutState;
+      _tpHIdx = st.h; _tpMIdx = st.m; _tpApIdx = st.ap;
+      // Update tab buttons + title
+      el('tpTabLogin')?.classList.toggle('active',  tab === 'login');
+      el('tpTabLogout')?.classList.toggle('active', tab === 'logout');
+      const titleEl = el('tpModalTitle');
+      if (titleEl) titleEl.textContent = tab === 'login' ? 'Log In' : 'Log Out';
+      // Re-populate wheels
+      _tpPopulateWheel('tpWheelH',  TP_HOURS, _tpHIdx);
+      _tpPopulateWheel('tpWheelM',  TP_MINS,  _tpMIdx);
+      _tpPopulateWheel('tpWheelAp', TP_AMPM,  _tpApIdx);
+    }
+
     // Removes the per-day target override, reverting to the weekly calc
     function clearTodayTarget() {
       const tk = todayKey(), ex = dayLog(tk) || {};
@@ -3466,11 +3589,17 @@
 
     function closeTpModal() {
       _tpDurationMode = false;
+      _tpTabMode = false;
+      _tpActiveTab = 'login';
       el('tpModal')?.classList.remove('open', 'tp-duration-mode');
       document.removeEventListener('mousedown', _tpOutsideClick);
       _tpTargetId = null; _tpCallback = null; _tpClearFn = null;
       const cancelBtn = el('tpCancelBtn');
       if (cancelBtn) cancelBtn.textContent = 'Cancel';
+      const tabBar = el('tpTabBar');
+      if (tabBar) tabBar.style.display = 'none';
+      el('tpTabLogin')?.classList.remove('active');
+      el('tpTabLogout')?.classList.remove('active');
     }
 
     function cancelOrClearTpModal() {
@@ -3479,6 +3608,49 @@
     }
 
     function confirmTpModal() {
+      // Tab mode: Login + Logout tabs → update login time + derive new target
+      if (_tpTabMode) {
+        // Flush current tab's wheel state
+        if (_tpActiveTab === 'login') _tpLoginState  = { h: _tpHIdx, m: _tpMIdx, ap: _tpApIdx };
+        else                          _tpLogoutState = { h: _tpHIdx, m: _tpMIdx, ap: _tpApIdx };
+
+        function _stateToDate(st) {
+          const h = st.h + 1, m = st.m, ap = TP_AMPM[st.ap];
+          const h24 = ap === 'PM' ? (h === 12 ? 12 : h + 12) : (h === 12 ? 0 : h);
+          const d = new Date(); d.setHours(h24, m, 0, 0); return d;
+        }
+        const newLogin  = _stateToDate(_tpLoginState);
+        const newLogout = _stateToDate(_tpLogoutState);
+
+        // Handle overnight (logout < login → add one day to logout)
+        if (newLogout <= newLogin) newLogout.setDate(newLogout.getDate() + 1);
+
+        const diffSecs = (newLogout - newLogin) / 1000;
+        const tk = todayKey(), ex = dayLog(tk) || {};
+
+        if (loginDate) {
+          // Adjust accumulated time to keep total worked consistent
+          const now = new Date();
+          const oldWorked = Math.max(0, Math.floor((now - loginDate) / 1000)) + _sessionAccSecs;
+          loginDate = newLogin;
+          const newCurrentSecs = Math.max(0, Math.floor((now - loginDate) / 1000));
+          _sessionAccSecs = Math.max(0, oldWorked - newCurrentSecs);
+          saveDayLog(tk, { ...ex,
+            todayTargetH: diffSecs / 3600,
+            loginTime: `${newLogin.getHours()}:${newLogin.getMinutes()}:${newLogin.getSeconds()}`,
+            loginDisplay: short(newLogin),
+            sessionTag: 'edited',
+            lastUpdated: new Date().toISOString()
+          });
+          const lbl = el('shiftActiveLabel');
+          if (lbl) lbl.textContent = `Started at ${short(newLogin)}`;
+          persistSession();
+        }
+        closeTpModal();
+        if (loginDate) render(); else renderEmptyState();
+        return;
+      }
+
       // Duration mode: save H + M as today's target hours, skip clock-time logic
       if (_tpDurationMode) {
         const h = _tpHIdx + 1;   // 1–12 hours

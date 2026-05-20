@@ -943,7 +943,7 @@
       .day-clock { font-size: 28px; }
       .day-date { font-size: 14px; }
       .login-row { flex-wrap: wrap; }
-      #loginInput { min-width: 0; }
+      #tc-r7m2 { min-width: 0; }
       /* Today card numbers — keep in one line */
       .rc-worked { font-size: 26px; letter-spacing: -1px; }
       .rc-target-val { font-size: 26px; letter-spacing: -1px; }
@@ -1494,13 +1494,13 @@
       <div class="shift-cta" id="todayLoginSection">
         <!-- Single combo: input + button inside -->
         <div class="shift-combo" id="shiftInputRow">
-          <button type="button" class="shift-tp-btn" id="loginTpBtn" onclick="openTpModal('loginInput',event,'Log In',calculate)" title="Pick start time">
+          <button type="button" class="shift-tp-btn" id="loginTpBtn" onclick="openTpModal('tc-r7m2',event,'Log In',calculate)" title="Pick start time">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M16.5 13C17.0523 13 17.5 12.5523 17.5 12C17.5 11.4477 17.0523 11 16.5 11H13V5.5C13 4.94772 12.5523 4.5 12 4.5C11.4477 4.5 11 4.94772 11 5.5V12C11 12.5523 11.4477 13 12 13H16.5Z" fill="currentColor"/><path fill-rule="evenodd" clip-rule="evenodd" d="M12 1C5.92487 1 1 5.92487 1 12C1 18.0751 5.92487 23 12 23C18.0751 23 23 18.0751 23 12C23 5.92487 18.0751 1 12 1ZM3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12Z" fill="currentColor"/></svg>
           </button>
-          <input class="shift-combo-input" id="loginInput" type="tel" inputmode="numeric"
-            name="f-t9x2" placeholder="Enter Log In Time"
-            autocomplete="one-time-code" readonly
-            spellcheck="false" data-lpignore="true" data-form-type="other" aria-label="Login time">
+          <input class="shift-combo-input" id="tc-r7m2" type="text" inputmode="numeric"
+            name="x8k4p" placeholder="e.g. 9:30"
+            autocomplete="off" readonly
+            spellcheck="false" data-lpignore="true" data-form-type="other" data-1p-ignore="true">
           <span class="shift-combo-active-label" id="shiftActiveLabel">—</span>
           <div id="calcBtnWrap" style="position:relative;display:flex;align-items:stretch">
             <button class="shift-combo-btn" id="calcBtn">Quick Start</button>
@@ -4627,7 +4627,7 @@
     // ── CALCULATE ──────────────────────────────────────
     function showErr(msg) {
       el('errMsg').textContent = msg;
-      el('loginInput').classList.add('err');
+      el('tc-r7m2').classList.add('err');
       el('errMsg').classList.add('show');
       loginDate = null; wasDone = false; notifSent = false;
       if (ticker) { clearInterval(ticker); ticker = null; }
@@ -4647,28 +4647,26 @@
         btn.textContent = 'Pause'; btn.classList.add('pause-shift');
         wrap?.classList.add('split-btn-wrap');
         if (chev) { chev.style.display = ''; chev.className = 'split-chevron-btn pause-shift-chev'; }
-        const loginInpR = el('loginInput');
-        if (loginInpR) { loginInpR.value = ''; loginInpR.placeholder = 'Update Log In Time'; }
+        const loginInpR = el('tc-r7m2');
+        if (loginInpR) { loginInpR.value = ''; loginInpR.placeholder = 'e.g. 9:30'; }
       } else if (state === 'ended') {
         btn.textContent = 'Resume'; btn.classList.add('resume-shift');
         wrap?.classList.add('split-btn-wrap');
         if (chev) { chev.style.display = ''; chev.className = 'split-chevron-btn resume-shift-chev'; }
-        const loginInpE = el('loginInput');
-        if (loginInpE) loginInpE.placeholder = 'Update Log In Time';
+        const loginInpE = el('tc-r7m2');
+        if (loginInpE) loginInpE.placeholder = 'e.g. 9:30';
       } else { // 'start' — plain full-width button, no split styling
         btn.textContent = 'Quick Start';
         wrap?.classList.remove('split-btn-wrap');
         if (chev) chev.style.display = 'none';
-        const loginInp = el('loginInput');
-        if (loginInp) loginInp.placeholder = dayLog(todayKey())?.loginTime
-          ? 'Update Log In Time'
-          : 'Enter Log In Time';
+        const loginInp = el('tc-r7m2');
+        if (loginInp) loginInp.placeholder = 'e.g. 9:30';
       }
     }
 
     let _pendingLoginP = null;
     function _startSession(p) {
-      el('loginInput').classList.remove('err');
+      el('tc-r7m2').classList.remove('err');
       el('errMsg').classList.remove('show');
       const hint = el('loginApHint'); if (hint) hint.style.display = 'none';
       loginDate = p; wasDone = false; notifSent = false; autoStopped = false;
@@ -4708,7 +4706,7 @@
       if (p) _startSession(p);
     }
     function calculate() {
-      const raw = el('loginInput').value.trim();
+      const raw = el('tc-r7m2').value.trim();
       let p;
       if (raw) {
         p = parseLogin(raw);
@@ -4727,8 +4725,8 @@
       _sessionAccSecs = 0; _sessionCheckoutTime = null;
       Store.clearSession();
       if (ticker) { clearInterval(ticker); ticker = null; }
-      el('loginInput').value = '';
-      el('loginInput').classList.remove('err');
+      el('tc-r7m2').value = '';
+      el('tc-r7m2').classList.remove('err');
       el('errMsg').classList.remove('show');
       // Restore CTA to Quick Start
       setCalcBtnState('start');
@@ -6455,13 +6453,13 @@ ${sig}`
       }
     });
     // Remove readonly on focus — prevents autofill on initial render without disrupting touch chain
-    el('loginInput').addEventListener('focus', () => el('loginInput').removeAttribute('readonly'));
-    el('loginInput').addEventListener('keydown', e => { if (e.key === 'Enter') calculate(); });
-    el('loginInput').addEventListener('input', () => {
-      el('loginInput').classList.remove('err');
+    el('tc-r7m2').addEventListener('focus', () => el('tc-r7m2').removeAttribute('readonly'));
+    el('tc-r7m2').addEventListener('keydown', e => { if (e.key === 'Enter') calculate(); });
+    el('tc-r7m2').addEventListener('input', () => {
+      el('tc-r7m2').classList.remove('err');
       el('errMsg').classList.remove('show');
       // Show hint if entered AP conflicts with shift default
-      const raw = el('loginInput').value.trim().toUpperCase();
+      const raw = el('tc-r7m2').value.trim().toUpperCase();
       const hint = el('loginApHint');
       if (hint) {
         const defAP = shiftDefaultAP();
@@ -6474,10 +6472,10 @@ ${sig}`
         }
       }
     });
-    el('loginInput').addEventListener('blur', () => {
-      el('loginInput').classList.remove('err');
+    el('tc-r7m2').addEventListener('blur', () => {
+      el('tc-r7m2').classList.remove('err');
       el('errMsg').classList.remove('show');
-      const raw = el('loginInput').value.trim();
+      const raw = el('tc-r7m2').value.trim();
       if (!raw || raw.includes(':')) return;
       const digits = raw.replace(/\D/g, '');
       if (!digits) return;
@@ -6488,7 +6486,7 @@ ${sig}`
       else                          { h = +digits.slice(0, 2);  m = +digits.slice(2, 4); }
       if (h > 23 || m > 59) return;
       const suffix = h >= 13 ? '' : h === 12 ? ' PM' : ' AM';
-      el('loginInput').value = `${p2(h)}:${p2(m)}${suffix}`;
+      el('tc-r7m2').value = `${p2(h)}:${p2(m)}${suffix}`;
     });
 
     // ── TAB TITLE COUNTDOWN ─────────────────────────

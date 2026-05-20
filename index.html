@@ -326,7 +326,7 @@
     .shift-combo:focus-within { border-color: var(--muted-fg); }
     .shift-combo-input.err { color: var(--destructive); }
     /* Placeholder div that replaces the input at rest — invisible to Safari autofill scanner */
-    .tc-ph { cursor:text; color:var(--muted-fg); }
+    .tc-ph { cursor:text; color:var(--muted-fg); display:flex; align-items:center; height:100%; }
     .tc-ph.tc-ph-has-val { color:var(--foreground); }
     .shift-combo-clock { color: var(--muted-fg); flex-shrink: 0; }
     .shift-combo-input { flex: 1; background: transparent; border: none; outline: none;
@@ -1502,9 +1502,9 @@
           <button type="button" class="shift-tp-btn" id="loginTpBtn" onclick="openTpModal('tc-r7m2',event,'Log In',calculate)" title="Pick start time">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M16.5 13C17.0523 13 17.5 12.5523 17.5 12C17.5 11.4477 17.0523 11 16.5 11H13V5.5C13 4.94772 12.5523 4.5 12 4.5C11.4477 4.5 11 4.94772 11 5.5V12C11 12.5523 11.4477 13 12 13H16.5Z" fill="currentColor"/><path fill-rule="evenodd" clip-rule="evenodd" d="M12 1C5.92487 1 1 5.92487 1 12C1 18.0751 5.92487 23 12 23C18.0751 23 23 18.0751 23 12C23 5.92487 18.0751 1 12 1ZM3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12Z" fill="currentColor"/></svg>
           </button>
-          <div class="shift-combo-input tc-ph" id="tc-r7m2-ph" onclick="_tcActivate()">e.g. 9:30</div>
+          <div class="shift-combo-input tc-ph" id="tc-r7m2-ph" onclick="_tcActivate()">Enter Login Time</div>
           <input class="shift-combo-input" id="tc-r7m2" type="text" inputmode="numeric"
-            name="x8k4p" placeholder="e.g. 9:30"
+            name="x8k4p" placeholder="Enter Login Time"
             autocomplete="off"
             spellcheck="false" data-lpignore="true" data-form-type="other" data-1p-ignore="true"
             style="display:none">
@@ -4659,19 +4659,18 @@
         wrap?.classList.add('split-btn-wrap');
         if (chev) { chev.style.display = ''; chev.className = 'split-chevron-btn pause-shift-chev'; }
         const loginInpR = el('tc-r7m2');
-        if (loginInpR) { loginInpR.value = ''; loginInpR.placeholder = 'e.g. 9:30'; }
+        if (loginInpR) { loginInpR.value = ''; }
+        _tcSetLabel('Update Login Time');
       } else if (state === 'ended') {
         btn.textContent = 'Resume'; btn.classList.add('resume-shift');
         wrap?.classList.add('split-btn-wrap');
         if (chev) { chev.style.display = ''; chev.className = 'split-chevron-btn resume-shift-chev'; }
-        const loginInpE = el('tc-r7m2');
-        if (loginInpE) loginInpE.placeholder = 'e.g. 9:30';
+        _tcSetLabel('Update Login Time');
       } else { // 'start' — plain full-width button, no split styling
         btn.textContent = 'Quick Start';
         wrap?.classList.remove('split-btn-wrap');
         if (chev) chev.style.display = 'none';
-        const loginInp = el('tc-r7m2');
-        if (loginInp) loginInp.placeholder = 'e.g. 9:30';
+        _tcSetLabel('Enter Login Time');
       }
     }
 
@@ -4679,7 +4678,6 @@
     function _startSession(p) {
       el('tc-r7m2').classList.remove('err');
       el('errMsg').classList.remove('show');
-      _tcDeactivate();
       const hint = el('loginApHint'); if (hint) hint.style.display = 'none';
       loginDate = p; wasDone = false; notifSent = false; autoStopped = false;
       if (el('metaLogin')) el('metaLogin').textContent = short(p);
@@ -4740,9 +4738,9 @@
       el('tc-r7m2').value = '';
       el('tc-r7m2').classList.remove('err');
       el('errMsg').classList.remove('show');
-      _tcDeactivate();
-      // Restore CTA to Quick Start
+      // Restore CTA to Quick Start (sets _tcLabel to 'Enter Login Time' first)
       setCalcBtnState('start');
+      _tcDeactivate();
       el('shiftInputRow').classList.remove('active-state', 'hidden');
       el('autostopBanner').classList.remove('show');
       selectedDayKey = todayKey();
@@ -6468,6 +6466,12 @@ ${sig}`
     // ── tc-r7m2 activate/deactivate (autofill shield) ──────────────────────────
     // Safari autofill scanner only attaches to rendered, interactive inputs.
     // We keep the real input display:none at rest; only swap it in on explicit tap.
+    let _tcLabel = 'Enter Login Time';
+    function _tcSetLabel(label) {
+      _tcLabel = label;
+      const ph = el('tc-r7m2-ph');
+      if (ph && !ph.classList.contains('tc-ph-has-val')) ph.textContent = label;
+    }
     function _tcActivate() {
       const ph = el('tc-r7m2-ph'), inp = el('tc-r7m2');
       if (!ph || !inp) return;
@@ -6483,7 +6487,8 @@ ${sig}`
       const val = inp.value.trim();
       inp.style.display = 'none';
       ph.style.display = '';
-      ph.textContent = val || 'e.g. 9:30';
+      // Show entered value in foreground colour, otherwise show the contextual label
+      ph.textContent = val || _tcLabel;
       ph.classList.toggle('tc-ph-has-val', !!val);
     }
 

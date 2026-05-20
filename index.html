@@ -409,10 +409,13 @@
       text-transform: uppercase; color: var(--muted-fg); margin-top: 2px; }
     .progress-wrap { display: flex; flex-direction: column; gap: 6px; }
     .progress-bar-row { display: flex; align-items: center; gap: 10px; }
-    .progress-track { flex: 1; height: 4px; background: var(--muted); border-radius: 99px; overflow: hidden; }
+    .progress-track { flex: 1; height: 4px; background: var(--muted); border-radius: 99px; overflow: hidden;
+      transition: height .45s ease, background .45s ease; }
+    .progress-track.target-reached { height: 1px; background: var(--border); }
     .progress-fill { height: 100%; background: var(--foreground); border-radius: 99px;
-      transition: width .8s ease; }
+      transition: width .8s ease, opacity .35s ease; }
     .progress-fill.done { background: var(--success); }
+    .progress-fill.target-reached { opacity: 0; }
     .progress-label { font-size: 14px; font-weight: 600; color: var(--muted-fg); white-space: nowrap; }
     .rc-meta { display: flex; gap: 16px; flex-wrap: wrap; }
     .rc-meta-item { font-size: 12px; color: var(--muted-fg); }
@@ -1432,12 +1435,12 @@
             </div>
             <div class="rc-right-col">
               <div class="rc-target-val" id="rcTarget" style="color:var(--muted-fg)">—</div>
-              <div class="rc-target-label">Remaining</div>
+              <div class="rc-target-label" id="rcTargetLabel">Remaining</div>
             </div>
           </div>
           <div class="progress-wrap">
             <div class="progress-bar-row">
-              <div class="progress-track">
+              <div class="progress-track" id="progTrack">
                 <div class="progress-fill" id="progFill" style="width:0%"></div>
               </div>
               <div class="progress-label" id="progLabel"></div>
@@ -3974,29 +3977,35 @@
       const _earlyTarget = _logNow.earlyLeaveTarget;
       _setTodayDateChip();
 
+      el('otBanner').classList.remove('show'); // never show — overtime shown inline
       if (!isDone && eff > 0) {
         const rem = eff - worked;
         const remText = rem < 60 ? `${Math.max(0, rem)}s` : dur(rem);
         animateDuration('rcTarget', remText);
         el('rcTarget').style.color = '';
-        el('otBanner').classList.remove('show');
+        if (el('rcTargetLabel')) el('rcTargetLabel').textContent = 'Remaining';
+        el('progFill').classList.remove('target-reached');
+        el('progTrack')?.classList.remove('target-reached');
       } else if (isDone) {
-        el('rcTarget').textContent = '0h 00m'; el('rcTarget').style.color = 'var(--success)';
-        const otMins = Math.floor((worked - eff) / 60);
-        el('otMsg').textContent = `+${dur(worked - eff)} overtime`;
-        el('otQuip').textContent = OT_QUIPS[Math.floor(otMins / 15) % OT_QUIPS.length];
-        el('otBanner').classList.add('show');
+        const ot = worked - eff;
+        const otText = ot < 60 ? '+0m' : `+${dur(ot)}`;
+        const otColor = ot < 60 ? 'var(--muted-fg)' : 'var(--foreground)';
+        animateDuration('rcTarget', otText);
+        el('rcTarget').style.color = otColor;
+        if (el('rcTargetLabel')) el('rcTargetLabel').textContent = 'Extra Time';
+        el('progFill').classList.add('target-reached');
+        el('progTrack')?.classList.add('target-reached');
       } else {
         el('rcTarget').textContent = '—'; el('rcTarget').style.color = 'var(--muted-fg)';
-        el('otBanner').classList.remove('show');
+        if (el('rcTargetLabel')) el('rcTargetLabel').textContent = 'Remaining';
+        el('progFill').classList.remove('target-reached');
+        el('progTrack')?.classList.remove('target-reached');
       }
 
       const pct = eff > 0 ? Math.min((worked / eff) * 100, 100) : 100;
       el('progFill').style.width = pct.toFixed(1) + '%';
       el('progFill').classList.toggle('done', isDone);
-      el('progLabel').textContent = isDone
-        ? `Target reached · ${dur(worked)} logged`
-        : `${Math.floor(pct)}%`;
+      el('progLabel').textContent = isDone ? 'Target Reached' : `${Math.floor(pct)}%`;
 
       el('rcToday').innerHTML = buildTargetHtml(eff);
 
@@ -4304,7 +4313,9 @@
         el('rcElapsedLabel').style.color = '';
         showRem(false);
         el('progFill').style.width = '0%';
-        el('progFill').classList.remove('done');
+        el('progFill').classList.remove('done', 'target-reached');
+        el('progTrack')?.classList.remove('target-reached');
+        if (el('rcTargetLabel')) el('rcTargetLabel').textContent = 'Remaining';
         el('stayHint').style.display = 'none';
         el('otBanner').classList.remove('show');
         el('doneBanner').classList.remove('show');
@@ -4351,20 +4362,27 @@
       const isDone = worked >= target;
       el('rcWorked').textContent = dur(worked); el('rcWorked').style.color = '';
       if (isDone) {
-        if (el('rcTarget')) { el('rcTarget').textContent = '0h 00m'; el('rcTarget').style.color = 'var(--success)'; }
         const ot = worked - target;
-        if (ot > 120) { el('otMsg').textContent = `+${dur(ot)} overtime`; el('otQuip').textContent = ''; el('otBanner').classList.add('show'); }
-        else { el('otBanner').classList.remove('show'); }
+        const otText = ot < 60 ? '+0m' : `+${dur(ot)}`;
+        const otColor = ot < 60 ? 'var(--muted-fg)' : 'var(--foreground)';
+        if (el('rcTarget')) { el('rcTarget').textContent = otText; el('rcTarget').style.color = otColor; }
+        if (el('rcTargetLabel')) el('rcTargetLabel').textContent = 'Extra Time';
+        el('otBanner').classList.remove('show');
         el('doneMsg').textContent = `${dur(worked)} logged`;
         el('doneBanner').classList.add('show');
+        el('progFill').classList.add('target-reached');
+        el('progTrack')?.classList.add('target-reached');
       } else {
         if (el('rcTarget')) { el('rcTarget').textContent = dur(target - worked); el('rcTarget').style.color = 'var(--warning)'; }
+        if (el('rcTargetLabel')) el('rcTargetLabel').textContent = 'Remaining';
         el('otBanner').classList.remove('show'); el('doneBanner').classList.remove('show');
+        el('progFill').classList.remove('target-reached');
+        el('progTrack')?.classList.remove('target-reached');
       }
       const pct = Math.min((worked / target) * 100, 100);
       el('progFill').style.width = pct.toFixed(1) + '%';
       el('progFill').classList.toggle('done', isDone);
-      el('progLabel').textContent = isDone ? `Target reached · ${dur(worked)} logged` : `${Math.floor(pct)}% complete`;
+      el('progLabel').textContent = isDone ? 'Target Reached' : `${Math.floor(pct)}% complete`;
       _setTodayDateChip();
       el('stayHint').style.display = 'none';
       const loginDisp = log.loginDisplay || '—';

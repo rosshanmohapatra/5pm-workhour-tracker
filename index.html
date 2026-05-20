@@ -1105,16 +1105,17 @@
     .tp-set-btn:hover { opacity: .88; }
     /* Hide AM/PM wheel when picker is used for duration input */
     .tp-modal.tp-duration-mode #tpWheelAp { display: none; }
-    /* Tab bar inside wheel time picker */
-    .tp-tab-bar { display:flex; border-bottom:1px solid var(--border); }
+    /* Tab bar inside wheel time picker header */
+    .tp-tab-bar { display:flex; gap:0; align-items:flex-end; }
     .tp-tab {
-      flex:1; height:36px; background:transparent; border:none;
+      flex:none; padding:11px 14px 9px 0; background:transparent; border:none;
       border-bottom:2px solid transparent; margin-bottom:-1px;
-      color:var(--muted-fg); font-size:12px; font-weight:600;
-      font-family:var(--font); cursor:pointer; letter-spacing:.03em;
-      transition:color .12s, border-color .12s;
+      color:var(--muted-fg); font-size:11px; font-weight:600;
+      font-family:var(--font); cursor:pointer; letter-spacing:.07em;
+      text-transform:uppercase; transition:color .12s, border-color .12s;
     }
     .tp-tab.active { color:var(--foreground); border-bottom-color:var(--foreground); }
+    .tp-modal.tab-mode .tp-modal-title { display:none; }
     /* Duration display in Today card */
     .rc-io-duration { display:flex; align-items:center; gap:4px; flex-wrap:nowrap; }
     .rc-io-duration .rc-io-val { font-size:13px; }
@@ -1915,7 +1916,7 @@
         </div><!-- /Other Settings Card -->
 
         <!-- About Developer -->
-        <div class="settings-card">
+        <div class="settings-card" id="devAboutCard">
           <div class="settings-card-head" style="cursor:default">
             <div class="section-label">About Developer</div>
           </div>
@@ -1969,8 +1970,8 @@
         </div>
 
 
-        <!-- Test Notifications (dev panel) -->
-        <div class="settings-card" id="notifTestCard">
+        <!-- Test Notifications (dev panel — hidden by default, unlock with 5 taps on About Developer) -->
+        <div class="settings-card" id="notifTestCard" style="display:none">
           <div class="settings-card-head" style="cursor:default">
             <div class="section-label">Test Notifications</div>
           </div>
@@ -2304,10 +2305,10 @@
   <div id="tpModal" class="tp-modal">
     <div class="tp-modal-header">
       <span class="tp-modal-title" id="tpModalTitle">Set Time</span>
-    </div>
-    <div id="tpTabBar" class="tp-tab-bar" style="display:none">
-      <button class="tp-tab" id="tpTabLogin" onclick="_tpSwitchTab('login')">Login</button>
-      <button class="tp-tab" id="tpTabLogout" onclick="_tpSwitchTab('logout')">Logout</button>
+      <div id="tpTabBar" class="tp-tab-bar" style="display:none">
+        <button class="tp-tab" id="tpTabLogin" onclick="_tpSwitchTab('login')">Log In</button>
+        <button class="tp-tab" id="tpTabLogout" onclick="_tpSwitchTab('logout')">Log Out</button>
+      </div>
     </div>
     <div class="tp-wheels-wrap">
       <div class="tp-wheels">
@@ -2725,6 +2726,14 @@
       if (m === 0) return `${h}${sf('h')}`;
       return `${h}${sf('h')} ${m}${sf('m')}`;
     }
+    // Daily Report variant: "12Hrs 29Mins" with grey long-form suffixes
+    function durHtmlLong(secs) {
+      const s = Math.abs(secs), h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60);
+      const sf = (u) => `<span class="co-val-suf">${u}</span>`;
+      if (h === 0) return `${m}${sf('Mins')}`;
+      if (m === 0) return `${h}${sf('Hrs')}`;
+      return `${h}${sf('Hrs')} ${m}${sf('Mins')}`;
+    }
     // Returns HTML with grey AM/PM for a "H:MM AM" string
     function timeHtml(t) {
       const i = t.lastIndexOf(' ');
@@ -2997,7 +3006,7 @@
     function showCheckoutModal(punchInStr, checkoutTime, workedSecs) {
       const checkInStr  = typeof punchInStr === 'string' ? punchInStr : short(punchInStr);
       const checkOutStr = short(checkoutTime);
-      el('coWorked').innerHTML    = durHtml(workedSecs);
+      el('coWorked').innerHTML    = durHtmlLong(workedSecs);
       el('coTimeRange').innerHTML = `${timeHtml(checkInStr)} – ${timeHtml(checkOutStr)}`;
       // Should've left note
       const eff = effSecs();
@@ -3543,7 +3552,7 @@
       _tpPopulateWheel('tpWheelH',  TP_HOURS, _tpHIdx);
       _tpPopulateWheel('tpWheelM',  TP_MINS,  _tpMIdx);
       _tpPopulateWheel('tpWheelAp', TP_AMPM,  _tpApIdx);
-      modal.classList.add('open');
+      modal.classList.add('open', 'tab-mode');
       setTimeout(() => document.addEventListener('mousedown', _tpOutsideClick), 10);
     }
 
@@ -3594,7 +3603,7 @@
       _tpDurationMode = false;
       _tpTabMode = false;
       _tpActiveTab = 'login';
-      el('tpModal')?.classList.remove('open', 'tp-duration-mode');
+      el('tpModal')?.classList.remove('open', 'tp-duration-mode', 'tab-mode');
       document.removeEventListener('mousedown', _tpOutsideClick);
       _tpTargetId = null; _tpCallback = null; _tpClearFn = null;
       const cancelBtn = el('tpCancelBtn');
@@ -3970,7 +3979,7 @@
 
       const h = Math.floor(worked / 3600), m = Math.floor((worked % 3600) / 60);
       animateDuration('rcWorked', `${h}h ${p2(m)}m`);
-      el('rcWorked').style.color = '';
+      el('rcWorked').style.color = isDone ? 'var(--muted-fg)' : '';
       if (el('rcTarget')) el('rcTarget').style.color = '';
       // "Leave at" badge: prefer personal Out Time target if set
       const _tkNow = todayKey(), _logNow = dayLog(_tkNow) || {};
@@ -6308,6 +6317,31 @@ ${sig}`
     el('emailModalClose').addEventListener('click', closeEmailModal);
     el('emailModalOverlay').addEventListener('click', e => { if (e.target === el('emailModalOverlay')) closeEmailModal(); });
     el('outsideShiftOverlay').addEventListener('click', e => { if (e.target === el('outsideShiftOverlay')) closeOutsideShiftModal(); });
+
+    // ── Dev mode unlock: 5 taps on About Developer card ────────────────
+    (function() {
+      let _devTaps = 0, _devTimer = null;
+      const devCard = el('devAboutCard');
+      if (!devCard) return;
+      devCard.style.cursor = 'pointer';
+      devCard.addEventListener('click', () => {
+        _devTaps++;
+        if (_devTimer) clearTimeout(_devTimer);
+        _devTimer = setTimeout(() => { _devTaps = 0; }, 2000);
+        const left = 5 - _devTaps;
+        if (_devTaps >= 3 && _devTaps < 5) {
+          showToast(`${left} more tap${left === 1 ? '' : 's'} to enable Dev Mode`, 'info');
+        } else if (_devTaps >= 5) {
+          _devTaps = 0;
+          const testCard = el('notifTestCard');
+          if (testCard) {
+            testCard.style.display = '';
+            showToast('Dev Mode enabled — reload to disable', 'info');
+            testCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+          }
+        }
+      });
+    })();
     el('emailCopySubjectBtn').addEventListener('click', () => {
       const inp = el('emailModalSubject');
       navigator.clipboard.writeText(inp.value).then(() => {

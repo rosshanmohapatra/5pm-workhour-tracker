@@ -6,6 +6,7 @@
   <script>(function(){var s=localStorage.getItem('wh_theme');var p=window.matchMedia('(prefers-color-scheme:dark)').matches;if(s?s==='dark':p)document.documentElement.classList.add('dark');})()</script>
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="format-detection" content="telephone=no,email=no,date=no,address=no">
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
@@ -1501,7 +1502,7 @@
           <form autocomplete="off" onsubmit="return false" style="display:contents">
             <input class="shift-combo-input" id="tc-r7m2" type="text" inputmode="numeric"
               name="x8k4p" placeholder="e.g. 9:30"
-              autocomplete="off" readonly
+              autocomplete="new-password" readonly
               spellcheck="false" data-lpignore="true" data-form-type="other" data-1p-ignore="true">
           </form>
           <span class="shift-combo-active-label" id="shiftActiveLabel">—</span>
@@ -6455,8 +6456,9 @@ ${sig}`
         el('outTargetEditWrap')?.classList.remove('open');
       }
     });
-    // Remove readonly on focus — prevents autofill on initial render without disrupting touch chain
-    el('tc-r7m2').addEventListener('focus', () => el('tc-r7m2').removeAttribute('readonly'));
+    // Only remove readonly on an explicit user pointer interaction (not on programmatic focus).
+    // This blocks iOS PWA state-restore auto-focus from opening the keyboard or triggering autofill.
+    el('tc-r7m2').addEventListener('pointerdown', function() { this.removeAttribute('readonly'); });
     el('tc-r7m2').addEventListener('keydown', e => { if (e.key === 'Enter') calculate(); });
     el('tc-r7m2').addEventListener('input', () => {
       el('tc-r7m2').classList.remove('err');
@@ -6478,6 +6480,8 @@ ${sig}`
     el('tc-r7m2').addEventListener('blur', () => {
       el('tc-r7m2').classList.remove('err');
       el('errMsg').classList.remove('show');
+      // Restore readonly so the next PWA resume / page visit can't auto-focus + open keyboard
+      setTimeout(() => { const i = el('tc-r7m2'); if (i) i.setAttribute('readonly', ''); }, 80);
       const raw = el('tc-r7m2').value.trim();
       if (!raw || raw.includes(':')) return;
       const digits = raw.replace(/\D/g, '');

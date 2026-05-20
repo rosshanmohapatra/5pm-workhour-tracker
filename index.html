@@ -325,6 +325,9 @@
       padding: 0 6px; gap: 8px; transition: border-color .15s; }
     .shift-combo:focus-within { border-color: var(--muted-fg); }
     .shift-combo-input.err { color: var(--destructive); }
+    /* Placeholder div that replaces the input at rest — invisible to Safari autofill scanner */
+    .tc-ph { cursor:text; color:var(--muted-fg); }
+    .tc-ph.tc-ph-has-val { color:var(--foreground); }
     .shift-combo-clock { color: var(--muted-fg); flex-shrink: 0; }
     .shift-combo-input { flex: 1; background: transparent; border: none; outline: none;
       font-size: 14px; font-family: var(--font); color: var(--foreground); height: 100%; }
@@ -945,7 +948,7 @@
       .day-clock { font-size: 28px; }
       .day-date { font-size: 14px; }
       .login-row { flex-wrap: wrap; }
-      #tc-r7m2 { min-width: 0; }
+      #tc-r7m2, #tc-r7m2-ph { min-width: 0; }
       /* Today card numbers — keep in one line */
       .rc-worked { font-size: 26px; letter-spacing: -1px; }
       .rc-target-val { font-size: 26px; letter-spacing: -1px; }
@@ -1499,12 +1502,12 @@
           <button type="button" class="shift-tp-btn" id="loginTpBtn" onclick="openTpModal('tc-r7m2',event,'Log In',calculate)" title="Pick start time">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M16.5 13C17.0523 13 17.5 12.5523 17.5 12C17.5 11.4477 17.0523 11 16.5 11H13V5.5C13 4.94772 12.5523 4.5 12 4.5C11.4477 4.5 11 4.94772 11 5.5V12C11 12.5523 11.4477 13 12 13H16.5Z" fill="currentColor"/><path fill-rule="evenodd" clip-rule="evenodd" d="M12 1C5.92487 1 1 5.92487 1 12C1 18.0751 5.92487 23 12 23C18.0751 23 23 18.0751 23 12C23 5.92487 18.0751 1 12 1ZM3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12Z" fill="currentColor"/></svg>
           </button>
-          <form autocomplete="off" onsubmit="return false" style="display:contents">
-            <input class="shift-combo-input" id="tc-r7m2" type="text" inputmode="numeric"
-              name="x8k4p" placeholder="e.g. 9:30"
-              autocomplete="new-password" readonly
-              spellcheck="false" data-lpignore="true" data-form-type="other" data-1p-ignore="true">
-          </form>
+          <div class="shift-combo-input tc-ph" id="tc-r7m2-ph" onclick="_tcActivate()">e.g. 9:30</div>
+          <input class="shift-combo-input" id="tc-r7m2" type="text" inputmode="numeric"
+            name="x8k4p" placeholder="e.g. 9:30"
+            autocomplete="off"
+            spellcheck="false" data-lpignore="true" data-form-type="other" data-1p-ignore="true"
+            style="display:none">
           <span class="shift-combo-active-label" id="shiftActiveLabel">—</span>
           <div id="calcBtnWrap" style="position:relative;display:flex;align-items:stretch">
             <button class="shift-combo-btn" id="calcBtn">Quick Start</button>
@@ -4631,6 +4634,10 @@
     // ── CALCULATE ──────────────────────────────────────
     function showErr(msg) {
       el('errMsg').textContent = msg;
+      // Make sure the real input is visible so the user can correct their entry
+      const ph = el('tc-r7m2-ph'), inp = el('tc-r7m2');
+      if (ph) ph.style.display = 'none';
+      if (inp) inp.style.display = '';
       el('tc-r7m2').classList.add('err');
       el('errMsg').classList.add('show');
       loginDate = null; wasDone = false; notifSent = false;
@@ -4672,6 +4679,7 @@
     function _startSession(p) {
       el('tc-r7m2').classList.remove('err');
       el('errMsg').classList.remove('show');
+      _tcDeactivate();
       const hint = el('loginApHint'); if (hint) hint.style.display = 'none';
       loginDate = p; wasDone = false; notifSent = false; autoStopped = false;
       if (el('metaLogin')) el('metaLogin').textContent = short(p);
@@ -4732,6 +4740,7 @@
       el('tc-r7m2').value = '';
       el('tc-r7m2').classList.remove('err');
       el('errMsg').classList.remove('show');
+      _tcDeactivate();
       // Restore CTA to Quick Start
       setCalcBtnState('start');
       el('shiftInputRow').classList.remove('active-state', 'hidden');
@@ -6456,9 +6465,28 @@ ${sig}`
         el('outTargetEditWrap')?.classList.remove('open');
       }
     });
-    // Only remove readonly on an explicit user pointer interaction (not on programmatic focus).
-    // This blocks iOS PWA state-restore auto-focus from opening the keyboard or triggering autofill.
-    el('tc-r7m2').addEventListener('pointerdown', function() { this.removeAttribute('readonly'); });
+    // ── tc-r7m2 activate/deactivate (autofill shield) ──────────────────────────
+    // Safari autofill scanner only attaches to rendered, interactive inputs.
+    // We keep the real input display:none at rest; only swap it in on explicit tap.
+    function _tcActivate() {
+      const ph = el('tc-r7m2-ph'), inp = el('tc-r7m2');
+      if (!ph || !inp) return;
+      ph.style.display = 'none';
+      inp.style.display = '';
+      inp.focus();
+    }
+    function _tcDeactivate() {
+      const ph = el('tc-r7m2-ph'), inp = el('tc-r7m2');
+      if (!ph || !inp) return;
+      // Keep input visible while there's an active error state
+      if (inp.classList.contains('err')) return;
+      const val = inp.value.trim();
+      inp.style.display = 'none';
+      ph.style.display = '';
+      ph.textContent = val || 'e.g. 9:30';
+      ph.classList.toggle('tc-ph-has-val', !!val);
+    }
+
     el('tc-r7m2').addEventListener('keydown', e => { if (e.key === 'Enter') calculate(); });
     el('tc-r7m2').addEventListener('input', () => {
       el('tc-r7m2').classList.remove('err');
@@ -6480,20 +6508,24 @@ ${sig}`
     el('tc-r7m2').addEventListener('blur', () => {
       el('tc-r7m2').classList.remove('err');
       el('errMsg').classList.remove('show');
-      // Restore readonly so the next PWA resume / page visit can't auto-focus + open keyboard
-      setTimeout(() => { const i = el('tc-r7m2'); if (i) i.setAttribute('readonly', ''); }, 80);
       const raw = el('tc-r7m2').value.trim();
-      if (!raw || raw.includes(':')) return;
-      const digits = raw.replace(/\D/g, '');
-      if (!digits) return;
-      let h, m;
-      if      (digits.length === 1) { h = +digits;              m = 0; }
-      else if (digits.length === 2) { h = +digits;              m = 0; }
-      else if (digits.length === 3) { h = +digits[0];           m = +digits.slice(1); }
-      else                          { h = +digits.slice(0, 2);  m = +digits.slice(2, 4); }
-      if (h > 23 || m > 59) return;
-      const suffix = h >= 13 ? '' : h === 12 ? ' PM' : ' AM';
-      el('tc-r7m2').value = `${p2(h)}:${p2(m)}${suffix}`;
+      // Auto-format bare digits before deactivating
+      if (raw && !raw.includes(':')) {
+        const digits = raw.replace(/\D/g, '');
+        if (digits) {
+          let h, m;
+          if      (digits.length === 1) { h = +digits;              m = 0; }
+          else if (digits.length === 2) { h = +digits;              m = 0; }
+          else if (digits.length === 3) { h = +digits[0];           m = +digits.slice(1); }
+          else                          { h = +digits.slice(0, 2);  m = +digits.slice(2, 4); }
+          if (h <= 23 && m <= 59) {
+            const suffix = h >= 13 ? '' : h === 12 ? ' PM' : ' AM';
+            el('tc-r7m2').value = `${p2(h)}:${p2(m)}${suffix}`;
+          }
+        }
+      }
+      // Swap input back to invisible placeholder div
+      setTimeout(_tcDeactivate, 80);
     });
 
     // ── TAB TITLE COUNTDOWN ─────────────────────────

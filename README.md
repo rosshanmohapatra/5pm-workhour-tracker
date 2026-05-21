@@ -1,4 +1,4 @@
-# 5pm — Work Hour Tracker
+# 5pm - Work Hour Tracker
 
 > **Leave on time, every time.**
 

@@ -2846,15 +2846,13 @@
     const CFG_DEF = { dailyH:9, weeklyH:45, weeklyOn:true, lateDays:[], earlyLeaveEntries:[], lateEntries:[], notifOn:false, notifTarget:true, notifKickstart:true, notifOvertime:true, name:'', position:'', targetDay:null, autoStopBuf:0.5, tzOffset:330, shiftType:'morning', workDays:5, recommendTimings:true };
     function cfg() { const r=Store.getCfg(); return r?{...CFG_DEF,...r}:{...CFG_DEF}; }
 
-    // ── ANON USER ID (persists across sessions, used as push subscription key) ──
-    // crypto.randomUUID() requires Safari 15.4+; fall back to getRandomValues() on older iOS.
-    function _genUUID() {
-      if (crypto.randomUUID) return crypto.randomUUID();
-      return ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g, c =>
-        (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16));
+    // ── PUSH USER ID ───────────────────────────────────
+    // Returns the authenticated Supabase user ID for keying push subscriptions.
+    // Must be called after onAuthStateChange has fired (i.e. inside an async flow).
+    async function getPushUserId() {
+      const { data: { session } } = await window._sbClient.auth.getSession();
+      return session?.user?.id ?? null;
     }
-    if (!localStorage.getItem('wh_uid')) localStorage.setItem('wh_uid', _genUUID());
-    const WH_UID = localStorage.getItem('wh_uid');
     // saveCfg defined in persistence layer
 
     function nowTz() {

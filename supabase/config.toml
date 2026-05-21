@@ -1,0 +1,19 @@
+# Supabase project configuration
+# https://supabase.com/docs/guides/cli/config
+
+[project]
+id = "ivgathdwiptuymrqzruq"
+
+[db]
+# Migrations live in supabase/migrations/
+# Apply with: supabase db push
+# Or via the Supabase MCP in Claude Code
+
+[auth]
+# Email + password auth is enabled in the Supabase dashboard.
+# Magic link, OAuth providers can be toggled there too.
+site_url = "https://whtracker.vercel.app"
+additional_redirect_urls = [
+  "http://localhost:3000",
+  "https://whtracker.vercel.app"
+]

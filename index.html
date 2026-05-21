@@ -635,6 +635,31 @@
       text-transform: uppercase; letter-spacing: .07em; margin-bottom: 4px; }
     .co-insight-text { font-size: 12px; color: var(--foreground); line-height: 1.5; }
 
+    /* ── Skeleton / shimmer ── */
+    @keyframes skel-shimmer {
+      0%   { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+    .skel {
+      display: block;
+      background: linear-gradient(90deg,
+        var(--muted) 25%, var(--border) 50%, var(--muted) 75%);
+      background-size: 200% 100%;
+      animation: skel-shimmer 1.6s ease-in-out infinite;
+      border-radius: 6px;
+    }
+    .skel-card { border-radius: 8px; }
+    /* Result-card skeleton: shown before first render, hidden immediately after.
+       Sits on top of the real card content so there's no layout jump. */
+    .rc-body { position: relative; }
+    #resultSkeleton {
+      position: absolute; inset: 0; z-index: 2;
+      background: var(--card); border-radius: var(--radius-lg);
+      padding: 18px 0 8px;
+      display: flex; flex-direction: column; gap: 14px;
+    }
+    #resultSkeleton.hidden { display: none; }
+
     /* ── Analytics ── */
     .analytics-header { display: flex; align-items: center; justify-content: space-between; }
     .analytics-title { font-size: 18px; font-weight: 700; color: var(--foreground); }
@@ -1448,6 +1473,21 @@
           </div>
         </div>
         <div class="rc-body">
+          <!-- Skeleton shown on initial page load — JS hides it after first render/renderEmptyState -->
+          <div id="resultSkeleton">
+            <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:6px">
+              <div><div class="skel" style="width:72px;height:38px;border-radius:8px;margin-bottom:6px"></div>
+                   <div class="skel" style="width:48px;height:10px"></div></div>
+              <div style="text-align:right">
+                   <div class="skel" style="width:52px;height:26px;border-radius:6px;margin-bottom:6px;margin-left:auto"></div>
+                   <div class="skel" style="width:60px;height:10px;margin-left:auto"></div></div>
+            </div>
+            <div class="skel" style="width:100%;height:4px;border-radius:99px;margin:14px 0 16px"></div>
+            <div style="display:flex;gap:8px">
+              <div class="skel skel-card" style="flex:1;height:60px"></div>
+              <div class="skel skel-card" style="flex:1;height:60px"></div>
+            </div>
+          </div>
           <div class="rc-numbers">
             <div class="rc-left-col">
               <div class="rc-worked" id="rcWorked" style="color:var(--muted-fg)">—</div>
@@ -2524,7 +2564,37 @@
     </div>
   </div>
 
-  <!-- Email Draft Modal -->
+  <!-- Future Login Prediction Modal -->
+  <div class="overlay" id="futurePredictOverlay">
+    <div class="dialog" style="max-width:360px">
+      <div class="co-daily-head">
+        <div class="dialog-title">Login Prediction</div>
+        <button class="btn-icon" onclick="el('futurePredictOverlay').classList.remove('open')" title="Close">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="dialog-body">
+        <div class="co-stats-row">
+          <div class="co-stat">
+            <div class="co-stat-label">Log In</div>
+            <div class="co-stat-val" id="fpLoginTime">—</div>
+          </div>
+          <div class="co-stat-divider"></div>
+          <div class="co-stat">
+            <div class="co-stat-label">Log Out</div>
+            <div class="co-stat-val" id="fpLogoutTime">—</div>
+          </div>
+        </div>
+        <div class="co-footer-note" id="fpNote">Based on your daily target</div>
+      </div>
+      <div class="dialog-foot-row">
+        <button class="btn" style="background:var(--muted);color:var(--foreground);border:1.5px solid var(--border)" onclick="el('futurePredictOverlay').classList.remove('open')">Dismiss</button>
+        <button class="btn btn-primary" onclick="_fpProceed()">Log In Anyway</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Outside Shift Modal -->
   <div class="email-modal-overlay center-overlay" id="outsideShiftOverlay">
     <div class="email-modal" style="padding:28px 20px 32px">
       <div class="email-modal-head" style="margin-bottom:8px">
@@ -3881,8 +3951,15 @@
       if (chip) chip.textContent = FULL_DAYS_EN[d.getDay()].slice(0,3) + ', ' + MONTHS[d.getMonth()] + ' ' + d.getDate();
     }
 
+    // Dismisses the skeleton shimmer the first time real content is available.
+    function _hideSkeleton() {
+      const skel = el('resultSkeleton');
+      if (skel && !skel.classList.contains('hidden')) skel.classList.add('hidden');
+    }
+
     // ── EMPTY STATE ────────────────────────────────────
     function renderEmptyState() {
+      _hideSkeleton();
       const eff = effSecs();
       const _tkE = todayKey(), _logE = dayLog(_tkE) || {};
       el('rcWorked').textContent = '—';
@@ -3986,6 +4063,13 @@
     // ── MAIN DISPLAY LOOP ──────────────────────────────
     function render() {
       if (!loginDate) return;
+      _hideSkeleton();
+      // When browsing a past/future day, only refresh the day-selector dots silently.
+      // Without this guard the live ticker overwrites past-day content every second.
+      if (selectedDayKey && selectedDayKey !== todayKey()) {
+        renderDaySelector();
+        return;
+      }
       const c = cfg();
       const now = new Date(), eff = effSecs();
       const worked  = Math.max(0, Math.floor((now - loginDate) / 1000)) + _sessionAccSecs;
@@ -4332,7 +4416,42 @@
       return '';
     }
 
+    // Builds the two bottom KPI cards for past/future days.
+    // Shows Duration (loginTime → logoutTime with arrow) + Surplus card.
+    function _pastDayKpiHtml(loginDisp, outDisp, workedSecs, targetSecs) {
+      const arrow = `<span class="rc-io-duration-arrow"><svg width="11" height="11" viewBox="0 0 24 24" fill="none"><path d="M5 12H19M19 12L13 6M19 12L13 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>`;
+      const durationCard = `
+        <div class="rc-io-box">
+          <div class="rc-io-label">Duration</div>
+          <div class="rc-io-val-row">
+            <div class="rc-io-duration">
+              <span class="rc-io-val">${loginDisp}</span>
+              ${arrow}
+              <span class="rc-io-val">${outDisp}</span>
+            </div>
+          </div>
+        </div>`;
+      let surplusText = '—', surplusColor = 'var(--muted-fg)';
+      if (workedSecs != null && targetSecs != null) {
+        const diff = workedSecs - targetSecs;
+        if (Math.abs(diff) < 60) {
+          surplusText = 'On Target'; surplusColor = 'var(--success)';
+        } else if (diff > 0) {
+          surplusText = `+${dur(diff)}`; surplusColor = 'var(--success)';
+        } else {
+          surplusText = `-${dur(Math.abs(diff))}`; surplusColor = 'var(--warning)';
+        }
+      }
+      const surplusCard = `
+        <div class="rc-io-box">
+          <div class="rc-io-label">Surplus</div>
+          <div class="rc-io-val" style="color:${surplusColor}">${surplusText}</div>
+        </div>`;
+      return `<div class="rc-io-row">${durationCard}${surplusCard}</div>`;
+    }
+
     function renderPastDay(key) {
+      _hideSkeleton();
       const c = cfg(), log = dayLog(key);
       const target = c.dailyH * 3600;
       const _pastDay = week(daySelectorWeekOffset).find(d => d.key === key);
@@ -4385,7 +4504,7 @@
         _setTodayDateChip();
         el('progFill').style.width = '0%'; el('progFill').classList.remove('done');
         el('progLabel').textContent = isFutureDay ? '' : 'No data logged for this day';
-        el('rcToday').innerHTML = targetRow + `<div class="rc-io-row"><div class="rc-io-box"><div class="rc-io-label">Log In</div><div class="rc-io-val" id="metaLogin">—</div></div><div class="rc-io-box"><div class="rc-io-label">Log Out</div><div class="rc-io-val" id="metaTarget">—</div></div></div>`;
+        el('rcToday').innerHTML = targetRow + _pastDayKpiHtml('—', '—', null, target);
         el('stayHint').style.display = 'none';
         el('otBanner').classList.remove('show'); el('doneBanner').classList.remove('show');
         return;
@@ -4398,15 +4517,16 @@
         const otText = ot < 60 ? '+0m' : `+${dur(ot)}`;
         const otColor = ot < 60 ? 'var(--muted-fg)' : 'var(--foreground)';
         if (el('rcTarget')) { el('rcTarget').textContent = otText; el('rcTarget').style.color = otColor; }
-        if (el('rcTargetLabel')) el('rcTargetLabel').textContent = 'Extra Time';
+        if (el('rcTargetLabel')) el('rcTargetLabel').textContent = 'Surplus';
         el('otBanner').classList.remove('show');
         el('doneMsg').textContent = `${dur(worked)} logged`;
         el('doneBanner').classList.add('show');
         el('progFill').classList.add('target-reached');
         el('progTrack')?.classList.add('target-reached');
       } else {
-        if (el('rcTarget')) { el('rcTarget').textContent = dur(target - worked); el('rcTarget').style.color = 'var(--warning)'; }
-        if (el('rcTargetLabel')) el('rcTargetLabel').textContent = 'Remaining';
+        const deficit = target - worked;
+        if (el('rcTarget')) { el('rcTarget').textContent = `-${dur(deficit)}`; el('rcTarget').style.color = 'var(--warning)'; }
+        if (el('rcTargetLabel')) el('rcTargetLabel').textContent = 'Surplus';
         el('otBanner').classList.remove('show'); el('doneBanner').classList.remove('show');
         el('progFill').classList.remove('target-reached');
         el('progTrack')?.classList.remove('target-reached');
@@ -4419,8 +4539,7 @@
       el('stayHint').style.display = 'none';
       const loginDisp = log.loginDisplay || '—';
       const outDisp   = log.checkoutDisplay || '—';
-      // Past days: no Recommended row — just login/logout
-      el('rcToday').innerHTML = targetRow + `<div class="rc-io-row"><div class="rc-io-box"><div class="rc-io-label">Log In</div><div class="rc-io-val" id="metaLogin">${loginDisp}</div></div><div class="rc-io-box"><div class="rc-io-label">Log Out</div><div class="rc-io-val" id="metaTarget">${outDisp}</div></div></div>`;
+      el('rcToday').innerHTML = targetRow + _pastDayKpiHtml(loginDisp, outDisp, worked, target);
     }
 
     // ── HISTORY CARD ───────────────────────────────────
@@ -4692,6 +4811,24 @@
       ticker = setInterval(render, 1000);
       scheduleNotifications(loginDate.toISOString());
     }
+    // Shows a prediction modal when the user enters a future login time.
+    // Instead of a hard error, it shows "logged in at X → log out at Y" so
+    // the user can confirm they intended it (e.g. pre-logging a start time).
+    let _fpPendingP = null;
+    function showFuturePredictModal(p) {
+      _fpPendingP = p;
+      el('fpLoginTime').textContent = short(p);
+      const targetSecs = effSecs();
+      const logoutDate = new Date(p.getTime() + (targetSecs || cfg().dailyH * 3600) * 1000);
+      el('fpLogoutTime').textContent = short(logoutDate);
+      el('fpNote').textContent = `Based on your ${dur(targetSecs || cfg().dailyH * 3600)} daily target`;
+      el('futurePredictOverlay').classList.add('open');
+    }
+    function _fpProceed() {
+      el('futurePredictOverlay').classList.remove('open');
+      if (_fpPendingP) { _startSession(_fpPendingP); }
+      _fpPendingP = null;
+    }
     function isOutsideShift(p) {
       const c = cfg();
       const s = parse(c.shiftStart || '09:00 AM'), e = parse(c.shiftEnd || '06:00 PM');
@@ -4721,11 +4858,14 @@
       if (raw) {
         p = parseLogin(raw);
         if (!p) { showErr("Couldn't parse that. Try: 11:30, 1130, 11:30 AM, or 13:30"); return; }
-        if (p > new Date()) { showErr("That time hasn't happened yet — custom time can't be in the future."); return; }
+        if (p > new Date()) { showFuturePredictModal(p); return; }
       } else {
         p = new Date();
       }
-      if (isOutsideShift(p)) { showOutsideShiftModal(p); return; }
+      // If there's already an active session and the new time is within 1 hour
+      // of the current login, it's a small correction — skip the outside-shift warning.
+      const isSmallCorrection = loginDate && Math.abs(p - loginDate) <= 3600000;
+      if (isOutsideShift(p) && !isSmallCorrection) { showOutsideShiftModal(p); return; }
       _startSession(p);
     }
 

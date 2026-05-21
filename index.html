@@ -1,7 +1,35 @@
 ﻿<!DOCTYPE html>
 <html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-  <!-- Auth gate — block render entirely if not authenticated -->
-  <script>if(!localStorage.getItem('wh_auth')){document.documentElement.style.visibility='hidden';window.location.replace('login.html');}else{document.documentElement.style.visibility='';}</script>
+  <!-- Auth gate — hide the page immediately; onAuthStateChange below reveals it -->
+  <script>document.documentElement.style.visibility='hidden';</script>
+  <!-- Supabase JS SDK — must load before the auth gate script that follows -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script>
+    // Initialise the Supabase client right away (SDK is already available above).
+    // We store it on window so the rest of the page script can reuse it.
+    window._sbClient = window.supabase.createClient(
+      'https://ivgathdwiptuymrqzruq.supabase.co',
+      'sb_publishable_dAWrIIN55EDvnDbPSuDowA_MUJy47_3',
+      { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } }
+    );
+    // Replace the localStorage gate with Supabase's real session check.
+    // onAuthStateChange fires immediately on load with the INITIAL_SESSION event.
+    // Guard against the OAuth PKCE race: if ?code= is present in the URL, Supabase
+    // is still exchanging it — don't redirect yet; wait for the SIGNED_IN event.
+    window._sbClient.auth.onAuthStateChange(function(event, session) {
+      if (session) {
+        document.documentElement.style.visibility = '';   // reveal page
+        localStorage.setItem('wh_auth', '1');             // keep fast-path in sync
+        if (location.search.includes('code=')) {
+          history.replaceState(null, '', location.pathname); // clean up URL bar
+        }
+      } else if (event === 'INITIAL_SESSION' && !location.search.includes('code=')) {
+        // No session and no OAuth code being processed — send to login
+        window.location.replace('login.html');
+      }
+      // SIGNED_OUT is handled by confirmLogout() / confirmDeleteProfile() below
+    });
+  </script>
   <!-- Apply theme before first paint to avoid flash -->
   <script>(function(){var s=localStorage.getItem('wh_theme');var p=window.matchMedia('(prefers-color-scheme:dark)').matches;if(s?s==='dark':p)document.documentElement.classList.add('dark');})()</script>
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
@@ -2775,10 +2803,6 @@
   </div>
 
   <script>
-    // Auth gate — redirect to login if not authenticated
-    if (!localStorage.getItem('wh_auth')) {
-      window.location.replace('login.html');
-    }
 
     const APP_VERSION = '0.9.2';
     localStorage.setItem('wh_ver', APP_VERSION);
@@ -7354,24 +7378,9 @@ ${sig}`
 
     el('upwdOverlay')?.addEventListener('click', ev => { if (ev.target === el('upwdOverlay')) closeUpwdModal(); });
 
-    // ── Supabase sign-out helper (best-effort; invalidates the JWT session) ──
+    // ── Supabase sign-out (window._sbClient is always ready — init'd in <head>) ──
     async function _sbSignOut() {
-      try {
-        if (!window._sbClient) {
-          await new Promise((res, rej) => {
-            const s = document.createElement('script');
-            s.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js';
-            s.onload = res; s.onerror = rej;
-            document.head.appendChild(s);
-          });
-          window._sbClient = window.supabase.createClient(
-            'https://ivgathdwiptuymrqzruq.supabase.co',
-            'sb_publishable_dAWrIIN55EDvnDbPSuDowA_MUJy47_3',
-            { auth: { persistSession: true } }
-          );
-        }
-        await window._sbClient.auth.signOut();
-      } catch (_) { /* sign-out is best-effort — always navigate away */ }
+      try { await window._sbClient.auth.signOut(); } catch (_) { /* best-effort */ }
     }
 
     // ── Danger Zone ─────────────────────────────────────────────────────────

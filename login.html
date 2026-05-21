@@ -496,6 +496,59 @@
     // ── Helper ─────────────────────────────────────────
     const $ = id => document.getElementById(id);
 
+    // ── Supabase ───────────────────────────────────────
+    const _SB_URL  = 'https://ivgathdwiptuymrqzruq.supabase.co';
+    const _SB_KEY  = 'sb_publishable_dAWrIIN55EDvnDbPSuDowA_MUJy47_3';
+    const _SB_SDK  = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js';
+    // Redirect URL after OAuth — localhost-aware for local dev
+    const _REDIRECT = (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
+      ? `http://${location.host}/oauth/consent`
+      : 'https://whtracker.vercel.app/oauth/consent';
+
+    let _sb = null;
+    async function getSB() {
+      if (_sb) return _sb;
+      if (!window.supabase) {
+        await new Promise((res, rej) => {
+          const s = document.createElement('script');
+          s.src = _SB_SDK; s.onload = res;
+          s.onerror = () => rej(new Error('Failed to load auth SDK'));
+          document.head.appendChild(s);
+        });
+      }
+      _sb = window.supabase.createClient(_SB_URL, _SB_KEY, {
+        auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false }
+      });
+      return _sb;
+    }
+
+    // Inline error banner — inserted above the submit button on demand
+    function showAuthError(msg) {
+      let errEl = $('authError');
+      if (!errEl) {
+        errEl = document.createElement('div');
+        errEl.id = 'authError';
+        errEl.style.cssText = 'font-size:12px;color:#dc2626;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:10px 12px;margin-bottom:12px;line-height:1.45;display:none';
+        $('submitBtn').insertAdjacentElement('beforebegin', errEl);
+      }
+      errEl.textContent = msg;
+      errEl.style.display = '';
+      clearTimeout(errEl._t);
+      errEl._t = setTimeout(() => { errEl.style.display = 'none'; }, 7000);
+    }
+    function _clearAuthError() { const e = $('authError'); if (e) e.style.display = 'none'; }
+
+    // Show error when redirected back from oauth/consent with ?error=
+    (function () {
+      const p = new URLSearchParams(location.search);
+      const e = p.get('error');
+      if (e) setTimeout(() => showAuthError(
+        e === 'oauth_failed'
+          ? 'Sign-in was cancelled or failed. Please try again.'
+          : decodeURIComponent(e)
+      ), 50);
+    })();
+
     // ── View switcher ──────────────────────────────────
     function showView(id) {
       ['viewLogin','viewRecovery','viewOTP','viewAuth','authSuccess'].forEach(v => {
@@ -533,23 +586,67 @@
     }
 
     // ── Submit ─────────────────────────────────────────
-    function handleSubmit() {
+    async function handleSubmit() {
       const email = $('emailInput').value.trim();
       const pwd   = $('pwdInput').value;
+      const name  = $('nameInput').value.trim();
       if (!email || !pwd) { $('emailInput').focus(); return; }
+      _clearAuthError();
       const btn = $('submitBtn');
       btn.classList.add('loading');
       btn.disabled = true;
-      setTimeout(() => showSuccess(isSignup
-        ? `Account created — welcome to 5pm!`
-        : `Signed in as ${email.split('@')[0]}`), 900);
+      try {
+        const sb = await getSB();
+        if (isSignup) {
+          const { data, error } = await sb.auth.signUp({
+            email, password: pwd,
+            options: { data: { display_name: name || email.split('@')[0] } }
+          });
+          if (error) throw error;
+          if (data.session) {
+            // Email confirmation is disabled in Supabase — signed in immediately
+            showSuccess('Welcome to 5pm!');
+          } else {
+            // Confirmation email sent — don't redirect yet
+            showView('authSuccess');
+            $('authFooter').style.display = 'none';
+            $('successTitle').textContent = 'Check your inbox!';
+            $('successSub').textContent   = `We sent a confirmation link to ${email}. Click it to activate your account.`;
+          }
+        } else {
+          const { error } = await sb.auth.signInWithPassword({ email, password: pwd });
+          if (error) throw error;
+          showSuccess('Welcome back!');
+        }
+      } catch (err) {
+        btn.classList.remove('loading');
+        btn.disabled = false;
+        const m = err.message || 'Authentication failed.';
+        showAuthError(
+          (m.includes('Invalid login') || m.includes('invalid_credentials'))
+            ? 'Incorrect email or password.'
+            : m
+        );
+      }
     }
 
     // ── OAuth ──────────────────────────────────────────
-    function handleOAuth(provider) {
+    async function handleOAuth(provider) {
       const btn = event.currentTarget;
       btn.disabled = true; btn.style.opacity = '.5';
-      setTimeout(() => showSuccess(`Signed in with ${provider}`), 700);
+      _clearAuthError();
+      try {
+        const sb = await getSB();
+        const { error } = await sb.auth.signInWithOAuth({
+          provider: provider.toLowerCase(),
+          options:  { redirectTo: _REDIRECT }
+        });
+        if (error) throw error;
+        // Browser will redirect to the OAuth provider — no further action needed here
+      } catch (err) {
+        btn.disabled = false; btn.style.opacity = '';
+        showAuthError(`${provider} sign-in failed: ${err.message}`);
+      }
     }
 
     // ── Success ────────────────────────────────────────
@@ -581,24 +678,25 @@
       showView('viewLogin');
     }
 
-    function startEmailRecovery() {
+    async function startEmailRecovery() {
+      const email = $('emailInput').value.trim();
+      if (!email) { backToLogin(); $('emailInput').focus(); return; }
       const btn = $('recoverEmailBtn');
       btn.classList.add('loading');
       btn.disabled = true;
-
-      // Simulate async email send — timer starts ONLY after this resolves
-      setTimeout(() => {
-        const email = $('emailInput').value.trim() || 'your email';
-        $('sentEmail').textContent = email;
-        $('recoveryCode').value = '';
-        $('recoveryCode').disabled = false;
-        $('verifyOTPBtn').disabled = true;
-        $('timerRow').style.display = '';
-        $('expiredRow').style.display = 'none';
-        recExpired = false;
-        showView('viewOTP');
-        startRecTimer(60); // ← ONLY starts after email is "sent"
-      }, 800);
+      try {
+        const sb = await getSB();
+        // Supabase sends a password-reset magic link (not a 6-digit OTP code)
+        await sb.auth.resetPasswordForEmail(email, { redirectTo: _REDIRECT });
+        $('authFooter').style.display = 'none';
+        showView('authSuccess');
+        $('successTitle').textContent = 'Email sent!';
+        $('successSub').textContent   = `A password reset link was sent to ${email}. Check your inbox.`;
+      } catch (err) {
+        btn.classList.remove('loading');
+        btn.disabled = false;
+        showAuthError(err.message || 'Failed to send reset email. Try again.');
+      }
     }
 
     function startRecTimer(secs) {

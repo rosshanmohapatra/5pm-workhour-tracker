@@ -143,8 +143,15 @@
     .btn-icon.notif-active { background: var(--foreground); color: var(--background); }
     .notif-badge { position: absolute; top: 6px; right: 6px; width: 7px; height: 7px;
       border-radius: 50%; background: var(--destructive);
-      border: 1.5px solid var(--muted); display: none; }
-    .btn-icon.has-notifs .notif-badge { display: block; }
+      border: 1.5px solid var(--muted);
+      opacity: 0; transform: scale(0); pointer-events: none; }
+    .notif-badge.badge-show {
+      animation: p1-badge-in var(--p1-scale-open-dur) var(--p1-ease-scale-open) forwards;
+      opacity: 1; transform: scale(1); pointer-events: auto;
+    }
+    .notif-badge.badge-hide {
+      animation: p1-badge-out var(--p1-scale-close-dur) var(--p1-ease-close) forwards;
+    }
 
     /* ── Buttons ── */
     .btn { display: inline-flex; align-items: center; justify-content: center;
@@ -860,10 +867,12 @@
     .an-nav-btn:hover { background: var(--muted); }
     .an-nav-btn:disabled { opacity: .3; cursor: default; pointer-events: none; }
 
-    /* ── In/Out time boxes ── */
-    .rc-io-row { display:flex; gap:8px; margin-top:8px; flex-wrap:wrap; }
+    /* ── In/Out time boxes (P4 card resize) ── */
+    .rc-io-row { display:flex; gap:8px; margin-top:8px; flex-wrap:wrap;
+      transition: gap 300ms cubic-bezier(0.22,1,0.36,1); }
     @media (max-width:640px) { .rc-io-row { flex-direction:column; } }
-    .rc-io-box { flex:1; background:var(--muted); border-radius:8px; padding:10px 12px; }
+    .rc-io-box { flex:1; background:var(--muted); border-radius:8px; padding:10px 12px;
+      transition: background 200ms ease, flex 300ms cubic-bezier(0.22,1,0.36,1); }
     .rc-io-label { font-size:10px; font-weight:600; text-transform:uppercase;
       letter-spacing:.08em; color:var(--muted-fg); margin-bottom:3px; }
     .rc-io-val { font-size:15px; font-weight:600; color:var(--foreground);
@@ -1279,6 +1288,126 @@
     /* ── Disabled time inputs in modal ── */
     .modal-time-row.inputs-disabled .field-input { opacity: .4; pointer-events: none; }
     .modal-time-row.inputs-disabled .tp-icon-btn { opacity: .4; pointer-events: none; }
+
+    /* ══════════════════════════════════════════════════════
+       transitions.dev — animation token system
+       ══════════════════════════════════════════════════════ */
+    :root {
+      /* P1 — Notification badge (diagonal spring slide + scale pop) */
+      --p1-pos-open-dur: 260ms;  --p1-scale-open-dur: 500ms;  --p1-scale-close-dur: 180ms;
+      --p1-opacity-open-dur: 300ms;
+      --p1-blur: 2px;  --p1-distance-x: -6px;  --p1-distance-y: 8px;
+      --p1-ease-pos-open:   cubic-bezier(0.22, 1, 0.36, 1);
+      --p1-ease-scale-open: cubic-bezier(0.34, 1.36, 0.64, 1);
+      --p1-ease-close:      cubic-bezier(0.4,  0,    0.2,  1);
+
+      /* P3 — Panel / sheet reveal */
+      --p3-open-dur: 420ms;  --p3-close-dur: 300ms;
+      --p3-translate-y: 12px;  --p3-blur: 2px;
+      --p3-ease: cubic-bezier(0.22, 1, 0.36, 1);
+
+      /* P6 — Text states swap (blur + translate) */
+      --p6-dur: 150ms;  --p6-translate-y: 4px;  --p6-blur: 2px;
+      --p6-ease: ease-in-out;
+
+      /* P9 — Number pop-in (bouncy spring) */
+      --p9-dur: 480ms;  --p9-distance: 7px;  --p9-blur: 2px;
+      --p9-ease: cubic-bezier(0.34, 1.45, 0.64, 1);
+
+      /* P10 — Success check (rotate + blur + fade) */
+      --p10-rotate-dur: 520ms;  --p10-rotate-from: 70deg;
+      --p10-blur-from: 8px;
+      --p10-ease-bob:     cubic-bezier(0.34, 1.35, 0.64, 1);
+      --p10-ease-opacity: cubic-bezier(0.22, 1, 0.36, 1);
+
+      /* P12 — Error shake */
+      --p12-distance: 6px;  --p12-overshoot: 3px;
+      --p12-dur: 340ms;
+      --p12-ease: cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    /* ── P9 Number pop-in ── */
+    @keyframes p9-pop-in {
+      0%   { transform: translateY(var(--p9-distance)); opacity: 0; filter: blur(var(--p9-blur)); }
+      100% { transform: translateY(0);                 opacity: 1; filter: blur(0); }
+    }
+    .p9-popping {
+      animation: p9-pop-in var(--p9-dur) var(--p9-ease) both;
+    }
+
+    /* ── P10 Success check (done-banner icon) ── */
+    @keyframes p10-check-in {
+      0%   { transform: rotate(var(--p10-rotate-from)); opacity: 0; filter: blur(var(--p10-blur-from)); }
+      60%  { opacity: 1; filter: blur(0); }
+      100% { transform: rotate(0deg); opacity: 1; filter: blur(0); }
+    }
+    .p10-check-icon {
+      transform-origin: center;
+      display: inline-flex; align-items: center;
+    }
+    .banner.show .p10-check-icon {
+      animation: p10-check-in var(--p10-rotate-dur) var(--p10-ease-bob) both;
+    }
+
+    /* ── P12 Error shake ── */
+    @keyframes p12-shake {
+      0%   { transform: translateX(0); }
+      18%  { transform: translateX(var(--p12-distance)); }
+      36%  { transform: translateX(calc(var(--p12-distance) * -1)); }
+      54%  { transform: translateX(var(--p12-overshoot)); }
+      72%  { transform: translateX(calc(var(--p12-overshoot) * -0.5)); }
+      100% { transform: translateX(0); }
+    }
+    .p12-shaking {
+      animation: p12-shake var(--p12-dur) var(--p12-ease) both;
+    }
+
+    /* ── P6 Text swap ── */
+    .p6-text {
+      display: inline-block;
+      transition:
+        transform var(--p6-dur) var(--p6-ease),
+        filter    var(--p6-dur) var(--p6-ease),
+        opacity   var(--p6-dur) var(--p6-ease);
+    }
+    .p6-text.is-exit {
+      transform: translateY(calc(var(--p6-translate-y) * -1));
+      filter:  blur(var(--p6-blur));
+      opacity: 0;
+    }
+    .p6-text.is-enter-start {
+      transform: translateY(var(--p6-translate-y));
+      filter:  blur(var(--p6-blur));
+      opacity: 0;
+      transition: none;
+    }
+
+    /* ── P1 Notification badge ── */
+    @keyframes p1-badge-in {
+      0%   { transform: translate(var(--p1-distance-x), var(--p1-distance-y)) scale(0);
+             opacity: 0; filter: blur(var(--p1-blur)); }
+      100% { transform: translate(0, 0) scale(1); opacity: 1; filter: blur(0); }
+    }
+    @keyframes p1-badge-out {
+      0%   { transform: scale(1); opacity: 1; filter: blur(0); }
+      100% { transform: scale(0); opacity: 0; filter: blur(var(--p1-blur)); }
+    }
+
+    /* ── P3 Email/Draft sheet reveal upgrade ── */
+    .email-modal-overlay .email-modal {
+      /* Override the inline .25s transition defined above with exact P3 tokens */
+      transition: transform var(--p3-close-dur) var(--p3-ease) !important;
+    }
+    .email-modal-overlay.open .email-modal {
+      transition: transform var(--p3-open-dur) var(--p3-ease) !important;
+    }
+
+    /* ── MagicUI View Transition (theme circle-reveal) ── */
+    ::view-transition-old(root),
+    ::view-transition-new(root) {
+      animation: none;
+      mix-blend-mode: normal;
+    }
   </style>
 </head>
 <body>
@@ -1334,7 +1463,7 @@
             <span id="moonIconWrap" class="theme-icon-wrap" style="display:inline-flex"><svg class="theme-icon-outline" width="16" height="16" viewBox="0 0 24 24" fill="none"><path fill-rule="evenodd" clip-rule="evenodd" d="M12.0972 2.53033C12.2913 2.86484 12.2752 3.2813 12.0557 3.59974C11.3898 4.56587 11 5.73589 11 6.99996C11 10.3137 13.6863 13 17 13C18.2641 13 19.4341 12.6102 20.4002 11.9443C20.7187 11.7248 21.1351 11.7086 21.4696 11.9027C21.8041 12.0968 21.9967 12.4664 21.9642 12.8518C21.5313 17.9764 17.236 22 12 22C6.47715 22 2 17.5228 2 12C2 6.76392 6.02351 2.46868 11.1481 2.03579C11.5335 2.00324 11.9031 2.19582 12.0972 2.53033ZM9.42424 4.42346C6.26994 5.49547 4 8.483 4 12C4 16.4182 7.58172 20 12 20C15.517 20 18.5045 17.73 19.5765 14.5757C18.7676 14.8508 17.9008 15 17 15C12.5817 15 9 11.4182 9 6.99996C9 6.09916 9.1492 5.23234 9.42424 4.42346Z" fill="currentColor"/></svg><svg class="theme-icon-solid" width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12.0557 3.59974C12.2752 3.2813 12.2913 2.86484 12.0972 2.53033C11.9031 2.19582 11.5335 2.00324 11.1481 2.03579C6.02351 2.46868 2 6.76392 2 12C2 17.5228 6.47715 22 12 22C17.236 22 21.5313 17.9764 21.9642 12.8518C21.9967 12.4664 21.8041 12.0968 21.4696 11.9027C21.1351 11.7086 20.7187 11.7248 20.4002 11.9443C19.4341 12.6102 18.2641 13 17 13C13.6863 13 11 10.3137 11 6.99996C11 5.73589 11.3898 4.56587 12.0557 3.59974Z" fill="currentColor"/></svg></span>
           </button>
           <button class="btn-icon" id="notifBtn" title="Notifications">
-            <div class="notif-badge" id="notifBadge" style="display:none"></div>
+            <div class="notif-badge" id="notifBadge"></div>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
               <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
               <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
@@ -1353,7 +1482,7 @@
           <span id="mobMoonIconWrap" class="theme-icon-wrap" style="display:inline-flex"><svg class="theme-icon-outline" width="16" height="16" viewBox="0 0 24 24" fill="none"><path fill-rule="evenodd" clip-rule="evenodd" d="M12.0972 2.53033C12.2913 2.86484 12.2752 3.2813 12.0557 3.59974C11.3898 4.56587 11 5.73589 11 6.99996C11 10.3137 13.6863 13 17 13C18.2641 13 19.4341 12.6102 20.4002 11.9443C20.7187 11.7248 21.1351 11.7086 21.4696 11.9027C21.8041 12.0968 21.9967 12.4664 21.9642 12.8518C21.5313 17.9764 17.236 22 12 22C6.47715 22 2 17.5228 2 12C2 6.76392 6.02351 2.46868 11.1481 2.03579C11.5335 2.00324 11.9031 2.19582 12.0972 2.53033ZM9.42424 4.42346C6.26994 5.49547 4 8.483 4 12C4 16.4182 7.58172 20 12 20C15.517 20 18.5045 17.73 19.5765 14.5757C18.7676 14.8508 17.9008 15 17 15C12.5817 15 9 11.4182 9 6.99996C9 6.09916 9.1492 5.23234 9.42424 4.42346Z" fill="currentColor"/></svg><svg class="theme-icon-solid" width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12.0557 3.59974C12.2752 3.2813 12.2913 2.86484 12.0972 2.53033C11.9031 2.19582 11.5335 2.00324 11.1481 2.03579C6.02351 2.46868 2 6.76392 2 12C2 17.5228 6.47715 22 12 22C17.236 22 21.5313 17.9764 21.9642 12.8518C21.9967 12.4664 21.8041 12.0968 21.4696 11.9027C21.1351 11.7086 20.7187 11.7248 20.4002 11.9443C19.4341 12.6102 18.2641 13 17 13C13.6863 13 11 10.3137 11 6.99996C11 5.73589 11.3898 4.56587 12.0557 3.59974Z" fill="currentColor"/></svg></span>
         </button>
         <button class="btn-icon" id="mobNotifBtn" title="Notifications">
-          <div class="notif-badge" id="mobNotifBadge" style="display:none"></div>
+          <div class="notif-badge" id="mobNotifBadge"></div>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
             <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
             <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
@@ -1522,7 +1651,9 @@
           </div>
           <div class="banner banner-success" id="doneBanner">
             <div class="banner-left">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path fill-rule="evenodd" clip-rule="evenodd" d="M21.2285 6.60358C21.619 6.9941 21.619 7.62726 21.2285 8.01779L10.2557 18.9906C9.86764 19.3786 9.23938 19.3815 8.84786 18.997L2.66233 12.9219C2.2683 12.5349 2.2626 11.9017 2.64959 11.5077L3.3503 10.7943C3.73729 10.4002 4.37043 10.3945 4.76445 10.7815L9.53589 15.4678L19.1072 5.89647C19.4977 5.50595 20.1309 5.50595 20.5214 5.89647L21.2285 6.60358Z" fill="currentColor"/></svg>
+              <span class="p10-check-icon">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path fill-rule="evenodd" clip-rule="evenodd" d="M21.2285 6.60358C21.619 6.9941 21.619 7.62726 21.2285 8.01779L10.2557 18.9906C9.86764 19.3786 9.23938 19.3815 8.84786 18.997L2.66233 12.9219C2.2683 12.5349 2.2626 11.9017 2.64959 11.5077L3.3503 10.7943C3.73729 10.4002 4.37043 10.3945 4.76445 10.7815L9.53589 15.4678L19.1072 5.89647C19.4977 5.50595 20.1309 5.50595 20.5214 5.89647L21.2285 6.60358Z" fill="currentColor"/></svg>
+              </span>
               <span id="doneMsg">You're done. Head out!</span>
             </div>
           </div>
@@ -3280,9 +3411,24 @@
     function renderNotifs() {
       const notifs = buildNotifs();
       const list = el('notifList');
-      el('notifBadge').style.display = notifs.length > 0 ? 'block' : 'none';
-      el('notifBtn').classList.toggle('has-notifs', notifs.length > 0);
-      el('mobNotifBtn')?.classList.toggle('has-notifs', notifs.length > 0);
+      // P1 badge: animate in/out using spring slide instead of display toggle
+      const hasBadge = notifs.length > 0;
+      const _setBadge = (id) => {
+        const b = el(id); if (!b) return;
+        const wasShown = b.classList.contains('badge-show');
+        if (hasBadge && !wasShown) {
+          b.classList.remove('badge-hide');
+          b.classList.add('badge-show');
+        } else if (!hasBadge && wasShown) {
+          b.classList.remove('badge-show');
+          b.classList.add('badge-hide');
+          b.addEventListener('animationend', () => b.classList.remove('badge-hide'), { once: true });
+        }
+      };
+      _setBadge('notifBadge');
+      _setBadge('mobNotifBadge');
+      el('notifBtn').classList.toggle('has-notifs', hasBadge);
+      el('mobNotifBtn')?.classList.toggle('has-notifs', hasBadge);
 
       if (!notifs.length) { list.innerHTML = `<div class="notif-empty">No notifications right now.</div>`; return; }
 
@@ -3973,8 +4119,7 @@
       el('rcWorked').textContent = '—';
       el('rcWorked').style.color = 'var(--muted-fg)';
       el('rcTarget').textContent = dur(eff); el('rcTarget').style.color = 'var(--muted-fg)';
-      el('rcElapsedLabel').textContent = 'Not Started';
-      el('rcElapsedLabel').style.color = 'var(--muted-fg)';
+      swapText('rcElapsedLabel', 'Not Started', { color: 'var(--muted-fg)' });
       _setTodayDateChip();
       el('progFill').style.width = '0%';
       el('progFill').classList.remove('done');
@@ -4043,13 +4188,46 @@
       _animState[elId] = requestAnimationFrame(tick);
     }
 
+    // ── P6 Text swap (blur + translateY exit → enter) ───────
+    function swapText(elId, newText, styleObj) {
+      const elem = typeof elId === 'string' ? el(elId) : elId;
+      if (!elem) return;
+      if (elem.textContent === newText) {
+        if (styleObj) Object.assign(elem.style, styleObj);
+        return;
+      }
+      elem.classList.add('p6-text', 'is-exit');
+      setTimeout(() => {
+        elem.textContent = newText;
+        if (styleObj) Object.assign(elem.style, styleObj);
+        elem.classList.remove('is-exit');
+        elem.classList.add('is-enter-start');
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+          elem.classList.remove('is-enter-start');
+        }));
+      }, 150);
+    }
+
+    // ── P9 Number pop-in (first-time value reveal) ──────────
+    function _p9Pop(elId) {
+      const elem = typeof elId === 'string' ? el(elId) : elId;
+      if (!elem) return;
+      elem.classList.remove('p9-popping');
+      void elem.offsetWidth; // reflow to restart animation
+      elem.classList.add('p9-popping');
+      elem.addEventListener('animationend', () => elem.classList.remove('p9-popping'), { once: true });
+    }
+
     // Animate the big hour display (parses "Xh YYm" format)
     function animateDuration(elId, newText) {
       const elem = el(elId);
       if (!elem) return;
       const old = elem.dataset.animVal;
       if (old === newText) return;
+      // P9 pop-in: trigger when transitioning from a blank/dash state to a real value
+      const wasBlank = !old || old === '—' || old === '';
       elem.dataset.animVal = newText;
+      if (wasBlank) { _p9Pop(elem); }
       const parseHM = s => { const m = s.match(/(\d+)h\s*(\d+)m/); return m ? parseInt(m[1])*60+parseInt(m[2]) : null; };
       const newMins = parseHM(newText), oldMins = parseHM(old || '0h 00m');
       if (newMins === null || oldMins === null) { elem.textContent = newText; return; }
@@ -4081,7 +4259,7 @@
       const c = cfg();
       const now = new Date(), eff = effSecs();
       const worked  = Math.max(0, Math.floor((now - loginDate) / 1000)) + _sessionAccSecs;
-      el('rcElapsedLabel').textContent = 'Elapsed';
+      swapText('rcElapsedLabel', 'Elapsed');
       if (Math.floor(Date.now()/1000) % 30 === 0) persistSession(); // every 30s
       const isDone  = eff > 0 && worked >= eff;
       const leaveDate = new Date(loginDate.getTime() + eff * 1000);
@@ -4107,7 +4285,7 @@
         const remText = rem < 60 ? `${Math.max(0, rem)}s` : dur(rem);
         animateDuration('rcTarget', remText);
         el('rcTarget').style.color = '';
-        if (el('rcTargetLabel')) el('rcTargetLabel').textContent = 'Remaining';
+        if (el('rcTargetLabel')) swapText('rcTargetLabel', 'Remaining');
         el('progFill').classList.remove('target-reached');
         el('progTrack')?.classList.remove('target-reached');
       } else if (isDone) {
@@ -4116,12 +4294,12 @@
         const otColor = ot < 60 ? 'var(--muted-fg)' : 'var(--foreground)';
         animateDuration('rcTarget', otText);
         el('rcTarget').style.color = otColor;
-        if (el('rcTargetLabel')) el('rcTargetLabel').textContent = 'Extra Time';
+        if (el('rcTargetLabel')) swapText('rcTargetLabel', 'Extra Time');
         el('progFill').classList.add('target-reached');
         el('progTrack')?.classList.add('target-reached');
       } else {
         el('rcTarget').textContent = '—'; el('rcTarget').style.color = 'var(--muted-fg)';
-        if (el('rcTargetLabel')) el('rcTargetLabel').textContent = 'Remaining';
+        if (el('rcTargetLabel')) swapText('rcTargetLabel', 'Remaining');
         el('progFill').classList.remove('target-reached');
         el('progTrack')?.classList.remove('target-reached');
       }
@@ -4468,13 +4646,12 @@
 
       // Helper: reset all card state cleanly (no session data)
       function _clearCardState() {
-        el('rcElapsedLabel').textContent = '';
-        el('rcElapsedLabel').style.color = '';
+        swapText('rcElapsedLabel', '', { color: '' });
         showRem(false);
         el('progFill').style.width = '0%';
         el('progFill').classList.remove('done', 'target-reached');
         el('progTrack')?.classList.remove('target-reached');
-        if (el('rcTargetLabel')) el('rcTargetLabel').textContent = 'Remaining';
+        if (el('rcTargetLabel')) swapText('rcTargetLabel', 'Remaining');
         el('stayHint').style.display = 'none';
         el('otBanner').classList.remove('show');
         el('doneBanner').classList.remove('show');
@@ -4525,7 +4702,7 @@
         const otText = ot < 60 ? '+0m' : `+${dur(ot)}`;
         const otColor = ot < 60 ? 'var(--muted-fg)' : 'var(--foreground)';
         if (el('rcTarget')) { el('rcTarget').textContent = otText; el('rcTarget').style.color = otColor; }
-        if (el('rcTargetLabel')) el('rcTargetLabel').textContent = 'Surplus';
+        if (el('rcTargetLabel')) swapText('rcTargetLabel', 'Surplus');
         el('otBanner').classList.remove('show');
         el('doneMsg').textContent = `${dur(worked)} logged`;
         el('doneBanner').classList.add('show');
@@ -4534,7 +4711,7 @@
       } else {
         const deficit = target - worked;
         if (el('rcTarget')) { el('rcTarget').textContent = `-${dur(deficit)}`; el('rcTarget').style.color = 'var(--warning)'; }
-        if (el('rcTargetLabel')) el('rcTargetLabel').textContent = 'Surplus';
+        if (el('rcTargetLabel')) swapText('rcTargetLabel', 'Surplus');
         el('otBanner').classList.remove('show'); el('doneBanner').classList.remove('show');
         el('progFill').classList.remove('target-reached');
         el('progTrack')?.classList.remove('target-reached');
@@ -4767,6 +4944,14 @@
       if (inp) inp.style.display = '';
       el('tc-r7m2').classList.add('err');
       el('errMsg').classList.add('show');
+      // P12 — shake the input row
+      const row = el('shiftInputRow');
+      if (row) {
+        row.classList.remove('p12-shaking');
+        void row.offsetWidth;
+        row.classList.add('p12-shaking');
+        row.addEventListener('animationend', () => row.classList.remove('p12-shaking'), { once: true });
+      }
       loginDate = null; wasDone = false; notifSent = false;
       if (ticker) { clearInterval(ticker); ticker = null; }
       renderEmptyState();
@@ -6393,9 +6578,30 @@ ${sig}`
       const installLogo = document.getElementById('installPromptLogo');
       if (installLogo) installLogo.src = logoSrc;
     }
+    // MagicUI animated theme toggler — View Transitions API circle-reveal
+    function _toggleThemeAnimated(event) {
+      const nextDark = !dark;
+      if (!document.startViewTransition) { applyTheme(nextDark); return; }
+      const btn = event?.currentTarget ?? event?.target;
+      const rect = btn?.getBoundingClientRect();
+      const x = rect ? Math.round(rect.left + rect.width / 2) : Math.round(window.innerWidth / 2);
+      const y = rect ? Math.round(rect.top  + rect.height / 2) : Math.round(window.innerHeight / 2);
+      const maxRadius = Math.hypot(
+        Math.max(x, window.innerWidth  - x),
+        Math.max(y, window.innerHeight - y)
+      );
+      const transition = document.startViewTransition(() => { applyTheme(nextDark); });
+      transition.ready.then(() => {
+        document.documentElement.animate(
+          { clipPath: [`circle(0px at ${x}px ${y}px)`, `circle(${maxRadius}px at ${x}px ${y}px)`] },
+          { duration: 420, easing: 'ease-in-out', fill: 'forwards', pseudoElement: '::view-transition-new(root)' }
+        );
+      }).catch(() => {}); // suppress if transition is interrupted
+    }
+
     const _savedTheme = localStorage.getItem('wh_theme');
     applyTheme(_savedTheme ? _savedTheme === 'dark' : window.matchMedia('(prefers-color-scheme:dark)').matches);
-    el('themeBtn').addEventListener('click', () => applyTheme(!dark));
+    el('themeBtn').addEventListener('click', _toggleThemeAnimated);
     initServiceWorker(); // register service worker for Web Push
     scheduleMorningReminder();  // schedule next-day 9am nudge if not yet logged in
 
@@ -6408,7 +6614,7 @@ ${sig}`
       tab.addEventListener('click', () => switchTab(tab.dataset.view));
     });
     // Mobile theme + notif
-    el('mobThemeBtn')?.addEventListener('click', () => applyTheme(!dark));
+    el('mobThemeBtn')?.addEventListener('click', _toggleThemeAnimated);
     el('mobNotifBtn')?.addEventListener('click', toggleNotifPanel);
     el('notifBtn').addEventListener('click', toggleNotifPanel);
     el('notifClearAll').addEventListener('click', () => {
@@ -7148,6 +7354,26 @@ ${sig}`
 
     el('upwdOverlay')?.addEventListener('click', ev => { if (ev.target === el('upwdOverlay')) closeUpwdModal(); });
 
+    // ── Supabase sign-out helper (best-effort; invalidates the JWT session) ──
+    async function _sbSignOut() {
+      try {
+        if (!window._sbClient) {
+          await new Promise((res, rej) => {
+            const s = document.createElement('script');
+            s.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js';
+            s.onload = res; s.onerror = rej;
+            document.head.appendChild(s);
+          });
+          window._sbClient = window.supabase.createClient(
+            'https://ivgathdwiptuymrqzruq.supabase.co',
+            'sb_publishable_dAWrIIN55EDvnDbPSuDowA_MUJy47_3',
+            { auth: { persistSession: true } }
+          );
+        }
+        await window._sbClient.auth.signOut();
+      } catch (_) { /* sign-out is best-effort — always navigate away */ }
+    }
+
     // ── Danger Zone ─────────────────────────────────────────────────────────
     function openLogoutModal() {
       el('logoutOverlay').classList.add('open');
@@ -7157,10 +7383,12 @@ ${sig}`
       if (ticker) { clearInterval(ticker); ticker = null; }
       el('signingOutTitle').textContent = 'Logging Out';
       el('signingOutOverlay').classList.add('open');
-      setTimeout(() => {
+      // Run sign-out and the 2 s animation delay in parallel; navigate when both finish
+      const delay = new Promise(r => setTimeout(r, 2000));
+      Promise.all([_sbSignOut(), delay]).finally(() => {
         localStorage.removeItem('wh_auth');
         window.location.href = 'login.html';
-      }, 2000);
+      });
     }
 
     function openDeleteModal() {
@@ -7206,10 +7434,11 @@ ${sig}`
       closeDeleteModal();
       el('signingOutTitle').textContent = 'Deleting Account';
       el('signingOutOverlay').classList.add('open');
-      setTimeout(() => {
+      const delay = new Promise(r => setTimeout(r, 2000));
+      Promise.all([_sbSignOut(), delay]).finally(() => {
         localStorage.clear();
         window.location.href = 'login.html';
-      }, 2000);
+      });
     }
 
     // Close modals on backdrop click

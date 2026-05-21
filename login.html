@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -17,6 +17,8 @@
   <meta name="theme-color" content="#09090b" media="(prefers-color-scheme: dark)">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <!-- Apply saved theme before first paint (prevents dark/light flash) -->
+  <script>(function(){var s=localStorage.getItem('wh_theme');var p=window.matchMedia('(prefers-color-scheme:dark)').matches;if(s?s==='dark':p)document.documentElement.classList.add('dark');})()</script>
   <!-- Supabase JS SDK — loaded statically so the client is available before any auth code runs -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <style>
@@ -368,11 +370,11 @@
         <div class="divider-line"></div>
       </div>
 
-      <button class="btn-oauth" onclick="handleOAuth('Google')">
+      <button id="google-btn" class="btn-oauth">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
         Continue with Google
       </button>
-      <button class="btn-oauth" onclick="handleOAuth('GitHub')">
+      <button id="github-btn" class="btn-oauth">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0 1 12 6.844a9.59 9.59 0 0 1 2.504.337c1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0 0 22 12.017C22 6.484 17.522 2 12 2z"/></svg>
         Continue with GitHub
       </button>
@@ -394,11 +396,11 @@
         <div class="divider-line"></div>
       </div>
 
-      <button class="btn-oauth" onclick="handleOAuth('Google')">
+      <button id="google-recovery-btn" class="btn-oauth">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
         Continue with Google
       </button>
-      <button class="btn-oauth" onclick="handleOAuth('GitHub')">
+      <button id="github-recovery-btn" class="btn-oauth">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0 1 12 6.844a9.59 9.59 0 0 1 2.504.337c1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0 0 22 12.017C22 6.484 17.522 2 12 2z"/></svg>
         Continue with GitHub
       </button>
@@ -472,294 +474,7 @@
     <a class="auth-footer-link" id="toggleLink" onclick="toggleMode()">Sign up</a>
   </div>
 
-  <script>
-    // ── Theme ──────────────────────────────────────────
-    const saved = localStorage.getItem('wh_theme');
-    const prefersDark = window.matchMedia('(prefers-color-scheme:dark)').matches;
-    let isDark = saved ? saved === 'dark' : prefersDark;
-    function applyTheme() {
-      document.documentElement.classList.toggle('dark', isDark);
-      document.getElementById('themeIconSun').style.display  = isDark ? '' : 'none';
-      document.getElementById('themeIconMoon').style.display = isDark ? 'none' : '';
-      // Swap theme-aware favicon
-      const fav = document.getElementById('favicon');
-      if (fav) fav.href = isDark ? '/favicon-dark.svg' : '/favicon-light.svg';
-      // Swap brand logo on login screen
-      const logo = document.getElementById('loginLogo');
-      if (logo) logo.src = isDark ? '/brand-dark.svg' : '/brand-light.svg';
-    }
-    function toggleTheme() {
-      isDark = !isDark;
-      localStorage.setItem('wh_theme', isDark ? 'dark' : 'light');
-      applyTheme();
-    }
-    applyTheme();
-
-    // ── Helper ─────────────────────────────────────────
-    const $ = id => document.getElementById(id);
-
-    // ── Supabase — SDK loaded via <script> tag in <head>, client ready immediately ──
-    const supabase = window.supabase.createClient(
-      'https://ivgathdwiptuymrqzruq.supabase.co',
-      'sb_publishable_dAWrIIN55EDvnDbPSuDowA_MUJy47_3',
-      { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } }
-    );
-
-    // Inline error banner — inserted above the submit button on demand
-    function showAuthError(msg) {
-      let errEl = $('authError');
-      if (!errEl) {
-        errEl = document.createElement('div');
-        errEl.id = 'authError';
-        errEl.style.cssText = 'font-size:12px;color:#dc2626;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:10px 12px;margin-bottom:12px;line-height:1.45;display:none';
-        $('submitBtn').insertAdjacentElement('beforebegin', errEl);
-      }
-      errEl.textContent = msg;
-      errEl.style.display = '';
-      clearTimeout(errEl._t);
-      errEl._t = setTimeout(() => { errEl.style.display = 'none'; }, 7000);
-    }
-    function _clearAuthError() { const e = $('authError'); if (e) e.style.display = 'none'; }
-
-    // Show error when redirected back from oauth/consent with ?error=
-    (function () {
-      const p = new URLSearchParams(location.search);
-      const e = p.get('error');
-      if (e) setTimeout(() => showAuthError(
-        e === 'oauth_failed'
-          ? 'Sign-in was cancelled or failed. Please try again.'
-          : decodeURIComponent(e)
-      ), 50);
-    })();
-
-    // ── View switcher ──────────────────────────────────
-    function showView(id) {
-      ['viewLogin','viewRecovery','viewOTP','viewAuth','authSuccess'].forEach(v => {
-        const el = $(v);
-        if (el) el.style.display = 'none';
-      });
-      // authSuccess uses display:flex in CSS — must set explicitly or '' reverts to none
-      $(id).style.display = id === 'authSuccess' ? 'flex' : '';
-      $(id).style.animation = 'none';
-      void $(id).offsetWidth;
-      $(id).style.animation = '';
-    }
-
-    // ── Mode toggle (Login ↔ Signup) ───────────────────
-    let isSignup = false;
-    function toggleMode() {
-      isSignup = !isSignup;
-      $('authTitle').textContent   = isSignup ? 'Create an account' : 'Hey Hustler,';
-      $('authSub').textContent     = isSignup ? 'Start tracking your work hours.' : 'Let us help you manage your time.';
-      $('submitLabel').textContent = isSignup ? 'Create Account' : 'Sign In';
-      $('footerText').textContent  = isSignup ? 'Already have an account?' : "Don't have an account?";
-      $('toggleLink').textContent  = isSignup ? 'Log in' : 'Sign up';
-      $('pwdInput').autocomplete   = isSignup ? 'new-password' : 'current-password';
-      $('nameField').classList.toggle('show', isSignup);
-      $('forgotLink').style.display = isSignup ? 'none' : '';
-    }
-
-    // ── Password show/hide ─────────────────────────────
-    function togglePwd() {
-      const input = $('pwdInput');
-      const isText = input.type === 'text';
-      input.type = isText ? 'password' : 'text';
-      $('eyeOpen').style.display  = isText ? '' : 'none';
-      $('eyeClose').style.display = isText ? 'none' : '';
-    }
-
-    // ── Submit ─────────────────────────────────────────
-    async function handleSubmit() {
-      const email = $('emailInput').value.trim();
-      const pwd   = $('pwdInput').value;
-      const name  = $('nameInput').value.trim();
-      if (!email || !pwd) { $('emailInput').focus(); return; }
-      _clearAuthError();
-      const btn = $('submitBtn');
-      btn.classList.add('loading');
-      btn.disabled = true;
-      try {
-        if (isSignup) {
-          const { data, error } = await supabase.auth.signUp({
-            email, password: pwd,
-            options: { data: { display_name: name || email.split('@')[0] } }
-          });
-          if (error) throw error;
-          if (data.session) {
-            // Email confirmation is disabled in Supabase — signed in immediately
-            showSuccess('Welcome to 5pm!');
-          } else {
-            // Supabase sent a confirmation email — don't redirect yet
-            showView('authSuccess');
-            $('authFooter').style.display = 'none';
-            $('successTitle').textContent = 'Check your inbox!';
-            $('successSub').textContent   = `We sent a confirmation link to ${email}. Click it to activate your account.`;
-          }
-        } else {
-          const { error } = await supabase.auth.signInWithPassword({ email, password: pwd });
-          if (error) throw error;
-          showSuccess('Welcome back!');
-        }
-      } catch (err) {
-        btn.classList.remove('loading');
-        btn.disabled = false;
-        const m = err.message || 'Authentication failed.';
-        showAuthError(
-          (m.includes('Invalid login') || m.includes('invalid_credentials'))
-            ? 'Incorrect email or password.'
-            : m
-        );
-      }
-    }
-
-    // ── OAuth ──────────────────────────────────────────
-    async function handleOAuth(provider) {
-      const btn = event.currentTarget;
-      btn.disabled = true; btn.style.opacity = '.5';
-      _clearAuthError();
-      try {
-        const { error } = await supabase.auth.signInWithOAuth({
-          provider: provider.toLowerCase(),
-          // Redirect back to the app root; Supabase appends ?code= and index.html handles the exchange
-          options:  { redirectTo: window.location.origin + '/index.html' }
-        });
-        if (error) throw error;
-        // Browser will redirect to the OAuth provider — no further action needed here
-      } catch (err) {
-        btn.disabled = false; btn.style.opacity = '';
-        showAuthError(`${provider} sign-in failed: ${err.message}`);
-      }
-    }
-
-    // ── Success ────────────────────────────────────────
-    function showSuccess(msg) {
-      if (_recTimer) { clearInterval(_recTimer); _recTimer = null; }
-      $('authFooter').style.display = 'none';
-      showView('authSuccess');
-      $('successTitle').textContent = isSignup ? "You're all set!" : 'Signed in!';
-      $('successSub').textContent = msg || 'Taking you to your workspace…';
-      localStorage.setItem('wh_auth', '1');
-      setTimeout(() => { window.location.href = 'index.html'; }, 1400);
-    }
-
-    // ── Account Recovery ───────────────────────────────
-    let _recTimer = null, recExpired = false;
-
-    function showRecovery() {
-      if (_recTimer) { clearInterval(_recTimer); _recTimer = null; }
-      $('authFooter').style.display = 'none';
-      showView('viewRecovery');
-      const btn = $('recoverEmailBtn');
-      btn.classList.remove('loading');
-      btn.disabled = false;
-    }
-
-    function backToLogin() {
-      if (_recTimer) { clearInterval(_recTimer); _recTimer = null; }
-      $('authFooter').style.display = '';
-      showView('viewLogin');
-    }
-
-    async function startEmailRecovery() {
-      const email = $('emailInput').value.trim();
-      if (!email) { backToLogin(); $('emailInput').focus(); return; }
-      const btn = $('recoverEmailBtn');
-      btn.classList.add('loading');
-      btn.disabled = true;
-      try {
-        // Supabase sends a password-reset magic link (not a 6-digit OTP code)
-        await supabase.auth.resetPasswordForEmail(email, {
-          redirectTo: window.location.origin + '/login.html'
-        });
-        $('authFooter').style.display = 'none';
-        showView('authSuccess');
-        $('successTitle').textContent = 'Email sent!';
-        $('successSub').textContent   = `A password reset link was sent to ${email}. Check your inbox.`;
-      } catch (err) {
-        btn.classList.remove('loading');
-        btn.disabled = false;
-        showAuthError(err.message || 'Failed to send reset email. Try again.');
-      }
-    }
-
-    function startRecTimer(secs) {
-      if (_recTimer) clearInterval(_recTimer);
-      let rem = secs;
-      const fmt = s => Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
-      $('timerDisplay').textContent = fmt(rem);
-      _recTimer = setInterval(() => {
-        rem--;
-        if (rem <= 0) {
-          clearInterval(_recTimer); _recTimer = null;
-          recExpired = true;
-          $('timerRow').style.display = 'none';
-          $('expiredRow').style.display = '';
-          $('verifyOTPBtn').disabled = true;
-          $('recoveryCode').disabled = true;
-        } else {
-          $('timerDisplay').textContent = fmt(rem);
-        }
-      }, 1000);
-    }
-
-    function resendCode() {
-      recExpired = false;
-      $('recoveryCode').disabled = false;
-      $('recoveryCode').value = '';
-      $('verifyOTPBtn').disabled = true;
-      $('expiredRow').style.display = 'none';
-      $('timerRow').style.display = '';
-      startRecTimer(60);
-    }
-
-    function showAuthDigits() {
-      showView('viewAuth');
-      const digits = ['rd0','rd1','rd2','rd3','rd4','rd5'].map(id => $(id));
-      digits.forEach(d => { d.value = ''; d.disabled = false; });
-      $('authDigitVerify').disabled = true;
-      digits[0].focus();
-    }
-
-    function completeRecovery() {
-      showSuccess('Access restored');
-    }
-
-    // ── Digit inputs ───────────────────────────────────
-    function initDigits() {
-      const ids = ['rd0','rd1','rd2','rd3','rd4','rd5'];
-      const digits = ids.map(id => $(id));
-      const update = () => { $('authDigitVerify').disabled = !digits.every(d => /^\d$/.test(d.value)); };
-      digits.forEach((inp, i) => {
-        inp.addEventListener('input', () => {
-          inp.value = inp.value.replace(/\D/g, '').slice(-1);
-          if (inp.value && i < 5) digits[i + 1].focus();
-          update();
-        });
-        inp.addEventListener('keydown', e => {
-          if (e.key === 'Backspace') {
-            if (!inp.value && i > 0) { digits[i - 1].focus(); digits[i - 1].value = ''; e.preventDefault(); }
-            else if (inp.value) { inp.value = ''; e.preventDefault(); }
-            update();
-          } else if (e.key === 'ArrowLeft' && i > 0)  digits[i - 1].focus();
-            else if (e.key === 'ArrowRight' && i < 5) digits[i + 1].focus();
-        });
-        inp.addEventListener('paste', e => {
-          e.preventDefault();
-          const txt = (e.clipboardData || window.clipboardData).getData('text').replace(/\D/g, '');
-          digits.forEach((d, j) => { d.value = txt[j] || ''; });
-          digits[Math.min(txt.length - 1, 5)].focus();
-          update();
-        });
-        inp.addEventListener('click', () => inp.select());
-      });
-    }
-    initDigits();
-
-    // ── Enter key ──────────────────────────────────────
-    document.addEventListener('keydown', e => {
-      if (e.key !== 'Enter') return;
-      if ($('viewLogin').style.display !== 'none') handleSubmit();
-    });
-  </script>
+  <!-- All login page logic lives in login.js -->
+  <script src="login.js"></script>
 </body>
 </html>

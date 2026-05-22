@@ -6178,6 +6178,84 @@ ${sig}`
       },
     };
 
+    // ── SUPABASE SYNC ─────────────────────────────────────────────────────────
+    // Bridges localStorage ↔ work_logs table. All methods are fire-and-forget —
+    // they never block the UI. Silently no-ops when the user is not signed in.
+    const SbSync = {
+      // Valid override values in the DB CHECK constraint
+      _OVERRIDES: new Set(['leave', 'holiday', 'wfh']),
+
+      // Map a localStorage day entry → work_logs row
+      _toRow(userId, dk, entry) {
+        const statusMap = {
+          realtime: 'completed', edited: 'completed',
+          autostopped: 'auto_stopped', auto_stopped: 'auto_stopped'
+        };
+        return {
+          user_id:          userId,
+          log_date:         dk,
+          hours_worked:     Math.min(Math.max(parseFloat(entry.hoursWorked) || 0, 0), 24),
+          accumulated_secs: Math.min(Math.round((parseFloat(entry.hoursWorked) || 0) * 3600), 86400),
+          status:           statusMap[entry.sessionTag] || 'completed',
+          override_type:    this._OVERRIDES.has(entry.override) ? entry.override : null,
+          updated_at:       entry.lastUpdated || new Date().toISOString(),
+        };
+      },
+
+      async _uid() {
+        try {
+          const { data: { session } } = await window._sbClient.auth.getSession();
+          return session?.user?.id ?? null;
+        } catch { return null; }
+      },
+
+      // Push a single day — called from saveDayLog (fire-and-forget)
+      async pushDay(dk, entry) {
+        try {
+          const uid = await this._uid();
+          if (!uid) return;
+          await window._sbClient.from('work_logs')
+            .upsert(this._toRow(uid, dk, entry), { onConflict: 'user_id,log_date' });
+        } catch (e) { console.warn('[SbSync] pushDay failed:', e); }
+      },
+
+      // Push all localStorage days — called after a bulk import
+      async pushAll() {
+        try {
+          const uid = await this._uid();
+          if (!uid) return;
+          const entries = Object.entries(Store.allDays());
+          if (!entries.length) return;
+          const rows = entries.map(([dk, v]) => this._toRow(uid, dk, v));
+          // Batch in chunks of 100 to stay within request limits
+          for (let i = 0; i < rows.length; i += 100) {
+            await window._sbClient.from('work_logs')
+              .upsert(rows.slice(i, i + 100), { onConflict: 'user_id,log_date' });
+          }
+        } catch (e) { console.warn('[SbSync] pushAll failed:', e); }
+      },
+
+      // Pull Supabase rows into localStorage — called on first load when no local data
+      async pullAll() {
+        try {
+          const uid = await this._uid();
+          if (!uid) return;
+          const { data, error } = await window._sbClient
+            .from('work_logs').select('*').eq('user_id', uid);
+          if (error || !data?.length) return;
+          data.forEach(row => {
+            if (Store.getDay(row.log_date)) return; // never overwrite local data
+            Store.setDay(row.log_date, {
+              hoursWorked:  parseFloat(row.hours_worked) || 0,
+              sessionTag:   row.status === 'auto_stopped' ? 'autostopped' : 'realtime',
+              override:     this._OVERRIDES.has(row.override_type) ? row.override_type : null,
+              lastUpdated:  row.updated_at,
+            });
+          });
+        } catch (e) { console.warn('[SbSync] pullAll failed:', e); }
+      },
+    };
+
     // Debounced persist hook — stamps lastSaved, refreshes UI label
     let _persistTimer=null;
     function persist() {
@@ -6191,7 +6269,7 @@ ${sig}`
     }
 
     // saveDayLog + saveCfg wired through Store
-    function saveDayLog(k,v) { Store.setDay(k,v); persist(); }
+    function saveDayLog(k,v) { Store.setDay(k,v); persist(); SbSync.pushDay(k, v); }
     const saveCfg = v => { Store.setCfg(v); persist(); };
 
     // Session state persistence
@@ -6299,6 +6377,7 @@ ${sig}`
         return;
       }
 
+      SbSync.pushAll(); // sync imported history to Supabase (fire-and-forget)
       Store.clearSession();
       loginDate = null; _sessionAccSecs = 0; _sessionCheckoutTime = null;
       autoStopped = false; wasDone = false; notifSent = false;
@@ -7476,6 +7555,7 @@ ${sig}`
 
         // Apply data
         Store.importSnap(data.wh_backup_v2 ? data : { ...data, cfg: snap.cfg, days: snap.days });
+        SbSync.pushAll(); // sync imported history to Supabase (fire-and-forget)
 
         _obImported = true;
         const c = snap.cfg || {};
@@ -7627,6 +7707,16 @@ ${sig}`
       restoreSession();
       // Check for forgot-to-logout
       if (!loginDate) setTimeout(checkForgotLogout, 800);
+
+      // Restore from Supabase if this is a fresh device with no local data
+      if (Object.keys(Store.allDays()).length === 0) {
+        SbSync.pullAll().then(() => {
+          if (Object.keys(Store.allDays()).length > 0) {
+            renderHistory(); renderDaySelector();
+            if (!loginDate) renderEmptyState();
+          }
+        });
+      }
 
       // Show onboarding on first launch
       if (!localStorage.getItem(OB_DONE_KEY) && !Store.getCfg()) {

@@ -16,7 +16,9 @@
 // ── 1. Supabase client ────────────────────────────────────────────────────────
 // SDK is already present (loaded statically in <head>).  We create one client
 // instance and reuse it everywhere on this page.
-const supabase = window.supabase.createClient(
+// Named _sb (not supabase) so it never clashes with a `const supabase` that an
+// old cached version of login.html may have already declared in global scope.
+const _sb = window.supabase.createClient(
   'https://ivgathdwiptuymrqzruq.supabase.co',
   'sb_publishable_dAWrIIN55EDvnDbPSuDowA_MUJy47_3',
   { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } }
@@ -134,7 +136,7 @@ async function handleSubmit() {
   btn.disabled = true;
   try {
     if (isSignup) {
-      const { data, error } = await supabase.auth.signUp({
+      const { data, error } = await _sb.auth.signUp({
         email, password: pwd,
         options: { data: { display_name: name || email.split('@')[0] } }
       });
@@ -150,7 +152,7 @@ async function handleSubmit() {
         $('successSub').textContent   = `We sent a confirmation link to ${email}. Click it to activate your account.`;
       }
     } else {
-      const { error } = await supabase.auth.signInWithPassword({ email, password: pwd });
+      const { error } = await _sb.auth.signInWithPassword({ email, password: pwd });
       if (error) throw error;
       showSuccess('Welcome back!');
     }
@@ -175,7 +177,7 @@ async function handleOAuth(provider, evt) {
   btn.style.opacity = '.5';
   _clearAuthError();
   try {
-    const { error } = await supabase.auth.signInWithOAuth({
+    const { error } = await _sb.auth.signInWithOAuth({
       provider: provider.toLowerCase(),
       // After OAuth the provider redirects back here with ?code=
       // index.html picks up the code via detectSessionInUrl:true
@@ -227,7 +229,7 @@ async function startEmailRecovery() {
   btn.classList.add('loading');
   btn.disabled = true;
   try {
-    await supabase.auth.resetPasswordForEmail(email, {
+    await _sb.auth.resetPasswordForEmail(email, {
       redirectTo: window.location.origin + '/login.html'
     });
     $('authFooter').style.display = 'none';

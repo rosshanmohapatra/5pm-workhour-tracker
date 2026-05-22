@@ -607,6 +607,9 @@
       backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
       display: flex; align-items: center; justify-content: center; padding: 16px;
       opacity: 0; pointer-events: none; transition: opacity .18s; }
+    @media (max-width: 600px) {
+      .overlay { align-items: flex-start; padding-top: 20px; }
+    }
     .overlay.open { opacity: 1; pointer-events: all; }
     .dialog { position: relative; background: var(--card); border: 1px solid var(--border);
       border-radius: var(--radius-lg); width: 100%;
@@ -2843,7 +2846,7 @@
     }
 
     // ── CONFIG ─────────────────────────────────────────
-    const CFG_DEF = { dailyH:9, weeklyH:45, weeklyOn:true, lateDays:[], earlyLeaveEntries:[], lateEntries:[], notifOn:false, notifTarget:true, notifKickstart:true, notifOvertime:true, name:'', position:'', targetDay:null, autoStopBuf:0.5, tzOffset:330, shiftType:'morning', workDays:5, recommendTimings:true };
+    const CFG_DEF = { dailyH:9, weeklyH:45, weeklyOn:true, lateDays:[], earlyLeaveEntries:[], lateEntries:[], notifOn:false, notifTarget:true, notifKickstart:true, notifOvertime:true, name:'', position:'', targetDay:null, autoStopBuf:2, tzOffset:330, shiftType:'morning', workDays:5, recommendTimings:true };
     function cfg() { const r=Store.getCfg(); return r?{...CFG_DEF,...r}:{...CFG_DEF}; }
 
     // ── PUSH USER ID ───────────────────────────────────
@@ -4289,7 +4292,7 @@
 
       el('autostopBanner').classList.remove('show');
       // ── Auto-stop check ──
-      const autoStopAt = (c.dailyH + (c.autoStopBuf || 0.5)) * 3600;
+      const autoStopAt = (c.dailyH + (c.autoStopBuf ?? 2)) * 3600;
       if (!autoStopped && worked >= autoStopAt) { doAutoStop(); return; }
 
       const h = Math.floor(worked / 3600), m = Math.floor((worked % 3600) / 60);
@@ -5218,6 +5221,37 @@
       // Sync hidden weekly inputs so calculations still work
       el('inpWeeklyH').value = wh;
       el('inpWeeklyM').value = wm;
+      // Keep shift end time in sync when daily hours change
+      syncHoursToShiftEnd();
+    }
+
+    // Shift timing ↔ Daily hours two-way sync
+    // Direction 1: shift start/end → compute duration → update daily hours
+    function syncShiftTimesToHours() {
+      const s = parse(el('inpShiftStart')?.value);
+      const e = parse(el('inpShiftEnd')?.value);
+      if (!s || !e) return;
+      let diffMins = (e - s) / 60000;
+      if (diffMins <= 0) diffMins += 24 * 60; // overnight shift
+      if (diffMins <= 0 || diffMins > 24 * 60) return;
+      el('inpDailyH').value = Math.floor(diffMins / 60);
+      el('inpDailyM').value = Math.round(diffMins % 60);
+      updateWeeklyCalc();
+    }
+
+    // Direction 2: daily hours + shift start → compute end time → update shift end
+    function syncHoursToShiftEnd() {
+      const s = parse(el('inpShiftStart')?.value);
+      if (!s) return;
+      const h = parseInt(el('inpDailyH')?.value || '0');
+      const m = parseInt(el('inpDailyM')?.value || '0');
+      if (h === 0 && m === 0) return;
+      const end = new Date(s.getTime() + (h * 60 + m) * 60000);
+      const endStr = short(end);
+      if (endStr !== el('inpShiftEnd')?.value) {
+        el('inpShiftEnd').value = endStr;
+        renderShiftPresets();
+      }
     }
 
     function onRecommendTimingsChange(checked) {
@@ -5298,7 +5332,7 @@
       const recommendTimings = el('inpRecommendTimings')?.checked ?? true;
       saveCfg({ dailyH: daily, weeklyH, weeklyOn: on, lateDays, earlyLeaveDays, notifOn, notifTarget, notifKickstart, notifOvertime, name, position,
                 targetDay, shiftType, shiftStart, shiftEnd, tzOffset, workDays, recommendTimings,
-                autoStopBuf: cfg().autoStopBuf || 0.5 });
+                autoStopBuf: cfg().autoStopBuf ?? 2 });
       renderDaySelector(); // refresh strip in case work-days changed
       updateWeeklyCalc();
       el('settingsLastSaved').textContent = `Last updated just now`;
@@ -5367,6 +5401,7 @@
     }
     function applyShiftPreset(s, e) {
       el('inpShiftStart').value=s; el('inpShiftEnd').value=e;
+      syncShiftTimesToHours();
       renderShiftPresets(); autoSaveSettings();
     }
     // ── TAB SWITCHING ──────────────────────────────────
@@ -6118,7 +6153,7 @@ ${sig}`
             earlyLeaveDay:       c.targetDay  || null,
             earlyLeaveDays:      c.earlyLeaveDays || (c.targetDay != null ? [c.targetDay] : []),
             stayLateDays:        c.lateDays   || [],
-            autoStopBufferHours: c.autoStopBuf || 0.5,
+            autoStopBufferHours: c.autoStopBuf ?? 2,
             notificationsEnabled: c.notifOn   || false,
           },
           tracking: {
@@ -6680,6 +6715,8 @@ ${sig}`
       if (installLogo) installLogo.src = logoSrc;
     }
     // MagicUI animated theme toggler — View Transitions API circle-reveal
+    // Light→Dark: new dark layer expands from button (circle grows outward)
+    // Dark→Light: old dark layer shrinks back to button (circle collapses inward) — Telegram-style reverse
     function _toggleThemeAnimated(event) {
       const nextDark = !dark;
       if (!document.startViewTransition) { applyTheme(nextDark); return; }
@@ -6693,10 +6730,19 @@ ${sig}`
       );
       const transition = document.startViewTransition(() => { applyTheme(nextDark); });
       transition.ready.then(() => {
-        document.documentElement.animate(
-          { clipPath: [`circle(0px at ${x}px ${y}px)`, `circle(${maxRadius}px at ${x}px ${y}px)`] },
-          { duration: 420, easing: 'ease-in-out', fill: 'forwards', pseudoElement: '::view-transition-new(root)' }
-        );
+        if (nextDark) {
+          // Expanding dark circle from button
+          document.documentElement.animate(
+            { clipPath: [`circle(0px at ${x}px ${y}px)`, `circle(${maxRadius}px at ${x}px ${y}px)`] },
+            { duration: 420, easing: 'ease-in-out', fill: 'forwards', pseudoElement: '::view-transition-new(root)' }
+          );
+        } else {
+          // Dark circle collapses back into button, revealing light mode beneath
+          document.documentElement.animate(
+            { clipPath: [`circle(${maxRadius}px at ${x}px ${y}px)`, `circle(0px at ${x}px ${y}px)`] },
+            { duration: 420, easing: 'ease-in-out', fill: 'forwards', pseudoElement: '::view-transition-old(root)' }
+          );
+        }
       }).catch(() => {}); // suppress if transition is interrupted
     }
 
@@ -6893,6 +6939,11 @@ ${sig}`
 
     // Shift time picker → text field sync (already handled in openTimePicker via oninput,
     // but ensure Settings auto-save fires when picker values are committed via direct input)
+    // Sync daily hours when shift times are manually typed and committed
+    ['inpShiftStart', 'inpShiftEnd'].forEach(id => {
+      el(id)?.addEventListener('blur', () => { syncShiftTimesToHours(); autoSaveSettings(); });
+    });
+
     ['inpShiftStartPicker','inpShiftEndPicker'].forEach(id => {
       el(id)?.addEventListener('change', () => {
         const textId = id === 'inpShiftStartPicker' ? 'inpShiftStart' : 'inpShiftEnd';

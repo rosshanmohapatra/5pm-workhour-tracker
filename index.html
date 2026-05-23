@@ -1450,17 +1450,11 @@
       transition: transform var(--p3-open-dur) var(--p3-ease) !important;
     }
 
-    /* ── MagicUI View Transition (theme circle-reveal) ── */
-    /* Pin ::new on top so the clip-path reveal is visible in both L→D and D→L */
-    ::view-transition-old(root) {
-      animation: none;
-      mix-blend-mode: normal;
-      z-index: 1;
-    }
+    /* ── MagicUI Animated Theme Toggler — View Transition ── */
+    ::view-transition-old(root),
     ::view-transition-new(root) {
       animation: none;
       mix-blend-mode: normal;
-      z-index: 9999;
     }
 
     /* Recommend Timings expand/collapse */
@@ -7074,42 +7068,116 @@ ${sig}`
       const installLogo = document.getElementById('installPromptLogo');
       if (installLogo) installLogo.src = logoSrc;
     }
-    // ── MagicUI Animated Theme Toggler ──────────────────────────────────────────
-    // ::view-transition-new(root) is always z-index:9999 (see CSS above), so the
-    // growing circle is visible for BOTH Light→Dark and Dark→Light transitions.
+    // ── MagicUI Animated Theme Toggler (verbatim port) ─────────────────────────
+    // Source: https://magicui.design/r/animated-theme-toggler
+    function _mgPolygonCollapsed(cx, cy, vertexCount) {
+      const pairs = Array.from({ length: vertexCount }, () => `${cx}px ${cy}px`).join(', ');
+      return `polygon(${pairs})`;
+    }
+    function _mgGetClipPaths(variant, cx, cy, maxRadius, vw, vh) {
+      switch (variant) {
+        case 'circle':
+          return [`circle(0px at ${cx}px ${cy}px)`, `circle(${maxRadius}px at ${cx}px ${cy}px)`];
+        case 'square': {
+          const halfW = Math.max(cx, vw - cx), halfH = Math.max(cy, vh - cy);
+          const halfSide = Math.max(halfW, halfH) * 1.05;
+          const end = [`${cx-halfSide}px ${cy-halfSide}px`,`${cx+halfSide}px ${cy-halfSide}px`,
+                       `${cx+halfSide}px ${cy+halfSide}px`,`${cx-halfSide}px ${cy+halfSide}px`].join(', ');
+          return [_mgPolygonCollapsed(cx, cy, 4), `polygon(${end})`];
+        }
+        case 'triangle': {
+          const scale = maxRadius * 2.2, dx = (Math.sqrt(3) / 2) * scale;
+          const verts = [`${cx}px ${cy-scale}px`,`${cx+dx}px ${cy+0.5*scale}px`,`${cx-dx}px ${cy+0.5*scale}px`].join(', ');
+          return [_mgPolygonCollapsed(cx, cy, 3), `polygon(${verts})`];
+        }
+        case 'diamond': {
+          const R = maxRadius * Math.SQRT2;
+          const end = [`${cx}px ${cy-R}px`,`${cx+R}px ${cy}px`,`${cx}px ${cy+R}px`,`${cx-R}px ${cy}px`].join(', ');
+          return [_mgPolygonCollapsed(cx, cy, 4), `polygon(${end})`];
+        }
+        case 'hexagon': {
+          const R = maxRadius * Math.SQRT2, verts = [];
+          for (let i = 0; i < 6; i++) {
+            const a = -Math.PI / 2 + (i * Math.PI) / 3;
+            verts.push(`${cx + R * Math.cos(a)}px ${cy + R * Math.sin(a)}px`);
+          }
+          return [_mgPolygonCollapsed(cx, cy, 6), `polygon(${verts.join(', ')})`];
+        }
+        case 'rectangle': {
+          const halfW = Math.max(cx, vw - cx), halfH = Math.max(cy, vh - cy);
+          const end = [`${cx-halfW}px ${cy-halfH}px`,`${cx+halfW}px ${cy-halfH}px`,
+                       `${cx+halfW}px ${cy+halfH}px`,`${cx-halfW}px ${cy+halfH}px`].join(', ');
+          return [_mgPolygonCollapsed(cx, cy, 4), `polygon(${end})`];
+        }
+        case 'star': {
+          const R = maxRadius * Math.SQRT2 * 1.03, innerRatio = 0.42;
+          const starPolygon = (radius) => {
+            const v = [];
+            for (let i = 0; i < 5; i++) {
+              const outerA = -Math.PI / 2 + (i * 2 * Math.PI) / 5;
+              v.push(`${cx + radius * Math.cos(outerA)}px ${cy + radius * Math.sin(outerA)}px`);
+              const innerA = outerA + Math.PI / 5;
+              v.push(`${cx + radius * innerRatio * Math.cos(innerA)}px ${cy + radius * innerRatio * Math.sin(innerA)}px`);
+            }
+            return `polygon(${v.join(', ')})`;
+          };
+          return [starPolygon(Math.max(2, R * 0.025)), starPolygon(R)];
+        }
+        default:
+          return [`circle(0px at ${cx}px ${cy}px)`, `circle(${maxRadius}px at ${cx}px ${cy}px)`];
+      }
+    }
     function _toggleThemeAnimated(event) {
       const nextDark = !dark;
+      const DURATION = 400;
+      const VARIANT  = 'circle'; // circle | square | triangle | diamond | hexagon | rectangle | star
 
-      // Fallback for browsers without View Transitions API
-      if (!document.startViewTransition) {
+      if (typeof document.startViewTransition !== 'function') {
         applyTheme(nextDark);
         return;
       }
 
-      // Compute origin: centre of the button that was clicked
-      const btn  = event?.currentTarget ?? event?.target;
-      const rect = btn?.getBoundingClientRect();
-      const cx   = rect ? Math.round(rect.left + rect.width  / 2) : Math.round(window.innerWidth  / 2);
-      const cy   = rect ? Math.round(rect.top  + rect.height / 2) : Math.round(window.innerHeight / 2);
+      const btn = event?.currentTarget ?? event?.target;
+      const vw  = window.visualViewport?.width  ?? window.innerWidth;
+      const vh  = window.visualViewport?.height ?? window.innerHeight;
+      let cx, cy;
+      if (btn) {
+        const r = btn.getBoundingClientRect();
+        cx = r.left + r.width  / 2;
+        cy = r.top  + r.height / 2;
+      } else {
+        cx = vw / 2; cy = vh / 2;
+      }
+      const maxRadius = Math.hypot(Math.max(cx, vw - cx), Math.max(cy, vh - cy));
+      const clipPath  = _mgGetClipPaths(VARIANT, cx, cy, maxRadius, vw, vh);
 
-      // Radius large enough to cover the entire viewport from the origin
-      const maxR = Math.hypot(
-        Math.max(cx, window.innerWidth  - cx),
-        Math.max(cy, window.innerHeight - cy)
-      );
+      const root = document.documentElement;
+      root.dataset.magicuiThemeVt = 'active';
+      root.style.setProperty('--magicui-theme-toggle-vt-duration', `${DURATION}ms`);
+      root.style.setProperty('--magicui-theme-vt-clip-from', clipPath[0]);
 
-      // Swap the theme inside the transition callback so both snapshots are captured
       const transition = document.startViewTransition(() => { applyTheme(nextDark); });
 
-      // Animate the NEW snapshot: start collapsed at the button, expand to full viewport
-      transition.ready
-        .then(() => {
+      const cleanup = () => {
+        delete root.dataset.magicuiThemeVt;
+        root.style.removeProperty('--magicui-theme-toggle-vt-duration');
+        root.style.removeProperty('--magicui-theme-vt-clip-from');
+      };
+      if (typeof transition?.finished?.finally === 'function') {
+        transition.finished.finally(cleanup);
+      } else {
+        cleanup();
+      }
+
+      if (transition?.ready && typeof transition.ready.then === 'function') {
+        transition.ready.then(() => {
           document.documentElement.animate(
-            { clipPath: [`circle(0px at ${cx}px ${cy}px)`, `circle(${maxR}px at ${cx}px ${cy}px)`] },
-            { duration: 420, easing: 'ease-in-out', fill: 'forwards', pseudoElement: '::view-transition-new(root)' }
+            { clipPath },
+            { duration: DURATION, easing: VARIANT === 'star' ? 'linear' : 'ease-in-out',
+              fill: 'forwards', pseudoElement: '::view-transition-new(root)' }
           );
-        })
-        .catch(() => {}); // silently ignore if transition is skipped / interrupted
+        });
+      }
     }
 
     const _savedTheme = localStorage.getItem('wh_theme');

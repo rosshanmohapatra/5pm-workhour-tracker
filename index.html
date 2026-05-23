@@ -1723,7 +1723,7 @@
             <div style="text-align:center;padding:8px 0 18px">
               <div style="font-size:26px;margin-bottom:10px">🌴</div>
               <div style="font-size:17px;font-weight:700;color:var(--foreground);letter-spacing:-.02em;margin-bottom:4px">Enjoy Your Weekends</div>
-              <div style="font-size:13px;color:var(--muted-fg);line-height:1.5">You're done with the week.<br>Now chill.</div>
+              <div style="font-size:13px;color:var(--muted-fg);line-height:1.5">You're done with the week.</div>
             </div>
             <div style="background:var(--muted);border-radius:12px;padding:14px 14px 12px">
               <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
@@ -8048,9 +8048,9 @@ ${sig}`
       const tk = todayKey();
       const _initDow = new Date().getDay(); // 0=Sun, 6=Sat
       if (_initDow === 6 || _initDow === 0) {
-        // Weekend: jump to next week, pre-select Monday
-        daySelectorWeekOffset = 1;
-        selectedDayKey = week(1)[0].key;
+        // Weekend: stay on current week (offset 0) and show the weekend summary card
+        daySelectorWeekOffset = 0;
+        selectedDayKey = '__wknd__';
       } else {
         daySelectorWeekOffset = 0;
         selectedDayKey = tk;
@@ -8086,8 +8086,9 @@ ${sig}`
         renderEmptyState(); // show card in read mode
       } else { renderEmptyState(); }
 
-      // If selected day is not today (e.g. weekend jump), re-render for selected day
-      if (selectedDayKey !== tk) selectDay(selectedDayKey);
+      // If selected day is not today, render appropriately
+      if (selectedDayKey === '__wknd__') selectWeekendView();
+      else if (selectedDayKey !== tk) selectDay(selectedDayKey);
       else renderDaySelector();
 
       restoreSession();

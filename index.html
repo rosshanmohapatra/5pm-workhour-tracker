@@ -1451,14 +1451,17 @@
     }
 
     /* ── MagicUI View Transition (theme circle-reveal) ── */
-    ::view-transition-old(root),
+    /* Pin ::new on top so the clip-path reveal is visible in both L→D and D→L */
+    ::view-transition-old(root) {
+      animation: none;
+      mix-blend-mode: normal;
+      z-index: 1;
+    }
     ::view-transition-new(root) {
       animation: none;
       mix-blend-mode: normal;
+      z-index: 9999;
     }
-    /* Dark→Light: keep old (dark) layer on top so the shrink circle is visible */
-    html.theme-exit-dark ::view-transition-old(root) { z-index: 1; }
-    html.theme-exit-dark ::view-transition-new(root) { z-index: 0; }
 
     /* Recommend Timings expand/collapse */
     #recommendTimingsBlock {
@@ -7071,41 +7074,42 @@ ${sig}`
       const installLogo = document.getElementById('installPromptLogo');
       if (installLogo) installLogo.src = logoSrc;
     }
-    // MagicUI animated theme toggler — View Transitions API circle-reveal
-    // Light→Dark: new dark layer expands from button (circle grows outward)
-    // Dark→Light: old dark layer shrinks back to button (circle collapses inward) — Telegram-style reverse
+    // ── MagicUI Animated Theme Toggler ──────────────────────────────────────────
+    // ::view-transition-new(root) is always z-index:9999 (see CSS above), so the
+    // growing circle is visible for BOTH Light→Dark and Dark→Light transitions.
     function _toggleThemeAnimated(event) {
       const nextDark = !dark;
-      if (!document.startViewTransition) { applyTheme(nextDark); return; }
-      const btn = event?.currentTarget ?? event?.target;
+
+      // Fallback for browsers without View Transitions API
+      if (!document.startViewTransition) {
+        applyTheme(nextDark);
+        return;
+      }
+
+      // Compute origin: centre of the button that was clicked
+      const btn  = event?.currentTarget ?? event?.target;
       const rect = btn?.getBoundingClientRect();
-      const x = rect ? Math.round(rect.left + rect.width / 2) : Math.round(window.innerWidth / 2);
-      const y = rect ? Math.round(rect.top  + rect.height / 2) : Math.round(window.innerHeight / 2);
-      const maxRadius = Math.hypot(
-        Math.max(x, window.innerWidth  - x),
-        Math.max(y, window.innerHeight - y)
+      const cx   = rect ? Math.round(rect.left + rect.width  / 2) : Math.round(window.innerWidth  / 2);
+      const cy   = rect ? Math.round(rect.top  + rect.height / 2) : Math.round(window.innerHeight / 2);
+
+      // Radius large enough to cover the entire viewport from the origin
+      const maxR = Math.hypot(
+        Math.max(cx, window.innerWidth  - cx),
+        Math.max(cy, window.innerHeight - cy)
       );
+
+      // Swap the theme inside the transition callback so both snapshots are captured
       const transition = document.startViewTransition(() => { applyTheme(nextDark); });
-      transition.ready.then(() => {
-        if (nextDark) {
-          // Light→Dark: new dark layer expands from button (circle grows outward)
+
+      // Animate the NEW snapshot: start collapsed at the button, expand to full viewport
+      transition.ready
+        .then(() => {
           document.documentElement.animate(
-            { clipPath: [`circle(0px at ${x}px ${y}px)`, `circle(${maxRadius}px at ${x}px ${y}px)`] },
+            { clipPath: [`circle(0px at ${cx}px ${cy}px)`, `circle(${maxR}px at ${cx}px ${cy}px)`] },
             { duration: 420, easing: 'ease-in-out', fill: 'forwards', pseudoElement: '::view-transition-new(root)' }
           );
-        } else {
-          // Dark→Light: old dark layer shrinks back into button — exact reverse of L→D
-          // theme-exit-dark CSS puts ::old above ::new so the shrink is visible
-          document.documentElement.classList.add('theme-exit-dark');
-          const anim = document.documentElement.animate(
-            { clipPath: [`circle(${maxRadius}px at ${x}px ${y}px)`, `circle(0px at ${x}px ${y}px)`] },
-            { duration: 420, easing: 'ease-in-out', fill: 'forwards', pseudoElement: '::view-transition-old(root)' }
-          );
-          anim.addEventListener('finish', () => {
-            document.documentElement.classList.remove('theme-exit-dark');
-          });
-        }
-      }).catch(() => {}); // suppress if transition is interrupted
+        })
+        .catch(() => {}); // silently ignore if transition is skipped / interrupted
     }
 
     const _savedTheme = localStorage.getItem('wh_theme');

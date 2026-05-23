@@ -43,6 +43,10 @@
   <!-- Favicons (theme-aware; JS in applyTheme() swaps #favicon at runtime) -->
   <link id="favicon" rel="icon" type="image/svg+xml" href="/favicon-light.svg">
 
+  <!-- jsPDF + AutoTable for direct PDF export (no print dialog) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" defer></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js" defer></script>
+
   <!-- PWA / home-screen -->
   <meta name="application-name" content="5pm">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -2280,7 +2284,7 @@
   </a>
 
   <!-- ── Week Report Modal ── -->
-  <div class="overlay" id="weekReportOverlay">
+  <div class="overlay" id="weekReportOverlay" onclick="if(event.target===this)closeWeekReport()">
     <div class="dialog" style="max-width:520px;max-height:90vh;display:flex;flex-direction:column">
       <div class="dialog-head" style="flex-shrink:0;display:flex;align-items:center;justify-content:space-between">
         <div>
@@ -4337,83 +4341,139 @@
       el('weekReportOverlay').classList.remove('open');
     }
 
+    // Helper: load the app logo as a PNG data-URL for jsPDF.
+    // Draws /brand-light.svg onto an offscreen canvas; calls back with data-URL or null.
+    function _loadLogoDataUrl(cb) {
+      try {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = () => {
+          try {
+            const SIZE = 96; // render 2× for crispness
+            const cvs = document.createElement('canvas');
+            cvs.width = SIZE; cvs.height = SIZE;
+            cvs.getContext('2d').drawImage(img, 0, 0, SIZE, SIZE);
+            cb(cvs.toDataURL('image/png'));
+          } catch(e) { cb(null); }
+        };
+        img.onerror = () => cb(null);
+        img.src = window.location.origin + '/brand-light.svg';
+      } catch(e) { cb(null); }
+    }
+
     function downloadWeekReport() {
+      if (!window.jspdf) { showToast('PDF library still loading — try again', 'error'); return; }
+
       const wk  = week(daySelectorWeekOffset);
       const mon = wk[0].date, fri = wk[wk.length - 1].date;
-      const rangeStr   = `${MONTHS[mon.getMonth()]} ${mon.getDate()} to ${MONTHS[fri.getMonth()]} ${fri.getDate()}, ${fri.getFullYear()}`;
+      const rangeStr   = `${MONTHS[mon.getMonth()]} ${mon.getDate()} – ${MONTHS[fri.getMonth()]} ${fri.getDate()}, ${fri.getFullYear()}`;
       const rows       = _wkndDayData(wk);
       const totalWorked  = rows.reduce((s, r) => s + r.worked, 0);
       const totalSurplus = rows.reduce((s, r) => s + r.surplusSecs, 0);
       const c = cfg();
       const userName = (c.name || '').trim();
       const company  = (c.position || '').trim();
-      const logoSrc  = window.location.origin + '/brand-light.svg';
 
-      const rowsHtml = rows.map(r => `
-        <tr>
-          <td class="td-day">${r.day}</td>
-          <td class="td-dim">${r.entry}</td>
-          <td class="td-dim">${r.exit}</td>
-          <td>${r.attendance}</td>
-          <td class="${r.isPenalty ? 'td-bad' : r.penalty === 'None' ? 'td-dim' : ''}">${r.penalty}</td>
-          <td class="${r.surplusSecs > 0 ? 'td-good' : 'td-dim'}">${r.surplus}</td>
-        </tr>`).join('');
+      _loadLogoDataUrl((logoDataUrl) => {
+        const { jsPDF } = window.jspdf;
+        const doc     = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+        const pageW   = doc.internal.pageSize.getWidth(); // 210 mm
+        const margin  = 18;
 
-      const printHtml = `<!DOCTYPE html><html><head><meta charset="UTF-8">
-<title>Week Report — ${rangeStr}</title>
-<style>
-  *{margin:0;padding:0;box-sizing:border-box}
-  body{font-family:-apple-system,BlinkMacSystemFont,'Inter',sans-serif;color:#111;background:#fff;padding:44px 52px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-  .header{display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:22px;border-bottom:1.5px solid #e5e7eb;margin-bottom:28px}
-  .brand{display:flex;align-items:center;gap:10px;margin-bottom:10px}
-  .brand img{height:22px}
-  .user-name{font-size:15px;font-weight:700;color:#111;margin-bottom:3px}
-  .user-company{font-size:12px;color:#6b7280}
-  .meta-right{text-align:right}
-  .meta-label{font-size:10px;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px}
-  .meta-range{font-size:15px;font-weight:700;color:#111}
-  table{width:100%;border-collapse:collapse}
-  th{padding:9px 12px;text-align:left;font-size:10px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.07em;border-bottom:1.5px solid #e5e7eb}
-  td{padding:13px 12px;font-size:13px;color:#374151;border-bottom:1px solid #f3f4f6}
-  tr:last-child td{border-bottom:none}
-  .td-day{font-weight:600;color:#111}
-  .td-dim{color:#9ca3af}
-  .td-bad{color:#dc2626;font-weight:500}
-  .td-good{color:#16a34a;font-weight:500}
-  .total-row td{background:#f9fafb;font-weight:600;color:#111;border-top:1.5px solid #e5e7eb;padding-top:15px;padding-bottom:15px}
-  .total-row .td-good{color:#16a34a;font-weight:700}
-  @media print{body{padding:20px 24px}}
-</style></head><body>
-<div class="header">
-  <div>
-    <div class="brand"><img src="${logoSrc}" onerror="this.style.display='none';this.nextSibling.style.display='inline'"><span style="display:none;font-size:18px;font-weight:800;letter-spacing:-.03em">5pm</span></div>
-    ${userName ? `<div class="user-name">${userName}</div>` : ''}
-    ${company  ? `<div class="user-company">${company}</div>` : ''}
-  </div>
-  <div class="meta-right">
-    <div class="meta-label">Week</div>
-    <div class="meta-range">${rangeStr}</div>
-  </div>
-</div>
-<table>
-  <thead><tr><th>Day</th><th>Entry</th><th>Exit</th><th>Attendance</th><th>Penalty</th><th>Surplus</th></tr></thead>
-  <tbody>
-    ${rowsHtml}
-    <tr class="total-row">
-      <td colspan="4">Total Work Hours (WH)</td>
-      <td>${totalWorked > 0 ? dur(totalWorked) : '—'}</td>
-      <td class="td-good">${totalSurplus > 0 ? '+' + dur(totalSurplus) : '—'}</td>
-    </tr>
-  </tbody>
-</table>
-</body></html>`;
+        // ── Logo — 48×48 px ≈ 12.7 mm; we use 13 mm square ──
+        const LOGO_SIZE = 13; // mm
+        const logoX = margin, logoY = 15;
+        if (logoDataUrl) {
+          doc.addImage(logoDataUrl, 'PNG', logoX, logoY, LOGO_SIZE, LOGO_SIZE);
+        } else {
+          // Fallback: bold wordmark
+          doc.setFontSize(18); doc.setFont('helvetica', 'bold');
+          doc.setTextColor(17, 24, 39);
+          doc.text('5pm', margin, logoY + 10);
+        }
 
-      const win = window.open('', '_blank', 'width=760,height=640');
-      if (!win) { showToast('Allow pop-ups to export PDF', 'error'); return; }
-      win.document.write(printHtml);
-      win.document.close();
-      win.focus();
-      setTimeout(() => { win.print(); }, 450);
+        // ── User details — left aligned, below logo ──
+        let leftY = logoY + LOGO_SIZE + 4;
+        if (userName) {
+          doc.setFontSize(13); doc.setFont('helvetica', 'bold'); doc.setTextColor(17, 24, 39);
+          doc.text(userName, margin, leftY);
+          leftY += 6;
+        }
+        if (company) {
+          doc.setFontSize(9.5); doc.setFont('helvetica', 'normal'); doc.setTextColor(107, 114, 128);
+          doc.text(company, margin, leftY);
+          leftY += 5;
+        }
+
+        // ── Week details — right aligned, top of header ──
+        doc.setFontSize(7.5); doc.setFont('helvetica', 'bold'); doc.setTextColor(156, 163, 175);
+        doc.text('WEEK', pageW - margin, logoY + 4, { align: 'right' });
+        doc.setFontSize(13); doc.setFont('helvetica', 'bold'); doc.setTextColor(17, 24, 39);
+        doc.text(rangeStr, pageW - margin, logoY + 11, { align: 'right' });
+
+        // ── Divider ──
+        const divY = Math.max(leftY, logoY + 20) + 3;
+        doc.setDrawColor(229, 231, 235);
+        doc.setLineWidth(0.4);
+        doc.line(margin, divY, pageW - margin, divY);
+
+        // ── Table ──
+        const tableBody = rows.map(r => [r.day, r.entry, r.exit, r.attendance, r.penalty, r.surplus]);
+        tableBody.push(['Total Work Hours (WH)', '', '', '',
+          totalWorked  > 0 ? dur(totalWorked)              : '—',
+          totalSurplus > 0 ? '+' + dur(totalSurplus)       : '—']);
+        const totalRowIdx = tableBody.length - 1;
+
+        doc.autoTable({
+          startY: divY + 5,
+          margin: { left: margin, right: margin },
+          head: [['Day', 'Entry', 'Exit', 'Attendance', 'Penalty', 'Surplus']],
+          body: tableBody,
+          styles: {
+            fontSize: 10,
+            cellPadding: { top: 4, bottom: 4, left: 5, right: 5 },
+            valign: 'middle',
+            textColor: [55, 65, 81],
+          },
+          headStyles: {
+            fillColor: [249, 250, 251],
+            textColor: [107, 114, 128],
+            fontStyle: 'bold',
+            fontSize: 8,
+            lineColor: [229, 231, 235],
+            lineWidth: { bottom: 0.5 },
+          },
+          alternateRowStyles: { fillColor: [255, 255, 255] },
+          tableLineColor: [243, 244, 246],
+          tableLineWidth: 0.3,
+          didParseCell(data) {
+            if (data.section !== 'body') return;
+            const isTotal = data.row.index === totalRowIdx;
+            if (isTotal) {
+              data.cell.styles.fontStyle = 'bold';
+              data.cell.styles.fillColor = [249, 250, 251];
+              data.cell.styles.textColor = [17, 24, 39];
+              if (data.column.index === 5 && totalSurplus > 0)
+                data.cell.styles.textColor = [22, 163, 74];
+            } else {
+              const r = rows[data.row.index];
+              if (data.column.index === 0) {
+                data.cell.styles.fontStyle = 'bold';
+                data.cell.styles.textColor = [17, 24, 39];
+              }
+              if (data.column.index === 1 || data.column.index === 2)
+                data.cell.styles.textColor = [156, 163, 175];
+              if (data.column.index === 4 && r?.isPenalty)
+                data.cell.styles.textColor = [220, 38, 38];
+              if (data.column.index === 5 && r?.surplusSecs > 0)
+                data.cell.styles.textColor = [22, 163, 74];
+            }
+          },
+        });
+
+        const fname = `week-report-${mon.getFullYear()}-${String(mon.getMonth()+1).padStart(2,'0')}-${String(mon.getDate()).padStart(2,'0')}.pdf`;
+        doc.save(fname);
+      });
     }
 
     // Navigate to the weekend view slot for the current daySelectorWeekOffset strip
@@ -4659,7 +4719,9 @@
     // ── DAY SELECTOR (Home) ────────────────────────────
     function renderDaySelector() {
       const wk = week(daySelectorWeekOffset), tk = todayKey(), now = new Date();
-      const selKey = selectedDayKey || tk;
+      // When on the weekend view, no weekday should appear active
+      const isWeekendActive = selectedDayKey === '__wknd__';
+      const selKey = isWeekendActive ? null : (selectedDayKey || tk);
       const container = el('daySelectorRow');
       container.innerHTML = '';
       wk.forEach(day => {
@@ -4667,7 +4729,7 @@
         const log = dayLog(day.key);
         const isFuture = daySelectorWeekOffset === 0 && day.date > now && day.key !== tk;
         btn.className = 'day-sel-btn';
-        if (day.key === selKey) btn.classList.add('active');
+        if (selKey && day.key === selKey) btn.classList.add('active');
         if (log?.hoursWorked != null || (day.key === tk && loginDate) || log?.scheduled) btn.classList.add('has-data');
         if (isFuture) btn.classList.add('future');
         btn.innerHTML = `<span class="dsel-name">${day.name.slice(0,3)}</span>`
@@ -4680,19 +4742,7 @@
         container.appendChild(btn);
       });
 
-      // WKD slot — shown for current and past weeks (not future-only strips)
-      if (daySelectorWeekOffset <= 0) {
-        const fri = wk[wk.length - 1].date;
-        const sat = new Date(fri); sat.setDate(fri.getDate() + 1);
-        const wkdBtn = document.createElement('button');
-        wkdBtn.className = 'day-sel-btn wkd-btn';
-        if (selectedDayKey === '__wknd__') wkdBtn.classList.add('active');
-        wkdBtn.innerHTML = `<span class="dsel-name">WKD</span>`
-                         + `<span class="dsel-num" style="font-size:13px;line-height:1.2">🌴</span>`
-                         + `<span class="dsel-dot" style="opacity:0"></span>`;
-        wkdBtn.addEventListener('click', selectWeekendView);
-        container.appendChild(wkdBtn);
-      }
+      // WKD slot — navigation still works via arrows; button is hidden from strip
 
       const label = el('thisWeekLabel');
       if (label) label.textContent = daySelectorWeekOffset === 0 ? 'This Week' : weekRangeLabel(daySelectorWeekOffset);

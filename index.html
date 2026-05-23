@@ -133,8 +133,8 @@
 
     /* ── Mobile top bar ── */
     .mob-topbar { display:none;position:fixed;top:0;left:0;right:0;
-      /* 52pt interactive bar + status bar / Dynamic Island clearance */
-      height:calc(52px + env(safe-area-inset-top));
+      /* 44pt interactive bar + status bar / Dynamic Island clearance */
+      height:calc(44px + env(safe-area-inset-top));
       padding-top:env(safe-area-inset-top);
       background:var(--background);border-bottom:1px solid var(--border);
       align-items:center;justify-content:space-between;padding-left:16px;padding-right:16px;
@@ -223,9 +223,9 @@
     .btn-ghost-danger:disabled:hover { background: transparent; color: var(--foreground); border-color: var(--border); }
     .btn-secondary { height: 36px; padding: 0 16px; font-size: 13px; font-weight: 500;
       border-radius: 8px; font-family: var(--font); display: inline-flex; align-items: center;
-      background: var(--muted); color: var(--foreground); border: 1px solid var(--border);
+      background: transparent; color: var(--foreground); border: 1px solid var(--border);
       cursor: pointer; transition: background .12s; white-space: nowrap; flex-shrink: 0; }
-    .btn-secondary:hover { background: var(--border); }
+    .btn-secondary:hover { background: var(--muted); }
     .btn-ghost-destructive { height: 36px; padding: 0 16px; font-size: 13px; font-weight: 600;
       border-radius: 8px; font-family: var(--font); display: inline-flex; align-items: center;
       background: transparent; color: var(--destructive); border: 1px solid var(--destructive-border);
@@ -626,7 +626,7 @@
       display: flex; align-items: center; justify-content: center; padding: 16px;
       opacity: 0; pointer-events: none; transition: opacity .18s; }
     @media (max-width: 600px) {
-      .overlay { align-items: flex-start; padding-top: 20px; }
+      .overlay { align-items: center; }
     }
     .overlay.open { opacity: 1; pointer-events: all; }
     .dialog { position: relative; background: var(--card); border: 1px solid var(--border);
@@ -1046,8 +1046,10 @@
       .mob-topbar { display:flex; }
       .mob-bottomnav { display:flex; }
       /* padding-left/right set to 0 — .page handles its own 16px horizontal padding */
-      #appWrap { padding-top:calc(52px + env(safe-area-inset-top)) !important; padding-bottom:calc(12px + env(safe-area-inset-bottom) + 16px) !important; padding-left:0 !important; padding-right:0 !important; }
-      .mob-topbar .btn-icon { width:44px; height:44px; border-radius:10px; }
+      #appWrap { padding-top:calc(44px + env(safe-area-inset-top)) !important; padding-bottom:calc(12px + env(safe-area-inset-bottom) + 16px) !important; padding-left:0 !important; padding-right:0 !important; }
+      .mob-topbar .btn-icon { width:40px; height:40px; border-radius:10px; }
+      /* Tighten gap between top bar and first page content */
+      .view.active .page { padding-top: 4px; }
     }
 
     /* ── Touch / pressed states (no lingering hover on mobile) ── */
@@ -4754,6 +4756,23 @@
       setTimeout(() => dsRow.classList.remove('wk-fwd', 'wk-back'), 260);
     }
 
+    // Shift the entire week strip (used by mobile swipe). dir>0 = next week, dir<0 = prev week.
+    function navDaySelectorWeek(dir) {
+      if (dir > 0 && daySelectorWeekOffset >= 1)   return; // cap forward at next week
+      if (dir < 0 && daySelectorWeekOffset <= -52) return; // cap back at 52 weeks
+      daySelectorWeekOffset += (dir > 0 ? 1 : -1);
+      const wk  = week(daySelectorWeekOffset);
+      const tk  = todayKey();
+      const now = new Date();
+      // Land on today if it's in the new week, otherwise Monday
+      const hasToday  = wk.some(d => d.key === tk);
+      const targetKey = hasToday ? tk : wk[0].key;
+      const targetDay = wk.find(d => d.key === targetKey);
+      if (targetKey !== tk && targetDay && targetDay.date > now) selectFutureDay(targetKey);
+      else selectDay(targetKey);
+      _slideDay(dir); // animate after the row re-renders
+    }
+
     function navDaySelectorDay(dir) {
       const wk  = week(daySelectorWeekOffset);
       const tk  = todayKey();
@@ -7407,6 +7426,30 @@ ${sig}`
         const file = e.dataTransfer?.files?.[0];
         if (file) importLogFile(file);
       });
+    })();
+
+    // ── Mobile swipe on the week card — shift the entire week left/right ──
+    (function _initWeekSwipe() {
+      const wrap = document.querySelector('.this-week-wrap');
+      if (!wrap) return;
+      let startX = 0, startY = 0, tracking = false;
+      const THRESHOLD = 45; // min horizontal px to count as a swipe
+      wrap.addEventListener('touchstart', e => {
+        if (e.touches.length !== 1) { tracking = false; return; }
+        startX = e.touches[0].clientX;
+        startY = e.touches[0].clientY;
+        tracking = true;
+      }, { passive: true });
+      wrap.addEventListener('touchend', e => {
+        if (!tracking) return;
+        tracking = false;
+        const t = e.changedTouches[0];
+        const dx = t.clientX - startX;
+        const dy = t.clientY - startY;
+        // Horizontal intent only — ignore mostly-vertical gestures
+        if (Math.abs(dx) < THRESHOLD || Math.abs(dx) < Math.abs(dy)) return;
+        navDaySelectorWeek(dx < 0 ? 1 : -1); // swipe left → next week, right → prev week
+      }, { passive: true });
     })();
 
     // Inline edit Enter-key handlers (delegated — elements are created dynamically)

@@ -882,6 +882,9 @@
     .day-sel-btn:disabled { opacity: .28; cursor: default; pointer-events: none; }
     .day-sel-btn.future { opacity: .5; }
     .day-sel-btn.future:hover { border-color: var(--border); background: var(--muted); color: var(--muted-fg); cursor: pointer; }
+    /* WKD slot — slightly narrower, uses palm-tree icon */
+    .day-sel-btn.wkd-btn { flex: 0.75; border-style: dashed; }
+    .day-sel-btn.wkd-btn.active { border-style: solid; }
 
     /* ── This Week wrapper ── */
     .this-week-wrap { background: var(--card); border-radius: 12px; padding: 8px; display: flex; flex-direction: column; gap: 8px; }
@@ -1727,7 +1730,9 @@
                   <div style="font-size:26px;font-weight:700;letter-spacing:-.03em" id="wkndOvertime">—</div>
                 </div>
               </div>
-              <button class="btn btn-primary" style="width:100%;height:38px;font-size:13px;border-radius:10px" onclick="openWeekReport()">Check Report</button>
+              <div style="display:flex;justify-content:flex-end">
+                <button class="btn btn-primary" style="height:38px;font-size:13px;padding:0 20px" onclick="openWeekReport()">Check Report</button>
+              </div>
             </div>
           </div>
 
@@ -2289,10 +2294,10 @@
       <div style="overflow-x:auto;flex:1;overflow-y:auto;padding:0 20px 4px">
         <table id="weekReportTable" style="width:100%;border-collapse:collapse;font-size:12px;min-width:400px"></table>
       </div>
-      <div class="dialog-foot" style="flex-shrink:0;padding-top:12px">
-        <button class="btn btn-primary" style="width:100%;height:40px;font-size:13px" onclick="downloadWeekReport()">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-          Download Report
+      <div class="dialog-foot" style="flex-shrink:0;padding-top:12px;display:flex;justify-content:flex-end">
+        <button class="btn btn-primary" style="height:40px;font-size:13px;padding:0 20px;display:inline-flex;align-items:center;gap:7px" onclick="downloadWeekReport()">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Export
         </button>
       </div>
     </div>
@@ -4267,16 +4272,16 @@
     }
 
     function renderWeekendState() {
-      const lastWk = week(-1);
-      const mon = lastWk[0].date, fri = lastWk[lastWk.length - 1].date;
+      const wk = week(daySelectorWeekOffset);
+      const mon = wk[0].date, fri = wk[wk.length - 1].date;
       const rangeLabel = mon.getMonth() === fri.getMonth()
         ? `${MONTHS[mon.getMonth()].slice(0,3)} ${mon.getDate()}–${fri.getDate()}`
         : `${MONTHS[mon.getMonth()].slice(0,3)} ${mon.getDate()} – ${MONTHS[fri.getMonth()].slice(0,3)} ${fri.getDate()}`;
       el('wkndWeekRange').textContent = rangeLabel;
 
-      const rows = _wkndDayData(lastWk);
-      const penaltyDays   = rows.filter(r => r.isPenalty).length;
-      const totalSurplus  = rows.reduce((s, r) => s + r.surplusSecs, 0);
+      const rows = _wkndDayData(wk);
+      const penaltyDays  = rows.filter(r => r.isPenalty).length;
+      const totalSurplus = rows.reduce((s, r) => s + r.surplusSecs, 0);
 
       el('wkndPenalties').textContent = penaltyDays;
       el('wkndPenalties').style.color = penaltyDays > 0 ? 'var(--destructive)' : 'var(--foreground)';
@@ -4285,12 +4290,12 @@
     }
 
     function openWeekReport() {
-      const lastWk = week(-1);
-      const mon = lastWk[0].date, fri = lastWk[lastWk.length - 1].date;
+      const wk = week(daySelectorWeekOffset);
+      const mon = wk[0].date, fri = wk[wk.length - 1].date;
       el('weekReportRange').textContent =
         `${MONTHS[mon.getMonth()]} ${mon.getDate()} to ${MONTHS[fri.getMonth()]} ${fri.getDate()}, ${fri.getFullYear()}`;
 
-      const rows = _wkndDayData(lastWk);
+      const rows = _wkndDayData(wk);
       const totalWorked  = rows.reduce((s, r) => s + r.worked, 0);
       const totalSurplus = rows.reduce((s, r) => s + r.surplusSecs, 0);
 
@@ -4318,14 +4323,11 @@
           <td style="${TD(surColor)}">${r.surplus}</td>
         </tr>`;
       }
-
-      // Total row
       html += `<tr style="background:var(--muted)">
         <td colspan="4" style="${TD('font-weight:600;border-bottom:none')}">Total Work Hours (WH)</td>
         <td style="${TD('font-weight:700;border-bottom:none')}">${totalWorked > 0 ? dur(totalWorked) : '—'}</td>
         <td style="${TD('font-weight:700;color:var(--success);border-bottom:none')}">${totalSurplus > 0 ? '+' + dur(totalSurplus) : '—'}</td>
-      </tr>`;
-      html += '</tbody>';
+      </tr></tbody>`;
 
       el('weekReportTable').innerHTML = html;
       el('weekReportOverlay').classList.add('open');
@@ -4336,24 +4338,107 @@
     }
 
     function downloadWeekReport() {
-      const lastWk  = week(-1);
-      const mon = lastWk[0].date, fri = lastWk[lastWk.length - 1].date;
-      const rangeStr = `${MONTHS[mon.getMonth()].slice(0,3)}-${mon.getDate()}-to-${fri.getDate()}`;
-
-      const rows = _wkndDayData(lastWk);
+      const wk  = week(daySelectorWeekOffset);
+      const mon = wk[0].date, fri = wk[wk.length - 1].date;
+      const rangeStr   = `${MONTHS[mon.getMonth()]} ${mon.getDate()} to ${MONTHS[fri.getMonth()]} ${fri.getDate()}, ${fri.getFullYear()}`;
+      const rows       = _wkndDayData(wk);
       const totalWorked  = rows.reduce((s, r) => s + r.worked, 0);
       const totalSurplus = rows.reduce((s, r) => s + r.surplusSecs, 0);
+      const c = cfg();
+      const userName = (c.name || '').trim();
+      const company  = (c.position || '').trim();
+      const logoSrc  = window.location.origin + '/brand-light.svg';
 
-      let csv = 'Day,Entry,Exit,Attendance,Penalty,Surplus\n';
-      for (const r of rows) csv += `${r.day},${r.entry},${r.exit},${r.attendance},${r.penalty},${r.surplus}\n`;
-      csv += `Total Work Hours (WH),,,${totalWorked > 0 ? dur(totalWorked) : '—'},${totalSurplus > 0 ? '+' + dur(totalSurplus) : '—'},\n`;
+      const rowsHtml = rows.map(r => `
+        <tr>
+          <td class="td-day">${r.day}</td>
+          <td class="td-dim">${r.entry}</td>
+          <td class="td-dim">${r.exit}</td>
+          <td>${r.attendance}</td>
+          <td class="${r.isPenalty ? 'td-bad' : r.penalty === 'None' ? 'td-dim' : ''}">${r.penalty}</td>
+          <td class="${r.surplusSecs > 0 ? 'td-good' : 'td-dim'}">${r.surplus}</td>
+        </tr>`).join('');
 
-      const blob = new Blob([csv], { type: 'text/csv' });
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = `week-report-${rangeStr}.csv`;
-      document.body.appendChild(a); a.click();
-      document.body.removeChild(a); URL.revokeObjectURL(a.href);
+      const printHtml = `<!DOCTYPE html><html><head><meta charset="UTF-8">
+<title>Week Report — ${rangeStr}</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Inter',sans-serif;color:#111;background:#fff;padding:44px 52px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .header{display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:22px;border-bottom:1.5px solid #e5e7eb;margin-bottom:28px}
+  .brand{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+  .brand img{height:22px}
+  .user-name{font-size:15px;font-weight:700;color:#111;margin-bottom:3px}
+  .user-company{font-size:12px;color:#6b7280}
+  .meta-right{text-align:right}
+  .meta-label{font-size:10px;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px}
+  .meta-range{font-size:15px;font-weight:700;color:#111}
+  table{width:100%;border-collapse:collapse}
+  th{padding:9px 12px;text-align:left;font-size:10px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.07em;border-bottom:1.5px solid #e5e7eb}
+  td{padding:13px 12px;font-size:13px;color:#374151;border-bottom:1px solid #f3f4f6}
+  tr:last-child td{border-bottom:none}
+  .td-day{font-weight:600;color:#111}
+  .td-dim{color:#9ca3af}
+  .td-bad{color:#dc2626;font-weight:500}
+  .td-good{color:#16a34a;font-weight:500}
+  .total-row td{background:#f9fafb;font-weight:600;color:#111;border-top:1.5px solid #e5e7eb;padding-top:15px;padding-bottom:15px}
+  .total-row .td-good{color:#16a34a;font-weight:700}
+  @media print{body{padding:20px 24px}}
+</style></head><body>
+<div class="header">
+  <div>
+    <div class="brand"><img src="${logoSrc}" onerror="this.style.display='none';this.nextSibling.style.display='inline'"><span style="display:none;font-size:18px;font-weight:800;letter-spacing:-.03em">5pm</span></div>
+    ${userName ? `<div class="user-name">${userName}</div>` : ''}
+    ${company  ? `<div class="user-company">${company}</div>` : ''}
+  </div>
+  <div class="meta-right">
+    <div class="meta-label">Week</div>
+    <div class="meta-range">${rangeStr}</div>
+  </div>
+</div>
+<table>
+  <thead><tr><th>Day</th><th>Entry</th><th>Exit</th><th>Attendance</th><th>Penalty</th><th>Surplus</th></tr></thead>
+  <tbody>
+    ${rowsHtml}
+    <tr class="total-row">
+      <td colspan="4">Total Work Hours (WH)</td>
+      <td>${totalWorked > 0 ? dur(totalWorked) : '—'}</td>
+      <td class="td-good">${totalSurplus > 0 ? '+' + dur(totalSurplus) : '—'}</td>
+    </tr>
+  </tbody>
+</table>
+</body></html>`;
+
+      const win = window.open('', '_blank', 'width=760,height=640');
+      if (!win) { showToast('Allow pop-ups to export PDF', 'error'); return; }
+      win.document.write(printHtml);
+      win.document.close();
+      win.focus();
+      setTimeout(() => { win.print(); }, 450);
+    }
+
+    // Navigate to the weekend view slot for the current daySelectorWeekOffset strip
+    function selectWeekendView() {
+      selectedDayKey = '__wknd__';
+      renderDaySelector();
+      // Header
+      const wk = week(daySelectorWeekOffset);
+      const mon = wk[0].date, fri = wk[wk.length - 1].date;
+      const name = cfg().name?.trim();
+      const h = nowTz().getHours();
+      const greeting = h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
+      el('selDayRel').textContent = name ? `${greeting}, ${name.split(' ')[0]}` : greeting;
+      el('rcDayLabel').textContent = 'Weekend';
+      const hd = el('rcHeadDate'); if (hd) { hd.textContent = ''; hd.classList.remove('visible'); }
+      // Show card, hide session-only elements
+      el('futureDayPlan').style.display = 'none';
+      el('resultCard').style.display = '';
+      el('todayLoginSection').style.display = 'none';
+      el('rcUpdateEntryBtn')?.classList.remove('visible');
+      el('leaveChip').style.display = 'none';
+      // Activate weekend mode
+      el('rcBody')?.classList.add('weekend-mode');
+      renderWeekendState();
+      _updateDayNavBtns();
     }
 
     // ── AUTO-STOP ─────────────────────────────────────
@@ -4594,6 +4679,21 @@
         });
         container.appendChild(btn);
       });
+
+      // WKD slot — shown for current and past weeks (not future-only strips)
+      if (daySelectorWeekOffset <= 0) {
+        const fri = wk[wk.length - 1].date;
+        const sat = new Date(fri); sat.setDate(fri.getDate() + 1);
+        const wkdBtn = document.createElement('button');
+        wkdBtn.className = 'day-sel-btn wkd-btn';
+        if (selectedDayKey === '__wknd__') wkdBtn.classList.add('active');
+        wkdBtn.innerHTML = `<span class="dsel-name">WKD</span>`
+                         + `<span class="dsel-num" style="font-size:13px;line-height:1.2">🌴</span>`
+                         + `<span class="dsel-dot" style="opacity:0"></span>`;
+        wkdBtn.addEventListener('click', selectWeekendView);
+        container.appendChild(wkdBtn);
+      }
+
       const label = el('thisWeekLabel');
       if (label) label.textContent = daySelectorWeekOffset === 0 ? 'This Week' : weekRangeLabel(daySelectorWeekOffset);
       _updateDayNavBtns();
@@ -4609,33 +4709,57 @@
     }
 
     function navDaySelectorDay(dir) {
-      const wk = week(daySelectorWeekOffset);
-      const tk = todayKey();
-      const curIdx = wk.findIndex(d => d.key === selectedDayKey);
+      const wk  = week(daySelectorWeekOffset);
+      const tk  = todayKey();
       const now = new Date();
+
+      // ── Weekend slot navigation ──────────────────────────
+      if (selectedDayKey === '__wknd__') {
+        if (dir > 0) {
+          if (daySelectorWeekOffset < 0) {
+            // WKD (past week) → Monday of next week
+            daySelectorWeekOffset++;
+            _slideDay(1);
+            selectDay(week(daySelectorWeekOffset)[0].key);
+          }
+          // At offset 0, WKD is the last stop — next btn disabled
+        } else {
+          // WKD → Friday of the current strip
+          selectDay(wk[wk.length - 1].key);
+        }
+        _updateDayNavBtns();
+        return;
+      }
+
+      // ── Normal weekday navigation ────────────────────────
+      const selKey = selectedDayKey || tk;
+      const curIdx = wk.findIndex(d => d.key === selKey);
 
       if (dir > 0) {
         if (curIdx >= 0 && curIdx < wk.length - 1) {
-          // Next day within current week strip — no row slide
+          // Move forward within the strip
           const nextDay = wk[curIdx + 1];
           const isFut = daySelectorWeekOffset === 0 && nextDay.date > now && nextDay.key !== tk;
           if (isFut) selectFutureDay(nextDay.key); else selectDay(nextDay.key);
-        } else if (daySelectorWeekOffset < 1) {
-          // Cross into next week — slide the row
-          daySelectorWeekOffset++;
-          _slideDay(1);
-          selectDay(week(daySelectorWeekOffset)[0].key);
+        } else {
+          // Last work day → WKD slot (for current & past weeks)
+          if (daySelectorWeekOffset <= 0) {
+            selectWeekendView();
+          } else if (daySelectorWeekOffset < 1) {
+            daySelectorWeekOffset++;
+            _slideDay(1);
+            selectDay(week(daySelectorWeekOffset)[0].key);
+          }
         }
       } else {
         if (curIdx > 0) {
-          // Previous day within current week strip — no row slide
+          // Move backward within the strip
           selectDay(wk[curIdx - 1].key);
         } else if (daySelectorWeekOffset > -52) {
-          // Cross into previous week, land on last day — slide the row
+          // Monday → WKD of the previous week (slide strip)
           daySelectorWeekOffset--;
           _slideDay(-1);
-          const pwk = week(daySelectorWeekOffset);
-          selectDay(pwk[pwk.length - 1].key);
+          selectWeekendView();
         }
       }
       _updateDayNavBtns();
@@ -4643,10 +4767,18 @@
 
     function _updateDayNavBtns() {
       const wk = week(daySelectorWeekOffset);
-      const curIdx = wk.findIndex(d => d.key === selectedDayKey);
+      const selKey = selectedDayKey || todayKey();
+      const curIdx = wk.findIndex(d => d.key === selKey);
       const prevBtn = el('weekPrevBtn'), nextBtn = el('weekNextBtn');
-      if (prevBtn) prevBtn.disabled = daySelectorWeekOffset <= -52 && curIdx <= 0;
-      if (nextBtn) nextBtn.disabled = daySelectorWeekOffset >= 1 && curIdx >= wk.length - 1;
+
+      if (selectedDayKey === '__wknd__') {
+        // WKD: can always go back to Friday; can go forward only from past weeks
+        if (prevBtn) prevBtn.disabled = false;
+        if (nextBtn) nextBtn.disabled = daySelectorWeekOffset >= 0;
+      } else {
+        if (prevBtn) prevBtn.disabled = daySelectorWeekOffset <= -52 && curIdx <= 0;
+        if (nextBtn) nextBtn.disabled = daySelectorWeekOffset >= 0 && curIdx >= wk.length - 1 && daySelectorWeekOffset >= 0;
+      }
     }
 
     function _ordinal(n) {

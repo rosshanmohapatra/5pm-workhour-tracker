@@ -1730,7 +1730,7 @@
             </div>
             <div style="background:var(--muted);border-radius:12px;padding:14px 14px 12px">
               <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-                <span style="font-size:13px;font-weight:600;color:var(--foreground)">Last Week</span>
+                <span style="font-size:13px;font-weight:600;color:var(--foreground)" id="wkndSectionLabel">Last Week</span>
                 <span style="font-size:12px;color:var(--muted-fg)" id="wkndWeekRange">—</span>
               </div>
               <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
@@ -1746,6 +1746,15 @@
               <div style="display:flex;justify-content:flex-end">
                 <button class="btn btn-primary" style="height:38px;font-size:13px;padding:0 20px" onclick="openWeekReport()">Check Report</button>
               </div>
+            </div>
+
+            <!-- Next Week card — shown only on the actual current weekend -->
+            <div id="wkndNextSection" style="display:none;background:var(--muted);border-radius:12px;padding:14px 14px 12px;margin-top:8px">
+              <div style="display:flex;justify-content:space-between;align-items:center">
+                <span style="font-size:13px;font-weight:600;color:var(--foreground)">Next Week</span>
+                <span style="font-size:12px;color:var(--muted-fg)" id="wkndNextWeekRange">—</span>
+              </div>
+              <div style="font-size:12px;color:var(--muted-fg);margin-top:8px">No entries yet — starts <span id="wkndNextWeekStart">—</span>.</div>
             </div>
           </div>
 
@@ -1874,7 +1883,7 @@
             <span class="wk-footer-val" id="wkTotal">14h 57m / 45h</span>
           </div>
           <div class="wk-footer-row" style="margin-top:6px">
-            <span class="section-label" style="color:var(--muted-fg)">Surplus</span>
+            <span class="section-label" id="wkSurplusLabel" style="color:var(--muted-fg)">Surplus</span>
             <span class="wk-footer-val" id="wkSurplus" style="color:var(--muted-fg)">+0m</span>
           </div>
           <div style="display:flex;justify-content:flex-end;margin-top:12px">
@@ -1891,10 +1900,6 @@
       <div class="analytics-card">
         <div class="analytics-card-head">
           <span class="analytics-card-title">Your Penalties</span>
-          <button class="btn-sm" id="penaltiesCheck">
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none"><path d="M2.06095 10.8901C2.61379 5.88912 6.85202 2 12 2C14.2365 2 16.0402 2.88495 17.581 4.0323C18.4275 4.66267 19.2351 5.40719 20 6.14376V3C20 2.44771 20.4477 2 21 2C21.5523 2 22 2.44771 22 3V8.5C22 9.05228 21.5523 9.5 21 9.5H15.5C14.9477 9.5 14.5 9.05228 14.5 8.5C14.5 7.94772 14.9477 7.5 15.5 7.5H18.5243C17.8281 6.82979 17.1371 6.19538 16.3865 5.6364C15.054 4.64418 13.662 4 12 4C7.88281 4 4.4909 7.11098 4.04884 11.1099C3.98816 11.6588 3.49396 12.0546 2.94502 11.9939C2.39608 11.9333 2.00027 11.4391 2.06095 10.8901Z" fill="currentColor"/><path d="M21.9939 13.1099C21.441 18.1109 17.2028 22 12.0548 22C9.81834 22 8.0146 21.115 6.47383 19.9677C5.62731 19.3373 4.8197 18.5928 4.05481 17.8562V21C4.05481 21.5523 3.60709 22 3.05481 22C2.50253 22 2.05481 21.5523 2.05481 21V15.5C2.05481 14.9477 2.50253 14.5 3.05481 14.5H8.55481C9.1071 14.5 9.55481 14.9477 9.55481 15.5C9.55481 16.0523 9.1071 16.5 8.55481 16.5H5.53052C6.22675 17.1702 6.91769 17.8046 7.66834 18.3636C9.0008 19.3558 10.3928 20 12.0548 20C16.172 20 19.5639 16.889 20.006 12.8901C20.0667 12.3412 20.5608 11.9454 21.1098 12.0061C21.6587 12.0667 22.0545 12.5609 21.9939 13.1099Z" fill="currentColor"/></svg>
-            Refresh
-          </button>
         </div>
         <div class="penalty-list" id="penaltiesList">
           <div class="penalty-empty" style="padding:24px 16px">Scanning…</div>
@@ -1967,7 +1972,6 @@
                     <span class="input-suffix-text">min</span>
                   </div>
                 </div>
-                <div id="weeklyCalcInfo" style="margin-top:8px;padding:8px 12px;background:var(--muted);border-radius:8px;font-size:12px;color:var(--muted-fg);line-height:1.5"></div>
               </div>
             </div>
 
@@ -2062,22 +2066,6 @@
                   </label>
                 </div>
 
-              </div>
-            </div>
-
-            <div class="sep-inner"></div>
-
-            <!-- Penalty Calculation -->
-            <div class="form-field">
-              <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
-                <div>
-                  <div class="form-label">Penalty Calculation</div>
-                  <div class="form-sub">How your company evaluates work-hour penalties.</div>
-                </div>
-                <div class="st-tabs" style="flex-shrink:0">
-                  <button type="button" class="st-tab pc-tab active" id="pcTabDaily" onclick="switchPenaltyMode('daily')">Daily</button>
-                  <button type="button" class="st-tab pc-tab" id="pcTabWeekly" onclick="switchPenaltyMode('weekly')">Weekly</button>
-                </div>
               </div>
             </div>
 
@@ -2791,7 +2779,7 @@
   <div class="email-modal-overlay" id="emailModalOverlay">
     <div class="email-modal">
       <div class="email-modal-head">
-        <span class="email-modal-title">Draft Email</span>
+        <span class="email-modal-title">Email</span>
         <button class="email-modal-close" id="emailModalClose">✕</button>
       </div>
       <div class="email-modal-date" id="emailModalDate"></div>
@@ -2987,6 +2975,8 @@
       const h = Math.floor(abs / 3600), m = Math.round((abs % 3600) / 60);
       return m > 0 ? `${sign}${h}h ${m}m` : `${sign}${h}h`;
     }
+    // Returns "Over Time" in daily mode, "Surplus" in weekly mode
+    function _surplusLabel() { return cfg().weeklyOn ? 'Surplus' : 'Over Time'; }
     function durLong(secs) {
       const s = Math.abs(secs), h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60);
       if (h === 0) return `${m} min`;
@@ -4160,7 +4150,12 @@
       // Weekend override — show last-week summary card instead of the normal empty state
       const wknd = isWeekend() && !loginDate;
       el('rcBody')?.classList.toggle('weekend-mode', wknd);
-      if (wknd) { renderWeekendState(); return; }
+      if (wknd) {
+        selectedDayKey = '__wknd__';
+        renderWeekendState();
+        _updateDayNavBtns();
+        return;
+      }
       const eff = effSecs();
       const _tkE = todayKey(), _logE = dayLog(_tkE) || {};
       el('rcWorked').textContent = '—';
@@ -4215,6 +4210,7 @@
           exit:       log.checkoutDisplay || '—',
           attendance,
           penalty,
+          totalHours: (hasLog && !skipPenalty) ? dur(worked) : '—',
           surplus,
           worked:     (!skipPenalty && hasLog) ? worked : 0,
           surplusSecs:(!skipPenalty && hasLog && diff > 60) ? diff : 0,
@@ -4231,6 +4227,11 @@
         : `${MONTHS[mon.getMonth()].slice(0,3)} ${mon.getDate()} – ${MONTHS[fri.getMonth()].slice(0,3)} ${fri.getDate()}`;
       el('wkndWeekRange').textContent = rangeLabel;
 
+      // Dynamic section label: "Last Week" on actual current weekend, else the range
+      const isCurrentWknd = isWeekend() && daySelectorWeekOffset === 0;
+      const sectionLbl = el('wkndSectionLabel');
+      if (sectionLbl) sectionLbl.textContent = isCurrentWknd ? 'Last Week' : rangeLabel;
+
       const rows = _wkndDayData(wk);
       const penaltyDays  = rows.filter(r => r.isPenalty).length;
       const totalSurplus = rows.reduce((s, r) => s + r.surplusSecs, 0);
@@ -4239,6 +4240,22 @@
       el('wkndPenalties').style.color = penaltyDays > 0 ? 'var(--destructive)' : 'var(--foreground)';
       el('wkndOvertime').textContent  = totalSurplus > 60 ? '+' + dur(totalSurplus) : '—';
       el('wkndOvertime').style.color  = totalSurplus > 60 ? 'var(--success)' : 'var(--muted-fg)';
+
+      // Next Week section — only visible on the actual current weekend
+      const nextSec = el('wkndNextSection');
+      if (nextSec) {
+        nextSec.style.display = isCurrentWknd ? '' : 'none';
+        if (isCurrentWknd) {
+          const nwk = week(1); // next week (offset +1 from today)
+          const nMon = nwk[0].date, nFri = nwk[nwk.length - 1].date;
+          const nRange = nMon.getMonth() === nFri.getMonth()
+            ? `${MONTHS[nMon.getMonth()].slice(0,3)} ${nMon.getDate()}–${nFri.getDate()}`
+            : `${MONTHS[nMon.getMonth()].slice(0,3)} ${nMon.getDate()} – ${MONTHS[nFri.getMonth()].slice(0,3)} ${nFri.getDate()}`;
+          el('wkndNextWeekRange').textContent = nRange;
+          el('wkndNextWeekStart').textContent =
+            `${FULL_DAYS_EN[nMon.getDay()]}, ${MONTHS[nMon.getMonth()]} ${nMon.getDate()}`;
+        }
+      }
     }
 
     function openWeekReport() {
@@ -4254,13 +4271,15 @@
       const TH = 'padding:8px 10px;text-align:left;font-size:10px;font-weight:600;color:var(--muted-fg);text-transform:uppercase;letter-spacing:.07em;border-bottom:1px solid var(--border);white-space:nowrap';
       const TD = (extra='') => `padding:10px 10px;font-size:12px;color:var(--foreground);border-bottom:1px solid var(--border);${extra}`;
 
+      const surpHdr = _surplusLabel();
       let html = `<thead><tr>
         <th style="${TH}">Day</th>
         <th style="${TH}">Entry</th>
         <th style="${TH}">Exit</th>
         <th style="${TH}">Attendance</th>
         <th style="${TH}">Penalty</th>
-        <th style="${TH}">Surplus</th>
+        <th style="${TH}">Total Hours</th>
+        <th style="${TH}">${surpHdr}</th>
       </tr></thead><tbody>`;
 
       for (const r of rows) {
@@ -4272,11 +4291,12 @@
           <td style="${TD('color:var(--muted-fg)')}">${r.exit}</td>
           <td style="${TD()}">${r.attendance}</td>
           <td style="${TD(penColor)}">${r.penalty}</td>
+          <td style="${TD()}">${r.totalHours}</td>
           <td style="${TD(surColor)}">${r.surplus}</td>
         </tr>`;
       }
       html += `<tr style="background:var(--muted)">
-        <td colspan="4" style="${TD('font-weight:600;border-bottom:none')}">Total Work Hours (WH)</td>
+        <td colspan="5" style="${TD('font-weight:600;border-bottom:none')}">Weekly Work Hours</td>
         <td style="${TD('font-weight:700;border-bottom:none')}">${totalWorked > 0 ? dur(totalWorked) : '—'}</td>
         <td style="${TD('font-weight:700;color:var(--success);border-bottom:none')}">${totalSurplus > 0 ? '+' + dur(totalSurplus) : '—'}</td>
       </tr></tbody>`;
@@ -4357,7 +4377,7 @@
         // ── Week details — right aligned, top of header ──
         doc.setFontSize(7.5); doc.setFont('helvetica', 'bold'); doc.setTextColor(156, 163, 175);
         doc.text('WEEK', pageW - margin, logoY + 4, { align: 'right' });
-        doc.setFontSize(13); doc.setFont('helvetica', 'bold'); doc.setTextColor(17, 24, 39);
+        doc.setFontSize(11); doc.setFont('helvetica', 'bold'); doc.setTextColor(17, 24, 39);
         doc.text(rangeStr, pageW - margin, logoY + 11, { align: 'right' });
 
         // ── Divider ──
@@ -4367,8 +4387,9 @@
         doc.line(margin, divY, pageW - margin, divY);
 
         // ── Table ──
-        const tableBody = rows.map(r => [r.day, r.entry, r.exit, r.attendance, r.penalty, r.surplus]);
-        tableBody.push(['Total Work Hours (WH)', '', '', '',
+        const pdfSurpHdr = c.weeklyOn ? 'Surplus' : 'Over Time';
+        const tableBody = rows.map(r => [r.day, r.entry, r.exit, r.attendance, r.penalty, r.totalHours, r.surplus]);
+        tableBody.push(['Weekly Work Hours', '', '', '', '',
           totalWorked  > 0 ? dur(totalWorked)              : '—',
           totalSurplus > 0 ? '+' + dur(totalSurplus)       : '—']);
         const totalRowIdx = tableBody.length - 1;
@@ -4376,7 +4397,7 @@
         doc.autoTable({
           startY: divY + 5,
           margin: { left: margin, right: margin },
-          head: [['Day', 'Entry', 'Exit', 'Attendance', 'Penalty', 'Surplus']],
+          head: [['Day', 'Entry', 'Exit', 'Attendance', 'Penalty', 'Total Hours', pdfSurpHdr]],
           body: tableBody,
           styles: {
             fontSize: 10,
@@ -4400,9 +4421,10 @@
             const isTotal = data.row.index === totalRowIdx;
             if (isTotal) {
               data.cell.styles.fontStyle = 'bold';
+              data.cell.styles.fontSize = 11;
               data.cell.styles.fillColor = [249, 250, 251];
               data.cell.styles.textColor = [17, 24, 39];
-              if (data.column.index === 5 && totalSurplus > 0)
+              if (data.column.index === 6 && totalSurplus > 0)
                 data.cell.styles.textColor = [22, 163, 74];
             } else {
               const r = rows[data.row.index];
@@ -4414,7 +4436,7 @@
                 data.cell.styles.textColor = [156, 163, 175];
               if (data.column.index === 4 && r?.isPenalty)
                 data.cell.styles.textColor = [220, 38, 38];
-              if (data.column.index === 5 && r?.surplusSecs > 0)
+              if (data.column.index === 6 && r?.surplusSecs > 0)
                 data.cell.styles.textColor = [22, 163, 74];
             }
           },
@@ -4981,13 +5003,13 @@
             </div>
           </div>
         </div>`;
-      let surplusText = '—', surplusColor = 'var(--muted-fg)', surplusLabel = 'Surplus';
+      let surplusText = '—', surplusColor = 'var(--muted-fg)', surplusLabel = _surplusLabel();
       if (workedSecs != null && targetSecs != null) {
         const diff = workedSecs - targetSecs;
         if (Math.abs(diff) < 60) {
-          surplusText = 'On Target'; surplusColor = 'var(--success)'; surplusLabel = 'Surplus';
+          surplusText = 'On Target'; surplusColor = 'var(--success)'; surplusLabel = _surplusLabel();
         } else if (diff > 0) {
-          surplusText = durShort(diff); surplusColor = 'var(--success)'; surplusLabel = 'Surplus';
+          surplusText = durShort(diff); surplusColor = 'var(--success)'; surplusLabel = _surplusLabel();
         } else {
           surplusText = durShort(diff); surplusColor = 'var(--foreground)'; surplusLabel = 'Balance';
         }
@@ -5080,7 +5102,7 @@
       const pct = Math.min((worked / target) * 100, 100);
       el('progFill').style.width = pct.toFixed(1) + '%';
       el('progFill').classList.toggle('done', isDone);
-      el('progLabel').textContent = isDone ? 'Target Reached' : `${Math.floor(pct)}% complete`;
+      el('progLabel').textContent = isDone ? 'Target Reached' : `${Math.floor(pct)}%`;
       _setTodayDateChip();
       el('stayHint').style.display = 'none';
       const loginDisp = log.loginDisplay || '—';
@@ -5244,6 +5266,8 @@
           surpEl.style.color = 'var(--muted-fg)';
         }
       }
+      const surpLblEl = el('wkSurplusLabel');
+      if (surpLblEl) surpLblEl.textContent = _surplusLabel();
 
       renderNotifs();
       // Refresh day-selector dots when history changes
@@ -5475,8 +5499,6 @@
         recBlock.style.maxHeight = recOn ? '500px' : '0';
         recBlock.style.opacity   = recOn ? '1' : '0';
       }
-      el('pcTabDaily')?.classList.toggle('active', !c.weeklyOn);
-      el('pcTabWeekly')?.classList.toggle('active', !!c.weeklyOn);
       switchStTab(c.weeklyOn ? 'weekly' : 'daily');
       document.querySelectorAll('.plan-btn[data-sday]').forEach(btn => {
         btn.classList.toggle('selected', (c.lateDays || []).includes(+btn.dataset.sday));
@@ -5534,33 +5556,26 @@
 
     function switchStTab(tab) {
       const isWeekly = tab === 'weekly';
-      // NOTE: do NOT touch inpWeeklyOn here — that's owned by Penalty Calculation
       el('stTabDaily').classList.toggle('active', !isWeekly);
       el('stTabWeekly').classList.toggle('active', isWeekly);
       const lbl = el('stTargetLabel');
       if (lbl) lbl.textContent = isWeekly ? 'Weekly Target' : 'Daily Target';
+      // Penalty mode follows target mode — weekly target ↔ weekly penalty calc
+      const wOff = el('inpWeeklyOn'); if (wOff) wOff.checked = isWeekly;
       updateWeeklyCalc();
-      // don't call autoSaveSettings — tab is display-only, no save needed
+      autoSaveSettings();
     }
 
     function updateWeeklyCalc() {
-      const info = el('weeklyCalcInfo'); if (!info) return;
       const dh = parseFloat(el('inpDailyH')?.value) || 0;
       const dm = parseFloat(el('inpDailyM')?.value) || 0;
       const daily = dh + dm / 60;
       const days = (cfg().workDays || 5);
       const weekly = daily * days;
       const wh = Math.floor(weekly), wm = Math.round((weekly - wh) * 60);
-      // Read from the tab state, NOT from inpWeeklyOn (penalty calc)
-      const isWeekly = el('stTabWeekly')?.classList.contains('active');
-      if (isWeekly) {
-        info.textContent = `Based on ${dh}h${dm ? ' ' + dm + 'm' : ''} daily × ${days} days, that's ${wh}h${wm ? ' ' + wm + 'm' : ''} weekly.`;
-      } else {
-        info.textContent = `That's ${wh}h${wm ? ' ' + wm + 'm' : ''} weekly (${days} working days).`;
-      }
       // Sync hidden weekly inputs so calculations still work
-      el('inpWeeklyH').value = wh;
-      el('inpWeeklyM').value = wm;
+      const whi = el('inpWeeklyH'); if (whi) whi.value = wh;
+      const wmi = el('inpWeeklyM'); if (wmi) wmi.value = wm;
       // Keep shift end time in sync when daily hours change
       syncHoursToShiftEnd();
     }
@@ -5638,15 +5653,6 @@
           }
         });
       }
-    }
-
-    function switchPenaltyMode(mode) {
-      const isWeekly = mode === 'weekly';
-      el('inpWeeklyOn').checked = isWeekly;
-      el('pcTabDaily')?.classList.toggle('active', !isWeekly);
-      el('pcTabWeekly')?.classList.toggle('active', isWeekly);
-      autoSaveSettings();
-      renderPenalties(); // reflect new mode immediately
     }
 
     function autoSaveSettings() {
@@ -5913,6 +5919,12 @@
     }
 
     let _penaltyData = [];
+    let _discardedPenalties = new Set(JSON.parse(localStorage.getItem('wh_discarded_penalties') || '[]'));
+    function discardPenalty(key) {
+      _discardedPenalties.add(key);
+      localStorage.setItem('wh_discarded_penalties', JSON.stringify([..._discardedPenalties]));
+      renderPenalties();
+    }
 
     // ── Helper: get all Mon–Fri days in a given month up to today ──
     function getWeekdaysInMonth(year, month) {
@@ -5950,9 +5962,6 @@
     function renderPenalties() {
       const c = cfg();
       const now = new Date();
-      const refreshSvg = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none"><path d="M2.06095 10.8901C2.61379 5.88912 6.85202 2 12 2C14.2365 2 16.0402 2.88495 17.581 4.0323C18.4275 4.66267 19.2351 5.40719 20 6.14376V3C20 2.44771 20.4477 2 21 2C21.5523 2 22 2.44771 22 3V8.5C22 9.05228 21.5523 9.5 21 9.5H15.5C14.9477 9.5 14.5 9.05228 14.5 8.5C14.5 7.94772 14.9477 7.5 15.5 7.5H18.5243C17.8281 6.82979 17.1371 6.19538 16.3865 5.6364C15.054 4.64418 13.662 4 12 4C7.88281 4 4.4909 7.11098 4.04884 11.1099C3.98816 11.6588 3.49396 12.0546 2.94502 11.9939C2.39608 11.9333 2.00027 11.4391 2.06095 10.8901Z" fill="currentColor"/><path d="M21.9939 13.1099C21.441 18.1109 17.2028 22 12.0548 22C9.81834 22 8.0146 21.115 6.47383 19.9677C5.62731 19.3373 4.8197 18.5928 4.05481 17.8562V21C4.05481 21.5523 3.60709 22 3.05481 22C2.50253 22 2.05481 21.5523 2.05481 21V15.5C2.05481 14.9477 2.50253 14.5 3.05481 14.5H8.55481C9.1071 14.5 9.55481 14.9477 9.55481 15.5C9.55481 16.0523 9.1071 16.5 8.55481 16.5H5.53052C6.22675 17.1702 6.91769 17.8046 7.66834 18.3636C9.0008 19.3558 10.3928 20 12.0548 20C16.172 20 19.5639 16.889 20.006 12.8901C20.0667 12.3412 20.5608 11.9454 21.1098 12.0061C21.6587 12.0667 22.0545 12.5609 21.9939 13.1099Z" fill="currentColor"/></svg>`;
-      const btn = el('penaltiesCheck');
-      if (btn) btn.innerHTML = refreshSvg + ' Refresh';
       const container = el('penaltiesList');
 
       const tenDaysAgo = new Date(now); tenDaysAgo.setDate(tenDaysAgo.getDate() - 10); tenDaysAgo.setHours(0,0,0,0);
@@ -5977,12 +5986,13 @@
           }
         }
         _penaltyData = penalties;
+        const visibleDaily = penalties.filter(p => !_discardedPenalties.has(p.key));
 
-        if (!penalties.length) {
+        if (!visibleDaily.length) {
           container.innerHTML = '<div class="penalty-empty">No daily penalties this month.</div>';
           return;
         }
-        container.innerHTML = penalties.map(p => {
+        container.innerHTML = visibleDaily.map(p => {
             const dateStr = `${FULL_DAYS_EN[p.date.getDay()]}, ${MONTHS[p.date.getMonth()]} ${p.date.getDate()}`;
             return penaltyRowHtml(p, dateStr, `−${dur(p.deficit)} short of ${dur(c.dailyH*3600)} daily target`);
           }).join('');
@@ -6047,13 +6057,14 @@
         }
 
         _penaltyData = penalties;
+        const visibleWeekly = penalties.filter(p => !_discardedPenalties.has(p.key));
 
-        if (!penalties.length) {
+        if (!visibleWeekly.length) {
           container.innerHTML = '<div class="penalty-empty">No weekly penalties this month.</div>';
           return;
         }
 
-        container.innerHTML = penalties.map(p => {
+        container.innerHTML = visibleWeekly.map(p => {
             const dateStr = `Week of ${p.rangeStr}`;
             const adjH = ((adjustedWeeklyTarget(p.wkDays.map(d=>({key:dateKey(d),date:d}))))/3600).toFixed(1).replace(/\.0$/,'');
             const desc = `${dur(p.totalSecs)} logged — ${dur(p.deficit)} short of ${adjH}h adjusted target`;
@@ -6067,11 +6078,13 @@
         <div class="penalty-row-main">
           <div class="penalty-info">
             <span class="penalty-date">${dateStr}</span>
+            ${shortDesc ? `<span class="penalty-delta">${shortDesc}</span>` : ''}
           </div>
           <div style="display:flex;gap:6px;flex-shrink:0">
+            <button class="btn-sm" style="color:var(--muted-fg)" onclick="discardPenalty('${p.key}')">Discard</button>
             <button class="btn-sm" onclick="openEmailModal('${p.key}')">
               <svg width="10" height="10" viewBox="0 0 24 24" fill="none"><path fill-rule="evenodd" clip-rule="evenodd" d="M23 6V18C23 19.6523 21.6523 21 20 21H4C2.34772 21 1 19.6523 1 18V6C1 4.34315 2.34315 3 4 3H20C21.6569 3 23 4.34315 23 6ZM3.10658 5.55395C3.27196 5.22692 3.61204 5 4 5H20C20.388 5 20.728 5.22692 20.8934 5.55395L12 11.7793L3.10658 5.55395ZM3 7.92066L10.8531 13.4178C11.5417 13.8999 12.4583 13.8999 13.1469 13.4178L21 7.92066V18C21 18.5477 20.5477 19 20 19H4C3.45228 19 3 18.5477 3 18V7.92066Z" fill="currentColor"/></svg>
-              Draft Email
+              Email
             </button>
           </div>
         </div>
@@ -7178,17 +7191,6 @@ ${sig}`
 
     // pastSaveBtn removed — editing now uses day edit modal
 
-    el('penaltiesCheck').addEventListener('click', () => {
-      const container = el('penaltiesList');
-      // Lock height to current size while skeleton shows, then release after render
-      const h = container.offsetHeight;
-      container.style.minHeight = Math.max(h, 44) + 'px';
-      container.innerHTML = '<div class="skeleton-row"></div><div class="skeleton-row"></div>';
-      setTimeout(() => {
-        renderPenalties();
-        container.style.minHeight = '';
-      }, 900);
-    });
     el('emailModalClose').addEventListener('click', closeEmailModal);
     el('emailModalOverlay').addEventListener('click', e => { if (e.target === el('emailModalOverlay')) closeEmailModal(); });
     el('outsideShiftOverlay').addEventListener('click', e => { if (e.target === el('outsideShiftOverlay')) closeOutsideShiftModal(); });

@@ -447,7 +447,11 @@
     .rc-body.weekend-mode #doneBanner,
     .rc-body.weekend-mode #autostopBanner { display: none !important; }
     #weekendView { display: none; }
-    .rc-body.weekend-mode #weekendView { display: block; }
+    .rc-body.weekend-mode #weekendView { display: block; animation: wknd-fade-in .28s ease; }
+    @keyframes wknd-fade-in {
+      from { opacity: 0; transform: translateY(8px); }
+      to   { opacity: 1; transform: translateY(0);   }
+    }
     .rc-numbers { display: flex; align-items: baseline; gap: 12px; }
     .rc-left-col { display: flex; flex-direction: column; gap: 2px; }
     .rc-right-col { margin-left:auto;display:flex;flex-direction:column;gap:2px;align-items:flex-end; }
@@ -1722,7 +1726,7 @@
           <div id="weekendView">
             <div style="text-align:center;padding:8px 0 18px">
               <div style="font-size:26px;margin-bottom:10px">🌴</div>
-              <div id="wkndPageTitle" style="font-size:17px;font-weight:700;color:var(--foreground);letter-spacing:-.02em;margin-bottom:4px">Enjoy Your Weekends</div>
+              <div id="wkndPageTitle" style="font-size:17px;font-weight:700;color:var(--foreground);letter-spacing:-.02em;margin-bottom:4px">Enjoy Your Weekend</div>
               <div style="font-size:13px;color:var(--muted-fg);line-height:1.5">You're done with the week.</div>
             </div>
             <div style="background:var(--muted);border-radius:12px;padding:14px 14px 12px">
@@ -1730,28 +1734,19 @@
                 <span style="font-size:13px;font-weight:600;color:var(--foreground)" id="wkndSectionLabel">Last Week</span>
                 <span style="font-size:12px;color:var(--muted-fg)" id="wkndWeekRange">—</span>
               </div>
-              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
-                <div style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px 14px">
-                  <div style="font-size:10px;font-weight:600;color:var(--muted-fg);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Penalties</div>
-                  <div style="font-size:26px;font-weight:700;letter-spacing:-.03em" id="wkndPenalties">0</div>
+              <div class="rc-io-row" style="margin-top:0;margin-bottom:12px">
+                <div class="rc-io-box">
+                  <div class="rc-io-label">Penalties</div>
+                  <div class="rc-io-val" id="wkndPenalties">0</div>
                 </div>
-                <div style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px 14px">
-                  <div style="font-size:10px;font-weight:600;color:var(--muted-fg);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Overtime</div>
-                  <div style="font-size:26px;font-weight:700;letter-spacing:-.03em" id="wkndOvertime">—</div>
+                <div class="rc-io-box">
+                  <div class="rc-io-label">Overtime</div>
+                  <div class="rc-io-val" id="wkndOvertime">—</div>
                 </div>
               </div>
               <div style="display:flex;justify-content:flex-end">
                 <button class="btn btn-primary" style="height:38px;font-size:13px;padding:0 20px" onclick="openWeekReport()">Check Report</button>
               </div>
-            </div>
-
-            <!-- Next Week card — shown only on the actual current weekend -->
-            <div id="wkndNextSection" style="display:none;background:var(--muted);border-radius:12px;padding:14px 14px 12px;margin-top:8px">
-              <div style="display:flex;justify-content:space-between;align-items:center">
-                <span style="font-size:13px;font-weight:600;color:var(--foreground)">Next Week</span>
-                <span style="font-size:12px;color:var(--muted-fg)" id="wkndNextWeekRange">—</span>
-              </div>
-              <div style="font-size:12px;color:var(--muted-fg);margin-top:8px">No entries yet — starts <span id="wkndNextWeekStart">—</span>.</div>
             </div>
           </div>
 
@@ -1884,7 +1879,7 @@
             <span class="wk-footer-val" id="wkSurplus" style="color:var(--muted-fg)">+0m</span>
           </div>
           <div style="display:flex;justify-content:flex-end;margin-top:12px">
-            <button class="btn btn-primary" style="height:36px;font-size:12px;padding:0 16px;display:inline-flex;align-items:center;gap:6px" onclick="downloadWeekReport(analyticsWeekOffset)">
+            <button class="btn btn-primary" style="height:36px;font-size:12px;padding:0 16px;display:inline-flex;align-items:center;gap:6px" onclick="openWeekReport(analyticsWeekOffset)">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
               Export
             </button>
@@ -2156,11 +2151,12 @@
                   <div class="form-sub">Import a backup or export your current log.</div>
                 </div>
                 <div style="display:flex;gap:8px;flex-shrink:0">
-                  <label class="btn-sm" style="height:36px;font-size:13px;padding:0 14px;cursor:pointer;display:inline-flex;align-items:center;gap:5px">
+                  <button class="btn-sm" style="height:36px;font-size:13px;padding:0 14px;display:inline-flex;align-items:center;gap:5px" onclick="openImportModal()">
                     <svg width="11" height="11" viewBox="0 0 24 24" fill="none"><path d="M11 4C8.37318 4 6.2324 5.99599 6.01793 8.51595C5.98608 8.89012 5.74729 9.21492 5.39963 9.35691C3.3976 10.1746 2 12.1199 2 14.3783C2 16.2952 3.00543 17.9848 4.53512 18.9537C5.00168 19.2493 5.14031 19.8671 4.84477 20.3336C4.54923 20.8002 3.93143 20.9388 3.46488 20.6433C1.38625 19.3266 0 17.0152 0 14.3783C0 11.4804 1.67256 8.9777 4.10178 7.75216C4.66997 4.47797 7.54913 2 11 2C13.8191 2 16.2533 3.65235 17.362 6.03971C19.4286 6.43792 21 8.24044 21 10.4206C21 10.7714 20.959 11.1133 20.8815 11.4415C22.7225 12.3197 24 14.186 24 16.3571C24 18.2066 23.0706 19.8374 21.6596 20.8205C21.2065 21.1362 20.5832 21.0248 20.2675 20.5717C19.9518 20.1185 20.0632 19.4952 20.5163 19.1795C21.4183 18.5511 22 17.5193 22 16.3571C22 14.7492 20.882 13.3863 19.3555 13.0085C19.056 12.9344 18.8075 12.7261 18.6821 12.4442C18.5567 12.1623 18.5684 11.8383 18.7139 11.5662C18.8965 11.2247 19 10.8359 19 10.4206C19 9.10788 17.9516 8.0197 16.6155 7.96031C16.2093 7.94225 15.8545 7.68006 15.7179 7.29708C15.0347 5.38045 13.1833 4 11 4Z" fill="currentColor"/><path d="M7.29289 16.7071C7.68342 17.0976 8.31658 17.0976 8.70711 16.7071L11 14.4142V22C11 22.5523 11.4477 23 12 23C12.5523 23 13 22.5523 13 22V14.4142L15.2929 16.7071C15.6834 17.0976 16.3166 17.0976 16.7071 16.7071C17.0976 16.3166 17.0976 15.6834 16.7071 15.2929L12.7071 11.2929C12.3166 10.9024 11.6834 10.9024 11.2929 11.2929L7.29289 15.2929C6.90237 15.6834 6.90237 16.3166 7.29289 16.7071Z" fill="currentColor"/></svg>
                     Import
-                    <input type="file" id="logFileInput" accept=".json" style="display:none">
-                  </label>
+                  </button>
+                  <!-- Hidden fallback input kept for backward-compat event listener -->
+                  <input type="file" id="logFileInput" accept=".json" style="display:none">
                   <button class="btn-sm" id="manualExportBtn" style="height:36px;font-size:13px;padding:0 14px">
                     <svg width="11" height="11" viewBox="0 0 24 24" fill="none"><path d="M7.70711 10.2929L11 13.5858L11 3C11 2.44771 11.4477 2 12 2C12.5523 2 13 2.44771 13 3L13 13.5858L16.2929 10.2929C16.6834 9.90237 17.3166 9.90237 17.7071 10.2929C18.0976 10.6834 18.0976 11.3166 17.7071 11.7071L12.7071 16.7071C12.3166 17.0976 11.6834 17.0976 11.2929 16.7071L6.29289 11.7071C5.90237 11.3166 5.90237 10.6834 6.29289 10.2929C6.68342 9.90237 7.31658 9.90237 7.70711 10.2929Z" fill="currentColor"/><path d="M4 22C3.44772 22 3 21.5523 3 21C3 20.4477 3.44772 20 4 20H20C20.5523 20 21 20.4477 21 21C21 21.5523 20.5523 22 20 22H4Z" fill="currentColor"/></svg>
                     Export
@@ -2268,12 +2264,12 @@
       background:var(--muted);color:var(--muted-fg);padding:4px 7px;border-radius:100px">v0.9.5</span>
   </a>
 
-  <!-- ── Week Report Modal ── -->
+  <!-- ── Weekly Report Modal ── -->
   <div class="overlay" id="weekReportOverlay" onclick="if(event.target===this)closeWeekReport()">
-    <div class="dialog" style="max-width:520px;max-height:90vh;display:flex;flex-direction:column">
+    <div class="dialog" style="width:fit-content;max-width:min(92vw,800px);max-height:90vh;display:flex;flex-direction:column">
       <div class="dialog-head" style="flex-shrink:0;display:flex;align-items:center;justify-content:space-between">
         <div>
-          <div class="dialog-title">Week Report</div>
+          <div class="dialog-title">Weekly Report</div>
           <div class="dialog-desc" id="weekReportRange">—</div>
         </div>
         <button class="btn-icon" onclick="closeWeekReport()" title="Close" style="margin:-4px -4px -4px 0;flex-shrink:0">
@@ -2281,7 +2277,7 @@
         </button>
       </div>
       <div style="overflow-x:auto;flex:1;overflow-y:auto;padding:0 20px 4px">
-        <table id="weekReportTable" style="width:100%;border-collapse:collapse;font-size:12px;min-width:400px"></table>
+        <table id="weekReportTable" style="width:100%;border-collapse:collapse;font-size:12px"></table>
       </div>
       <div class="dialog-foot" style="flex-shrink:0;padding-top:12px;display:flex;justify-content:flex-end">
         <button class="btn btn-primary" style="height:40px;font-size:13px;padding:0 20px;display:inline-flex;align-items:center;gap:7px" onclick="downloadWeekReport()">
@@ -2630,6 +2626,29 @@
           <button class="btn btn-cancel" id="importCancelBtn" style="width:auto;padding:0 16px;height:38px;font-size:13px">Cancel</button>
           <button class="btn btn-primary" id="importConfirmBtn" style="width:auto;padding:0 16px;height:38px;font-size:13px">Import</button>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Import Modal (Drag & Drop) ── -->
+  <div class="overlay" id="importModal" onclick="if(event.target===this)closeImportModal()">
+    <div class="dialog" style="max-width:420px">
+      <div class="dialog-head" style="display:flex;align-items:center;justify-content:space-between">
+        <div>
+          <div class="dialog-title">Import Backup</div>
+          <div class="dialog-desc">Restore your data from a .json backup file.</div>
+        </div>
+        <button class="btn-icon" onclick="closeImportModal()" title="Close" style="margin:-4px -4px -4px 0;flex-shrink:0">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="dialog-body" style="padding-bottom:20px">
+        <label class="ob-import-zone" for="importModalFile" id="importModalZone">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none"><path d="M11 4C8.37318 4 6.2324 5.99599 6.01793 8.51595C5.98608 8.89012 5.74729 9.21492 5.39963 9.35691C3.3976 10.1746 2 12.1199 2 14.3783C2 16.2952 3.00543 17.9848 4.53512 18.9537C5.00168 19.2493 5.14031 19.8671 4.84477 20.3336C4.54923 20.8002 3.93143 20.9388 3.46488 20.6433C1.38625 19.3266 0 17.0152 0 14.3783C0 11.4804 1.67256 8.9777 4.10178 7.75216C4.66997 4.47797 7.54913 2 11 2C13.8191 2 16.2533 3.65235 17.362 6.03971C19.4286 6.43792 21 8.24044 21 10.4206C21 10.7714 20.959 11.1133 20.8815 11.4415C22.7225 12.3197 24 14.186 24 16.3571C24 18.2066 23.0706 19.8374 21.6596 20.8205C21.2065 21.1362 20.5832 21.0248 20.2675 20.5717C19.9518 20.1185 20.0632 19.4952 20.5163 19.1795C21.4183 18.5511 22 17.5193 22 16.3571C22 14.7492 20.882 13.3863 19.3555 13.0085C19.056 12.9344 18.8075 12.7261 18.6821 12.4442C18.5567 12.1623 18.5684 11.8383 18.7139 11.5662C18.8965 11.2247 19 10.8359 19 10.4206C19 9.10788 17.9516 8.0197 16.6155 7.96031C16.2093 7.94225 15.8545 7.68006 15.7179 7.29708C15.0347 5.38045 13.1833 4 11 4Z" fill="currentColor"/><path d="M7.29289 16.7071C7.68342 17.0976 8.31658 17.0976 8.70711 16.7071L11 14.4142V22C11 22.5523 11.4477 23 12 23C12.5523 23 13 22.5523 13 22V14.4142L15.2929 16.7071C15.6834 17.0976 16.3166 17.0976 16.7071 16.7071C17.0976 16.3166 17.0976 15.6834 16.7071 15.2929L12.7071 11.2929C12.3166 10.9024 11.6834 10.9024 11.2929 11.2929L7.29289 15.2929C6.90237 15.6834 6.90237 16.3166 7.29289 16.7071Z" fill="currentColor"/></svg>
+          <div class="ob-import-zone-text" id="importModalZoneText"><strong>Choose a file or drag &amp; drop here</strong><br>Supports .json files</div>
+          <input type="file" id="importModalFile" accept=".json" style="display:none">
+        </label>
+        <div id="importModalStatus" style="font-size:12px;color:var(--muted-fg);text-align:center;margin-top:8px;display:none"></div>
       </div>
     </div>
   </div>
@@ -3329,6 +3348,16 @@
       // Show insights modal with full day info
       const firstLoginStr = ex.loginDisplay || short(loginDate);
       showCheckoutModal(firstLoginStr, now, totalSecs);
+      // Friday nudge — remind to check weekly report (once per week)
+      const _dow = new Date().getDay();
+      const _isFriday = _dow === 5 || (cfg().workDays >= 6 && _dow === 6);
+      if (_isFriday) {
+        const _fKey = 'wh_report_nudge_' + currentWeekId();
+        if (!localStorage.getItem(_fKey)) {
+          localStorage.setItem(_fKey, '1');
+          setTimeout(() => showToast('📋 Great work this week! Check your weekly report.', 'info'), 2500);
+        }
+      }
       // Reset state — clearLogin() is called inside closeCheckoutModal
       _sessionAccSecs = 0; _sessionCheckoutTime = null;
       loginDate = null; autoStopped = false;
@@ -4236,27 +4265,12 @@
       el('wkndPenalties').textContent = penaltyDays;
       el('wkndPenalties').style.color = penaltyDays > 0 ? 'var(--destructive)' : 'var(--foreground)';
       el('wkndOvertime').textContent  = totalSurplus > 60 ? '+' + dur(totalSurplus) : '—';
-      el('wkndOvertime').style.color  = totalSurplus > 60 ? 'var(--success)' : 'var(--muted-fg)';
-
-      // Next Week section — only visible on the actual current weekend
-      const nextSec = el('wkndNextSection');
-      if (nextSec) {
-        nextSec.style.display = isCurrentWknd ? '' : 'none';
-        if (isCurrentWknd) {
-          const nwk = week(1); // next week (offset +1 from today)
-          const nMon = nwk[0].date, nFri = nwk[nwk.length - 1].date;
-          const nRange = nMon.getMonth() === nFri.getMonth()
-            ? `${MONTHS[nMon.getMonth()].slice(0,3)} ${nMon.getDate()}–${nFri.getDate()}`
-            : `${MONTHS[nMon.getMonth()].slice(0,3)} ${nMon.getDate()} – ${MONTHS[nFri.getMonth()].slice(0,3)} ${nFri.getDate()}`;
-          el('wkndNextWeekRange').textContent = nRange;
-          el('wkndNextWeekStart').textContent =
-            `${FULL_DAYS_EN[nMon.getDay()]}, ${MONTHS[nMon.getMonth()]} ${nMon.getDate()}`;
-        }
-      }
+      el('wkndOvertime').style.color  = totalSurplus > 60 ? 'var(--destructive)' : 'var(--muted-fg)';
     }
 
-    function openWeekReport() {
-      const wk = week(daySelectorWeekOffset);
+    function openWeekReport(weekOffset) {
+      const _off = typeof weekOffset === 'number' ? weekOffset : daySelectorWeekOffset;
+      const wk = week(_off);
       const mon = wk[0].date, fri = wk[wk.length - 1].date;
       el('weekReportRange').textContent =
         `${MONTHS[mon.getMonth()]} ${mon.getDate()} to ${MONTHS[fri.getMonth()]} ${fri.getDate()}, ${fri.getFullYear()}`;
@@ -4458,7 +4472,13 @@
       const _isSundayOnly = cfg().workDays >= 6;
       el('rcDayLabel').textContent = _isSundayOnly ? 'Sunday' : 'Weekend';
       const wkndTitle = el('wkndPageTitle');
-      if (wkndTitle) wkndTitle.textContent = _isSundayOnly ? 'Enjoy Your Sunday' : 'Enjoy Your Weekends';
+      if (wkndTitle) wkndTitle.textContent = _isSundayOnly ? 'Enjoy Your Sunday' : 'Enjoy Your Weekend';
+      // Nudge user to check weekly report (once per week)
+      const _nudgeKey = 'wh_report_nudge_' + currentWeekId();
+      if (!localStorage.getItem(_nudgeKey)) {
+        localStorage.setItem(_nudgeKey, '1');
+        setTimeout(() => showToast('📋 Weekend — check your weekly report!', 'info'), 800);
+      }
       const hd = el('rcHeadDate'); if (hd) { hd.textContent = ''; hd.classList.remove('visible'); }
       // Show card, hide session-only elements
       el('futureDayPlan').style.display = 'none';
@@ -6687,6 +6707,19 @@ ${sig}`
       }
     }
 
+    // ── Import Modal (Settings) ───────────────────────
+    function openImportModal() {
+      const zoneText = el('importModalZoneText');
+      if (zoneText) zoneText.innerHTML = '<strong>Choose a file or drag &amp; drop here</strong><br>Supports .json files';
+      const status = el('importModalStatus');
+      if (status) { status.style.display = 'none'; status.textContent = ''; }
+      const fileInp = el('importModalFile'); if (fileInp) fileInp.value = '';
+      el('importModal').classList.add('open');
+    }
+    function closeImportModal() {
+      el('importModal').classList.remove('open');
+    }
+
     // Export Backup — structured v2 JSON with user-friendly filename
     function exportBackup() {
       const snap = Store.snapshot();
@@ -6740,16 +6773,18 @@ ${sig}`
             infoMeta.textContent = parts.join(' · ');
           }
 
+          // Close import modal (if opened from Settings) before showing confirm
+          el('importModal')?.classList.remove('open');
           el('importConfirmOverlay').classList.add('open');
           el('importConfirmOverlay')._pendingSnap = snap;
         } catch (err) {
           showToast(`Import failed: ${err.message || 'Invalid backup file'}`, 'error');
-          el('logFileInput').value = '';
+          ['logFileInput', 'importModalFile'].forEach(id => { const inp = el(id); if (inp) inp.value = ''; });
         }
       };
       r.onerror = () => {
         showToast('Could not read file', 'error');
-        el('logFileInput').value = '';
+        ['logFileInput', 'importModalFile'].forEach(id => { const inp = el(id); if (inp) inp.value = ''; });
       };
       r.readAsText(file);
     }
@@ -6762,7 +6797,7 @@ ${sig}`
       if (!ok) {
         showToast('Import failed: could not apply data', 'error');
         el('importConfirmOverlay').classList.remove('open');
-        el('logFileInput').value = '';
+        ['logFileInput','importModalFile'].forEach(id=>{const inp=el(id);if(inp)inp.value=''});
         return;
       }
 
@@ -6773,7 +6808,7 @@ ${sig}`
       if (ticker) { clearInterval(ticker); ticker = null; }
 
       el('importConfirmOverlay').classList.remove('open');
-      el('logFileInput').value = '';
+      ['logFileInput','importModalFile'].forEach(id=>{const inp=el(id);if(inp)inp.value=''});
 
       // Full UI refresh
       selectedDayKey = todayKey();
@@ -7348,9 +7383,31 @@ ${sig}`
     el('manualExportBtn').addEventListener('click', exportBackup);
     el('logFileInput').addEventListener('change', ev=>importLogFile(ev.target.files[0]));
     el('importConfirmBtn').addEventListener('click', confirmImport);
-    el('importCancelBtn').addEventListener('click', ()=>{ el('importConfirmOverlay').classList.remove('open'); el('logFileInput').value=''; });
+    el('importCancelBtn').addEventListener('click', ()=>{ el('importConfirmOverlay').classList.remove('open'); ['logFileInput','importModalFile'].forEach(id=>{const inp=el(id);if(inp)inp.value='';}); });
     el('importSaveLogBtn').addEventListener('click', exportBackup);
-    el('importConfirmOverlay').addEventListener('click', ev=>{if(ev.target===el('importConfirmOverlay')){ el('importConfirmOverlay').classList.remove('open'); el('logFileInput').value=''; }});
+    el('importConfirmOverlay').addEventListener('click', ev=>{if(ev.target===el('importConfirmOverlay')){ el('importConfirmOverlay').classList.remove('open'); ['logFileInput','importModalFile'].forEach(id=>{const inp=el(id);if(inp)inp.value='';}); }});
+
+    // Import Modal — file input + drag & drop
+    el('importModalFile').addEventListener('change', ev => importLogFile(ev.target.files[0]));
+    (function _initImportModalDnd() {
+      const zone = el('importModalZone'); if (!zone) return;
+      let _dc = 0;
+      const _setActive = active => {
+        zone.classList.toggle('drag-over', active);
+        const txt = el('importModalZoneText');
+        if (txt) txt.innerHTML = active
+          ? '<strong>Release to import</strong><br>Drop your .json backup here'
+          : '<strong>Choose a file or drag &amp; drop here</strong><br>Supports .json files';
+      };
+      zone.addEventListener('dragenter', e => { e.preventDefault(); _dc++; _setActive(true); });
+      zone.addEventListener('dragleave', () => { if (--_dc <= 0) { _dc = 0; _setActive(false); } });
+      zone.addEventListener('dragover', e => e.preventDefault());
+      zone.addEventListener('drop', e => {
+        e.preventDefault(); _dc = 0; _setActive(false);
+        const file = e.dataTransfer?.files?.[0];
+        if (file) importLogFile(file);
+      });
+    })();
 
     // Inline edit Enter-key handlers (delegated — elements are created dynamically)
     document.addEventListener('keydown', ev => {

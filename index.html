@@ -6682,6 +6682,35 @@ ${sig}`
           });
         } catch (e) { console.warn('[SbSync] pullAll failed:', e); }
       },
+
+      // ── Settings sync (key-value JSONB) ──────────────────────────────
+      // A nonce identifies writes made by THIS tab, so realtime echoes of our
+      // own changes can be ignored (prevents update loops / edit clobbering).
+      _clientId: (window.crypto?.randomUUID?.() || ('c' + Math.random().toString(36).slice(2))),
+
+      // Immediate upsert of the whole config blob under key='config'
+      async pushSettings(cfgObj) {
+        try {
+          const uid = await this._uid();
+          if (!uid) return;
+          await window._sbClient.from('user_kv').upsert(
+            { user_id: uid, key: 'config', value: { cfg: cfgObj, src: this._clientId }, updated_at: new Date().toISOString() },
+            { onConflict: 'user_id,key' }
+          );
+        } catch (e) { console.warn('[SbSync] pushSettings failed:', e); }
+      },
+
+      // Fetch the stored config blob (or null if none yet)
+      async pullSettings() {
+        try {
+          const uid = await this._uid();
+          if (!uid) return null;
+          const { data, error } = await window._sbClient
+            .from('user_kv').select('value').eq('user_id', uid).eq('key', 'config').maybeSingle();
+          if (error || !data?.value) return null;
+          return data.value.cfg || null;
+        } catch (e) { console.warn('[SbSync] pullSettings failed:', e); return null; }
+      },
     };
 
     // Debounced persist hook — stamps lastSaved, refreshes UI label
@@ -6697,8 +6726,83 @@ ${sig}`
     }
 
     // saveDayLog + saveCfg wired through Store
-    function saveDayLog(k,v) { Store.setDay(k,v); persist(); SbSync.pushDay(k, v); }
-    const saveCfg = v => { Store.setCfg(v); persist(); };
+    // _applyingRemote is true while we apply a change received from realtime —
+    // it stops us from immediately re-pushing that same change back to Supabase.
+    let _applyingRemote = false;
+    function saveDayLog(k,v) { Store.setDay(k,v); persist(); if (!_applyingRemote) SbSync.pushDay(k, v); }
+    // Debounce the settings upsert so per-keystroke changes don't spam Supabase
+    let _cfgPushTimer = null;
+    const saveCfg = v => {
+      Store.setCfg(v); persist();
+      if (_applyingRemote) return;
+      if (_cfgPushTimer) clearTimeout(_cfgPushTimer);
+      _cfgPushTimer = setTimeout(() => { _cfgPushTimer = null; SbSync.pushSettings(cfg()); }, 600);
+    };
+
+    // ── REAL-TIME SYNC ────────────────────────────────────────────────────────
+    // Streams this user's setting & work-log changes from Supabase to all their
+    // open devices using Postgres Changes, filtered to their own user_id (privacy
+    // + free-tier bandwidth). Incoming data is piped straight into local state.
+    let _sbRealtimeCh = null;
+    function initRealtimeSync() {
+      SbSync._uid().then(uid => {
+        if (!uid || _sbRealtimeCh) return;
+        _sbRealtimeCh = window._sbClient
+          .channel('user-sync-' + uid)
+          .on('postgres_changes',
+              { event: '*', schema: 'public', table: 'user_kv', filter: 'user_id=eq.' + uid },
+              _onRemoteSettings)
+          .on('postgres_changes',
+              { event: '*', schema: 'public', table: 'work_logs', filter: 'user_id=eq.' + uid },
+              _onRemoteWorkLog)
+          .subscribe();
+      });
+    }
+
+    // Apply a settings change pushed from another device into UI state
+    function _onRemoteSettings(payload) {
+      const row = payload.new || {};
+      if (row.key !== 'config' || !row.value) return;
+      if (row.value.src === SbSync._clientId) return;       // ignore our own echo
+      const remoteCfg = row.value.cfg;
+      if (!remoteCfg || typeof remoteCfg !== 'object') return;
+      _applyingRemote = true;
+      try {
+        Store.setCfg(remoteCfg);
+        populateSettings();
+        renderDaySelector();
+        if (loginDate) render(); else renderEmptyState();
+        showToast('Settings synced from another device', 'info');
+      } finally { _applyingRemote = false; }
+    }
+
+    // Apply a work-log change pushed from another device into UI state
+    function _onRemoteWorkLog(payload) {
+      const newRow = payload.new || {};
+      const oldRow = payload.old || {};
+      const dk = newRow.log_date || oldRow.log_date;
+      if (!dk) return;
+      _applyingRemote = true;
+      try {
+        if (payload.eventType === 'DELETE') {
+          Store.remove(KEY.day + dk);
+        } else {
+          // Skip if our local copy is already as new (avoids overwriting fresh edits / own echo)
+          const local = Store.getDay(dk);
+          if (local?.lastUpdated && newRow.updated_at &&
+              new Date(local.lastUpdated) >= new Date(newRow.updated_at)) return;
+          Store.setDay(dk, {
+            hoursWorked: parseFloat(newRow.hours_worked) || 0,
+            sessionTag:  newRow.status === 'auto_stopped' ? 'autostopped' : 'realtime',
+            override:    SbSync._OVERRIDES.has(newRow.override_type) ? newRow.override_type : null,
+            lastUpdated: newRow.updated_at,
+          });
+        }
+        renderDaySelector();
+        renderHistory();
+        if (!loginDate) renderEmptyState();
+      } finally { _applyingRemote = false; }
+    }
 
     // Session state persistence
     function persistSession() {
@@ -8203,6 +8307,21 @@ ${sig}`
           }
         });
       }
+
+      // Pull saved settings from Supabase, then subscribe to real-time changes.
+      // Settings sync across devices: whatever was last saved becomes the source of truth.
+      SbSync.pullSettings().then(remoteCfg => {
+        if (remoteCfg && typeof remoteCfg === 'object') {
+          _applyingRemote = true;
+          try {
+            Store.setCfg(remoteCfg);
+            populateSettings();
+            renderDaySelector();
+            if (loginDate) render(); else renderEmptyState();
+          } finally { _applyingRemote = false; }
+        }
+        initRealtimeSync();
+      });
 
       // Show onboarding on first launch
       if (!localStorage.getItem(OB_DONE_KEY) && !Store.getCfg()) {

@@ -878,8 +878,8 @@
       text-transform: uppercase; }
     .day-sel-btn .dsel-num  { font-size: 18px; font-weight: 700; line-height: 1; }
     .day-sel-btn .dsel-dot  { width: 4px; height: 4px; border-radius: 50%;
-      background: var(--success); opacity: 0; transition: opacity .15s; }
-    .day-sel-btn.has-data .dsel-dot { opacity: 1; }
+      background: var(--warning); opacity: 0; transition: opacity .15s; }
+    .day-sel-btn.has-penalty .dsel-dot { opacity: 1; }
     .day-sel-btn:hover:not(:disabled):not(.future):not(.active) { border-color: var(--foreground); color: var(--foreground); background: var(--muted); }
     .day-sel-btn.active { background: var(--foreground); color: var(--background); border-color: var(--foreground); }
     .day-sel-btn.active .dsel-dot { background: var(--background); opacity: .6; }
@@ -1456,6 +1456,15 @@
       animation: none;
       mix-blend-mode: normal;
     }
+    /* Dark→Light: keep old (dark) layer on top so the shrink circle is visible */
+    html.theme-exit-dark ::view-transition-old(root) { z-index: 1; }
+    html.theme-exit-dark ::view-transition-new(root) { z-index: 0; }
+
+    /* Recommend Timings expand/collapse */
+    #recommendTimingsBlock {
+      overflow: hidden;
+      transition: max-height .35s cubic-bezier(.4,0,.2,1), opacity .25s;
+    }
   </style>
 </head>
 <body>
@@ -1964,7 +1973,47 @@
 
             <div class="sep-inner"></div>
 
-            <!-- Allow Notifications (moved here from System card) -->
+            <!-- Shift Type -->
+            <div class="form-field">
+              <div class="form-label">Shift Type</div>
+              <div class="form-sub">We'll notify you by the end of your daily target.</div>
+              <div style="display:flex;align-items:center;gap:8px">
+                <div class="time-input-wrap" style="flex:1">
+                  <input type="text" id="inpShiftStart" placeholder="From  09:00 AM" autocomplete="off"
+                    style="flex:1;height:38px;padding:0 12px 0 38px;font-size:13px;border-radius:8px;border:1px solid var(--border);background:var(--input-bg);color:var(--foreground);width:100%">
+                  <input type="time" id="inpShiftStartPicker" tabindex="-1"
+                    style="position:absolute;opacity:0;pointer-events:none;width:1px;height:1px">
+                  <button type="button" class="tp-icon-btn" onclick="openTpModal('inpShiftStart',event)" title="Pick time">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M16.5 13C17.0523 13 17.5 12.5523 17.5 12C17.5 11.4477 17.0523 11 16.5 11H13V5.5C13 4.94772 12.5523 4.5 12 4.5C11.4477 4.5 11 4.94772 11 5.5V12C11 12.5523 11.4477 13 12 13H16.5Z" fill="currentColor"/><path fill-rule="evenodd" clip-rule="evenodd" d="M12 1C5.92487 1 1 5.92487 1 12C1 18.0751 5.92487 23 12 23C18.0751 23 23 18.0751 23 12C23 5.92487 18.0751 1 12 1ZM3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12Z" fill="currentColor"/></svg>
+                  </button>
+                </div>
+                <span style="color:var(--muted-fg);font-size:13px;flex-shrink:0">to</span>
+                <div class="time-input-wrap" style="flex:1">
+                  <input type="text" id="inpShiftEnd" placeholder="To  06:00 PM" autocomplete="off"
+                    style="flex:1;height:38px;padding:0 12px 0 38px;font-size:13px;border-radius:8px;border:1px solid var(--border);background:var(--input-bg);color:var(--foreground);width:100%">
+                  <input type="time" id="inpShiftEndPicker" tabindex="-1"
+                    style="position:absolute;opacity:0;pointer-events:none;width:1px;height:1px">
+                  <button type="button" class="tp-icon-btn" onclick="openTpModal('inpShiftEnd',event)" title="Pick time">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M16.5 13C17.0523 13 17.5 12.5523 17.5 12C17.5 11.4477 17.0523 11 16.5 11H13V5.5C13 4.94772 12.5523 4.5 12 4.5C11.4477 4.5 11 4.94772 11 5.5V12C11 12.5523 11.4477 13 12 13H16.5Z" fill="currentColor"/><path fill-rule="evenodd" clip-rule="evenodd" d="M12 1C5.92487 1 1 5.92487 1 12C1 18.0751 5.92487 23 12 23C18.0751 23 23 18.0751 23 12C23 5.92487 18.0751 1 12 1ZM3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12Z" fill="currentColor"/></svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+          </div>
+          </div><!-- /settings-card-body -->
+        </div><!-- /General Card -->
+
+        <!-- Advanced Card -->
+        <div class="settings-card" id="cardAdvanced">
+          <div class="settings-card-head" onclick="toggleCard('cardAdvanced')">
+            <div class="section-label">Advanced</div>
+            <svg class="settings-card-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none"><path fill-rule="evenodd" clip-rule="evenodd" d="M3.29289 7.29289C3.68342 6.90237 4.31658 6.90237 4.70711 7.29289L12 14.5858L19.2929 7.29289C19.6834 6.90237 20.3166 6.90237 20.7071 7.29289C21.0976 7.68342 21.0976 8.31658 20.7071 8.70711L12.7071 16.7071C12.3166 17.0976 11.6834 17.0976 11.2929 16.7071L3.29289 8.70711C2.90237 8.31658 2.90237 7.68342 3.29289 7.29289Z" fill="currentColor"/></svg>
+          </div>
+          <div class="settings-card-body">
+          <div class="settings-group">
+
+            <!-- Allow Notifications -->
             <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;cursor:pointer" onclick="el('inpNotifOn').click()">
               <div>
                 <div class="form-label">Allow Notifications</div>
@@ -1978,7 +2027,7 @@
 
             <!-- Sub-toggles (expand smoothly when notifications enabled) -->
             <div id="notifSubGroup" style="overflow:hidden;max-height:0;transition:max-height .3s cubic-bezier(.4,0,.2,1),opacity .22s;opacity:0;pointer-events:none">
-              <div style="padding-top:12px;display:flex;flex-direction:column;gap:14px;padding-left:12px;border-left:2px solid var(--border)">
+              <div style="padding-top:12px;display:flex;flex-direction:column;gap:14px">
 
                 <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;cursor:pointer" onclick="el('inpNotifTarget').click()">
                   <div>
@@ -2016,45 +2065,7 @@
               </div>
             </div>
 
-          </div>
-          </div><!-- /settings-card-body -->
-        </div><!-- /General Card -->
-
-        <!-- Advanced Card -->
-        <div class="settings-card" id="cardAdvanced">
-          <div class="settings-card-head" onclick="toggleCard('cardAdvanced')">
-            <div class="section-label">Advanced</div>
-            <svg class="settings-card-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none"><path fill-rule="evenodd" clip-rule="evenodd" d="M3.29289 7.29289C3.68342 6.90237 4.31658 6.90237 4.70711 7.29289L12 14.5858L19.2929 7.29289C19.6834 6.90237 20.3166 6.90237 20.7071 7.29289C21.0976 7.68342 21.0976 8.31658 20.7071 8.70711L12.7071 16.7071C12.3166 17.0976 11.6834 17.0976 11.2929 16.7071L3.29289 8.70711C2.90237 8.31658 2.90237 7.68342 3.29289 7.29289Z" fill="currentColor"/></svg>
-          </div>
-          <div class="settings-card-body">
-          <div class="settings-group">
-
-            <!-- Shift Type (moved to top) -->
-            <div class="form-field">
-              <div class="form-label">Shift Type</div>
-              <div class="form-sub">We'll notify you by the end of your daily target.</div>
-              <div style="display:flex;align-items:center;gap:8px">
-                <div class="time-input-wrap" style="flex:1">
-                  <input type="text" id="inpShiftStart" placeholder="From  09:00 AM" autocomplete="off"
-                    style="flex:1;height:38px;padding:0 12px 0 38px;font-size:13px;border-radius:8px;border:1px solid var(--border);background:var(--input-bg);color:var(--foreground);width:100%">
-                  <input type="time" id="inpShiftStartPicker" tabindex="-1"
-                    style="position:absolute;opacity:0;pointer-events:none;width:1px;height:1px">
-                  <button type="button" class="tp-icon-btn" onclick="openTpModal('inpShiftStart',event)" title="Pick time">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M16.5 13C17.0523 13 17.5 12.5523 17.5 12C17.5 11.4477 17.0523 11 16.5 11H13V5.5C13 4.94772 12.5523 4.5 12 4.5C11.4477 4.5 11 4.94772 11 5.5V12C11 12.5523 11.4477 13 12 13H16.5Z" fill="currentColor"/><path fill-rule="evenodd" clip-rule="evenodd" d="M12 1C5.92487 1 1 5.92487 1 12C1 18.0751 5.92487 23 12 23C18.0751 23 23 18.0751 23 12C23 5.92487 18.0751 1 12 1ZM3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12Z" fill="currentColor"/></svg>
-                  </button>
-                </div>
-                <span style="color:var(--muted-fg);font-size:13px;flex-shrink:0">to</span>
-                <div class="time-input-wrap" style="flex:1">
-                  <input type="text" id="inpShiftEnd" placeholder="To  06:00 PM" autocomplete="off"
-                    style="flex:1;height:38px;padding:0 12px 0 38px;font-size:13px;border-radius:8px;border:1px solid var(--border);background:var(--input-bg);color:var(--foreground);width:100%">
-                  <input type="time" id="inpShiftEndPicker" tabindex="-1"
-                    style="position:absolute;opacity:0;pointer-events:none;width:1px;height:1px">
-                  <button type="button" class="tp-icon-btn" onclick="openTpModal('inpShiftEnd',event)" title="Pick time">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M16.5 13C17.0523 13 17.5 12.5523 17.5 12C17.5 11.4477 17.0523 11 16.5 11H13V5.5C13 4.94772 12.5523 4.5 12 4.5C11.4477 4.5 11 4.94772 11 5.5V12C11 12.5523 11.4477 13 12 13H16.5Z" fill="currentColor"/><path fill-rule="evenodd" clip-rule="evenodd" d="M12 1C5.92487 1 1 5.92487 1 12C1 18.0751 5.92487 23 12 23C18.0751 23 23 18.0751 23 12C23 5.92487 18.0751 1 12 1ZM3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12Z" fill="currentColor"/></svg>
-                  </button>
-                </div>
-              </div>
-            </div>
+            <div class="sep-inner"></div>
 
             <!-- Penalty Calculation -->
             <div class="form-field">
@@ -2233,23 +2244,6 @@
               </div>
             </div>
 
-            <div style="height:1px;background:var(--border)"></div>
-
-            <!-- Sponsorship -->
-            <div>
-              <div class="section-label" style="margin-bottom:10px">Support the Project</div>
-              <div class="form-sub" style="margin-bottom:12px">If 5pm saves you an hour a day, consider buying me a coffee.</div>
-              <div style="display:flex;gap:8px;flex-wrap:wrap">
-                <a href="#" class="sponsor-btn" title="PayPal (coming soon)">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M15.607 4.653H8.941L6.645 19.251H1.82L4.862 0h7.995c3.754 0 6.375 2.294 6.473 5.513-.648-.478-2.105-.86-3.722-.86m6.57 5.546c0 3.41-3.01 6.853-6.958 6.853h-2.493L11.595 24H6.74l1.845-11.538h3.592c4.208 0 7.346-3.634 7.153-6.949a5.24 5.24 0 0 1 2.848 4.686M9.653 5.546h6.408c.907 0 1.942.222 2.363.541-.195 2.741-2.655 5.483-6.441 5.483H8.714Z"/></svg>
-                  PayPal
-                </a>
-                <a href="#" class="sponsor-btn" title="Buy Me a Coffee (coming soon)">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M20.216 6.415l-.132-.666c-.119-.598-.388-1.163-1.001-1.379-.197-.069-.42-.098-.57-.241-.152-.143-.196-.366-.231-.572-.065-.378-.125-.756-.192-1.133-.057-.325-.102-.69-.25-.987-.195-.4-.597-.634-.996-.788a5.723 5.723 0 00-.626-.194c-1-.263-2.05-.36-3.077-.416a25.834 25.834 0 00-3.7.062c-.915.083-1.88.184-2.75.5-.318.116-.646.256-.888.501-.297.302-.393.77-.177 1.146.154.267.415.456.692.58.36.162.737.284 1.123.366 1.075.238 2.189.331 3.287.37 1.218.05 2.437.01 3.65-.118.299-.033.598-.073.896-.119.352-.054.578-.513.474-.834-.124-.383-.457-.531-.834-.473-.466.074-.96.108-1.382.146-1.177.08-2.358.082-3.536.006a22.228 22.228 0 01-1.157-.107c-.086-.01-.18-.025-.258-.036-.243-.036-.484-.08-.724-.13-.111-.027-.111-.185 0-.212h.005c.277-.06.557-.108.838-.147h.002c.131-.009.263-.032.394-.048a25.076 25.076 0 013.426-.12c.674.019 1.347.067 2.017.144l.228.031c.267.04.533.088.798.145.392.085.895.113 1.07.542.055.137.08.288.111.431l.319 1.484a.237.237 0 01-.199.284h-.003c-.037.006-.075.01-.112.015a36.704 36.704 0 01-4.743.295 37.059 37.059 0 01-4.699-.304c-.14-.017-.293-.042-.417-.06-.326-.048-.649-.108-.973-.161-.393-.065-.768-.032-1.123.161-.29.16-.527.404-.675.701-.154.316-.199.66-.267 1-.069.34-.176.707-.135 1.056.087.753.613 1.365 1.37 1.502a39.69 39.69 0 0011.343.376.483.483 0 01.535.53l-.071.697-1.018 9.907c-.041.41-.047.832-.125 1.237-.122.637-.553 1.028-1.182 1.171-.577.131-1.165.2-1.756.205-.656.004-1.31-.025-1.966-.022-.699.004-1.556-.06-2.095-.58-.475-.458-.54-1.174-.605-1.793l-.731-7.013-.322-3.094c-.037-.351-.286-.695-.678-.678-.336.015-.718.3-.678.679l.228 2.185.949 9.112c.147 1.344 1.174 2.068 2.446 2.272.742.12 1.503.144 2.257.156.966.016 1.942.053 2.892-.122 1.408-.258 2.465-1.198 2.616-2.657.34-3.332.683-6.663 1.024-9.995l.215-2.087a.484.484 0 01.39-.426c.402-.078.787-.212 1.074-.518.455-.488.546-1.124.385-1.766zm-1.478.772c-.145.137-.363.201-.578.233-2.416.359-4.866.54-7.308.46-1.748-.06-3.477-.254-5.207-.498-.17-.024-.353-.055-.47-.18-.22-.236-.111-.71-.054-.995.052-.26.152-.609.463-.646.484-.057 1.046.148 1.526.22.577.088 1.156.159 1.737.212 2.48.226 5.002.19 7.472-.14.45-.06.899-.13 1.345-.21.399-.072.84-.206 1.08.206.166.281.188.657.162.974a.544.544 0 01-.169.364zm-6.159 3.9c-.862.37-1.84.788-3.109.788a5.884 5.884 0 01-1.569-.217l.877 9.004c.065.78.717 1.38 1.5 1.38 0 0 1.243.065 1.658.065.447 0 1.786-.065 1.786-.065.783 0 1.434-.6 1.499-1.38l.94-9.95a3.996 3.996 0 00-1.322-.238c-.826 0-1.491.284-2.26.613z"/></svg>
-                  Buy Me a Coffee
-                </a>
-              </div>
-            </div>
 
           </div>
         </div>
@@ -2508,92 +2502,31 @@
   </div>
 
   <!-- ── Update Password Modal ── -->
-  <div class="overlay" id="upwdOverlay" style="z-index:2100">
+  <div class="overlay" id="upwdOverlay" style="z-index:2100" onclick="if(event.target===this)closeUpwdModal()">
     <div class="dialog" style="max-width:360px">
 
-      <!-- View 1: Method selection -->
-      <div id="upwdViewMethod">
+      <!-- View: Send reset link -->
+      <div id="upwdViewSend">
         <div class="dialog-head">
           <div class="dialog-title">Update Password</div>
-          <div class="dialog-desc">Choose how you'd like to verify your identity.</div>
+          <div class="dialog-desc">A password reset link will be sent to <strong id="upwdUserEmail">your account email</strong>.</div>
         </div>
-        <div style="padding:0 20px 12px;display:flex;flex-direction:column;gap:8px">
-          <button class="fp-oauth-btn" onclick="upwdShowEmail()">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" stroke="currentColor" stroke-width="1.5" fill="none"/><path d="M22 6l-10 7L2 6" stroke="currentColor" stroke-width="1.5"/></svg>
-            Send an Email
-          </button>
-          <div class="fp-divider">or</div>
-          <button class="fp-oauth-btn" onclick="upwdShowAuth()">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path fill-rule="evenodd" clip-rule="evenodd" d="M6 2C3.79086 2 2 3.79086 2 6V18C2 20.2091 3.79086 22 6 22H18C20.2091 22 22 20.2091 22 18V6C22 3.79086 20.2091 2 18 2H6ZM7 7H9V9H7V7ZM9 11H7V13H9V11ZM7 15H9V17H7V15ZM11 7H13V9H11V7ZM13 11H11V13H13V11ZM11 15H13V17H11V15ZM17 7H15V9H17V7ZM15 11H17V13H15V11ZM17 15H15V17H17V15Z" fill="currentColor"/></svg>
-            Use Authenticator
-          </button>
+        <div style="padding:0 20px 12px">
+          <button id="upwdSendLinkBtn" class="ob-btn-primary" style="height:40px;font-size:13px;width:100%;border-radius:8px" onclick="upwdSendResetLink()">Send Reset Link</button>
         </div>
         <div style="padding:0 20px 20px;text-align:center">
           <button style="background:none;border:none;font-size:12px;color:var(--muted-fg);cursor:pointer;font-family:var(--font)" onclick="closeUpwdModal()">Cancel</button>
         </div>
       </div>
 
-      <!-- View 2a: Email OTP -->
-      <div id="upwdViewEmail" style="display:none">
+      <!-- View: Sent confirmation -->
+      <div id="upwdViewSent" style="display:none">
         <div class="dialog-head">
-          <div class="dialog-title">Verify via Email</div>
-          <div class="dialog-desc">Enter your email — we'll send a 6-digit code.</div>
+          <div class="dialog-title">Check Your Inbox</div>
+          <div class="dialog-desc">Reset link sent to <strong id="upwdSentEmail"></strong>. Click the link in your email to set a new password.</div>
         </div>
-        <div class="dialog-body" style="padding-top:0">
-          <input class="field-input" id="upwdEmailInput" type="email" placeholder="you@example.com" autocomplete="email">
-          <div class="err-msg" id="upwdEmailErr" style="margin-top:6px">Enter a valid email address.</div>
-        </div>
-        <div style="padding:0 20px 12px;display:flex;flex-direction:column;gap:8px">
-          <button id="upwdSendBtn" class="ob-btn-primary" style="height:40px;font-size:13px;width:100%;border-radius:8px" onclick="upwdSendEmail()">Send Code</button>
-        </div>
-        <div style="padding:0 20px 20px;text-align:center">
-          <button style="background:none;border:none;font-size:12px;color:var(--muted-fg);cursor:pointer;font-family:var(--font)" onclick="upwdShowMethod()">← Back</button>
-        </div>
-      </div>
-
-      <!-- View 2b: Email OTP code entry -->
-      <div id="upwdViewOTP" style="display:none">
-        <div class="dialog-head">
-          <div class="dialog-title">Enter Code</div>
-          <div class="dialog-desc">A 6-digit code was sent to <strong id="upwdEmailDisplay"></strong>. It expires in 1 minute.</div>
-        </div>
-        <div class="dialog-body" style="padding-top:0">
-          <input class="field-input fp-code-input" id="upwdOtpInput" type="text" inputmode="numeric" maxlength="6" placeholder="000000"
-            oninput="el('upwdVerifyBtn').disabled=this.value.length<6||upwdExpired">
-          <div class="fp-timer" id="upwdTimerWrap">Code expires in <span id="upwdTimerDisplay">1:00</span></div>
-          <div id="upwdExpiredMsg" style="display:none;font-size:12px;color:var(--destructive);text-align:center;margin-top:10px">
-            Code expired. <button style="background:none;border:none;color:var(--blue);font-size:12px;cursor:pointer;font-family:var(--font);padding:0" onclick="upwdResend()">Resend</button>
-          </div>
-        </div>
-        <div style="padding:0 20px 12px">
-          <button class="ob-btn-primary" id="upwdVerifyBtn" style="height:40px;font-size:13px;width:100%;border-radius:8px" onclick="upwdVerify()" disabled>Verify &amp; Update</button>
-        </div>
-        <div style="padding:0 20px 20px;text-align:center">
-          <button style="background:none;border:none;font-size:12px;color:var(--muted-fg);cursor:pointer;font-family:var(--font)" onclick="upwdShowEmail()">Use a different email</button>
-        </div>
-      </div>
-
-      <!-- View 3: Authenticator -->
-      <div id="upwdViewAuth" style="display:none">
-        <div class="dialog-head">
-          <div class="dialog-title">Authenticator Code</div>
-          <div class="dialog-desc">Enter the 6-digit code from your authenticator app.</div>
-        </div>
-        <div class="dialog-body" style="padding-top:0">
-          <div style="display:flex;gap:6px;justify-content:center">
-            <input class="auth-digit" id="upwdD0" type="text" inputmode="numeric" maxlength="1">
-            <input class="auth-digit" id="upwdD1" type="text" inputmode="numeric" maxlength="1">
-            <input class="auth-digit" id="upwdD2" type="text" inputmode="numeric" maxlength="1">
-            <input class="auth-digit" id="upwdD3" type="text" inputmode="numeric" maxlength="1">
-            <input class="auth-digit" id="upwdD4" type="text" inputmode="numeric" maxlength="1">
-            <input class="auth-digit" id="upwdD5" type="text" inputmode="numeric" maxlength="1">
-          </div>
-        </div>
-        <div style="padding:0 20px 12px">
-          <button class="ob-btn-primary" id="upwdAuthVerifyBtn" style="height:40px;font-size:13px;width:100%;border-radius:8px" onclick="upwdAuthVerify()" disabled>Verify &amp; Update</button>
-        </div>
-        <div style="padding:0 20px 20px;text-align:center">
-          <button style="background:none;border:none;font-size:12px;color:var(--muted-fg);cursor:pointer;font-family:var(--font)" onclick="upwdShowMethod()">← Back</button>
+        <div style="padding:0 20px 20px">
+          <button class="ob-btn-primary" style="height:40px;font-size:13px;width:100%;border-radius:8px" onclick="closeUpwdModal()">Done</button>
         </div>
       </div>
 
@@ -3044,6 +2977,15 @@
     function dur(secs) {
       const s = Math.abs(secs), h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60);
       return `${h}h ${p2(m)}m`;
+    }
+    // Compact surplus/deficit: "+12m" instead of "+0h 12m". Uses Math.round for sub-hour values.
+    function durShort(secs) {
+      const sign = secs < 0 ? '-' : '+';
+      const abs  = Math.abs(secs);
+      if (abs < 60) return `${sign}0m`;
+      if (abs < 3600) { return `${sign}${Math.round(abs / 60)}m`; }
+      const h = Math.floor(abs / 3600), m = Math.round((abs % 3600) / 60);
+      return m > 0 ? `${sign}${h}h ${m}m` : `${sign}${h}h`;
     }
     function durLong(secs) {
       const s = Math.abs(secs), h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60);
@@ -4737,7 +4679,12 @@
         const isFuture = daySelectorWeekOffset === 0 && day.date > now && day.key !== tk;
         btn.className = 'day-sel-btn';
         if (selKey && day.key === selKey) btn.classList.add('active');
-        if (log?.hoursWorked != null || (day.key === tk && loginDate) || log?.scheduled) btn.classList.add('has-data');
+        // Yellow penalty dot — only when worked < daily target (>5 min short), not for leave/holiday
+        if (log?.hoursWorked != null && log?.override !== 'leave' && log?.override !== 'holiday') {
+          const _target = cfg().dailyH * 3600;
+          const _dayTarget = log?.override === 'halfday' ? _target / 2 : _target;
+          if ((_dayTarget - log.hoursWorked * 3600) > 300) btn.classList.add('has-penalty');
+        }
         if (isFuture) btn.classList.add('future');
         btn.innerHTML = `<span class="dsel-name">${day.name.slice(0,3)}</span>`
                       + `<span class="dsel-num">${day.date.getDate()}</span>`
@@ -4773,13 +4720,13 @@
       // ── Weekend slot navigation ──────────────────────────
       if (selectedDayKey === '__wknd__') {
         if (dir > 0) {
-          if (daySelectorWeekOffset < 0) {
-            // WKD (past week) → Monday of next week
+          if (daySelectorWeekOffset <= 0) {
+            // WKD → Monday of next week (allow from offset 0 too, block only at offset > 0)
             daySelectorWeekOffset++;
             _slideDay(1);
             selectDay(week(daySelectorWeekOffset)[0].key);
           }
-          // At offset 0, WKD is the last stop — next btn disabled
+          // At offset > 0, WKD is the last stop — next btn disabled
         } else {
           // WKD → Friday of the current strip
           selectDay(wk[wk.length - 1].key);
@@ -4829,9 +4776,9 @@
       const prevBtn = el('weekPrevBtn'), nextBtn = el('weekNextBtn');
 
       if (selectedDayKey === '__wknd__') {
-        // WKD: can always go back to Friday; can go forward only from past weeks
+        // WKD: can always go back to Friday; can advance to next week if not already there
         if (prevBtn) prevBtn.disabled = false;
-        if (nextBtn) nextBtn.disabled = daySelectorWeekOffset >= 0;
+        if (nextBtn) nextBtn.disabled = daySelectorWeekOffset > 0;
       } else {
         if (prevBtn) prevBtn.disabled = daySelectorWeekOffset <= -52 && curIdx <= 0;
         if (nextBtn) nextBtn.disabled = daySelectorWeekOffset >= 0 && curIdx >= wk.length - 1 && daySelectorWeekOffset >= 0;
@@ -5034,20 +4981,20 @@
             </div>
           </div>
         </div>`;
-      let surplusText = '—', surplusColor = 'var(--muted-fg)';
+      let surplusText = '—', surplusColor = 'var(--muted-fg)', surplusLabel = 'Surplus';
       if (workedSecs != null && targetSecs != null) {
         const diff = workedSecs - targetSecs;
         if (Math.abs(diff) < 60) {
-          surplusText = 'On Target'; surplusColor = 'var(--success)';
+          surplusText = 'On Target'; surplusColor = 'var(--success)'; surplusLabel = 'Surplus';
         } else if (diff > 0) {
-          surplusText = `+${dur(diff)}`; surplusColor = 'var(--success)';
+          surplusText = durShort(diff); surplusColor = 'var(--success)'; surplusLabel = 'Surplus';
         } else {
-          surplusText = `-${dur(Math.abs(diff))}`; surplusColor = 'var(--warning)';
+          surplusText = durShort(diff); surplusColor = 'var(--foreground)'; surplusLabel = 'Balance';
         }
       }
       const surplusCard = `
         <div class="rc-io-box">
-          <div class="rc-io-label">Surplus</div>
+          <div class="rc-io-label">${surplusLabel}</div>
           <div class="rc-io-val" style="color:${surplusColor}">${surplusText}</div>
         </div>`;
       return `<div class="rc-io-row">${durationCard}${surplusCard}</div>`;
@@ -5100,9 +5047,13 @@
         ? `<div class="wk-target-row"><span class="section-label">Recommended</span><div class="wk-target-right"><span class="wk-target-val">${dur(target)}</span></div></div>`
         : '';
 
+      // Clear the big-number right column — surplus shown in KPI box below
+      if (el('rcTarget')) { el('rcTarget').textContent = ''; el('rcTarget').style.color = ''; }
+      if (el('rcTargetLabel')) el('rcTargetLabel').textContent = '';
+
       if (!log || log.hoursWorked == null) {
         el('rcWorked').textContent = '—'; el('rcWorked').style.color = 'var(--muted-fg)';
-        if (el('rcTarget')) { el('rcTarget').textContent = dur(target); el('rcTarget').style.color = 'var(--muted-fg)'; }
+        swapText('rcElapsedLabel', 'Total Logged', { color: 'var(--muted-fg)' });
         _setTodayDateChip();
         el('progFill').style.width = '0%'; el('progFill').classList.remove('done');
         el('progLabel').textContent = isFutureDay ? '' : 'No data logged for this day';
@@ -5111,24 +5062,17 @@
         el('otBanner').classList.remove('show'); el('doneBanner').classList.remove('show');
         return;
       }
-      const worked = log.hoursWorked * 3600;
+      const worked = Math.round(log.hoursWorked * 3600); // round to nearest second to avoid float drift
       const isDone = worked >= target;
       el('rcWorked').textContent = dur(worked); el('rcWorked').style.color = '';
+      swapText('rcElapsedLabel', 'Total Logged', { color: 'var(--muted-fg)' });
       if (isDone) {
-        const ot = worked - target;
-        const otText = ot < 60 ? '+0m' : `+${dur(ot)}`;
-        const otColor = ot < 60 ? 'var(--muted-fg)' : 'var(--foreground)';
-        if (el('rcTarget')) { el('rcTarget').textContent = otText; el('rcTarget').style.color = otColor; }
-        if (el('rcTargetLabel')) swapText('rcTargetLabel', 'Surplus');
         el('otBanner').classList.remove('show');
         el('doneMsg').textContent = `${dur(worked)} logged`;
         el('doneBanner').classList.add('show');
         el('progFill').classList.add('target-reached');
         el('progTrack')?.classList.add('target-reached');
       } else {
-        const deficit = target - worked;
-        if (el('rcTarget')) { el('rcTarget').textContent = `-${dur(deficit)}`; el('rcTarget').style.color = 'var(--warning)'; }
-        if (el('rcTargetLabel')) swapText('rcTargetLabel', 'Surplus');
         el('otBanner').classList.remove('show'); el('doneBanner').classList.remove('show');
         el('progFill').classList.remove('target-reached');
         el('progTrack')?.classList.remove('target-reached');
@@ -5526,7 +5470,11 @@
       const recToggle = el('inpRecommendTimings');
       if (recToggle) { recToggle.checked = c.recommendTimings !== false; }
       const recBlock = el('recommendTimingsBlock');
-      if (recBlock) recBlock.style.display = c.recommendTimings !== false ? '' : 'none';
+      if (recBlock) {
+        const recOn = c.recommendTimings !== false;
+        recBlock.style.maxHeight = recOn ? '500px' : '0';
+        recBlock.style.opacity   = recOn ? '1' : '0';
+      }
       el('pcTabDaily')?.classList.toggle('active', !c.weeklyOn);
       el('pcTabWeekly')?.classList.toggle('active', !!c.weeklyOn);
       switchStTab(c.weeklyOn ? 'weekly' : 'daily');
@@ -5649,7 +5597,10 @@
     function onRecommendTimingsChange(checked) {
       autoSaveSettings();
       const recBlock = el('recommendTimingsBlock');
-      if (recBlock) recBlock.style.display = checked ? '' : 'none';
+      if (recBlock) {
+        recBlock.style.maxHeight = checked ? '500px' : '0';
+        recBlock.style.opacity  = checked ? '1' : '0';
+      }
       const wpBlock = el('wpRecommendBlock');
       if (wpBlock) wpBlock.style.display = checked ? '' : 'none';
       const npLate = el('npStayLate');
@@ -5695,6 +5646,7 @@
       el('pcTabDaily')?.classList.toggle('active', !isWeekly);
       el('pcTabWeekly')?.classList.toggle('active', isWeekly);
       autoSaveSettings();
+      renderPenalties(); // reflect new mode immediately
     }
 
     function autoSaveSettings() {
@@ -7123,17 +7075,22 @@ ${sig}`
       const transition = document.startViewTransition(() => { applyTheme(nextDark); });
       transition.ready.then(() => {
         if (nextDark) {
-          // Expanding dark circle from button
+          // Light→Dark: new dark layer expands from button (circle grows outward)
           document.documentElement.animate(
             { clipPath: [`circle(0px at ${x}px ${y}px)`, `circle(${maxRadius}px at ${x}px ${y}px)`] },
             { duration: 420, easing: 'ease-in-out', fill: 'forwards', pseudoElement: '::view-transition-new(root)' }
           );
         } else {
-          // Dark circle collapses back into button, revealing light mode beneath
-          document.documentElement.animate(
+          // Dark→Light: old dark layer shrinks back into button — exact reverse of L→D
+          // theme-exit-dark CSS puts ::old above ::new so the shrink is visible
+          document.documentElement.classList.add('theme-exit-dark');
+          const anim = document.documentElement.animate(
             { clipPath: [`circle(${maxRadius}px at ${x}px ${y}px)`, `circle(0px at ${x}px ${y}px)`] },
             { duration: 420, easing: 'ease-in-out', fill: 'forwards', pseudoElement: '::view-transition-old(root)' }
           );
+          anim.addEventListener('finish', () => {
+            document.documentElement.classList.remove('theme-exit-dark');
+          });
         }
       }).catch(() => {}); // suppress if transition is interrupted
     }
@@ -7772,132 +7729,44 @@ ${sig}`
     _initAuthDigits();
 
     // ── Update Password ──────────────────────────────────────────────────────
-    let _upwdTimer = null, upwdExpired = false;
-
     function openUpwdModal() {
-      upwdShowMethod();
+      // Populate email from current session
+      window._sbClient.auth.getUser().then(({ data }) => {
+        const email = data?.user?.email || '—';
+        el('upwdUserEmail').textContent = email;
+      });
+      el('upwdViewSend').style.display = '';
+      el('upwdViewSent').style.display = 'none';
+      const btn = el('upwdSendLinkBtn');
+      if (btn) { btn.disabled = false; btn.textContent = 'Send Reset Link'; btn.style.opacity = ''; }
       el('upwdOverlay').classList.add('open');
     }
     function closeUpwdModal() {
       el('upwdOverlay').classList.remove('open');
-      if (_upwdTimer) { clearInterval(_upwdTimer); _upwdTimer = null; }
     }
+    // (legacy stubs kept for safety — old views no longer exist in HTML)
     function upwdShowMethod() {
-      el('upwdViewMethod').style.display = '';
-      el('upwdViewEmail').style.display = 'none';
-      el('upwdViewOTP').style.display = 'none';
-      el('upwdViewAuth').style.display = 'none';
-      if (_upwdTimer) { clearInterval(_upwdTimer); _upwdTimer = null; }
     }
-    function upwdShowEmail() {
-      el('upwdViewMethod').style.display = 'none';
-      el('upwdViewEmail').style.display = '';
-      el('upwdViewOTP').style.display = 'none';
-      el('upwdViewAuth').style.display = 'none';
-      el('upwdEmailInput').value = '';
-      el('upwdEmailErr').classList.remove('show');
-      setTimeout(() => el('upwdEmailInput').focus(), 50);
-    }
-    function upwdSendEmail() {
-      const email = el('upwdEmailInput').value.trim();
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-        el('upwdEmailErr').classList.add('show'); return;
-      }
-      el('upwdEmailErr').classList.remove('show');
-      const btn = el('upwdSendBtn');
+    // Real Supabase password-reset flow
+    async function upwdSendResetLink() {
+      const btn = el('upwdSendLinkBtn');
       btn.disabled = true; btn.textContent = 'Sending…'; btn.style.opacity = '.7';
-      setTimeout(() => {
-        btn.disabled = false; btn.textContent = 'Send Code'; btn.style.opacity = '';
-        el('upwdEmailDisplay').textContent = email;
-        el('upwdViewEmail').style.display = 'none';
-        el('upwdViewOTP').style.display = '';
-        el('upwdOtpInput').value = '';
-        el('upwdOtpInput').disabled = false;
-        el('upwdVerifyBtn').disabled = true;
-        el('upwdExpiredMsg').style.display = 'none';
-        el('upwdTimerWrap').style.display = '';
-        upwdExpired = false;
-        _upwdStartTimer(60);
-      }, 800);
-    }
-    function _upwdStartTimer(secs) {
-      if (_upwdTimer) clearInterval(_upwdTimer);
-      let rem = secs;
-      const fmt = s => Math.floor(s/60)+':'+(String(s%60).padStart(2,'0'));
-      el('upwdTimerDisplay').textContent = fmt(rem);
-      _upwdTimer = setInterval(() => {
-        rem--;
-        if (rem <= 0) {
-          clearInterval(_upwdTimer); _upwdTimer = null;
-          upwdExpired = true;
-          el('upwdTimerWrap').style.display = 'none';
-          el('upwdExpiredMsg').style.display = '';
-          el('upwdVerifyBtn').disabled = true;
-          el('upwdOtpInput').disabled = true;
-        } else {
-          el('upwdTimerDisplay').textContent = fmt(rem);
-        }
-      }, 1000);
-    }
-    function upwdResend() {
-      upwdExpired = false;
-      el('upwdOtpInput').disabled = false;
-      el('upwdOtpInput').value = '';
-      el('upwdVerifyBtn').disabled = true;
-      el('upwdExpiredMsg').style.display = 'none';
-      el('upwdTimerWrap').style.display = '';
-      _upwdStartTimer(60);
-    }
-    function upwdVerify() {
-      closeUpwdModal();
-      showToast('Password updated', 'success', 'Supabase integration coming soon.');
-    }
-    function upwdShowAuth() {
-      el('upwdViewMethod').style.display = 'none';
-      el('upwdViewEmail').style.display = 'none';
-      el('upwdViewOTP').style.display = 'none';
-      el('upwdViewAuth').style.display = '';
-      const digits = ['upwdD0','upwdD1','upwdD2','upwdD3','upwdD4','upwdD5'].map(id => el(id));
-      digits.forEach(d => { d.value = ''; d.disabled = false; });
-      el('upwdAuthVerifyBtn').disabled = true;
-      setTimeout(() => digits[0].focus(), 50);
-    }
-    function upwdAuthVerify() {
-      closeUpwdModal();
-      showToast('Password updated', 'success', 'Supabase integration coming soon.');
-    }
-    // Wire up upwd auth digits (paste + keyboard)
-    (function _initUpwdDigits() {
-      const ids = ['upwdD0','upwdD1','upwdD2','upwdD3','upwdD4','upwdD5'];
-      const digits = ids.map(id => el(id));
-      const update = () => { el('upwdAuthVerifyBtn').disabled = !digits.every(d => /^\d$/.test(d.value)); };
-      digits.forEach((inp, i) => {
-        inp.addEventListener('input', () => {
-          inp.value = inp.value.replace(/\D/g,'').slice(-1);
-          if (inp.value && i < 5) digits[i+1].focus();
-          update();
+      try {
+        const { data: userData } = await window._sbClient.auth.getUser();
+        const email = userData?.user?.email;
+        if (!email) throw new Error('Could not determine account email.');
+        const { error } = await window._sbClient.auth.resetPasswordForEmail(email, {
+          redirectTo: window.location.origin + '/index.html',
         });
-        inp.addEventListener('keydown', e => {
-          if (e.key === 'Backspace') {
-            if (!inp.value && i > 0) { digits[i-1].focus(); digits[i-1].value = ''; e.preventDefault(); }
-            else if (inp.value) { inp.value = ''; e.preventDefault(); }
-            update();
-          } else if (e.key === 'ArrowLeft' && i > 0) digits[i-1].focus();
-          else if (e.key === 'ArrowRight' && i < 5) digits[i+1].focus();
-        });
-        inp.addEventListener('paste', e => {
-          e.preventDefault();
-          const txt = (e.clipboardData || window.clipboardData).getData('text').replace(/\D/g,'');
-          digits.forEach((d, j) => { d.value = txt[j] || ''; });
-          digits[Math.min(txt.length - 1, 5)].focus();
-          update();
-        });
-        inp.addEventListener('click', () => inp.select());
-      });
-    })();
-
-    el('upwdOverlay')?.addEventListener('click', ev => { if (ev.target === el('upwdOverlay')) closeUpwdModal(); });
-
+        if (error) throw error;
+        el('upwdSentEmail').textContent = email;
+        el('upwdViewSend').style.display = 'none';
+        el('upwdViewSent').style.display = '';
+      } catch(e) {
+        btn.disabled = false; btn.textContent = 'Send Reset Link'; btn.style.opacity = '';
+        showToast('Could not send reset link', 'error', e.message || 'Please try again.');
+      }
+    }
     // ── Supabase sign-out (window._sbClient is always ready — init'd in <head>) ──
     async function _sbSignOut() {
       try { await window._sbClient.auth.signOut(); } catch (_) { /* best-effort */ }

@@ -1722,7 +1722,7 @@
           <div id="weekendView">
             <div style="text-align:center;padding:8px 0 18px">
               <div style="font-size:26px;margin-bottom:10px">🌴</div>
-              <div style="font-size:17px;font-weight:700;color:var(--foreground);letter-spacing:-.02em;margin-bottom:4px">Enjoy Your Weekends</div>
+              <div id="wkndPageTitle" style="font-size:17px;font-weight:700;color:var(--foreground);letter-spacing:-.02em;margin-bottom:4px">Enjoy Your Weekends</div>
               <div style="font-size:13px;color:var(--muted-fg);line-height:1.5">You're done with the week.</div>
             </div>
             <div style="background:var(--muted);border-radius:12px;padding:14px 14px 12px">
@@ -4455,7 +4455,10 @@
       const h = nowTz().getHours();
       const greeting = h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
       el('selDayRel').textContent = name ? `${greeting}, ${name.split(' ')[0]}` : greeting;
-      el('rcDayLabel').textContent = 'Weekend';
+      const _isSundayOnly = cfg().workDays >= 6;
+      el('rcDayLabel').textContent = _isSundayOnly ? 'Sunday' : 'Weekend';
+      const wkndTitle = el('wkndPageTitle');
+      if (wkndTitle) wkndTitle.textContent = _isSundayOnly ? 'Enjoy Your Sunday' : 'Enjoy Your Weekends';
       const hd = el('rcHeadDate'); if (hd) { hd.textContent = ''; hd.classList.remove('visible'); }
       // Show card, hide session-only elements
       el('futureDayPlan').style.display = 'none';
@@ -4765,13 +4768,9 @@
           const isFut = daySelectorWeekOffset === 0 && nextDay.date > now && nextDay.key !== tk;
           if (isFut) selectFutureDay(nextDay.key); else selectDay(nextDay.key);
         } else {
-          // Last work day → WKD slot (for current & past weeks)
-          if (daySelectorWeekOffset <= 0) {
+          // Last work day → WKD slot (current, past, and next week all get a WKD)
+          if (daySelectorWeekOffset <= 1) {
             selectWeekendView();
-          } else if (daySelectorWeekOffset < 1) {
-            daySelectorWeekOffset++;
-            _slideDay(1);
-            selectDay(week(daySelectorWeekOffset)[0].key);
           }
         }
       } else {
@@ -4795,12 +4794,13 @@
       const prevBtn = el('weekPrevBtn'), nextBtn = el('weekNextBtn');
 
       if (selectedDayKey === '__wknd__') {
-        // WKD: can always go back to Friday; can advance to next week if not already there
+        // WKD: always can go back to Friday; next blocked once at next-week WKD (offset >= 1)
         if (prevBtn) prevBtn.disabled = false;
-        if (nextBtn) nextBtn.disabled = daySelectorWeekOffset > 0;
+        if (nextBtn) nextBtn.disabled = daySelectorWeekOffset >= 1;
       } else {
+        // Weekdays: back blocked only at 52-week limit; next never blocked (worst case → WKD at offset 1)
         if (prevBtn) prevBtn.disabled = daySelectorWeekOffset <= -52 && curIdx <= 0;
-        if (nextBtn) nextBtn.disabled = daySelectorWeekOffset >= 0 && curIdx >= wk.length - 1 && daySelectorWeekOffset >= 0;
+        if (nextBtn) nextBtn.disabled = false;
       }
     }
 
@@ -8046,9 +8046,8 @@ ${sig}`
       tickHeader();
 
       const tk = todayKey();
-      const _initDow = new Date().getDay(); // 0=Sun, 6=Sat
-      if (_initDow === 6 || _initDow === 0) {
-        // Weekend: stay on current week (offset 0) and show the weekend summary card
+      if (isWeekend()) {
+        // Weekend (respects Include Saturday toggle): land on weekend summary card
         daySelectorWeekOffset = 0;
         selectedDayKey = '__wknd__';
       } else {

@@ -1868,6 +1868,12 @@
             <span class="section-label" style="color:var(--muted-fg)">Surplus</span>
             <span class="wk-footer-val" id="wkSurplus" style="color:var(--muted-fg)">+0m</span>
           </div>
+          <div style="display:flex;justify-content:flex-end;margin-top:12px">
+            <button class="btn btn-primary" style="height:36px;font-size:12px;padding:0 16px;display:inline-flex;align-items:center;gap:6px" onclick="downloadWeekReport(analyticsWeekOffset)">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              Export
+            </button>
+          </div>
         </div>
       </div>
 
@@ -4361,10 +4367,11 @@
       } catch(e) { cb(null); }
     }
 
-    function downloadWeekReport() {
+    function downloadWeekReport(weekOffset) {
       if (!window.jspdf) { showToast('PDF library still loading — try again', 'error'); return; }
+      const _offset = (typeof weekOffset === 'number') ? weekOffset : daySelectorWeekOffset;
 
-      const wk  = week(daySelectorWeekOffset);
+      const wk  = week(_offset);
       const mon = wk[0].date, fri = wk[wk.length - 1].date;
       const rangeStr   = `${MONTHS[mon.getMonth()]} ${mon.getDate()} – ${MONTHS[fri.getMonth()]} ${fri.getDate()}, ${fri.getFullYear()}`;
       const rows       = _wkndDayData(wk);
@@ -4865,6 +4872,7 @@
     function selectDay(key) {
       const tk = todayKey();
       selectedDayKey = key;
+      el('rcBody')?.classList.remove('weekend-mode');
       renderDaySelector();
       updateSelDayHeader(key);
       el('futureDayPlan').style.display = 'none';
@@ -4901,6 +4909,7 @@
 
     function selectFutureDay(key) {
       selectedDayKey = key;
+      el('rcBody')?.classList.remove('weekend-mode');
       renderDaySelector();
       const wk = week(daySelectorWeekOffset), day = wk.find(d => d.key === key);
       const log = dayLog(key);

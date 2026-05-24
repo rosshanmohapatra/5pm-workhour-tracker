@@ -1799,19 +1799,19 @@
 
           </div>
 
-          <!-- Week Badge Card — sibling of weekendView, outside it -->
-          <div class="badge-card" id="wkndBadgeCard" style="display:none">
-            <div class="badge-header">
-              <div class="badge-icon" id="wkndBadgeIcon"></div>
-              <div>
-                <div class="badge-title" id="wkndBadgeTitle">—</div>
-                <div class="badge-subtitle" id="wkndBadgeSubtitle">—</div>
-              </div>
-            </div>
-            <div class="badge-days" id="wkndBadgeDays"></div>
-          </div>
-
         </div>
+      </div>
+
+      <!-- Week Badge Card — direct child of .page, below .this-week-wrap -->
+      <div class="badge-card" id="wkndBadgeCard" style="display:none">
+        <div class="badge-header">
+          <div class="badge-icon" id="wkndBadgeIcon"></div>
+          <div>
+            <div class="badge-title" id="wkndBadgeTitle">—</div>
+            <div class="badge-subtitle" id="wkndBadgeSubtitle">—</div>
+          </div>
+        </div>
+        <div class="badge-days" id="wkndBadgeDays"></div>
       </div>
 
       <!-- Shift CTA (today mode) -->
@@ -4455,6 +4455,21 @@
       }
     }
 
+    // Renders an inline attendance chip for the weekly report table
+    function _attChip(att) {
+      const MAP = {
+        'Full Day': { bg: 'var(--muted)',        fg: 'var(--muted-fg)', label: 'Full Day'  },
+        'Half Day': { bg: 'var(--warning-bg)',   fg: 'var(--warning)',  label: 'Half Day'  },
+        'Leave':    { bg: 'var(--blue-bg)',       fg: 'var(--blue)',     label: 'On Leave'  },
+        'Holiday':  { bg: 'var(--success-bg)',    fg: 'var(--success)',  label: 'Holiday'   },
+      };
+      const c = MAP[att];
+      if (!c) return `<span style="color:var(--muted-fg)">—</span>`;
+      return `<span style="display:inline-flex;align-items:center;height:20px;padding:0 8px;` +
+             `border-radius:100px;font-size:10px;font-weight:600;letter-spacing:.02em;` +
+             `background:${c.bg};color:${c.fg};white-space:nowrap">${c.label}</span>`;
+    }
+
     function openWeekReport(weekOffset) {
       const _off = typeof weekOffset === 'number' ? weekOffset : daySelectorWeekOffset;
       const wk = week(_off);
@@ -4487,7 +4502,7 @@
           <td style="${TD('font-weight:500')}">${r.day}</td>
           <td style="${TD('color:var(--muted-fg)')}">${r.entry}</td>
           <td style="${TD('color:var(--muted-fg)')}">${r.exit}</td>
-          <td style="${TD()}">${r.attendance}</td>
+          <td style="${TD('vertical-align:middle')}">${_attChip(r.attendance)}</td>
           <td style="${TD(penColor)}">${r.penalty}</td>
           <td style="${TD()}">${r.totalHours}</td>
           <td style="${TD(surColor)}">${r.surplus}</td>

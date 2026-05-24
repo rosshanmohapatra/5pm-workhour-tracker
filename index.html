@@ -512,13 +512,12 @@
     .wk-day { font-size: 14px; color: var(--muted-fg); font-weight: 400; }
     .wk-row.today .wk-day { color: var(--foreground); font-weight: 600; }
     .wk-pill { display: inline-flex; align-items: center; gap: 5px;
-      background: var(--muted); border-radius: 8px;
-      padding: 5px 10px; font-size: 13px; font-weight: 500;
-      color: var(--muted-fg); white-space: nowrap; justify-self: center; }
+      font-size: 13px; font-weight: 500;
+      color: var(--muted-fg); white-space: nowrap; justify-self: start; }
     .wk-pill.live    { color: var(--foreground); }
-    .wk-pill.early   { background: var(--blue-bg); color: var(--blue); }
-    .wk-pill.surplus { background: var(--success-bg); color: var(--success); }
-    .wk-pill.deficit { background: var(--warning-bg); color: var(--warning); }
+    .wk-pill.early   { color: var(--blue); }
+    .wk-pill.surplus { color: var(--success); }
+    .wk-pill.deficit { color: var(--warning); }
     .wk-footer { border-top: 1px solid var(--border); padding: 14px 16px; }
     .wk-footer-row { display: flex; align-items: center; justify-content: space-between; }
     .wk-footer-val { font-size: 13px; color: var(--foreground); font-weight: 500; }
@@ -820,8 +819,8 @@
     .tag-autostop  { background: var(--warning-bg); color: var(--warning); border: 1px solid var(--warning-border); }
 
     /* ── Missing data pill ── */
-    .wk-pill.missing { background: var(--muted); color: var(--muted-fg);
-      font-style: italic; font-size: 11px; border: 1px dashed var(--border); }
+    .wk-pill.missing { color: var(--muted-fg);
+      font-style: italic; font-size: 11px; }
 
     /* ── Auto-stop banner ── */
     .banner-autostop { background: var(--warning-bg); color: var(--warning);
@@ -924,11 +923,29 @@
       transition: gap 300ms cubic-bezier(0.22,1,0.36,1); }
     @media (max-width:640px) { .rc-io-row { flex-direction:column; } }
     .rc-io-box { flex:1; background:var(--muted); border-radius:8px; padding:10px 12px;
+      border: 1px solid var(--border);
       transition: background 200ms ease, flex 300ms cubic-bezier(0.22,1,0.36,1); }
     .rc-io-label { font-size:10px; font-weight:600; text-transform:uppercase;
       letter-spacing:.08em; color:var(--muted-fg); margin-bottom:3px; }
     .rc-io-val { font-size:15px; font-weight:600; color:var(--foreground);
       font-variant-numeric: tabular-nums; }
+
+    /* ── Week Badge Card (Weekend Page) ── */
+    .badge-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+      padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+    .badge-header { display: flex; align-items: center; gap: 10px; }
+    .badge-icon { font-size: 22px; line-height: 1; flex-shrink: 0; }
+    .badge-title { font-size: 15px; font-weight: 700; color: var(--foreground); line-height: 1.2; }
+    .badge-subtitle { font-size: 12px; color: var(--muted-fg); margin-top: 2px; }
+    .badge-days { display: flex; align-items: flex-end; justify-content: space-between; gap: 6px; }
+    .badge-day { display: flex; flex-direction: column; align-items: center; gap: 4px; flex: 1; }
+    .badge-day-name { font-size: 9px; font-weight: 700; color: var(--muted-fg);
+      text-transform: uppercase; letter-spacing: .06em; }
+    .badge-day-hrs { font-size: 10px; color: var(--muted-fg); font-variant-numeric: tabular-nums; }
+    .badge-footer { border-top: 1px solid var(--border); padding-top: 10px;
+      display: flex; align-items: center; gap: 8px; }
+    .badge-share-text { font-size: 12px; color: var(--muted-fg); font-style: italic;
+      line-height: 1.45; flex: 1; }
 
     /* ── Shift combo hint ── */
     .shift-combo-hint { font-size:11px; color:var(--muted-fg); text-align:center;
@@ -1046,10 +1063,11 @@
       .mob-topbar { display:flex; }
       .mob-bottomnav { display:flex; }
       /* padding-left/right set to 0 — .page handles its own 16px horizontal padding */
-      #appWrap { padding-top:calc(44px + env(safe-area-inset-top)) !important; padding-bottom:calc(12px + env(safe-area-inset-bottom) + 16px) !important; padding-left:0 !important; padding-right:0 !important; }
+      /* #appWrap only holds fixed nav bars — its padding-top creates the spacer before views */
+      #appWrap { padding-top:calc(44px + env(safe-area-inset-top)) !important; padding-bottom:0 !important; padding-left:0 !important; padding-right:0 !important; }
       .mob-topbar .btn-icon { width:40px; height:40px; border-radius:10px; }
-      /* Tighten gap between top bar and first page content */
-      .view.active .page { padding-top: 4px; }
+      /* Zero gap between topbar and page content */
+      .view.active .page { padding-top: 0 !important; }
     }
 
     /* ── Touch / pressed states (no lingering hover on mobile) ── */
@@ -1731,7 +1749,7 @@
               <div id="wkndPageTitle" style="font-size:17px;font-weight:700;color:var(--foreground);letter-spacing:-.02em;margin-bottom:4px">Enjoy Your Weekend</div>
               <div style="font-size:13px;color:var(--muted-fg);line-height:1.5">You're done with the week.</div>
             </div>
-            <div style="background:var(--muted);border-radius:12px;padding:14px 14px 12px">
+            <div>
               <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
                 <span style="font-size:13px;font-weight:600;color:var(--foreground)" id="wkndSectionLabel">Last Week</span>
                 <span style="font-size:12px;color:var(--muted-fg)" id="wkndWeekRange">—</span>
@@ -1748,6 +1766,21 @@
               </div>
               <div style="display:flex;justify-content:flex-end">
                 <button class="btn btn-primary" style="height:38px;font-size:13px;padding:0 20px" onclick="openWeekReport()">Check Report</button>
+              </div>
+            </div>
+
+            <!-- Week Badge Card -->
+            <div class="badge-card" id="wkndBadgeCard" style="display:none">
+              <div class="badge-header">
+                <div class="badge-icon" id="wkndBadgeIcon">🏅</div>
+                <div>
+                  <div class="badge-title" id="wkndBadgeTitle">—</div>
+                  <div class="badge-subtitle" id="wkndBadgeSubtitle">—</div>
+                </div>
+              </div>
+              <div class="badge-days" id="wkndBadgeDays"></div>
+              <div class="badge-footer">
+                <div class="badge-share-text" id="wkndBadgeShare">—</div>
               </div>
             </div>
           </div>
@@ -4247,6 +4280,86 @@
       });
     }
 
+    // ── Badge helpers ────────────────────────────────────────────────────────
+    function _computeWeekBadge(rows, totalSurplusSecs) {
+      const penaltyDays = rows.filter(r => r.isPenalty).length;
+      const daysWorked  = rows.filter(r => r.worked > 0).length;
+      const fri         = rows[4];
+      const friFree     = fri && (fri.attendance === 'Leave' || fri.attendance === 'Holiday');
+
+      if (friFree && penaltyDays === 0 && daysWorked >= 3)
+        return { icon: '🛡️', title: 'Friday Saver',
+                 subtitle: 'Protected your Friday leave',
+                 shareText: 'Protected my Friday this week.' };
+      if (daysWorked >= 4 && penaltyDays === 0 && totalSurplusSecs > 900)
+        return { icon: '🔒', title: 'Locked In',
+                 subtitle: 'Hit targets every day this week',
+                 shareText: 'Hit my targets every single day this week.' };
+      if (penaltyDays === 0 && daysWorked >= 3)
+        return { icon: '✨', title: 'Clean Week',
+                 subtitle: 'No penalties this week',
+                 shareText: 'Zero penalties this week.' };
+      if (totalSurplusSecs > 5400 && penaltyDays <= 1)
+        return { icon: '⚡', title: 'Early Exit',
+                 subtitle: 'Surplus hours banked smartly',
+                 shareText: 'Wrapped up ' + dur(totalSurplusSecs) + ' ahead this week.' };
+      if (penaltyDays === 0 && daysWorked >= 2)
+        return { icon: '🎯', title: 'On Time',
+                 subtitle: 'Consistent schedule this week',
+                 shareText: 'Left office on time all week.' };
+      if (totalSurplusSecs === 0 && daysWorked >= 3)
+        return { icon: '🧘', title: 'Zero Spill',
+                 subtitle: 'No overtime this week',
+                 shareText: 'No overtime streak.' };
+      if (daysWorked >= 3 && penaltyDays <= 1)
+        return { icon: '⚖️', title: 'Balanced',
+                 subtitle: 'Stable hours across the week',
+                 shareText: 'Kept steady hours this week.' };
+      if (daysWorked > 0)
+        return { icon: '💪', title: 'Recovering',
+                 subtitle: 'Getting back on track',
+                 shareText: 'Showed up and pushed through.' };
+      return null; // no data — hide card
+    }
+
+    function _badgeDayCircle(row, dailySecs) {
+      const { day, worked, isPenalty, attendance, totalHours } = row;
+      const isLeave   = attendance === 'Leave' || attendance === 'Holiday';
+      const isHalfDay = attendance === 'Half Day';
+      const hasWork   = worked > 0;
+      const CX = 16, CY = 16, R = 12, SW = 2.5;
+      const circ = 2 * Math.PI * R; // ~75.4
+
+      let inner = '';
+      if (isLeave) {
+        inner = `<circle cx="${CX}" cy="${CY}" r="${R}" fill="var(--blue-bg)" stroke="var(--blue)" stroke-width="1.5"/>` +
+                `<path d="M${CX-4} ${CY}h8" stroke="var(--blue)" stroke-width="1.8" stroke-linecap="round"/>`;
+      } else if (hasWork && !isPenalty) {
+        inner = `<circle cx="${CX}" cy="${CY}" r="${R}" fill="var(--success-bg)" stroke="var(--success)" stroke-width="1.5"/>` +
+                `<path d="M11 16.5l3 3 7-7" stroke="var(--success)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>`;
+      } else if (hasWork && isPenalty) {
+        const pct = Math.min(0.97, worked / dailySecs);
+        inner = `<circle cx="${CX}" cy="${CY}" r="${R}" fill="none" stroke="var(--border)" stroke-width="${SW}"/>` +
+                `<circle cx="${CX}" cy="${CY}" r="${R}" fill="none" stroke="var(--warning)" stroke-width="${SW}"` +
+                ` stroke-dasharray="${(pct * circ).toFixed(1)} ${circ.toFixed(1)}" stroke-linecap="round"` +
+                ` transform="rotate(-90 ${CX} ${CY})"/>`;
+      } else if (isHalfDay) {
+        inner = `<circle cx="${CX}" cy="${CY}" r="${R}" fill="none" stroke="var(--border)" stroke-width="${SW}"/>` +
+                `<circle cx="${CX}" cy="${CY}" r="${R}" fill="none" stroke="var(--muted-fg)" stroke-width="${SW}"` +
+                ` stroke-dasharray="${(0.5 * circ).toFixed(1)} ${circ.toFixed(1)}" stroke-linecap="round"` +
+                ` transform="rotate(-90 ${CX} ${CY})"/>`;
+      } else {
+        inner = `<circle cx="${CX}" cy="${CY}" r="${R}" fill="none" stroke="var(--border)" stroke-width="${SW}"/>`;
+      }
+      const hrs = (totalHours && totalHours !== '—') ? totalHours : '–';
+      return `<div class="badge-day">` +
+               `<div class="badge-day-name">${day.slice(0,3)}</div>` +
+               `<svg width="32" height="32" viewBox="0 0 32 32" fill="none">${inner}</svg>` +
+               `<div class="badge-day-hrs">${hrs}</div>` +
+             `</div>`;
+    }
+    // ─────────────────────────────────────────────────────────────────────────
+
     function renderWeekendState() {
       const wk = week(daySelectorWeekOffset);
       const mon = wk[0].date, fri = wk[wk.length - 1].date;
@@ -4268,6 +4381,22 @@
       el('wkndPenalties').style.color = penaltyDays > 0 ? 'var(--destructive)' : 'var(--foreground)';
       el('wkndOvertime').textContent  = totalSurplus > 60 ? '+' + dur(totalSurplus) : '—';
       el('wkndOvertime').style.color  = totalSurplus > 60 ? 'var(--destructive)' : 'var(--muted-fg)';
+
+      // ── Badge card ──
+      const badgeCard = el('wkndBadgeCard');
+      const badge = _computeWeekBadge(rows, totalSurplus);
+      if (badge && badgeCard) {
+        el('wkndBadgeIcon').textContent    = badge.icon;
+        el('wkndBadgeTitle').textContent   = badge.title;
+        el('wkndBadgeSubtitle').textContent= badge.subtitle;
+        el('wkndBadgeShare').textContent   = badge.shareText;
+        const c = cfg(), dailySecs = c.dailyH * 3600;
+        const daysEl = el('wkndBadgeDays');
+        if (daysEl) daysEl.innerHTML = rows.map(r => _badgeDayCircle(r, dailySecs)).join('');
+        badgeCard.style.display = '';
+      } else if (badgeCard) {
+        badgeCard.style.display = 'none';
+      }
     }
 
     function openWeekReport(weekOffset) {

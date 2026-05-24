@@ -188,6 +188,7 @@
     .dark .btn-icon:hover { background: var(--muted); }
     .btn-icon:active { opacity: .82; transform: scale(.97); }
     .btn-icon.notif-active { background: var(--foreground); color: var(--background); }
+    .btn-icon.notif-active:hover { background: var(--foreground); filter: brightness(.88); color: var(--background); }
     .notif-badge { position: absolute; top: 6px; right: 6px; width: 7px; height: 7px;
       border-radius: 50%; background: var(--destructive);
       border: 1.5px solid var(--muted);
@@ -218,7 +219,7 @@
       transition: background .14s, border-color .14s; }
     .btn-cancel:hover { background: var(--border); border-color: var(--input); }
     .btn-sm { height: 30px; padding: 0 12px; font-size: 12px; font-weight: 500;
-      border-radius: var(--radius); border: 1px solid var(--border); background: var(--muted);
+      border-radius: var(--radius-md); border: 1px solid var(--border); background: var(--muted);
       color: var(--foreground); transition: background .14s; display: inline-flex;
       align-items: center; gap: 5px; }
     .btn-sm:hover { background: var(--border); }
@@ -636,6 +637,13 @@
     .settings-card-body > .settings-group { display: flex; flex-direction: column; gap: 12px; }
     .settings-card.collapsed .settings-card-body { max-height: 0; padding-bottom: 0; }
     .sep-inner { height: 1px; background: var(--border); }
+    /* ── Merged / unified settings card ── */
+    .settings-card-merged { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-xs); }
+    .dark .settings-card-merged { box-shadow: none; }
+    .settings-section { padding: 16px; }
+    .settings-section-header { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--muted-fg); margin-bottom: 14px; }
+    .settings-section .settings-group { gap: 16px; }
+    .settings-section-divider { height: 1px; background: var(--border); }
 
     /* ── Checkout modal ── */
     .overlay { position: fixed; inset: 0; z-index: 200; background: rgba(0,0,0,.38);
@@ -1086,6 +1094,8 @@
       .mob-topbar .btn-icon { width:40px; height:40px; border-radius:10px; }
       /* Zero gap between topbar and page content */
       .view.active .page { padding-top: 0 !important; }
+      /* Notification panel: reduce top gap on mobile so it doesn't crowd the page title */
+      #notifPanel { padding-top: 4px; }
     }
 
     /* ── Touch / pressed states (no lingering hover on mobile) ── */
@@ -1787,20 +1797,18 @@
               </div>
             </div>
 
-            <!-- Week Badge Card -->
-            <div class="badge-card" id="wkndBadgeCard" style="display:none">
-              <div class="badge-header">
-                <div class="badge-icon" id="wkndBadgeIcon">🏅</div>
-                <div>
-                  <div class="badge-title" id="wkndBadgeTitle">—</div>
-                  <div class="badge-subtitle" id="wkndBadgeSubtitle">—</div>
-                </div>
-              </div>
-              <div class="badge-days" id="wkndBadgeDays"></div>
-              <div class="badge-footer">
-                <div class="badge-share-text" id="wkndBadgeShare">—</div>
+          </div>
+
+          <!-- Week Badge Card — sibling of weekendView, outside it -->
+          <div class="badge-card" id="wkndBadgeCard" style="display:none">
+            <div class="badge-header">
+              <div class="badge-icon" id="wkndBadgeIcon"></div>
+              <div>
+                <div class="badge-title" id="wkndBadgeTitle">—</div>
+                <div class="badge-subtitle" id="wkndBadgeSubtitle">—</div>
               </div>
             </div>
+            <div class="badge-days" id="wkndBadgeDays"></div>
           </div>
 
         </div>
@@ -1982,13 +1990,12 @@
           </div>
         </div>
 
-        <!-- Basic Card -->
-        <div class="settings-card" id="cardGeneral">
-          <div class="settings-card-head" onclick="toggleCard('cardGeneral')">
-            <div class="section-label">Basic</div>
-            <svg class="settings-card-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none"><path fill-rule="evenodd" clip-rule="evenodd" d="M3.29289 7.29289C3.68342 6.90237 4.31658 6.90237 4.70711 7.29289L12 14.5858L19.2929 7.29289C19.6834 6.90237 20.3166 6.90237 20.7071 7.29289C21.0976 7.68342 21.0976 8.31658 20.7071 8.70711L12.7071 16.7071C12.3166 17.0976 11.6834 17.0976 11.2929 16.7071L3.29289 8.70711C2.90237 8.31658 2.90237 7.68342 3.29289 7.29289Z" fill="currentColor"/></svg>
-          </div>
-          <div class="settings-card-body">
+        <!-- ── Unified Settings Card ── -->
+        <div class="settings-card-merged">
+
+        <!-- ── Basic ── -->
+        <div class="settings-section">
+          <div class="settings-section-header">Basic</div>
           <div class="settings-group">
 
             <!-- Daily / Weekly Target -->
@@ -2020,8 +2027,6 @@
               </div>
             </div>
 
-            <div class="sep-inner"></div>
-
             <!-- Shift Type -->
             <div class="form-field">
               <div class="form-label">Shift Type</div>
@@ -2050,16 +2055,13 @@
             </div>
 
           </div>
-          </div><!-- /settings-card-body -->
-        </div><!-- /General Card -->
+        </div><!-- /Basic section -->
 
-        <!-- Advanced Card -->
-        <div class="settings-card" id="cardAdvanced">
-          <div class="settings-card-head" onclick="toggleCard('cardAdvanced')">
-            <div class="section-label">Advanced</div>
-            <svg class="settings-card-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none"><path fill-rule="evenodd" clip-rule="evenodd" d="M3.29289 7.29289C3.68342 6.90237 4.31658 6.90237 4.70711 7.29289L12 14.5858L19.2929 7.29289C19.6834 6.90237 20.3166 6.90237 20.7071 7.29289C21.0976 7.68342 21.0976 8.31658 20.7071 8.70711L12.7071 16.7071C12.3166 17.0976 11.6834 17.0976 11.2929 16.7071L3.29289 8.70711C2.90237 8.31658 2.90237 7.68342 3.29289 7.29289Z" fill="currentColor"/></svg>
-          </div>
-          <div class="settings-card-body">
+        <div class="settings-section-divider"></div>
+
+        <!-- ── Advanced ── -->
+        <div class="settings-section">
+          <div class="settings-section-header">Advanced</div>
           <div class="settings-group">
 
             <!-- Allow Notifications -->
@@ -2173,16 +2175,13 @@
             </div>
 
           </div>
-          </div><!-- /settings-card-body -->
-        </div><!-- /Advanced Card -->
+        </div><!-- /Advanced section -->
 
-        <!-- System Card -->
-        <div class="settings-card" id="cardOther">
-          <div class="settings-card-head" onclick="toggleCard('cardOther')">
-            <div class="section-label">System</div>
-            <svg class="settings-card-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none"><path fill-rule="evenodd" clip-rule="evenodd" d="M3.29289 7.29289C3.68342 6.90237 4.31658 6.90237 4.70711 7.29289L12 14.5858L19.2929 7.29289C19.6834 6.90237 20.3166 6.90237 20.7071 7.29289C21.0976 7.68342 21.0976 8.31658 20.7071 8.70711L12.7071 16.7071C12.3166 17.0976 11.6834 17.0976 11.2929 16.7071L3.29289 8.70711C2.90237 8.31658 2.90237 7.68342 3.29289 7.29289Z" fill="currentColor"/></svg>
-          </div>
-          <div class="settings-card-body">
+        <div class="settings-section-divider"></div>
+
+        <!-- ── System ── -->
+        <div class="settings-section">
+          <div class="settings-section-header">System</div>
           <div class="settings-group">
 
             <!-- Update Password -->
@@ -2194,8 +2193,6 @@
               <button class="btn-secondary" onclick="openUpwdModal()">Update</button>
             </div>
 
-            <div class="sep-inner"></div>
-
             <!-- Manage Data -->
             <div class="form-field">
               <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
@@ -2204,13 +2201,13 @@
                   <div class="form-sub">Import a backup or export your current log.</div>
                 </div>
                 <div style="display:flex;gap:8px;flex-shrink:0">
-                  <button class="btn-sm" style="height:36px;font-size:13px;padding:0 14px;display:inline-flex;align-items:center;gap:5px" onclick="openImportModal()">
+                  <button class="btn-secondary" style="gap:5px" onclick="openImportModal()">
                     <svg width="11" height="11" viewBox="0 0 24 24" fill="none"><path d="M11 4C8.37318 4 6.2324 5.99599 6.01793 8.51595C5.98608 8.89012 5.74729 9.21492 5.39963 9.35691C3.3976 10.1746 2 12.1199 2 14.3783C2 16.2952 3.00543 17.9848 4.53512 18.9537C5.00168 19.2493 5.14031 19.8671 4.84477 20.3336C4.54923 20.8002 3.93143 20.9388 3.46488 20.6433C1.38625 19.3266 0 17.0152 0 14.3783C0 11.4804 1.67256 8.9777 4.10178 7.75216C4.66997 4.47797 7.54913 2 11 2C13.8191 2 16.2533 3.65235 17.362 6.03971C19.4286 6.43792 21 8.24044 21 10.4206C21 10.7714 20.959 11.1133 20.8815 11.4415C22.7225 12.3197 24 14.186 24 16.3571C24 18.2066 23.0706 19.8374 21.6596 20.8205C21.2065 21.1362 20.5832 21.0248 20.2675 20.5717C19.9518 20.1185 20.0632 19.4952 20.5163 19.1795C21.4183 18.5511 22 17.5193 22 16.3571C22 14.7492 20.882 13.3863 19.3555 13.0085C19.056 12.9344 18.8075 12.7261 18.6821 12.4442C18.5567 12.1623 18.5684 11.8383 18.7139 11.5662C18.8965 11.2247 19 10.8359 19 10.4206C19 9.10788 17.9516 8.0197 16.6155 7.96031C16.2093 7.94225 15.8545 7.68006 15.7179 7.29708C15.0347 5.38045 13.1833 4 11 4Z" fill="currentColor"/><path d="M7.29289 16.7071C7.68342 17.0976 8.31658 17.0976 8.70711 16.7071L11 14.4142V22C11 22.5523 11.4477 23 12 23C12.5523 23 13 22.5523 13 22V14.4142L15.2929 16.7071C15.6834 17.0976 16.3166 17.0976 16.7071 16.7071C17.0976 16.3166 17.0976 15.6834 16.7071 15.2929L12.7071 11.2929C12.3166 10.9024 11.6834 10.9024 11.2929 11.2929L7.29289 15.2929C6.90237 15.6834 6.90237 16.3166 7.29289 16.7071Z" fill="currentColor"/></svg>
                     Import
                   </button>
                   <!-- Hidden fallback input kept for backward-compat event listener -->
                   <input type="file" id="logFileInput" accept=".json" style="display:none">
-                  <button class="btn-sm" id="manualExportBtn" style="height:36px;font-size:13px;padding:0 14px">
+                  <button class="btn-secondary" id="manualExportBtn" style="gap:5px">
                     <svg width="11" height="11" viewBox="0 0 24 24" fill="none"><path d="M7.70711 10.2929L11 13.5858L11 3C11 2.44771 11.4477 2 12 2C12.5523 2 13 2.44771 13 3L13 13.5858L16.2929 10.2929C16.6834 9.90237 17.3166 9.90237 17.7071 10.2929C18.0976 10.6834 18.0976 11.3166 17.7071 11.7071L12.7071 16.7071C12.3166 17.0976 11.6834 17.0976 11.2929 16.7071L6.29289 11.7071C5.90237 11.3166 5.90237 10.6834 6.29289 10.2929C6.68342 9.90237 7.31658 9.90237 7.70711 10.2929Z" fill="currentColor"/><path d="M4 22C3.44772 22 3 21.5523 3 21C3 20.4477 3.44772 20 4 20H20C20.5523 20 21 20.4477 21 21C21 21.5523 20.5523 22 20 22H4Z" fill="currentColor"/></svg>
                     Export
                   </button>
@@ -2218,10 +2215,8 @@
               </div>
             </div>
 
-            <div style="height:1px;background:var(--border);margin:8px 0"></div>
-
-            <!-- Danger Zone (merged) -->
-            <div class="section-label" style="color:var(--destructive);margin-bottom:2px">Danger Zone</div>
+            <!-- Danger Zone label — visual only, not a divider -->
+            <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--destructive)">Danger Zone</div>
 
             <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
               <div>
@@ -2230,8 +2225,6 @@
               </div>
               <button class="btn-secondary" onclick="openDeleteModal()">Delete Account</button>
             </div>
-
-            <div class="sep-inner"></div>
 
             <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
               <div>
@@ -2242,45 +2235,37 @@
             </div>
 
           </div>
-          </div><!-- /settings-card-body -->
-        </div><!-- /Other Settings Card -->
+        </div><!-- /System section -->
 
-        <!-- About Developer -->
-        <div class="settings-card" id="devAboutCard">
-          <div class="settings-card-head" style="cursor:default">
-            <div class="section-label">About Developer</div>
-          </div>
-          <div class="settings-card-body" style="padding-top:0;display:flex;flex-direction:column;gap:20px">
+        <div class="settings-section-divider"></div>
 
-            <!-- Developer -->
-            <div>
-              <div class="section-label" style="margin-bottom:10px">Developer</div>
-              <div style="display:flex;align-items:center;gap:12px">
-                <img class="about-dev-pic" src="https://framerusercontent.com/images/u88DE05m7bwVdrx5jcyopewNaE.jpg?width=200&height=200" alt="Roshan Mohapatra">
-                <div style="flex:1;min-width:0">
-                  <div style="font-size:13px;font-weight:600;color:var(--foreground);line-height:1.2">Roshan Mohapatra</div>
-                  <div class="form-sub" style="margin-top:1px">Product Designer & Developer</div>
-                </div>
-                <div style="display:flex;align-items:center;gap:6px">
-                  <!-- GitHub -->
-                  <a href="https://github.com/rosshanmohapatra/wh-calculator" target="_blank" rel="noopener" class="about-social-btn" title="GitHub">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0 1 12 6.844a9.59 9.59 0 0 1 2.504.337c1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.02 10.02 0 0 0 22 12.017C22 6.484 17.522 2 12 2z"/></svg>
-                  </a>
-                  <!-- Framer -->
-                  <a href="https://roshan.framer.wiki/" target="_blank" rel="noopener" class="about-social-btn" title="Portfolio">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M4 0h16v8h-8zM4 8h8l8 8H4zM4 16h8v8z"/></svg>
-                  </a>
-                  <!-- Threads -->
-                  <a href="https://www.threads.com/@rosshan_1" target="_blank" rel="noopener" class="about-social-btn" title="Threads">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12.186 24h-.007c-3.581-.024-6.334-1.205-8.184-3.509C2.35 18.44 1.5 15.586 1.472 12.01v-.017c.03-3.579.879-6.43 2.525-8.482C5.845 1.205 8.6.024 12.18 0h.014c2.746.02 5.043.725 6.826 2.098 1.677 1.29 2.858 3.13 3.509 5.467l-2.04.569c-1.104-3.96-3.898-5.984-8.304-6.015-2.91.022-5.11.936-6.54 2.717C4.307 6.504 3.616 8.914 3.589 12c.027 3.086.718 5.496 2.057 7.164 1.43 1.783 3.631 2.698 6.54 2.717 2.623-.02 4.358-.631 5.8-2.045 1.647-1.613 1.618-3.593 1.09-4.798-.31-.71-.873-1.3-1.634-1.75-.192 1.352-.622 2.446-1.284 3.272-.886 1.102-2.14 1.704-3.73 1.79-1.202.065-2.361-.218-3.259-.801-1.063-.689-1.685-1.74-1.752-2.964-.065-1.19.408-2.285 1.33-3.082.88-.76 2.119-1.207 3.583-1.291a13.853 13.853 0 0 1 3.02.142c-.126-.742-.375-1.332-.75-1.757-.513-.586-1.308-.883-2.359-.89h-.029c-.844 0-1.992.232-2.721 1.32L7.734 7.847c.98-1.454 2.568-2.256 4.478-2.256h.044c3.194.02 5.097 1.975 5.287 5.388.108.046.216.094.321.142 1.49.7 2.58 1.761 3.154 3.07.797 1.82.871 4.79-1.548 7.158-1.85 1.81-4.094 2.628-7.277 2.65Zm1.003-11.69c-.242 0-.487.007-.739.021-1.836.103-2.98.946-2.916 2.143.067 1.256 1.452 1.839 2.784 1.767 1.224-.065 2.818-.543 3.086-3.71a10.5 10.5 0 0 0-2.215-.221z"/></svg>
-                  </a>
-                </div>
-              </div>
+        <!-- ── About Developer ── -->
+        <div class="settings-section" id="devAboutCard">
+          <div class="settings-section-header">About Developer</div>
+          <div style="display:flex;align-items:center;gap:12px">
+            <img class="about-dev-pic" src="https://framerusercontent.com/images/u88DE05m7bwVdrx5jcyopewNaE.jpg?width=200&height=200" alt="Roshan Mohapatra">
+            <div style="flex:1;min-width:0">
+              <div style="font-size:13px;font-weight:600;color:var(--foreground);line-height:1.2">Roshan Mohapatra</div>
+              <div class="form-sub" style="margin-top:1px">Product Designer & Developer</div>
             </div>
-
-
+            <div style="display:flex;align-items:center;gap:6px">
+              <!-- GitHub -->
+              <a href="https://github.com/rosshanmohapatra/wh-calculator" target="_blank" rel="noopener" class="about-social-btn" title="GitHub">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0 1 12 6.844a9.59 9.59 0 0 1 2.504.337c1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.02 10.02 0 0 0 22 12.017C22 6.484 17.522 2 12 2z"/></svg>
+              </a>
+              <!-- Framer -->
+              <a href="https://roshan.framer.wiki/" target="_blank" rel="noopener" class="about-social-btn" title="Portfolio">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M4 0h16v8h-8zM4 8h8l8 8H4zM4 16h8v8z"/></svg>
+              </a>
+              <!-- Threads -->
+              <a href="https://www.threads.com/@rosshan_1" target="_blank" rel="noopener" class="about-social-btn" title="Threads">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12.186 24h-.007c-3.581-.024-6.334-1.205-8.184-3.509C2.35 18.44 1.5 15.586 1.472 12.01v-.017c.03-3.579.879-6.43 2.525-8.482C5.845 1.205 8.6.024 12.18 0h.014c2.746.02 5.043.725 6.826 2.098 1.677 1.29 2.858 3.13 3.509 5.467l-2.04.569c-1.104-3.96-3.898-5.984-8.304-6.015-2.91.022-5.11.936-6.54 2.717C4.307 6.504 3.616 8.914 3.589 12c.027 3.086.718 5.496 2.057 7.164 1.43 1.783 3.631 2.698 6.54 2.717 2.623-.02 4.358-.631 5.8-2.045 1.647-1.613 1.618-3.593 1.09-4.798-.31-.71-.873-1.3-1.634-1.75-.192 1.352-.622 2.446-1.284 3.272-.886 1.102-2.14 1.704-3.73 1.79-1.202.065-2.361-.218-3.259-.801-1.063-.689-1.685-1.74-1.752-2.964-.065-1.19.408-2.285 1.33-3.082.88-.76 2.119-1.207 3.583-1.291a13.853 13.853 0 0 1 3.02.142c-.126-.742-.375-1.332-.75-1.757-.513-.586-1.308-.883-2.359-.89h-.029c-.844 0-1.992.232-2.721 1.32L7.734 7.847c.98-1.454 2.568-2.256 4.478-2.256h.044c3.194.02 5.097 1.975 5.287 5.388.108.046.216.094.321.142 1.49.7 2.58 1.761 3.154 3.07.797 1.82.871 4.79-1.548 7.158-1.85 1.81-4.094 2.628-7.277 2.65Zm1.003-11.69c-.242 0-.487.007-.739.021-1.836.103-2.98.946-2.916 2.143.067 1.256 1.452 1.839 2.784 1.767 1.224-.065 2.818-.543 3.086-3.71a10.5 10.5 0 0 0-2.215-.221z"/></svg>
+              </a>
+            </div>
           </div>
-        </div>
+        </div><!-- /About Developer section -->
+
+        </div><!-- /Unified Settings Card -->
 
 
         <!-- Test Notifications (dev panel — hidden by default, unlock with 5 taps on About Developer) -->
@@ -2344,9 +2329,14 @@
   <!-- ── End Session Confirmation Modal ── -->
   <div class="overlay" id="endSessionOverlay">
     <div class="dialog" style="max-width:360px">
-      <div class="dialog-head">
-        <div class="dialog-title">End Session?</div>
-        <div class="dialog-desc" id="endSessionDesc">You still have time remaining until your daily target.</div>
+      <div class="dialog-head" style="display:flex;align-items:flex-start;justify-content:space-between">
+        <div>
+          <div class="dialog-title">End Session?</div>
+          <div class="dialog-desc" id="endSessionDesc">You still have time remaining until your daily target.</div>
+        </div>
+        <button class="btn-icon" onclick="el('endSessionOverlay').classList.remove('open')" title="Close" style="margin:-4px -4px -4px 8px;flex-shrink:0">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
       </div>
       <div id="endSessionHalfDayNote" style="display:none;margin:0 20px 4px;padding:10px 12px;background:var(--warning-bg);border:1px solid var(--warning-border);border-radius:8px;font-size:12px;color:var(--warning);font-weight:500;line-height:1.4">
         Since you're leaving before the halfway mark, today will be logged as a Half Day.
@@ -2375,9 +2365,14 @@
   <!-- ── Logout Confirmation Modal ── -->
   <div class="overlay" id="logoutOverlay">
     <div class="dialog" style="max-width:360px">
-      <div class="dialog-head">
-        <div class="dialog-title">Log out?</div>
-        <div class="dialog-desc">You'll be taken back to the login screen. Your data stays safe.</div>
+      <div class="dialog-head" style="display:flex;align-items:flex-start;justify-content:space-between">
+        <div>
+          <div class="dialog-title">Log out?</div>
+          <div class="dialog-desc">You'll be taken back to the login screen. Your data stays safe.</div>
+        </div>
+        <button class="btn-icon" onclick="el('logoutOverlay').classList.remove('open')" title="Close" style="margin:-4px -4px -4px 8px;flex-shrink:0">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
       </div>
       <div style="padding:20px;display:flex;justify-content:flex-end;gap:8px">
         <button class="btn-secondary" onclick="el('logoutOverlay').classList.remove('open')">Stay Back</button>
@@ -2392,9 +2387,14 @@
 
       <!-- View 1: Feedback -->
       <div id="delViewFeedback">
-        <div class="dialog-head">
-          <div class="dialog-title">What made you delete your account?</div>
-          <div class="dialog-desc">Your feedback helps improve 5pm for everyone.</div>
+        <div class="dialog-head" style="display:flex;align-items:flex-start;justify-content:space-between">
+          <div>
+            <div class="dialog-title">What made you delete your account?</div>
+            <div class="dialog-desc">Your feedback helps improve 5pm for everyone.</div>
+          </div>
+          <button class="btn-icon" onclick="closeDeleteModal()" title="Close" style="margin:-4px -4px -4px 8px;flex-shrink:0">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
         </div>
         <div class="dialog-body" style="padding-top:0">
           <div class="del-chips" id="delChips">
@@ -2418,9 +2418,14 @@
 
       <!-- View 2: Password Verification -->
       <div id="delViewPassword" style="display:none">
-        <div class="dialog-head">
-          <div class="dialog-title">Verify Your Identity</div>
-          <div class="dialog-desc">Enter your password to confirm account deletion.</div>
+        <div class="dialog-head" style="display:flex;align-items:flex-start;justify-content:space-between">
+          <div>
+            <div class="dialog-title">Verify Your Identity</div>
+            <div class="dialog-desc">Enter your password to confirm account deletion.</div>
+          </div>
+          <button class="btn-icon" onclick="closeDeleteModal()" title="Close" style="margin:-4px -4px -4px 8px;flex-shrink:0">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
         </div>
         <div class="dialog-body" style="padding-top:0">
           <div>
@@ -2461,9 +2466,14 @@
     <div class="dialog" style="max-width:360px">
       <!-- View 1: Email request -->
       <div id="fpViewEmail">
-        <div class="dialog-head">
-          <div class="dialog-title">Account Recovery</div>
-          <div class="dialog-desc">Enter your email and we'll send you a reset code.</div>
+        <div class="dialog-head" style="display:flex;align-items:flex-start;justify-content:space-between">
+          <div>
+            <div class="dialog-title">Account Recovery</div>
+            <div class="dialog-desc">Enter your email and we'll send you a reset code.</div>
+          </div>
+          <button class="btn-icon" onclick="closeFpModal()" title="Close" style="margin:-4px -4px -4px 8px;flex-shrink:0">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
         </div>
         <div class="dialog-body">
           <input class="field-input" id="fpEmailInput" type="email" placeholder="you@example.com" autocomplete="email">
@@ -2541,9 +2551,14 @@
 
       <!-- View: Send reset link -->
       <div id="upwdViewSend">
-        <div class="dialog-head">
-          <div class="dialog-title">Update Password</div>
-          <div class="dialog-desc">A password reset link will be sent to <strong id="upwdUserEmail">your account email</strong>.</div>
+        <div class="dialog-head" style="display:flex;align-items:flex-start;justify-content:space-between">
+          <div>
+            <div class="dialog-title">Update Password</div>
+            <div class="dialog-desc">A password reset link will be sent to <strong id="upwdUserEmail">your account email</strong>.</div>
+          </div>
+          <button class="btn-icon" onclick="closeUpwdModal()" title="Close" style="margin:-4px -4px -4px 8px;flex-shrink:0">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
         </div>
         <div style="padding:0 20px 12px">
           <button id="upwdSendLinkBtn" class="ob-btn-primary" style="height:40px;font-size:13px;width:100%;border-radius:8px" onclick="upwdSendResetLink()">Send Reset Link</button>
@@ -2555,9 +2570,14 @@
 
       <!-- View: Sent confirmation -->
       <div id="upwdViewSent" style="display:none">
-        <div class="dialog-head">
-          <div class="dialog-title">Check Your Inbox</div>
-          <div class="dialog-desc">Reset link sent to <strong id="upwdSentEmail"></strong>. Click the link in your email to set a new password.</div>
+        <div class="dialog-head" style="display:flex;align-items:flex-start;justify-content:space-between">
+          <div>
+            <div class="dialog-title">Check Your Inbox</div>
+            <div class="dialog-desc">Reset link sent to <strong id="upwdSentEmail"></strong>. Click the link in your email to set a new password.</div>
+          </div>
+          <button class="btn-icon" onclick="closeUpwdModal()" title="Close" style="margin:-4px -4px -4px 8px;flex-shrink:0">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
         </div>
         <div style="padding:0 20px 20px">
           <button class="ob-btn-primary" style="height:40px;font-size:13px;width:100%;border-radius:8px" onclick="closeUpwdModal()">Done</button>
@@ -2605,9 +2625,14 @@
   <!-- ── New Plan Modal ── -->
   <div class="overlay" id="newPlanOverlay">
     <div class="dialog">
-      <div class="dialog-head">
-        <div class="dialog-title">New Plan</div>
-        <div class="dialog-desc" id="newPlanDesc">Friday, April 25</div>
+      <div class="dialog-head" style="display:flex;align-items:flex-start;justify-content:space-between">
+        <div>
+          <div class="dialog-title">New Plan</div>
+          <div class="dialog-desc" id="newPlanDesc">Friday, April 25</div>
+        </div>
+        <button class="btn-icon" onclick="el('newPlanOverlay').classList.remove('open')" title="Close" style="margin:-4px -4px -4px 8px;flex-shrink:0">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
       </div>
       <div class="dialog-body">
         <!-- Plan type chips -->
@@ -2659,9 +2684,14 @@
   <!-- Import Confirm -->
   <div class="overlay" id="importConfirmOverlay">
     <div class="dialog" style="max-width:380px">
-      <div class="dialog-head">
-        <div class="dialog-title">Are you sure?</div>
-        <div class="dialog-desc">This will replace your existing data.</div>
+      <div class="dialog-head" style="display:flex;align-items:flex-start;justify-content:space-between">
+        <div>
+          <div class="dialog-title">Are you sure?</div>
+          <div class="dialog-desc">This will replace your existing data.</div>
+        </div>
+        <button class="btn-icon" onclick="el('importConfirmOverlay').classList.remove('open')" title="Close" style="margin:-4px -4px -4px 8px;flex-shrink:0">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
       </div>
       <div class="dialog-body">
         <!-- File info card -->
@@ -2754,9 +2784,14 @@
   <!-- Week Plan Modal (start-of-week overview) -->
   <div class="overlay" id="weekPlanOverlay">
     <div class="dialog">
-      <div class="dialog-head">
-        <div class="dialog-title">Plan Your Week</div>
-        <div class="dialog-desc" id="wpWeekRange">Confirm your schedule for this week</div>
+      <div class="dialog-head" style="display:flex;align-items:flex-start;justify-content:space-between">
+        <div>
+          <div class="dialog-title">Plan Your Week</div>
+          <div class="dialog-desc" id="wpWeekRange">Confirm your schedule for this week</div>
+        </div>
+        <button class="btn-icon" onclick="el('weekPlanOverlay').classList.remove('open')" title="Close" style="margin:-4px -4px -4px 8px;flex-shrink:0">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
       </div>
       <div class="dialog-body">
         <div id="wpDayRows"></div>
@@ -4299,6 +4334,18 @@
     }
 
     // ── Badge helpers ────────────────────────────────────────────────────────
+    // SVG icons for each badge type (22×22, using design token colours)
+    const _BADGE_ICONS = {
+      shield:   `<svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M12 3L4 7v5c0 5.25 3.5 9.74 8 10.74C16.5 21.74 20 17.25 20 12V7L12 3z" fill="var(--blue-bg)" stroke="var(--blue)" stroke-width="1.8" stroke-linejoin="round"/></svg>`,
+      lock:     `<svg width="22" height="22" viewBox="0 0 24 24" fill="none"><rect x="5" y="11" width="14" height="10" rx="2" fill="var(--success-bg)" stroke="var(--success)" stroke-width="1.8"/><path d="M8 11V7a4 4 0 0 1 8 0v4" stroke="var(--success)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+      sparkle:  `<svg width="22" height="22" viewBox="0 0 24 24" fill="none"><polygon points="12,2 14.4,8.8 21,9.3 16.2,13.7 17.6,20.3 12,16.9 6.4,20.3 7.8,13.7 3,9.3 9.6,8.8" fill="var(--warning-bg)" stroke="var(--warning)" stroke-width="1.8" stroke-linejoin="round"/></svg>`,
+      zap:      `<svg width="22" height="22" viewBox="0 0 24 24" fill="none"><polygon points="13,2 4,14 11,14 10,22 20,10 13,10" fill="var(--warning-bg)" stroke="var(--warning)" stroke-width="1.8" stroke-linejoin="round"/></svg>`,
+      target:   `<svg width="22" height="22" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" fill="var(--blue-bg)" stroke="var(--blue)" stroke-width="1.8"/><circle cx="12" cy="12" r="4.5" stroke="var(--blue)" stroke-width="1.5" fill="none"/><circle cx="12" cy="12" r="1.5" fill="var(--blue)"/></svg>`,
+      droplet:  `<svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M12 2C8.5 7.5 5 11 5 15a7 7 0 0 0 14 0c0-4-3.5-7.5-7-13z" fill="var(--blue-bg)" stroke="var(--blue)" stroke-width="1.8" stroke-linejoin="round"/></svg>`,
+      scale:    `<svg width="22" height="22" viewBox="0 0 24 24" fill="none"><line x1="12" y1="3" x2="12" y2="21" stroke="var(--muted-fg)" stroke-width="1.8" stroke-linecap="round"/><path d="M5 7l4 9H1L5 7z" fill="var(--muted)" stroke="var(--muted-fg)" stroke-width="1.6" stroke-linejoin="round"/><path d="M19 7l4 9h-8l4-9z" fill="var(--muted)" stroke="var(--muted-fg)" stroke-width="1.6" stroke-linejoin="round"/><line x1="3" y1="7" x2="21" y2="7" stroke="var(--muted-fg)" stroke-width="1.6" stroke-linecap="round"/></svg>`,
+      trending: `<svg width="22" height="22" viewBox="0 0 24 24" fill="none"><polyline points="22,6 13,15 8.5,10.5 2,17" stroke="var(--success)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><polyline points="17,6 22,6 22,11" stroke="var(--success)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+    };
+
     function _computeWeekBadge(rows, totalSurplusSecs) {
       const penaltyDays = rows.filter(r => r.isPenalty).length;
       const daysWorked  = rows.filter(r => r.worked > 0).length;
@@ -4306,37 +4353,29 @@
       const friFree     = fri && (fri.attendance === 'Leave' || fri.attendance === 'Holiday');
 
       if (friFree && penaltyDays === 0 && daysWorked >= 3)
-        return { icon: '🛡️', title: 'Friday Saver',
-                 subtitle: 'Protected your Friday leave',
-                 shareText: 'Protected my Friday this week.' };
+        return { icon: _BADGE_ICONS.shield, title: 'Friday Saver',
+                 subtitle: 'Protected your Friday leave' };
       if (daysWorked >= 4 && penaltyDays === 0 && totalSurplusSecs > 900)
-        return { icon: '🔒', title: 'Locked In',
-                 subtitle: 'Hit targets every day this week',
-                 shareText: 'Hit my targets every single day this week.' };
+        return { icon: _BADGE_ICONS.lock, title: 'Locked In',
+                 subtitle: 'Hit targets every day this week' };
       if (penaltyDays === 0 && daysWorked >= 3)
-        return { icon: '✨', title: 'Clean Week',
-                 subtitle: 'No penalties this week',
-                 shareText: 'Zero penalties this week.' };
+        return { icon: _BADGE_ICONS.sparkle, title: 'Clean Week',
+                 subtitle: 'No penalties this week' };
       if (totalSurplusSecs > 5400 && penaltyDays <= 1)
-        return { icon: '⚡', title: 'Early Exit',
-                 subtitle: 'Surplus hours banked smartly',
-                 shareText: 'Wrapped up ' + dur(totalSurplusSecs) + ' ahead this week.' };
+        return { icon: _BADGE_ICONS.zap, title: 'Early Exit',
+                 subtitle: 'Surplus hours banked smartly' };
       if (penaltyDays === 0 && daysWorked >= 2)
-        return { icon: '🎯', title: 'On Time',
-                 subtitle: 'Consistent schedule this week',
-                 shareText: 'Left office on time all week.' };
+        return { icon: _BADGE_ICONS.target, title: 'On Time',
+                 subtitle: 'Consistent schedule this week' };
       if (totalSurplusSecs === 0 && daysWorked >= 3)
-        return { icon: '🧘', title: 'Zero Spill',
-                 subtitle: 'No overtime this week',
-                 shareText: 'No overtime streak.' };
+        return { icon: _BADGE_ICONS.droplet, title: 'Zero Spill',
+                 subtitle: 'No overtime this week' };
       if (daysWorked >= 3 && penaltyDays <= 1)
-        return { icon: '⚖️', title: 'Balanced',
-                 subtitle: 'Stable hours across the week',
-                 shareText: 'Kept steady hours this week.' };
+        return { icon: _BADGE_ICONS.scale, title: 'Balanced',
+                 subtitle: 'Stable hours across the week' };
       if (daysWorked > 0)
-        return { icon: '💪', title: 'Recovering',
-                 subtitle: 'Getting back on track',
-                 shareText: 'Showed up and pushed through.' };
+        return { icon: _BADGE_ICONS.trending, title: 'Recovering',
+                 subtitle: 'Getting back on track' };
       return null; // no data — hide card
     }
 
@@ -4404,10 +4443,9 @@
       const badgeCard = el('wkndBadgeCard');
       const badge = _computeWeekBadge(rows, totalSurplus);
       if (badge && badgeCard) {
-        el('wkndBadgeIcon').textContent    = badge.icon;
+        el('wkndBadgeIcon').innerHTML      = badge.icon;
         el('wkndBadgeTitle').textContent   = badge.title;
         el('wkndBadgeSubtitle').textContent= badge.subtitle;
-        el('wkndBadgeShare').textContent   = badge.shareText;
         const c = cfg(), dailySecs = c.dailyH * 3600;
         const daysEl = el('wkndBadgeDays');
         if (daysEl) daysEl.innerHTML = rows.map(r => _badgeDayCircle(r, dailySecs)).join('');
@@ -7737,8 +7775,18 @@ ${sig}`
         closeTpModal();
         closeDayEditModal();
         closeEmailModal();
+        closeWeekReport();
+        closeDeleteModal();
+        closeUpwdModal?.();
+        closeFpModal?.();
+        closeImportModal?.();
         el('weekPlanOverlay')?.classList.remove('open');
         el('forgotLogoutOverlay')?.classList.remove('open');
+        el('endSessionOverlay')?.classList.remove('open');
+        el('logoutOverlay')?.classList.remove('open');
+        el('newPlanOverlay')?.classList.remove('open');
+        el('importConfirmOverlay')?.classList.remove('open');
+        el('futurePredictOverlay')?.classList.remove('open');
         el('inTimeEditWrap')?.classList.remove('open');
         el('outTargetEditWrap')?.classList.remove('open');
       }
@@ -8233,6 +8281,20 @@ ${sig}`
       ta.style.height = ta.scrollHeight + 'px';
     }
     function goToDeletePwd() {
+      // Collect feedback and email it before proceeding
+      const chips = [...(el('delChips')?.querySelectorAll('.del-chip.selected') || [])].map(c => c.textContent.trim()).join(', ');
+      const details = el('delFeedbackText')?.value?.trim() || '';
+      fetch('https://formsubmit.co/ajax/roshankanhu@gmail.com', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify({
+          _subject: '[5pm] Account Deletion Feedback',
+          _captcha: 'false',
+          reasons: chips || 'None selected',
+          details: details || 'No additional details.',
+        })
+      }).catch(() => {}); // fire-and-forget — never block deletion
+
       el('delViewFeedback').style.display = 'none';
       el('delViewPassword').style.display = '';
       const inp = el('deleteConfirmInput');

@@ -124,7 +124,7 @@
       -webkit-font-smoothing: antialiased; min-height: 100vh;
       transition: background .2s, color .2s; line-height: 1.5;
       overscroll-behavior-y: none; /* disable native Android pull-to-refresh */ }
-    button { cursor: pointer; font-family: inherit; }
+    button { cursor: pointer; font-family: inherit; user-select: none; -webkit-user-select: none; }
 
     /* ── Section label ── */
     .section-label { font-size: 11px; font-weight: 600; letter-spacing: .06em;
@@ -1182,31 +1182,36 @@
 
     /* ── Pull-to-refresh indicator ── */
     #ptrWrap {
-      display: none; /* shown only inside mobile media query */
+      display: none; /* enabled in mobile media query */
       position: fixed;
       top: calc(44px + env(safe-area-inset-top) + 8px);
       left: 0; right: 0;
-      flex-direction: column;
-      align-items: center;
-      gap: 6px;
+      justify-content: center;
       z-index: 9300;
       pointer-events: none;
       opacity: 0;
-      transform: translateY(-16px);
-      will-change: opacity, transform;
+      will-change: opacity;
     }
     #ptrWrap.ptr-snapping {
-      transition: opacity .22s ease, transform .22s ease;
+      transition: opacity .2s ease;
     }
+    /* Compact horizontal pill — icon + label side by side, 30 px tall.
+       Sits in the gap revealed as .view.active translates down; never overlays content. */
     #ptrPill {
-      width: 38px; height: 38px;
+      height: 30px;
+      padding: 0 12px;
       border-radius: 100px;
       background: var(--card);
       border: 1px solid var(--border);
       box-shadow: var(--shadow-md);
-      display: flex; align-items: center; justify-content: center;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
       color: var(--foreground);
-      flex-shrink: 0;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: .02em;
+      white-space: nowrap;
     }
     #ptrPill.ptr-ready {
       background: var(--foreground);
@@ -1219,14 +1224,6 @@
     @keyframes ptr-spin {
       to { transform: rotate(360deg); }
     }
-    #ptrLabel {
-      font-size: 11px;
-      font-weight: 600;
-      color: var(--muted-fg);
-      letter-spacing: .03em;
-      line-height: 1;
-    }
-    #ptrLabel.ptr-ready { color: var(--foreground); }
     @media (max-width: 640px) {
       #ptrWrap { display: flex; }
     }
@@ -1608,16 +1605,14 @@
   <!-- ── Pull-to-refresh indicator (Android / mobile) ── -->
   <div id="ptrWrap" aria-hidden="true">
     <div id="ptrPill">
-      <!-- Arrow down — "Pull to Refresh" state -->
-      <svg id="ptrArrowIcon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <svg id="ptrArrowIcon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
         <line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/>
       </svg>
-      <!-- Reload — "Release to Refresh" state (hidden by default) -->
-      <svg id="ptrReloadIcon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:none">
+      <svg id="ptrReloadIcon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:none">
         <polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
       </svg>
+      <span id="ptrLabel">Pull to Refresh</span>
     </div>
-    <span id="ptrLabel">Pull to Refresh</span>
   </div>
 
   <!-- ── App ── -->
@@ -8897,13 +8892,18 @@ ${sig}`
     }
   }
 
-  /* ── Pull-to-refresh (Android + iOS PWA / touch devices) ── */
+  /* ── Pull-to-refresh (Android + iOS PWA) ── */
   (function () {
     if (!('ontouchstart' in window)) return;
 
-    var THRESHOLD  = 80;    // raw finger travel (px) needed to arm the reload
-    var DAMP       = 0.48;  // visual travel = raw × DAMP (rubber-band feel)
-    var MAX_TRAVEL = 52;    // max visual translateY for the indicator (px)
+    // DAMP=0.5 → user drags 2px, content moves 1px (rubber-band resistance)
+    var DAMP           = 0.5;
+    var MAX_TRAVEL     = 80;   // max damped px content moves down
+    var THRESHOLD      = 110;  // raw px of drag that arms the reload
+    var HOLD_TRAVEL    = 52;   // damped px content rests at while "Refreshing…"
+    var FADE_START     = 20;   // damped px at which pill starts fading in
+    var FADE_END       = 42;   // damped px at which pill is fully visible
+    // At THRESHOLD (110px raw) → 55px damped travel — comfortably past FADE_END
 
     var wrap       = document.getElementById('ptrWrap');
     var pill       = document.getElementById('ptrPill');
@@ -8912,12 +8912,12 @@ ${sig}`
     var label      = document.getElementById('ptrLabel');
     if (!wrap || !pill || !arrowIcon || !reloadIcon || !label) return;
 
-    var startY    = 0;
-    var pulling   = false;
-    var triggered = false;
-    var atTop     = false; // locked at touchstart; immune to mid-gesture jitter
+    var startY     = 0;
+    var pulling    = false;
+    var triggered  = false;
+    var atTop      = false;
+    var activeView = null; // .view.active, cached at touchstart
 
-    // Safari uses document.scrollingElement; older browsers fall back to body/pageYOffset.
     function getScrollTop() {
       return (document.scrollingElement || document.documentElement || document.body).scrollTop
         || window.pageYOffset || 0;
@@ -8930,81 +8930,91 @@ ${sig}`
         arrowIcon.style.display  = 'none';
         reloadIcon.style.display = '';
         pill.classList.add('ptr-ready');
-        label.classList.add('ptr-ready');
         label.textContent = 'Release to Refresh';
       } else {
         arrowIcon.style.display  = '';
         reloadIcon.style.display = 'none';
         pill.classList.remove('ptr-ready');
-        label.classList.remove('ptr-ready');
         label.textContent = 'Pull to Refresh';
       }
     }
 
     function applyDrag(dy) {
       var travel = Math.min(dy * DAMP, MAX_TRAVEL);
-      var alpha  = Math.min(travel / (MAX_TRAVEL * 0.55), 1);
-      wrap.style.opacity   = alpha.toFixed(3);
-      wrap.style.transform = 'translateY(' + travel.toFixed(1) + 'px)';
+      // Push the active view DOWN — this creates the gap where the pill lives
+      if (activeView) activeView.style.transform = 'translateY(' + travel.toFixed(1) + 'px)';
+      // Pill fades in as content moves away, revealing it from behind
+      var alpha = Math.max(0, Math.min((travel - FADE_START) / (FADE_END - FADE_START), 1));
+      wrap.style.opacity = alpha.toFixed(3);
       setReady(dy >= THRESHOLD);
     }
 
+    function clearView(animated) {
+      var v = activeView;
+      if (!v) return;
+      if (animated) v.style.transition = 'transform .22s ease';
+      v.style.transform = 'translateY(0)';
+      setTimeout(function () { v.style.transition = ''; v.style.transform = ''; }, 260);
+    }
+
     function snapBack() {
+      clearView(true);
       wrap.classList.add('ptr-snapping');
-      wrap.style.opacity   = '0';
-      wrap.style.transform = 'translateY(-16px)';
+      wrap.style.opacity = '0';
       var done = false;
       function cleanup() {
-        if (done) return;
-        done = true;
+        if (done) return; done = true;
         wrap.classList.remove('ptr-snapping');
         wrap.removeEventListener('transitionend', cleanup);
         setReady(false);
       }
       wrap.addEventListener('transitionend', cleanup);
-      setTimeout(cleanup, 400); // fallback: transitionend doesn't always fire on iOS Safari
+      setTimeout(cleanup, 400); // iOS Safari transitionend fallback
     }
 
     document.addEventListener('touchstart', function (e) {
-      // Lock "at top" state once per gesture — 5 px tolerance covers iOS rubber-band offset
-      atTop     = getScrollTop() <= 5;
-      startY    = atTop ? e.touches[0].pageY : 0;
-      pulling   = false;
-      triggered = false;
+      atTop      = getScrollTop() <= 5; // 5px tolerance for iOS rubber-band
+      startY     = atTop ? e.touches[0].pageY : 0;
+      pulling    = false;
+      triggered  = false;
+      activeView = atTop ? document.querySelector('.view.active') : null;
     }, { passive: true });
 
     document.addEventListener('touchmove', function (e) {
       if (!atTop || !startY) return;
-
-      // If the page has genuinely scrolled down during this gesture, abort
       if (getScrollTop() > 10) {
         if (pulling) { snapBack(); pulling = false; }
-        atTop = false;
-        return;
+        atTop = false; return;
       }
-
       var dy = e.touches[0].pageY - startY;
       if (dy <= 0) {
         if (pulling) { snapBack(); pulling = false; }
         return;
       }
-
-      // Prevent native overscroll / browser PTR on both Android and iOS
-      e.preventDefault();
+      e.preventDefault(); // suppress native overscroll / browser PTR
       pulling = true;
       applyDrag(dy);
-    }, { passive: false }); // must be non-passive to call preventDefault
+    }, { passive: false });
 
     function onRelease() {
       if (!pulling) { startY = 0; atTop = false; return; }
       pulling = false;
       var wasTriggered = triggered;
-      startY = 0;
-      atTop  = false;
+      startY = 0; atTop = false;
+
       if (wasTriggered) {
+        // Snap content to a tidy holding position, keep pill visible while reloading
+        if (activeView) {
+          activeView.style.transition = 'transform .15s ease';
+          activeView.style.transform  = 'translateY(' + HOLD_TRAVEL + 'px)';
+        }
+        wrap.style.opacity = '1';
+        arrowIcon.style.display  = 'none';
+        reloadIcon.style.display = '';
         reloadIcon.classList.add('ptr-spinning');
+        pill.classList.add('ptr-ready');
         label.textContent = 'Refreshing…';
-        setTimeout(function () { location.reload(); }, 500);
+        setTimeout(function () { location.reload(); }, 600);
       } else {
         snapBack();
       }

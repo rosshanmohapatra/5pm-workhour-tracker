@@ -7328,14 +7328,28 @@ ${sig}`
           sessionTag:     'edited',
           override:       null
         });
+        // Exit time was explicitly set for today → end any active session
+        if (isToday && loginDate) {
+          if (ticker) { clearInterval(ticker); ticker = null; }
+          loginDate = null; autoStopped = false; _sessionAccSecs = 0;
+          Store.clearSession();
+          setCalcBtnState('ended');
+          el('shiftInputRow').classList.remove('active-state', 'hidden');
+          el('shiftActiveLabel').textContent = '—';
+          el('autostopBanner').classList.remove('show');
+        }
       }
 
       persist();
       closeDayEditModal();
       renderHistory();
       renderDaySelector();
-      if (key === todayKey() && !loginDate) renderEmptyState();
-      else if (key === selectedDayKey && key !== todayKey()) renderPastDay(key);
+      // Always refresh the overview when editing today, regardless of session state
+      if (key === todayKey()) {
+        if (loginDate) render(); else renderEmptyState();
+      } else if (key === selectedDayKey) {
+        renderPastDay(key);
+      }
     }
 
     // ── WEEK PLAN MODAL ────────────────────────────────

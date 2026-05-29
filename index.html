@@ -6148,6 +6148,7 @@
       const oldIdx = VIEW_ORDER.indexOf(activeView);
       const newIdx = VIEW_ORDER.indexOf(name);
       activeView = name;
+      try { sessionStorage.setItem('wh_active_tab', name); } catch {}
       document.querySelectorAll('.nav-tab').forEach(t => {
         const isActive = t.dataset.view === name;
         t.classList.toggle('active', isActive);
@@ -8781,6 +8782,12 @@ ${sig}`
 
       // Hydrate the profile card with auth data (user ID, email, provider)
       hydrateProfileCard();
+
+      // Restore last active tab (persisted in sessionStorage across reloads)
+      const savedTab = (function(){ try { return sessionStorage.getItem('wh_active_tab'); } catch { return null; } })();
+      if (savedTab && VIEW_ORDER.includes(savedTab) && savedTab !== 'home') {
+        switchTab(savedTab);
+      }
 
       // Show onboarding on first launch
       if (!localStorage.getItem(OB_DONE_KEY) && !Store.getCfg()) {

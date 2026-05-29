@@ -6897,9 +6897,26 @@ ${sig}`
           realtime: 'completed', edited: 'completed',
           autostopped: 'auto_stopped', auto_stopped: 'auto_stopped'
         };
+        // Build login_time TIMESTAMPTZ from local date + HH:MM:SS string
+        let loginTimestamp = null;
+        if (entry.loginTime) {
+          const pts = entry.loginTime.split(':').map(Number);
+          const ld = new Date(dk + 'T00:00:00');
+          ld.setHours(pts[0]||0, pts[1]||0, pts[2]||0, 0);
+          loginTimestamp = ld.toISOString();
+        }
+        // Derive logout_time from login + hoursWorked when exit time is known
+        let logoutTimestamp = null;
+        if (loginTimestamp && entry.hoursWorked && entry.checkoutDisplay) {
+          logoutTimestamp = new Date(
+            new Date(loginTimestamp).getTime() + Math.round(entry.hoursWorked * 3600000)
+          ).toISOString();
+        }
         return {
           user_id:          userId,
           log_date:         dk,
+          login_time:       loginTimestamp,
+          logout_time:      logoutTimestamp,
           hours_worked:     Math.min(Math.max(parseFloat(entry.hoursWorked) || 0, 0), 24),
           accumulated_secs: Math.min(Math.round((parseFloat(entry.hoursWorked) || 0) * 3600), 86400),
           status:           statusMap[entry.sessionTag] || 'completed',
@@ -6920,8 +6937,17 @@ ${sig}`
         try {
           const uid = await this._uid();
           if (!uid) return;
-          await window._sbClient.from('work_logs')
-            .upsert(this._toRow(uid, dk, entry), { onConflict: 'user_id,log_date' });
+          const { data, error } = await window._sbClient.from('work_logs')
+            .upsert(this._toRow(uid, dk, entry), { onConflict: 'user_id,log_date' })
+            .select('updated_at')
+            .single();
+          // Sync the server-assigned updated_at back to local so that pullAll()
+          // won't treat the DB trigger timestamp as "newer remote data" and
+          // overwrite the local entry (which has display fields the DB doesn't store)
+          if (!error && data?.updated_at) {
+            const local = Store.getDay(dk);
+            if (local) Store.setDay(dk, { ...local, lastUpdated: data.updated_at });
+          }
         } catch (e) { console.warn('[SbSync] pushDay failed:', e); }
       },
 
@@ -6957,14 +6983,18 @@ ${sig}`
               const localTs  = new Date(local.lastUpdated).getTime();
               const remoteTs = new Date(row.updated_at).getTime();
               if (localTs > remoteTs) {
-                // Local is newer (e.g. edited offline) — push it back to Supabase
                 toPush.push([row.log_date, local]);
                 return;
               }
-              if (localTs === remoteTs) return; // already in sync, nothing to do
+              if (localTs === remoteTs) return;
             }
-            // Remote is newer (or local has no timestamp) — take the remote version
+            // Remote is newer — restore display fields from TIMESTAMPTZ columns
+            const loginDt  = row.login_time  ? new Date(row.login_time)  : null;
+            const logoutDt = row.logout_time ? new Date(row.logout_time) : null;
             Store.setDay(row.log_date, {
+              ...(loginDt  ? { loginTime: `${loginDt.getHours()}:${loginDt.getMinutes()}:${loginDt.getSeconds()}`,
+                               loginDisplay: short(loginDt) } : {}),
+              ...(logoutDt ? { checkoutDisplay: short(logoutDt) } : {}),
               hoursWorked:  parseFloat(row.hours_worked) || 0,
               sessionTag:   row.status === 'auto_stopped' ? 'autostopped' : 'realtime',
               override:     this._OVERRIDES.has(row.override_type) ? row.override_type : null,
@@ -7085,7 +7115,12 @@ ${sig}`
           const local = Store.getDay(dk);
           if (local?.lastUpdated && newRow.updated_at &&
               new Date(local.lastUpdated) >= new Date(newRow.updated_at)) return;
+          const loginDt  = newRow.login_time  ? new Date(newRow.login_time)  : null;
+          const logoutDt = newRow.logout_time ? new Date(newRow.logout_time) : null;
           Store.setDay(dk, {
+            ...(loginDt  ? { loginTime: `${loginDt.getHours()}:${loginDt.getMinutes()}:${loginDt.getSeconds()}`,
+                             loginDisplay: short(loginDt) } : {}),
+            ...(logoutDt ? { checkoutDisplay: short(logoutDt) } : {}),
             hoursWorked: parseFloat(newRow.hours_worked) || 0,
             sessionTag:  newRow.status === 'auto_stopped' ? 'autostopped' : 'realtime',
             override:    SbSync._OVERRIDES.has(newRow.override_type) ? newRow.override_type : null,
@@ -8598,7 +8633,8 @@ ${sig}`
       }
 
       const tl = dayLog(tk);
-      if (tl?.loginTime && !tl?.autostopped) {
+      if (tl?.loginTime && !tl?.autostopped && !tl?.checkoutDisplay) {
+        // Active session: has a start time, no exit time, not auto-stopped — resume timer
         const pts = tl.loginTime.split(':').map(Number);
         const d = new Date(); d.setHours(pts[0] || 0, pts[1] || 0, pts[2] || 0, 0);
         if (d <= new Date()) {
@@ -8609,6 +8645,13 @@ ${sig}`
           render();
           ticker = setInterval(render, 1000);
         } else { renderEmptyState(); }
+      } else if (tl?.loginTime && !tl?.autostopped && tl?.checkoutDisplay) {
+        // Completed session (exit time explicitly set) — show ended state, do NOT start ticker
+        setCalcBtnState('ended');
+        el('shiftInputRow').classList.remove('active-state', 'hidden');
+        el('shiftActiveLabel').textContent = '—';
+        el('autostopBanner').classList.remove('show');
+        renderEmptyState();
       } else if (tl?.autostopped) {
         // Restore auto-stopped state
         autoStopped = true;

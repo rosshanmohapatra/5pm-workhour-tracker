@@ -5981,43 +5981,34 @@
         if (data?.length) log('   latest: ' + data[data.length - 1].log_date);
       } catch (e) { log('❌ STEP 3 EXCEPTION: ' + e.message); return; }
 
-      // 4. Test INSERT
-      log('\n⏳ STEP 4: Test INSERT...');
+      // 4. Test UPSERT (insert + update in one)
+      log('\n⏳ STEP 4: Test UPSERT...');
       const testDate = '1999-12-31';
       try {
         const { data, error } = await window._sbClient.from('work_logs')
-          .insert({ user_id: uid, log_date: testDate, hours_worked: 0.01, status: 'completed' })
+          .upsert({ user_id: uid, log_date: testDate, hours_worked: 0.01, status: 'completed' },
+                   { onConflict: 'user_id,log_date' })
           .select('id, updated_at')
           .single();
         if (error) {
-          log('❌ STEP 4 INSERT ERROR: ' + error.code + ' — ' + error.message);
+          log('❌ STEP 4 UPSERT ERROR: ' + error.code + ' — ' + error.message);
           if (error.hint) log('   hint: ' + error.hint);
           if (error.details) log('   details: ' + error.details);
         } else {
-          log('✅ STEP 4: INSERT OK — id: ' + data.id);
+          log('✅ STEP 4: UPSERT OK — id: ' + data.id);
 
-          // 5. Test UPDATE (upsert the same row)
-          log('\n⏳ STEP 5: Test UPSERT (update)...');
-          const { error: upErr } = await window._sbClient.from('work_logs')
-            .upsert({ user_id: uid, log_date: testDate, hours_worked: 0.02, status: 'completed' },
-                     { onConflict: 'user_id,log_date' });
-          if (upErr) {
-            log('❌ STEP 5 UPSERT ERROR: ' + upErr.code + ' — ' + upErr.message);
-            if (upErr.hint) log('   hint: ' + upErr.hint);
-          } else {
-            log('✅ STEP 5: UPSERT OK');
-          }
-
-          // 6. Cleanup
-          await window._sbClient.from('work_logs').delete().eq('user_id', uid).eq('log_date', testDate);
-          log('✅ STEP 6: Cleanup OK — test row deleted');
+          // 5. Cleanup
+          const { error: delErr } = await window._sbClient.from('work_logs')
+            .delete().eq('user_id', uid).eq('log_date', testDate);
+          if (delErr) log('⚠️  STEP 5: Cleanup failed — ' + delErr.message);
+          else log('✅ STEP 5: Cleanup OK — test row deleted');
         }
       } catch (e) { log('❌ STEP 4 EXCEPTION: ' + e.message); }
 
-      // 7. Test pushDay with real data
+      // 6. Test pushDay with real data
       if (localDays.length > 0) {
         const [dk, entry] = localDays[localDays.length - 1];
-        log('\n⏳ STEP 7: pushDay("' + dk + '")...');
+        log('\n⏳ STEP 6: pushDay("' + dk + '")...');
         const row = SbSync._toRow(uid, dk, entry);
         log('   payload: ' + JSON.stringify(row).slice(0, 200));
         try {
@@ -6026,13 +6017,13 @@
             .select('updated_at')
             .single();
           if (error) {
-            log('❌ STEP 7 ERROR: ' + error.code + ' — ' + error.message);
+            log('❌ STEP 6 ERROR: ' + error.code + ' — ' + error.message);
             if (error.hint) log('   hint: ' + error.hint);
             if (error.details) log('   details: ' + error.details);
           } else {
-            log('✅ STEP 7: pushDay OK — updated_at: ' + data.updated_at);
+            log('✅ STEP 6: pushDay OK — updated_at: ' + data.updated_at);
           }
-        } catch (e) { log('❌ STEP 7 EXCEPTION: ' + e.message); }
+        } catch (e) { log('❌ STEP 6 EXCEPTION: ' + e.message); }
       }
 
       log('\n── Done ──');

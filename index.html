@@ -2074,6 +2074,14 @@
             </div>
           </div>
         </div>
+        <!-- Sync Diagnostic -->
+        <div style="display:flex;gap:8px">
+          <button class="btn-secondary" style="flex:1;justify-content:center;gap:6px" onclick="runSyncDiagnostic()">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+            Test Sync
+          </button>
+        </div>
+        <div id="syncDiagResult" style="display:none;padding:12px;background:var(--muted);border-radius:var(--radius-md);font-size:11px;font-family:monospace;line-height:1.7;color:var(--foreground);white-space:pre-wrap;word-break:break-all"></div>
 
         <!-- Name + Position -->
         <div class="form-field">
@@ -5927,6 +5935,109 @@
       });
     }
 
+    // ── Sync Diagnostic ─────────────────────────────────
+    async function runSyncDiagnostic() {
+      const out = el('syncDiagResult');
+      out.style.display = 'block';
+      const lines = [];
+      const log = (msg) => { lines.push(msg); out.textContent = lines.join('\n'); };
+
+      log('── Sync Diagnostic ──');
+
+      // 1. Session check
+      try {
+        const { data: { session } } = await window._sbClient.auth.getSession();
+        if (!session) { log('❌ STEP 1: No session — user not authenticated'); return; }
+        log('✅ STEP 1: Session exists');
+        log('   uid: ' + session.user.id);
+        log('   email: ' + session.user.email);
+        log('   token expires: ' + new Date(session.expires_at * 1000).toISOString());
+        const now = Date.now() / 1000;
+        if (session.expires_at < now) { log('❌ TOKEN EXPIRED! Refresh needed.'); }
+        else log('   token valid for: ' + Math.round((session.expires_at - now) / 60) + ' min');
+        var uid = session.user.id;
+      } catch (e) { log('❌ STEP 1 EXCEPTION: ' + e.message); return; }
+
+      // 2. Local data check
+      const localDays = Object.entries(Store.allDays());
+      log('\n✅ STEP 2: Local data');
+      log('   ' + localDays.length + ' days in localStorage');
+      if (localDays.length > 0) {
+        const sample = localDays[localDays.length - 1];
+        log('   latest: ' + sample[0] + ' → ' + JSON.stringify(sample[1]).slice(0, 100));
+      }
+
+      // 3. SELECT from work_logs
+      log('\n⏳ STEP 3: SELECT from work_logs...');
+      try {
+        const { data, error, status, statusText } = await window._sbClient
+          .from('work_logs').select('log_date, hours_worked, updated_at').eq('user_id', uid);
+        if (error) {
+          log('❌ STEP 3 ERROR: ' + error.code + ' — ' + error.message);
+          if (error.hint) log('   hint: ' + error.hint);
+          return;
+        }
+        log('✅ STEP 3: SELECT OK — ' + (data||[]).length + ' rows in Supabase');
+        if (data?.length) log('   latest: ' + data[data.length - 1].log_date);
+      } catch (e) { log('❌ STEP 3 EXCEPTION: ' + e.message); return; }
+
+      // 4. Test INSERT
+      log('\n⏳ STEP 4: Test INSERT...');
+      const testDate = '1999-12-31';
+      try {
+        const { data, error } = await window._sbClient.from('work_logs')
+          .insert({ user_id: uid, log_date: testDate, hours_worked: 0.01, status: 'completed' })
+          .select('id, updated_at')
+          .single();
+        if (error) {
+          log('❌ STEP 4 INSERT ERROR: ' + error.code + ' — ' + error.message);
+          if (error.hint) log('   hint: ' + error.hint);
+          if (error.details) log('   details: ' + error.details);
+        } else {
+          log('✅ STEP 4: INSERT OK — id: ' + data.id);
+
+          // 5. Test UPDATE (upsert the same row)
+          log('\n⏳ STEP 5: Test UPSERT (update)...');
+          const { error: upErr } = await window._sbClient.from('work_logs')
+            .upsert({ user_id: uid, log_date: testDate, hours_worked: 0.02, status: 'completed' },
+                     { onConflict: 'user_id,log_date' });
+          if (upErr) {
+            log('❌ STEP 5 UPSERT ERROR: ' + upErr.code + ' — ' + upErr.message);
+            if (upErr.hint) log('   hint: ' + upErr.hint);
+          } else {
+            log('✅ STEP 5: UPSERT OK');
+          }
+
+          // 6. Cleanup
+          await window._sbClient.from('work_logs').delete().eq('user_id', uid).eq('log_date', testDate);
+          log('✅ STEP 6: Cleanup OK — test row deleted');
+        }
+      } catch (e) { log('❌ STEP 4 EXCEPTION: ' + e.message); }
+
+      // 7. Test pushDay with real data
+      if (localDays.length > 0) {
+        const [dk, entry] = localDays[localDays.length - 1];
+        log('\n⏳ STEP 7: pushDay("' + dk + '")...');
+        const row = SbSync._toRow(uid, dk, entry);
+        log('   payload: ' + JSON.stringify(row).slice(0, 200));
+        try {
+          const { data, error } = await window._sbClient.from('work_logs')
+            .upsert(row, { onConflict: 'user_id,log_date' })
+            .select('updated_at')
+            .single();
+          if (error) {
+            log('❌ STEP 7 ERROR: ' + error.code + ' — ' + error.message);
+            if (error.hint) log('   hint: ' + error.hint);
+            if (error.details) log('   details: ' + error.details);
+          } else {
+            log('✅ STEP 7: pushDay OK — updated_at: ' + data.updated_at);
+          }
+        } catch (e) { log('❌ STEP 7 EXCEPTION: ' + e.message); }
+      }
+
+      log('\n── Done ──');
+    }
+
     function toggleCard(id) {
       el(id).classList.toggle('collapsed');
     }
@@ -7015,19 +7126,26 @@ ${sig}`
       async pushDay(dk, entry) {
         try {
           const uid = await this._uid();
-          if (!uid) return;
+          if (!uid) { console.error('[SbSync] pushDay: no uid — session missing'); return; }
+          const row = this._toRow(uid, dk, entry);
+          console.log('[SbSync] pushDay', dk, row);
           const { data, error } = await window._sbClient.from('work_logs')
-            .upsert(this._toRow(uid, dk, entry), { onConflict: 'user_id,log_date' })
+            .upsert(row, { onConflict: 'user_id,log_date' })
             .select('updated_at')
             .single();
+          if (error) {
+            console.error('[SbSync] pushDay ERROR:', error.code, error.message, error.hint, error.details);
+            return;
+          }
+          console.log('[SbSync] pushDay OK', dk, data);
           // Sync the server-assigned updated_at back to local so that pullAll()
           // won't treat the DB trigger timestamp as "newer remote data" and
           // overwrite the local entry (which has display fields the DB doesn't store)
-          if (!error && data?.updated_at) {
+          if (data?.updated_at) {
             const local = Store.getDay(dk);
             if (local) Store.setDay(dk, { ...local, lastUpdated: data.updated_at });
           }
-        } catch (e) { console.warn('[SbSync] pushDay failed:', e); }
+        } catch (e) { console.error('[SbSync] pushDay EXCEPTION:', e); }
       },
 
       // Push all localStorage days — called after a bulk import
@@ -7052,10 +7170,18 @@ ${sig}`
       async pullAll() {
         try {
           const uid = await this._uid();
-          if (!uid) return;
+          if (!uid) { console.error('[SbSync] pullAll: no uid — session missing'); return; }
+          console.log('[SbSync] pullAll: uid =', uid);
           const { data, error } = await window._sbClient
             .from('work_logs').select('*').eq('user_id', uid);
-          if (error) return; // network/auth error — bail, don't wipe local data
+          if (error) {
+            console.error('[SbSync] pullAll SELECT ERROR:', error.code, error.message, error.hint);
+            return;
+          }
+          console.log('[SbSync] pullAll: got', (data||[]).length, 'rows from Supabase');
+
+          const localDays = Object.keys(Store.allDays());
+          console.log('[SbSync] pullAll: have', localDays.length, 'local days');
 
           const toPush  = [];
           const inCloud = new Set(); // dates that exist in Supabase
@@ -7089,8 +7215,9 @@ ${sig}`
             if (!inCloud.has(dk)) toPush.push([dk, entry]);
           });
 
+          console.log('[SbSync] pullAll: pushing', toPush.length, 'local-only entries to Supabase');
           if (toPush.length) toPush.forEach(([dk, entry]) => this.pushDay(dk, entry));
-        } catch (e) { console.warn('[SbSync] pullAll failed:', e); }
+        } catch (e) { console.error('[SbSync] pullAll EXCEPTION:', e); }
       },
 
       // ── Settings sync (key-value JSONB) ──────────────────────────────

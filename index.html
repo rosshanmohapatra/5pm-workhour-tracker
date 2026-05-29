@@ -7117,25 +7117,23 @@ ${sig}`
         } catch { return null; }
       },
 
-      // Push a single day — called from saveDayLog (fire-and-forget)
+      // Push a single day. Returns true on success, false on failure.
       async pushDay(dk, entry) {
         try {
           const uid = await this._uid();
-          if (!uid) return;
+          if (!uid) return false;
           const row = this._toRow(uid, dk, entry);
           const { data, error } = await window._sbClient.from('work_logs')
             .upsert(row, { onConflict: 'user_id,log_date' })
             .select('updated_at')
             .single();
-          if (error) { console.warn('[SbSync] pushDay:', dk, error.message); return; }
-          // Sync the server-assigned updated_at back to local so that pullAll()
-          // won't treat the DB trigger timestamp as "newer remote data" and
-          // overwrite the local entry (which has display fields the DB doesn't store)
+          if (error) { console.warn('[SbSync] pushDay:', dk, error.message); return false; }
           if (data?.updated_at) {
             const local = Store.getDay(dk);
             if (local) Store.setDay(dk, { ...local, lastUpdated: data.updated_at });
           }
-        } catch (e) { console.warn('[SbSync] pushDay failed:', e); }
+          return true;
+        } catch (e) { console.warn('[SbSync] pushDay failed:', e); return false; }
       },
 
       // Push all localStorage days — called after a bulk import
@@ -7206,16 +7204,18 @@ ${sig}`
       // own changes can be ignored (prevents update loops / edit clobbering).
       _clientId: (window.crypto?.randomUUID?.() || ('c' + Math.random().toString(36).slice(2))),
 
-      // Immediate upsert of the whole config blob under key='config'
+      // Immediate upsert of the whole config blob under key='config'. Returns true/false.
       async pushSettings(cfgObj) {
         try {
           const uid = await this._uid();
-          if (!uid) return;
-          await window._sbClient.from('user_kv').upsert(
+          if (!uid) return false;
+          const { error } = await window._sbClient.from('user_kv').upsert(
             { user_id: uid, key: 'config', value: { cfg: cfgObj, src: this._clientId }, updated_at: new Date().toISOString() },
             { onConflict: 'user_id,key' }
           );
-        } catch (e) { console.warn('[SbSync] pushSettings failed:', e); }
+          if (error) { console.warn('[SbSync] pushSettings:', error.message); return false; }
+          return true;
+        } catch (e) { console.warn('[SbSync] pushSettings failed:', e); return false; }
       },
 
       // Fetch the stored config blob (or null if none yet)
@@ -7283,21 +7283,57 @@ ${sig}`
     }
 
     // ── Flush: batch-push all dirty state ─────────────────
-    async function _flushSync() {
-      if (!_hasPending()) return;
+    let _syncInFlight = false;
+    let _lastFailedDays = [];
+    let _lastFailedCfg  = false;
+
+    async function _flushSync(opts) {
+      const silent = opts?.silent || false; // silent = no toasts (lifecycle flushes)
+      if (!_hasPending() && !_lastFailedDays.length && !_lastFailedCfg) return;
+
       // Snapshot and clear before async — new mutations go into next batch
-      const days = [..._dirtyDays];
-      const cfgDirty = _dirtyCfg;
+      const days = _lastFailedDays.length ? _lastFailedDays : [..._dirtyDays];
+      const cfgDirty = _lastFailedCfg || _dirtyCfg;
       _dirtyDays.clear();
       _dirtyCfg = false;
+      _lastFailedDays = [];
+      _lastFailedCfg  = false;
+
+      if (!days.length && !cfgDirty) return;
+      _syncInFlight = true;
+      if (!silent) showToast('Syncing…', 'info');
+
+      let failed = false;
+      const failedDays = [];
 
       // Batch day pushes
       for (const dk of days) {
         const entry = Store.getDay(dk);
-        if (entry) SbSync.pushDay(dk, entry);
+        if (entry) {
+          const ok = await SbSync.pushDay(dk, entry);
+          if (!ok) { failed = true; failedDays.push(dk); }
+        }
       }
       // Settings push
-      if (cfgDirty) SbSync.pushSettings(cfg());
+      if (cfgDirty) {
+        const ok = await SbSync.pushSettings(cfg());
+        if (!ok) { failed = true; _lastFailedCfg = true; }
+      }
+
+      _syncInFlight = false;
+
+      if (failed) {
+        _lastFailedDays = failedDays;
+        if (!silent) showToast('Sync failed', 'error', 'Tap Retry in settings or we\'ll retry automatically.');
+      } else if (!silent) {
+        showToast('Synced', 'success');
+      }
+    }
+
+    // ── Retry (called from UI) ─────────────────────────────
+    function retrySyncNow() {
+      // Re-mark anything that failed so _flushSync picks it up
+      _flushSync();
     }
 
     // ── Immediate sync (important actions) ─────────────────
@@ -7316,7 +7352,7 @@ ${sig}`
     function _startCheckpoint() {
       if (_checkpointTimer) return;
       _checkpointTimer = setInterval(() => {
-        if (_hasPending()) _flushSync();
+        if (_hasPending()) _flushSync({ silent: true });
       }, 10 * 60 * 1000);
     }
     function _stopCheckpoint() {
@@ -7324,17 +7360,26 @@ ${sig}`
     }
 
     // ── Lifecycle hooks ────────────────────────────────────
-    // visibilitychange: tab hidden / app minimized → flush
+    // visibilitychange: tab hidden / app minimized → flush silently
     document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'hidden') _flushSync();
+      if (document.visibilityState === 'hidden') _flushSync({ silent: true });
     });
-    // pagehide: PWA close, navigation away (more reliable than beforeunload on mobile)
-    window.addEventListener('pagehide', () => _flushSync());
-    // beforeunload: desktop browser tab close
-    window.addEventListener('beforeunload', () => _flushSync());
+    // pagehide: PWA close, navigation away
+    window.addEventListener('pagehide', () => _flushSync({ silent: true }));
+    // beforeunload: desktop browser close — show prompt if unsynced data
+    window.addEventListener('beforeunload', (e) => {
+      if (_hasPending() || _syncInFlight) {
+        _flushSync({ silent: true });
+        e.preventDefault();           // Chrome shows "Leave site?" dialog
+        e.returnValue = '';           // required for Chrome
+      }
+    });
     // online: network reconnect → flush queued mutations
     window.addEventListener('online', () => {
-      if (_hasPending()) _flushSync();
+      if (_hasPending() || _lastFailedDays.length || _lastFailedCfg) {
+        showToast('Back online — syncing…', 'info');
+        _flushSync();
+      }
     });
 
     // ── saveDayLog / saveCfg — local-first, dirty-tracked ──

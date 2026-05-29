@@ -3010,7 +3010,7 @@
     }
 
     // ── CONFIG ─────────────────────────────────────────
-    const CFG_DEF = { dailyH:9, weeklyH:45, weeklyOn:true, lateDays:[], earlyLeaveEntries:[], lateEntries:[], notifOn:false, notifTarget:true, notifKickstart:true, notifOvertime:true, name:'', position:'', targetDay:null, autoStopBuf:2, tzOffset:330, shiftType:'morning', workDays:5, recommendTimings:true };
+    const CFG_DEF = { dailyH:9, weeklyH:45, weeklyOn:true, lateDays:[], earlyLeaveEntries:[], lateEntries:[], notifOn:false, notifTarget:true, notifKickstart:true, notifOvertime:true, name:'', position:'', targetDay:null, autoStopBuf:2, tzOffset:330, shiftType:'morning', workDays:5, recommendTimings:true, dismissed:[] };
     function cfg() { const r=Store.getCfg(); return r?{...CFG_DEF,...r}:{...CFG_DEF}; }
 
     // ── PUSH USER ID ───────────────────────────────────
@@ -3027,12 +3027,27 @@
     }
 
     // ── DISMISSED NOTIFICATIONS ────────────────────────
+    // Dismissed IDs live inside cfg() so they sync across devices via user_kv.
+    // Falls back to the legacy wh_dismissed localStorage key for existing data.
     function getDismissed() {
+      const c = cfg();
+      // cfg.dismissed is the source of truth once populated
+      if (Array.isArray(c.dismissed) && c.dismissed.length) return c.dismissed;
+      // Legacy fallback (local-only, pre-sync era)
       return Store.get(KEY.dismissed, []);
     }
+    // Drop IDs whose date suffix is older than 14 days — keeps cfg blob small
+    function pruneDismissed(ids) {
+      const cutoff = Date.now() - 14 * 86400000;
+      return ids.filter(id => {
+        const m = id.match(/(\d{4}-\d{2}-\d{2})$/);
+        return !m || new Date(m[1]).getTime() >= cutoff;
+      });
+    }
     function addDismissed(id) {
-      const d = getDismissed(); if (!d.includes(id)) d.push(id);
-      Store.set(KEY.dismissed, d);
+      const d = getDismissed();
+      if (d.includes(id)) return;
+      saveCfg({ ...cfg(), dismissed: pruneDismissed([...d, id]) });
     }
 
     // ── DAY LOG ────────────────────────────────────────
@@ -7049,6 +7064,7 @@ ${sig}`
         Store.setCfg(remoteCfg);
         populateSettings();
         renderDaySelector();
+        renderNotifs(); // update dismissed state immediately on this device
         if (loginDate) render(); else renderEmptyState();
         showToast('Settings synced from another device', 'info');
       } finally { _applyingRemote = false; }
@@ -8617,6 +8633,7 @@ ${sig}`
             Store.setCfg(remoteCfg);
             populateSettings();
             renderDaySelector();
+            renderNotifs(); // apply synced dismissed state on load
             if (loginDate) render(); else renderEmptyState();
           } finally { _applyingRemote = false; }
         }

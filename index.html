@@ -6926,7 +6926,8 @@ ${sig}`
         } catch (e) { console.warn('[SbSync] pushAll failed:', e); }
       },
 
-      // Pull Supabase rows into localStorage — called on first load when no local data
+      // Pull Supabase rows into localStorage — runs on every startup and merges by
+      // updated_at so the newer side always wins (same logic as _onRemoteWorkLog).
       async pullAll() {
         try {
           const uid = await this._uid();
@@ -6934,8 +6935,20 @@ ${sig}`
           const { data, error } = await window._sbClient
             .from('work_logs').select('*').eq('user_id', uid);
           if (error || !data?.length) return;
+          const toPush = []; // local-is-newer entries to push up (covers offline edits)
           data.forEach(row => {
-            if (Store.getDay(row.log_date)) return; // never overwrite local data
+            const local = Store.getDay(row.log_date);
+            if (local?.lastUpdated && row.updated_at) {
+              const localTs  = new Date(local.lastUpdated).getTime();
+              const remoteTs = new Date(row.updated_at).getTime();
+              if (localTs > remoteTs) {
+                // Local is newer (e.g. edited offline) — push it back to Supabase
+                toPush.push([row.log_date, local]);
+                return;
+              }
+              if (localTs === remoteTs) return; // already in sync, nothing to do
+            }
+            // Remote is newer (or local has no timestamp) — take the remote version
             Store.setDay(row.log_date, {
               hoursWorked:  parseFloat(row.hours_worked) || 0,
               sessionTag:   row.status === 'auto_stopped' ? 'autostopped' : 'realtime',
@@ -6943,6 +6956,8 @@ ${sig}`
               lastUpdated:  row.updated_at,
             });
           });
+          // Fire-and-forget push for any local-is-newer days
+          if (toPush.length) toPush.forEach(([dk, entry]) => this.pushDay(dk, entry));
         } catch (e) { console.warn('[SbSync] pullAll failed:', e); }
       },
 
@@ -8585,15 +8600,13 @@ ${sig}`
       // Check for forgot-to-logout
       if (!loginDate) setTimeout(checkForgotLogout, 800);
 
-      // Restore from Supabase if this is a fresh device with no local data
-      if (Object.keys(Store.allDays()).length === 0) {
-        SbSync.pullAll().then(() => {
-          if (Object.keys(Store.allDays()).length > 0) {
-            renderHistory(); renderDaySelector();
-            if (!loginDate) renderEmptyState();
-          }
-        });
-      }
+      // Always pull from Supabase on startup — merges by updated_at so newer side wins.
+      // Previously this was guarded by "length === 0" which meant any device with local
+      // data would never receive updates from other devices.
+      SbSync.pullAll().then(() => {
+        renderHistory(); renderDaySelector();
+        if (!loginDate) renderEmptyState();
+      });
 
       // Pull saved settings from Supabase, then subscribe to real-time changes.
       // Settings sync across devices: whatever was last saved becomes the source of truth.

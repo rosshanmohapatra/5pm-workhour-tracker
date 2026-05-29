@@ -646,6 +646,11 @@
     .settings-section .settings-group { gap: 16px; }
     .settings-section-divider { height: 1px; background: var(--border); }
 
+    /* ── Sync status chip ── */
+    @keyframes sync-spin { to { transform: rotate(360deg); } }
+    #syncChip.syncing #syncChipDot { animation: sync-spin .7s linear infinite; border-radius: 0; width: 10px; height: 10px;
+      background: none; border: 1.5px solid currentColor; border-top-color: transparent; }
+
     /* ── Profile card (Settings) ── */
     .profile-card {
       background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-lg);
@@ -2058,8 +2063,16 @@
           <div>
             <div class="settings-title">Settings</div>
           </div>
-          <div style="margin-left:auto;text-align:right">
-            <div class="form-sub" id="settingsLastSaved" style="font-size:11px;color:var(--muted-fg)">Not saved yet</div>
+          <div style="margin-left:auto;display:flex;align-items:center;gap:8px" id="syncStatusWrap">
+            <div id="syncChip" style="display:inline-flex;align-items:center;gap:4px;height:22px;padding:0 8px;border-radius:100px;font-size:10px;font-weight:600;letter-spacing:.02em;white-space:nowrap;background:var(--success-bg);color:var(--success)">
+              <span id="syncChipDot" style="width:6px;height:6px;border-radius:100px;background:currentColor;flex-shrink:0"></span>
+              <span id="syncChipLabel">Synced</span>
+            </div>
+            <div class="form-sub" id="settingsLastSaved" style="font-size:11px;color:var(--muted-fg);white-space:nowrap">Not saved yet</div>
+            <button class="btn-secondary" id="syncRetryBtn" onclick="retrySyncNow()" style="display:none;font-size:10px;height:22px;padding:0 8px;gap:4px;flex-shrink:0">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+              Retry
+            </button>
           </div>
         </div>
 
@@ -5958,7 +5971,7 @@
       }
       updateWeeklyCalc();
       const _ls = Store.getLastSaved();
-      if (_ls) el('settingsLastSaved').textContent = `Last updated ${timeAgo(_ls)}`;
+      if (_ls) _refreshLastSaved();
     }
 
     // ── Profile Card hydration ────────────────────────────
@@ -6240,7 +6253,7 @@
                 autoStopBuf: cfg().autoStopBuf ?? 2 });
       renderDaySelector(); // refresh strip in case work-days changed
       updateWeeklyCalc();
-      el('settingsLastSaved').textContent = `Last updated just now`;
+      _refreshLastSaved();
       if (notifOn && 'Notification' in window) {
         if (Notification.permission === 'default') {
           Notification.requestPermission().then(p => {
@@ -7303,12 +7316,36 @@ ${sig}`
         _refreshLastSaved();
       }, 400);
     }
-    // Live-update the "Last updated X ago" label every 30s so it doesn't freeze at "just now"
+    // Live-update the "Last updated X ago" label every 30s
     function _refreshLastSaved() {
       const lsEl=el('settingsLastSaved');
-      if (lsEl) { const ls=Store.getLastSaved(); if(ls) lsEl.textContent=`Last updated ${timeAgo(ls)}`; }
+      if (lsEl) { const ls=Store.getLastSaved(); if(ls) lsEl.textContent=timeAgo(ls); }
     }
     setInterval(_refreshLastSaved, 30000);
+
+    // Drive the sync chip + text + retry button
+    function _setSyncStatus(state) {
+      const chip = el('syncChip'), label = el('syncChipLabel'), text = el('settingsLastSaved'), retry = el('syncRetryBtn');
+      if (!chip) return;
+      chip.classList.remove('syncing');
+      if (state === 'syncing') {
+        chip.style.background = 'var(--blue-bg)'; chip.style.color = 'var(--blue)';
+        chip.classList.add('syncing');
+        label.textContent = 'Syncing';
+        text.textContent = 'Syncing…';
+        if (retry) retry.style.display = 'none';
+      } else if (state === 'failed') {
+        chip.style.background = 'var(--destructive-bg)'; chip.style.color = 'var(--destructive)';
+        label.textContent = 'Failed';
+        text.textContent = 'Sync failed';
+        if (retry) retry.style.display = '';
+      } else {
+        chip.style.background = 'var(--success-bg)'; chip.style.color = 'var(--success)';
+        label.textContent = 'Synced';
+        _refreshLastSaved();
+        if (retry) retry.style.display = 'none';
+      }
+    }
 
     // ══════════════════════════════════════════════════════
     // SYNC ENGINE — dirty-state tracking + batched writes
@@ -7368,6 +7405,7 @@ ${sig}`
 
       if (!days.length && !cfgDirty) return;
       _syncInFlight = true;
+      _setSyncStatus('syncing');
       if (!silent) showToast('Syncing…', 'info');
 
       let failed = false;
@@ -7391,9 +7429,11 @@ ${sig}`
 
       if (failed) {
         _lastFailedDays = failedDays;
-        if (!silent) showToast('Sync failed', 'error', 'Tap Retry in settings or we\'ll retry automatically.');
-      } else if (!silent) {
-        showToast('Synced', 'success');
+        _setSyncStatus('failed');
+        if (!silent) showToast('Sync failed', 'error', 'Tap Retry in Settings.');
+      } else {
+        _setSyncStatus('synced');
+        if (!silent) showToast('Synced', 'success');
       }
     }
 

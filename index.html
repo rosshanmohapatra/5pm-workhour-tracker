@@ -6996,7 +6996,11 @@ ${sig}`
           accumulated_secs: Math.min(Math.round((parseFloat(entry.hoursWorked) || 0) * 3600), 86400),
           status:           statusMap[entry.sessionTag] || 'completed',
           override_type:    this._OVERRIDES.has(entry.override) ? entry.override : null,
-          updated_at:       entry.lastUpdated || new Date().toISOString(),
+          // NOTE: updated_at is intentionally OMITTED.
+          // The DB trigger (private.set_updated_at) auto-stamps it on every UPDATE.
+          // Sending it from the client causes a 42501 because updated_at has no
+          // UPDATE column grant (it's server-managed). On INSERT, the column default
+          // (now()) handles it.
         };
       },
 

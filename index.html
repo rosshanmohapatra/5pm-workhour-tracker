@@ -6967,41 +6967,49 @@ ${sig}`
         } catch (e) { console.warn('[SbSync] pushAll failed:', e); }
       },
 
-      // Pull Supabase rows into localStorage — runs on every startup and merges by
-      // updated_at so the newer side always wins (same logic as _onRemoteWorkLog).
+      // Two-way sync: pull Supabase → local, then push any local entries
+      // that Supabase doesn't have yet. Runs on every startup.
+      // Merge rule: newer updated_at wins. Local-only entries always get pushed up.
       async pullAll() {
         try {
           const uid = await this._uid();
           if (!uid) return;
           const { data, error } = await window._sbClient
             .from('work_logs').select('*').eq('user_id', uid);
-          if (error || !data?.length) return;
-          const toPush = []; // local-is-newer entries to push up (covers offline edits)
-          data.forEach(row => {
+          if (error) return; // network/auth error — bail, don't wipe local data
+
+          const toPush  = [];
+          const inCloud = new Set(); // dates that exist in Supabase
+
+          (data || []).forEach(row => {
+            inCloud.add(row.log_date);
             const local = Store.getDay(row.log_date);
             if (local?.lastUpdated && row.updated_at) {
               const localTs  = new Date(local.lastUpdated).getTime();
               const remoteTs = new Date(row.updated_at).getTime();
-              if (localTs > remoteTs) {
-                toPush.push([row.log_date, local]);
-                return;
-              }
-              if (localTs === remoteTs) return;
+              if (localTs > remoteTs) { toPush.push([row.log_date, local]); return; }
+              if (localTs === remoteTs) return; // identical — skip
             }
-            // Remote is newer — restore display fields from TIMESTAMPTZ columns
+            // Remote is newer (or local has no timestamp) — apply it
             const loginDt  = row.login_time  ? new Date(row.login_time)  : null;
             const logoutDt = row.logout_time ? new Date(row.logout_time) : null;
             Store.setDay(row.log_date, {
               ...(loginDt  ? { loginTime: `${loginDt.getHours()}:${loginDt.getMinutes()}:${loginDt.getSeconds()}`,
                                loginDisplay: short(loginDt) } : {}),
               ...(logoutDt ? { checkoutDisplay: short(logoutDt) } : {}),
-              hoursWorked:  parseFloat(row.hours_worked) || 0,
-              sessionTag:   row.status === 'auto_stopped' ? 'autostopped' : 'realtime',
-              override:     this._OVERRIDES.has(row.override_type) ? row.override_type : null,
-              lastUpdated:  row.updated_at,
+              hoursWorked: parseFloat(row.hours_worked) || 0,
+              sessionTag:  row.status === 'auto_stopped' ? 'autostopped' : 'realtime',
+              override:    this._OVERRIDES.has(row.override_type) ? row.override_type : null,
+              lastUpdated: row.updated_at,
             });
           });
-          // Fire-and-forget push for any local-is-newer days
+
+          // Push every local entry that Supabase has never seen
+          // This is the missing piece: historical desktop data, offline edits, etc.
+          Object.entries(Store.allDays()).forEach(([dk, entry]) => {
+            if (!inCloud.has(dk)) toPush.push([dk, entry]);
+          });
+
           if (toPush.length) toPush.forEach(([dk, entry]) => this.pushDay(dk, entry));
         } catch (e) { console.warn('[SbSync] pullAll failed:', e); }
       },

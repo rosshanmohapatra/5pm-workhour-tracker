@@ -2557,7 +2557,7 @@
           </button>
         </div>
         <div class="dialog-body" style="padding-top:0">
-          <div>
+          <form onsubmit="return false" autocomplete="off">
             <div class="form-label" style="margin-bottom:6px">Password</div>
             <div style="position:relative">
               <input class="field-input" id="deleteConfirmInput" type="password" placeholder="••••••••" autocomplete="current-password"
@@ -2569,11 +2569,11 @@
                 <svg id="delEyeClose" width="15" height="15" viewBox="0 0 24 24" fill="none" style="display:none"><path fill-rule="evenodd" clip-rule="evenodd" d="M23.7071 0.292893C24.0976 0.683417 24.0976 1.31658 23.7071 1.70711L1.70711 23.7071C1.31658 24.0976 0.683417 24.0976 0.292893 23.7071C-0.0976311 23.3166 -0.0976311 22.6834 0.292893 22.2929L4.23434 18.3514C2.9164 17.1406 1.94176 15.7855 1.2732 14.6799C0.867646 14.0092 0.5691 13.421 0.370612 12.9971C0.271255 12.785 0.196646 12.6133 0.145961 12.4922C0.12061 12.4317 0.101217 12.3838 0.0876805 12.3497L0.0717465 12.3091L0.067044 12.2969L0.0655043 12.2928L0.0649367 12.2913C0.0645038 12.2902 1.00008 11.9371 0.074198 11.5593C0.0746014 11.5583 0.0756485 11.5557 0.0787059 11.5483L0.0886819 11.5245C0.0970512 11.5046 0.108867 11.4769 0.124153 11.4419C0.154718 11.372 0.199199 11.2727 0.257786 11.1484C0.374887 10.8998 0.548788 10.55 0.781098 10.1325C1.24449 9.29981 1.94679 8.18638 2.90303 7.0685C4.80651 4.84327 7.80941 2.5 12.0001 2.5C14.4526 2.5 16.5053 3.30553 18.165 4.42081L22.2929 0.292893C22.6834 -0.0976311 23.3166 -0.0976311 23.7071 0.292893Z" fill="currentColor"/></svg>
               </button>
             </div>
-          </div>
+          </form>
         </div>
         <div style="padding:0 20px 20px;display:flex;justify-content:flex-end;gap:8px">
-          <button class="btn-secondary" onclick="backToDeleteFeedback()">Back</button>
-          <button class="btn-ghost-destructive" id="delPwdContinueBtn" onclick="confirmDeleteProfile()" disabled>Delete Forever</button>
+          <button type="button" class="btn-secondary" onclick="backToDeleteFeedback()">Back</button>
+          <button type="button" class="btn-ghost-destructive" id="delPwdContinueBtn" onclick="confirmDeleteProfile()" disabled>Delete Forever</button>
         </div>
       </div>
 

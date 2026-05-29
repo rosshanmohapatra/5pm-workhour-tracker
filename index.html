@@ -3545,7 +3545,7 @@
         _fireNotif('earlyLeave');
       }
       const punchInDisplay = ex.loginDisplay || short(loginDate); // first login of the day
-      saveDayLog(tk, { ...ex,
+      saveDayLogAndSync(tk, { ...ex,
         loginTime:       `${loginDate.getHours()}:${loginDate.getMinutes()}:${loginDate.getSeconds()}`,
         loginDisplay:    ex.loginDisplay || short(loginDate),
         checkoutTime:    `${p2(now.getHours())}:${p2(now.getMinutes())}:${p2(now.getSeconds())}`,
@@ -3579,12 +3579,13 @@
     function endSession() {
       if (!loginDate) return;
       if (ticker) { clearInterval(ticker); ticker = null; }
+      _stopCheckpoint();
       const now = new Date();
       const tk = todayKey(), ex = dayLog(tk) || {};
       const sessionSecs = Math.floor((now - loginDate) / 1000);
       _sessionAccSecs   += sessionSecs;
       _sessionCheckoutTime = now;
-      saveDayLog(tk, { ...ex,
+      saveDayLogAndSync(tk, { ...ex,
         loginTime:       ex.loginTime || `${loginDate.getHours()}:${loginDate.getMinutes()}:${loginDate.getSeconds()}`,
         loginDisplay:    ex.loginDisplay || short(loginDate),
         checkoutDisplay: short(now),
@@ -4821,11 +4822,12 @@
       if (!loginDate || autoStopped) return;
       autoStopped = true;
       if (ticker) { clearInterval(ticker); ticker = null; }
+      _stopCheckpoint();
       const now = new Date();
       const tk = todayKey(), ex = dayLog(tk) || {};
       const sessionSecs = Math.floor((now - loginDate) / 1000);
       const worked = _sessionAccSecs + sessionSecs;
-      saveDayLog(tk, { ...ex,
+      saveDayLogAndSync(tk, { ...ex,
         loginTime:    ex.loginTime || `${loginDate.getHours()}:${loginDate.getMinutes()}:${loginDate.getSeconds()}`,
         loginDisplay: ex.loginDisplay || short(loginDate),
         checkoutDisplay: short(now),
@@ -5652,9 +5654,9 @@
       const c = cfg();
       const ex = dayLog(key) || {};
       if (type === 'halfday') {
-        saveDayLog(key, { ...ex, hoursWorked: c.dailyH / 2, override: type });
+        saveDayLogAndSync(key, { ...ex, hoursWorked: c.dailyH / 2, override: type });
       } else if (type === 'holiday' || type === 'leave') {
-        saveDayLog(key, { ...ex, hoursWorked: 0, override: type });
+        saveDayLogAndSync(key, { ...ex, hoursWorked: 0, override: type });
       }
       renderHistory();
       document.querySelectorAll('.wk-dropdown.open').forEach(d => d.classList.remove('open'));
@@ -5667,7 +5669,7 @@
       startEl.style.borderColor = '';
       const workedSecs = Math.floor((e - s) / 1000);
       const ex = dayLog(key) || {};
-      saveDayLog(key, { ...ex,
+      saveDayLogAndSync(key, { ...ex,
         loginTime: `${s.getHours()}:${s.getMinutes()}:${s.getSeconds()}`,
         loginDisplay: short(s),
         checkoutDisplay: short(e),
@@ -5746,6 +5748,8 @@
       if (ticker) clearInterval(ticker);
       ticker = setInterval(render, 1000);
       scheduleNotifications(loginDate.toISOString());
+      _startCheckpoint(); // periodic sync while session active
+      _syncNow();         // immediately push the start event
     }
     // Shows a prediction modal when the user enters a future login time.
     // Instead of a hard error, it shows "logged in at X → log out at Y" so
@@ -6726,14 +6730,15 @@ ${sig}`
       const key = _dayEditKey;
       const backup = dayLog(key);
       _deletedEntryKey = key; _deletedEntryData = backup || null;
-      // Remove from Store
+      // Remove from Store + sync deletion
       Store.remove(KEY.day + key);
+      _markDirty(key); _syncNow();
       closeDayEditModal();
       renderDaySelector();
       if (key === todayKey()) renderEmptyState();
       showUndoToast('Entry deleted.', () => {
         if (_deletedEntryKey && _deletedEntryData) {
-          saveDayLog(_deletedEntryKey, _deletedEntryData);
+          saveDayLogAndSync(_deletedEntryKey, _deletedEntryData);
           renderDaySelector();
           if (_deletedEntryKey === todayKey() && loginDate) render();
         }
@@ -7238,18 +7243,125 @@ ${sig}`
       }, 400);
     }
 
-    // saveDayLog + saveCfg wired through Store
-    // _applyingRemote is true while we apply a change received from realtime —
-    // it stops us from immediately re-pushing that same change back to Supabase.
+    // ══════════════════════════════════════════════════════
+    // SYNC ENGINE — dirty-state tracking + batched writes
+    // ══════════════════════════════════════════════════════
+    //
+    // Strategy:
+    //   Immediate  → start/end/pause/resume shift, edit/delete session
+    //   Debounced  → 20s idle after any change (safety net)
+    //   Lifecycle  → visibilitychange, pagehide, beforeunload
+    //   Reconnect  → online event flushes pending
+    //   Checkpoint → every 10 min while session active + dirty
+    //
+    // Local-first: UI updates localStorage instantly. Cloud is the
+    // backup + multi-device sync layer, never the source of truth
+    // for the active device.
+
     let _applyingRemote = false;
-    function saveDayLog(k,v) { Store.setDay(k,v); persist(); if (!_applyingRemote) SbSync.pushDay(k, v); }
-    // Debounce the settings upsert so per-keystroke changes don't spam Supabase
-    let _cfgPushTimer = null;
+
+    // ── Dirty-state tracking ──────────────────────────────
+    const _dirtyDays = new Set();   // date keys with unsynced changes
+    let _dirtyCfg = false;          // cfg changed since last push
+    let _idleSyncTimer = null;      // 20s idle debounce
+    let _checkpointTimer = null;    // 10 min periodic checkpoint
+
+    function _markDirty(dk) {
+      if (_applyingRemote) return;
+      _dirtyDays.add(dk);
+      _scheduleIdleSync();
+    }
+
+    function _markCfgDirty() {
+      if (_applyingRemote) return;
+      _dirtyCfg = true;
+      _scheduleIdleSync();
+    }
+
+    function _hasPending() {
+      return _dirtyDays.size > 0 || _dirtyCfg;
+    }
+
+    // ── Flush: batch-push all dirty state ─────────────────
+    async function _flushSync() {
+      if (!_hasPending()) return;
+      // Snapshot and clear before async — new mutations go into next batch
+      const days = [..._dirtyDays];
+      const cfgDirty = _dirtyCfg;
+      _dirtyDays.clear();
+      _dirtyCfg = false;
+
+      // Batch day pushes
+      for (const dk of days) {
+        const entry = Store.getDay(dk);
+        if (entry) SbSync.pushDay(dk, entry);
+      }
+      // Settings push
+      if (cfgDirty) SbSync.pushSettings(cfg());
+    }
+
+    // ── Immediate sync (important actions) ─────────────────
+    function _syncNow() {
+      if (_idleSyncTimer) { clearTimeout(_idleSyncTimer); _idleSyncTimer = null; }
+      _flushSync();
+    }
+
+    // ── Debounced idle sync (20s safety net) ───────────────
+    function _scheduleIdleSync() {
+      if (_idleSyncTimer) clearTimeout(_idleSyncTimer);
+      _idleSyncTimer = setTimeout(() => { _idleSyncTimer = null; _flushSync(); }, 20000);
+    }
+
+    // ── Periodic checkpoint (every 10 min while active + dirty) ──
+    function _startCheckpoint() {
+      if (_checkpointTimer) return;
+      _checkpointTimer = setInterval(() => {
+        if (_hasPending()) _flushSync();
+      }, 10 * 60 * 1000);
+    }
+    function _stopCheckpoint() {
+      if (_checkpointTimer) { clearInterval(_checkpointTimer); _checkpointTimer = null; }
+    }
+
+    // ── Lifecycle hooks ────────────────────────────────────
+    // visibilitychange: tab hidden / app minimized → flush
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') _flushSync();
+    });
+    // pagehide: PWA close, navigation away (more reliable than beforeunload on mobile)
+    window.addEventListener('pagehide', () => _flushSync());
+    // beforeunload: desktop browser tab close
+    window.addEventListener('beforeunload', () => _flushSync());
+    // online: network reconnect → flush queued mutations
+    window.addEventListener('online', () => {
+      if (_hasPending()) _flushSync();
+    });
+
+    // ── saveDayLog / saveCfg — local-first, dirty-tracked ──
+    function saveDayLog(k, v) {
+      Store.setDay(k, v);
+      persist();
+      _markDirty(k);
+    }
+
+    // Immediate sync variant — for important user actions
+    function saveDayLogAndSync(k, v) {
+      Store.setDay(k, v);
+      persist();
+      _markDirty(k);
+      _syncNow();
+    }
+
     const saveCfg = v => {
       Store.setCfg(v); persist();
-      if (_applyingRemote) return;
-      if (_cfgPushTimer) clearTimeout(_cfgPushTimer);
-      _cfgPushTimer = setTimeout(() => { _cfgPushTimer = null; SbSync.pushSettings(cfg()); }, 600);
+      _markCfgDirty();
+    };
+
+    // Immediate settings sync — for important changes
+    const saveCfgAndSync = v => {
+      Store.setCfg(v); persist();
+      _markCfgDirty();
+      _syncNow();
     };
 
     // ── REAL-TIME SYNC ────────────────────────────────────────────────────────
@@ -7488,16 +7600,16 @@ ${sig}`
         : el('deLeave').classList.contains('active') ? 'leave' : null;
 
       if (activeOverride === 'halfday') {
-        saveDayLog(key, { ...ex, hoursWorked: c.dailyH / 2, override: 'halfday', sessionTag: 'edited' });
+        saveDayLogAndSync(key, { ...ex, hoursWorked: c.dailyH / 2, override: 'halfday', sessionTag: 'edited' });
       } else if (activeOverride === 'holiday' || activeOverride === 'leave') {
-        saveDayLog(key, { ...ex, hoursWorked: 0, override: activeOverride, sessionTag: 'edited' });
+        saveDayLogAndSync(key, { ...ex, hoursWorked: 0, override: activeOverride, sessionTag: 'edited' });
       } else if (!s && !e) {
         // Both empty → apply shift defaults
         const sd = getShiftDefaults();
         const defS = parse(sd.start), defE = parse(sd.end);
         if (defS && defE) {
           const worked = Math.floor((defE - defS) / 1000);
-          saveDayLog(key, { ...ex,
+          saveDayLogAndSync(key, { ...ex,
             loginTime: `${defS.getHours()}:${defS.getMinutes()}:${defS.getSeconds()}`,
             loginDisplay: short(defS),
             checkoutDisplay: short(defE),
@@ -7526,7 +7638,7 @@ ${sig}`
           if (ticker) clearInterval(ticker);
           ticker = setInterval(render, 1000);
         }
-        saveDayLog(key, { ...ex,
+        saveDayLogAndSync(key, { ...ex,
           loginTime: `${s.getHours()}:${s.getMinutes()}:${s.getSeconds()}`,
           loginDisplay: short(s), sessionTag: 'edited',
           lastUpdated: new Date().toISOString(), override: null
@@ -7544,7 +7656,7 @@ ${sig}`
         const eAdj = e <= s ? new Date(e.getTime() + 24 * 3600 * 1000) : e;
         el('deErr').classList.remove('show');
         const worked = Math.floor((eAdj - s) / 1000);
-        saveDayLog(key, { ...ex,
+        saveDayLogAndSync(key, { ...ex,
           loginTime:      `${s.getHours()}:${s.getMinutes()}:${s.getSeconds()}`,
           loginDisplay:   short(s),
           checkoutDisplay: short(eAdj),
@@ -7646,11 +7758,11 @@ ${sig}`
       btn.classList.add('active');
       const c = cfg(), ex = dayLog(key) || {};
       if (type === 'fullday') {
-        if (ex.override) { delete ex.override; saveDayLog(key, ex); }
+        if (ex.override) { delete ex.override; saveDayLogAndSync(key, ex); }
       } else if (type === 'halfday') {
-        saveDayLog(key, { ...ex, hoursWorked: c.dailyH / 2, override: 'halfday', sessionTag: 'edited' });
+        saveDayLogAndSync(key, { ...ex, hoursWorked: c.dailyH / 2, override: 'halfday', sessionTag: 'edited' });
       } else {
-        saveDayLog(key, { ...ex, hoursWorked: 0, override: type, sessionTag: 'edited' });
+        saveDayLogAndSync(key, { ...ex, hoursWorked: 0, override: type, sessionTag: 'edited' });
       }
     }
 
@@ -7704,7 +7816,7 @@ ${sig}`
         const d = new Date(_forgotKey + 'T12:00'); d.setHours(pts[0],pts[1],pts[2],0); return d;
       })() : null;
       const worked = s ? Math.floor((e - s) / 1000) : 0;
-      saveDayLog(_forgotKey, { ...log, checkoutDisplay: short(e), hoursWorked: worked / 3600,
+      saveDayLogAndSync(_forgotKey, { ...log, checkoutDisplay: short(e), hoursWorked: worked / 3600,
         lastUpdated: new Date().toISOString(), sessionTag: 'edited' });
       _forgotKey = null;
       el('forgotLogoutOverlay').classList.remove('open');
@@ -7731,9 +7843,10 @@ ${sig}`
       el('shiftInputRow').classList.add('active-state');
       el('shiftActiveLabel').textContent = `Resumed · ${dur(_sessionAccSecs)} prior`;
       el('autostopBanner').classList.remove('show');
-      saveDayLog(tk, { ...prevLog, sessionTag: 'realtime', autostopped: false });
+      saveDayLogAndSync(tk, { ...prevLog, sessionTag: 'realtime', autostopped: false });
       persistSession();
       scheduleNotifications(loginDate.toISOString()); // reschedule on resume
+      _startCheckpoint(); // periodic sync while session active
       selectDay(tk); render();
       if (ticker) clearInterval(ticker);
       ticker = setInterval(render, 1000);
@@ -8860,6 +8973,8 @@ ${sig}`
       else renderDaySelector();
 
       restoreSession();
+      // Start checkpoint timer if session is active (survives reload)
+      if (loginDate) _startCheckpoint();
       // Check for forgot-to-logout
       if (!loginDate) setTimeout(checkForgotLogout, 800);
 

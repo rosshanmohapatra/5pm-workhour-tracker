@@ -2074,14 +2074,6 @@
             </div>
           </div>
         </div>
-        <!-- Sync Diagnostic -->
-        <div style="display:flex;gap:8px">
-          <button class="btn-secondary" style="flex:1;justify-content:center;gap:6px" onclick="runSyncDiagnostic()">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
-            Test Sync
-          </button>
-        </div>
-        <div id="syncDiagResult" style="display:none;padding:12px;background:var(--muted);border-radius:var(--radius-md);font-size:11px;font-family:monospace;line-height:1.7;color:var(--foreground);white-space:pre-wrap;word-break:break-all"></div>
 
         <!-- Name + Position -->
         <div class="form-field">
@@ -2394,6 +2386,13 @@
               <button class="btn btn-secondary" style="font-size:12px;height:34px" onclick="testNotif('morningReminder')">Morning Reminder</button>
               <button class="btn btn-secondary" style="font-size:12px;height:34px;grid-column:1/-1" onclick="testNotif('earlyLeave')">Early Leave Achieved</button>
             </div>
+            <div style="height:1px;background:var(--border);margin:6px 0"></div>
+            <div class="section-label">Sync Diagnostic</div>
+            <button class="btn-secondary" style="width:100%;justify-content:center;gap:6px" onclick="runSyncDiagnostic()">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+              Test Sync
+            </button>
+            <div id="syncDiagResult" style="display:none;padding:12px;background:var(--muted);border-radius:var(--radius-md);font-size:11px;font-family:monospace;line-height:1.7;color:var(--foreground);white-space:pre-wrap;word-break:break-all"></div>
           </div>
         </div>
 
@@ -7117,18 +7116,13 @@ ${sig}`
       async pushDay(dk, entry) {
         try {
           const uid = await this._uid();
-          if (!uid) { console.error('[SbSync] pushDay: no uid — session missing'); return; }
+          if (!uid) return;
           const row = this._toRow(uid, dk, entry);
-          console.log('[SbSync] pushDay', dk, row);
           const { data, error } = await window._sbClient.from('work_logs')
             .upsert(row, { onConflict: 'user_id,log_date' })
             .select('updated_at')
             .single();
-          if (error) {
-            console.error('[SbSync] pushDay ERROR:', error.code, error.message, error.hint, error.details);
-            return;
-          }
-          console.log('[SbSync] pushDay OK', dk, data);
+          if (error) { console.warn('[SbSync] pushDay:', dk, error.message); return; }
           // Sync the server-assigned updated_at back to local so that pullAll()
           // won't treat the DB trigger timestamp as "newer remote data" and
           // overwrite the local entry (which has display fields the DB doesn't store)
@@ -7136,7 +7130,7 @@ ${sig}`
             const local = Store.getDay(dk);
             if (local) Store.setDay(dk, { ...local, lastUpdated: data.updated_at });
           }
-        } catch (e) { console.error('[SbSync] pushDay EXCEPTION:', e); }
+        } catch (e) { console.warn('[SbSync] pushDay failed:', e); }
       },
 
       // Push all localStorage days — called after a bulk import
@@ -7161,18 +7155,10 @@ ${sig}`
       async pullAll() {
         try {
           const uid = await this._uid();
-          if (!uid) { console.error('[SbSync] pullAll: no uid — session missing'); return; }
-          console.log('[SbSync] pullAll: uid =', uid);
+          if (!uid) return;
           const { data, error } = await window._sbClient
             .from('work_logs').select('*').eq('user_id', uid);
-          if (error) {
-            console.error('[SbSync] pullAll SELECT ERROR:', error.code, error.message, error.hint);
-            return;
-          }
-          console.log('[SbSync] pullAll: got', (data||[]).length, 'rows from Supabase');
-
-          const localDays = Object.keys(Store.allDays());
-          console.log('[SbSync] pullAll: have', localDays.length, 'local days');
+          if (error) { console.warn('[SbSync] pullAll:', error.message); return; }
 
           const toPush  = [];
           const inCloud = new Set(); // dates that exist in Supabase
@@ -7206,9 +7192,8 @@ ${sig}`
             if (!inCloud.has(dk)) toPush.push([dk, entry]);
           });
 
-          console.log('[SbSync] pullAll: pushing', toPush.length, 'local-only entries to Supabase');
           if (toPush.length) toPush.forEach(([dk, entry]) => this.pushDay(dk, entry));
-        } catch (e) { console.error('[SbSync] pullAll EXCEPTION:', e); }
+        } catch (e) { console.warn('[SbSync] pullAll failed:', e); }
       },
 
       // ── Settings sync (key-value JSONB) ──────────────────────────────

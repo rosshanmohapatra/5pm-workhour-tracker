@@ -740,6 +740,10 @@
     /* About Project card */
     .about-dev-pic { width: 40px; height: 40px; border-radius: 50%; object-fit: cover;
       border: 2px solid var(--border); flex-shrink: 0; }
+    /* Card is a 5-tap unlock target — block selection so tapping doesn't
+       highlight; opt the actual name/role text back in so it stays copyable. */
+    #devAboutCard { user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+    #devAboutCard .dev-selectable { user-select: text; -webkit-user-select: text; cursor: text; }
     .about-social-btn { display:inline-flex;align-items:center;justify-content:center;
       width:34px;height:34px;border-radius:8px;border:1px solid var(--border);
       background:transparent;color:var(--muted-fg);text-decoration:none;
@@ -2412,8 +2416,8 @@
           <div style="display:flex;align-items:center;gap:12px">
             <img class="about-dev-pic" src="https://framerusercontent.com/images/u88DE05m7bwVdrx5jcyopewNaE.jpg?width=200&height=200" alt="Roshan Mohapatra">
             <div style="flex:1;min-width:0">
-              <div style="font-size:13px;font-weight:600;color:var(--foreground);line-height:1.2">Roshan Mohapatra</div>
-              <div class="form-sub" style="margin-top:1px">Product Designer & Developer</div>
+              <div class="dev-selectable" style="font-size:13px;font-weight:600;color:var(--foreground);line-height:1.2">Roshan Mohapatra</div>
+              <div class="form-sub dev-selectable" style="margin-top:1px">Product Designer & Developer</div>
             </div>
             <div style="display:flex;align-items:center;gap:6px">
               <!-- GitHub -->

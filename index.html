@@ -3071,7 +3071,7 @@
       <div class="dialog-head" style="display:flex;align-items:flex-start;justify-content:space-between">
         <div>
           <div class="dialog-title">Your shift was auto-stopped</div>
-          <div class="dialog-desc" id="asrDesc">Your session automatically ended at <strong id="asrTime">10:00 PM</strong> after exceeding your daily limit.<br><br>If you left earlier, you can update the end time below.</div>
+          <div class="dialog-desc" id="asrDesc">It automatically ended an hour after your daily target.<br><br>When did you leave?</div>
         </div>
         <button class="btn-icon" onclick="closeAutoStopRecovery()" title="Close" style="margin:-4px -4px -4px 8px;flex-shrink:0">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
@@ -8084,7 +8084,6 @@ ${sig}`
       _asrDayKey = dayKey || null;
       const log = dayKey ? (dayLog(dayKey) || {}) : null;
       const prefill = (log && log.checkoutDisplay) ? log.checkoutDisplay : '10:00 PM';
-      el('asrTime').textContent = prefill;
       const inp = el('asrEndTime');
       inp.value = prefill;
       _asrOriginal = prefill;

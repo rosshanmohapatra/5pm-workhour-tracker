@@ -139,15 +139,16 @@
       box-shadow: var(--shadow-xs); }
     .nav-inner { height: 52px; padding: 0 8px; display: flex; align-items: center; justify-content: space-between; }
     .nav-tabs { display: flex; align-items: center; gap: 4px; }
-    .nav-tab { height: 34px; padding: 0 14px; border-radius: var(--radius-md); border: none;
+    .nav-tab { height: 34px; padding: 0 14px; border-radius: var(--radius-md); border: 1px solid transparent;
       background: transparent; color: var(--muted-fg); font-size: 13px; font-weight: 500;
-      font-family: var(--font); transition: background .14s, color .14s;
+      font-family: var(--font); transition: background .14s, color .14s, border-color .14s;
       display: flex; align-items: center; gap: 5px; }
-    .nav-tab:hover { background: var(--card); color: var(--foreground); }
-    .nav-tab.active { background: var(--card); color: var(--foreground); box-shadow: var(--shadow-xs); }
+    /* Hover = stroke only; active = filled card. Keeps the two states distinct. */
+    .nav-tab:hover { background: transparent; border-color: var(--border); color: var(--foreground); }
+    .nav-tab.active { background: var(--card); border-color: transparent; color: var(--foreground); box-shadow: var(--shadow-xs); }
     .dark .navbar { background: var(--background); }
-    .dark .nav-tab:hover { background: var(--muted); color: var(--foreground); }
-    .dark .nav-tab.active { background: var(--muted); color: var(--foreground); box-shadow: none; }
+    .dark .nav-tab:hover { background: transparent; border-color: var(--border); color: var(--foreground); }
+    .dark .nav-tab.active { background: var(--muted); border-color: transparent; color: var(--foreground); box-shadow: none; }
     .nav-tab.active .tab-icon { display: inline-flex !important; }
     .nav-actions { display: flex; align-items: center; gap: 8px; }
 
@@ -187,10 +188,11 @@
     /* ── Icon button ── */
     .btn-icon { display: inline-flex; align-items: center; justify-content: center;
       width: 36px; height: 36px; flex-shrink: 0; background: transparent;
-      border: none; border-radius: var(--radius-md); color: var(--muted-fg);
-      transition: background .14s, color .14s; position: relative; }
-    .btn-icon:hover  { background: var(--muted); color: var(--foreground); }
-    .dark .btn-icon:hover { background: var(--muted); }
+      border: 1px solid transparent; border-radius: var(--radius-md); color: var(--muted-fg);
+      transition: background .14s, color .14s, border-color .14s; position: relative; }
+    /* Hover = stroke only, no fill */
+    .btn-icon:hover  { background: transparent; border-color: var(--border); color: var(--foreground); }
+    .dark .btn-icon:hover { background: transparent; border-color: var(--border); }
     .btn-icon:active { opacity: .82; transform: scale(.97); }
     /* Active state mirrors the active nav tab — subtle card bg, not flashy black */
     .btn-icon.notif-active { background: var(--card); color: var(--foreground); box-shadow: var(--shadow-xs); }
@@ -259,8 +261,7 @@
     .theme-icon-wrap { position: relative; display: inline-flex; width: 16px; height: 16px; }
     .theme-icon-wrap .theme-icon-solid { position: absolute; top: 0; left: 0; opacity: 0; transition: opacity .18s ease; }
     .theme-icon-wrap .theme-icon-outline { transition: opacity .18s ease; }
-    #themeBtn:hover .theme-icon-outline { opacity: 0; }
-    #themeBtn:hover .theme-icon-solid { opacity: 1; }
+    /* Keep the outline icon on hover — never swap to the filled/solid variant */
     .fp-divider { display:flex;align-items:center;gap:10px;margin:2px 0;color:var(--muted-fg);font-size:11px; }
     .fp-divider::before,.fp-divider::after { content:'';flex:1;height:1px;background:var(--border); }
     .fp-oauth-btn { height:40px;display:flex;align-items:center;justify-content:center;gap:10px;
@@ -1093,9 +1094,9 @@
       position:fixed; bottom:24px; left:50%;
       transform:translateX(-50%) translateY(14px);
       min-width:220px; max-width:380px;
-      background:#18181b; border:1px solid rgba(255,255,255,.1);
+      background:var(--card); border:1px solid var(--border);
       border-radius:12px; padding:11px 14px;
-      box-shadow:0 8px 32px rgba(0,0,0,.45), 0 2px 6px rgba(0,0,0,.25);
+      box-shadow:var(--shadow-lg);
       transition:transform .32s cubic-bezier(.32,1,.54,1), opacity .22s;
       opacity:0; pointer-events:none; z-index:9999;
       display:flex; align-items:center; gap:10px;
@@ -1107,18 +1108,12 @@
     @media (max-width:640px) { .wh-toast { bottom:72px; } }
     .wh-toast-icon { width:15px; height:15px; flex-shrink:0; }
     .wh-toast-body { flex:1; min-width:0; }
-    .wh-toast-title { font-size:13px; font-weight:500; color:#fafafa; }
-    .wh-toast-desc { font-size:12px; color:rgba(255,255,255,.55); margin-top:2px; line-height:1.4; display:none; }
+    .wh-toast-title { font-size:13px; font-weight:500; color:var(--foreground); }
+    .wh-toast-desc { font-size:12px; color:var(--muted-fg); margin-top:2px; line-height:1.4; display:none; }
     .wh-toast-desc.visible { display:block; }
-    .wh-toast-close {
-      width:18px; height:18px; flex-shrink:0; background:transparent; border:none;
-      color:rgba(255,255,255,.4); cursor:pointer; font-size:13px; padding:0;
-      display:flex; align-items:center; justify-content:center;
-    }
-    .wh-toast-close:hover { color:#fafafa; }
-    .wh-toast.success .wh-toast-icon { color:#4ade80; }
-    .wh-toast.error   .wh-toast-icon { color:#f87171; }
-    .wh-toast.info    .wh-toast-icon { color:#93c5fd; }
+    .wh-toast.success .wh-toast-icon { color:var(--success); }
+    .wh-toast.error   .wh-toast-icon { color:var(--destructive); }
+    .wh-toast.info    .wh-toast-icon { color:var(--blue); }
 
     /* ── Footer label ── */
     .app-footer { position:fixed; bottom:14px; right:18px; font-size:11px; font-weight:500;
@@ -2814,7 +2809,7 @@
       <div class="wh-toast-title" id="toastTitle"></div>
       <div class="wh-toast-desc" id="toastDesc"></div>
     </div>
-    <button class="wh-toast-close" onclick="document.getElementById('ieToast').classList.remove('show')">✕</button>
+    <button class="btn-secondary" style="font-size:11px;height:30px;padding:0 10px;flex-shrink:0" onclick="document.getElementById('ieToast').classList.remove('show')">Close</button>
   </div>
 
   <!-- ── Wheel Time Picker Modal ── -->

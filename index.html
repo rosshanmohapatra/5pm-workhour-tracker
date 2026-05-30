@@ -2432,53 +2432,53 @@
 
         <!-- Developer (hidden by default — unlock with 5 taps on About Developer) -->
         <div class="settings-card" id="notifTestCard" style="display:none">
-          <div class="settings-card-head" style="cursor:default;display:flex;align-items:center;justify-content:space-between">
+          <!-- Header row + toggle — entire row clickable, like other Settings toggles -->
+          <div class="settings-card-head" onclick="el('devModeToggle').click()">
             <div class="section-label">Developer Mode</div>
             <label class="toggle" onclick="event.stopPropagation()">
               <input type="checkbox" id="devModeToggle" checked onchange="if(!this.checked) disableDevMode()">
               <span class="toggle-track"></span>
             </label>
           </div>
-          <div class="settings-card-body" style="padding-top:0;display:flex;flex-direction:column;gap:10px">
-            <div style="font-size:12px;color:var(--muted-fg);line-height:1.5;margin-bottom:4px">
-              A space to preview 5pm before it ships.
-            </div>
+          <div class="settings-card-body">
+            <div class="settings-group" style="gap:16px">
 
-            <div class="section-label">Notifications</div>
-            <div style="font-size:12px;color:var(--muted-fg);line-height:1.5;margin-bottom:2px">
-              See how each alert looks on your device.
-            </div>
-            <div id="notifTestPermWarn" style="display:none;font-size:12px;color:var(--warning);font-weight:500;margin-bottom:4px">
-              Turn on notifications in Settings to preview them.
-            </div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-              <button class="btn btn-secondary" style="font-size:12px;height:34px" onclick="testNotif('target')">Daily Target</button>
-              <button class="btn btn-secondary" style="font-size:12px;height:34px" onclick="testNotif('overtime')">Overtime</button>
-              <button class="btn btn-secondary" style="font-size:12px;height:34px" onclick="testNotif('forgotStop')">Forgot to Stop</button>
-              <button class="btn btn-secondary" style="font-size:12px;height:34px" onclick="testNotif('morningReminder')">Morning Reminder</button>
-              <button class="btn btn-secondary" style="font-size:12px;height:34px;grid-column:1/-1" onclick="testNotif('earlyLeave')">Early Leave</button>
-            </div>
+              <!-- Notifications — 3-column preview grid -->
+              <div>
+                <div class="form-label">Notifications</div>
+                <div class="form-sub" style="margin-bottom:10px">See how each alert looks on your device.</div>
+                <div id="notifTestPermWarn" style="display:none;font-size:12px;color:var(--warning);font-weight:500;margin-bottom:10px">
+                  Turn on notifications in Settings to preview them.
+                </div>
+                <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
+                  <button class="btn btn-secondary" style="font-size:12px;height:34px" onclick="testNotif('target')">Daily Target</button>
+                  <button class="btn btn-secondary" style="font-size:12px;height:34px" onclick="testNotif('overtime')">Overtime</button>
+                  <button class="btn btn-secondary" style="font-size:12px;height:34px" onclick="testNotif('forgotStop')">Forgot to Stop</button>
+                  <button class="btn btn-secondary" style="font-size:12px;height:34px" onclick="testNotif('morningReminder')">Morning</button>
+                  <button class="btn btn-secondary" style="font-size:12px;height:34px" onclick="testNotif('earlyLeave')">Early Leave</button>
+                </div>
+              </div>
 
-            <div style="height:1px;background:var(--border);margin:6px 0"></div>
-            <div class="section-label">Sync</div>
-            <div style="font-size:12px;color:var(--muted-fg);line-height:1.5;margin-bottom:2px">
-              Check the connection to your cloud data.
-            </div>
-            <button class="btn-secondary" style="width:100%;justify-content:center;gap:6px" onclick="runSyncDiagnostic()">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
-              Run Diagnostics
-            </button>
-            <div id="syncDiagResult" style="display:none;padding:12px;background:var(--muted);border-radius:var(--radius-md);font-size:11px;font-family:monospace;line-height:1.7;color:var(--foreground);white-space:pre-wrap;word-break:break-all"></div>
+              <!-- Sync — function row -->
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+                <div>
+                  <div class="form-label">Sync</div>
+                  <div class="form-sub">Check the connection to your cloud data.</div>
+                </div>
+                <button class="btn-secondary" onclick="runSyncDiagnostic()">Run Diagnostics</button>
+              </div>
+              <div id="syncDiagResult" style="display:none;padding:12px;background:var(--muted);border-radius:var(--radius-md);font-size:11px;font-family:monospace;line-height:1.7;color:var(--foreground);white-space:pre-wrap;word-break:break-all"></div>
 
-            <div style="height:1px;background:var(--border);margin:6px 0"></div>
-            <div class="section-label">Screens</div>
-            <div style="font-size:12px;color:var(--muted-fg);line-height:1.5;margin-bottom:2px">
-              Open a screen to review its design.
+              <!-- Screens — function row -->
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+                <div>
+                  <div class="form-label">Auto-Stop Recovery</div>
+                  <div class="form-sub">Preview the recovery screen.</div>
+                </div>
+                <button class="btn-secondary" onclick="openAutoStopRecovery()">Open</button>
+              </div>
+
             </div>
-            <button class="btn-secondary" style="width:100%;justify-content:center;gap:6px" onclick="openAutoStopRecovery()">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-              Auto-Stop Recovery
-            </button>
           </div>
         </div>
 

@@ -2090,8 +2090,14 @@
               <span id="profilePosition" class="profile-position"></span>
             </div>
             <div class="profile-email-row" id="profileEmailRow">—</div>
-            <div style="margin-top:6px">
-              <div class="profile-chip uid" id="profileUid" style="width:100%;max-width:100%;border-radius:var(--radius);font-size:10px;padding:0 8px">—</div>
+            <!-- User ID — dev mode only, styled as read-only input field -->
+            <div id="profileUidRow" style="display:none;margin-top:8px">
+              <div class="field-input" id="profileUid"
+                onclick="navigator.clipboard?.writeText(this.dataset.uid||'');showToast('User ID copied','info')"
+                style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:8px;font-family:monospace;font-size:11px;color:var(--muted-fg);padding:8px 12px;height:auto">
+                <span id="profileUidText" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">—</span>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+              </div>
             </div>
           </div>
         </div>
@@ -5985,54 +5991,64 @@
     }
 
     // ── Profile Card hydration ────────────────────────────
+    // _profileAuthData caches auth so we don't need to re-fetch on every settings change
+    let _profileAuthData = null;
+
     function hydrateProfileCard() {
       window._sbClient.auth.getUser().then(({ data }) => {
         const user = data?.user;
         if (!user) return;
-
-        const email = user.email || '—';
-        const meta  = user.user_metadata || {};
-        const c     = cfg();
-
-        // Avatar
-        const avatarUrl = meta.avatar_url || meta.picture || null;
-        const avatarEl  = el('profileAvatar');
-        if (avatarUrl) {
-          avatarEl.innerHTML = `<img src="${avatarUrl}" alt="" referrerpolicy="no-referrer">`;
-        } else {
-          avatarEl.textContent = (email[0] || '?').toUpperCase();
-        }
-
-        // Name — from cfg() if set, else OAuth metadata, else email prefix
-        const displayName = c.name?.trim() || meta.full_name || meta.name || email.split('@')[0];
-        el('profileName').textContent = displayName;
-
-        // Position / company title
-        const position = c.position?.trim() || '';
-        const titleRow = el('profileTitleRow');
-        if (position) {
-          el('profilePosition').textContent = position;
-          titleRow.style.display = '';
-          titleRow.style.marginTop = '2px';
-        } else {
-          titleRow.style.display = 'none';
-        }
-
-        // Email
-        el('profileEmailRow').textContent = email;
-
-        // User ID — full width row, tap to copy
-        const uid   = user.id || '—';
-        const uidEl = el('profileUid');
-        uidEl.innerHTML =
-          `<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1">${uid}</span>` +
-          `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-left:6px"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>`;
-        uidEl.title  = uid;
-        uidEl.onclick = () => {
-          navigator.clipboard?.writeText(uid);
-          showToast('User ID copied', 'info');
-        };
+        _profileAuthData = user;
+        _renderProfileCard(user);
       });
+    }
+
+    // Re-renders the name/position/email parts from current cfg() + cached auth.
+    // Call this whenever cfg changes so the card stays in sync.
+    function refreshProfileCard() {
+      if (_profileAuthData) _renderProfileCard(_profileAuthData);
+    }
+
+    function _renderProfileCard(user) {
+      const email = user.email || '—';
+      const meta  = user.user_metadata || {};
+      const c     = cfg();
+
+      // Avatar
+      const avatarUrl = meta.avatar_url || meta.picture || null;
+      const avatarEl  = el('profileAvatar');
+      if (avatarUrl) {
+        avatarEl.innerHTML = `<img src="${avatarUrl}" alt="" referrerpolicy="no-referrer">`;
+      } else {
+        avatarEl.textContent = (email[0] || '?').toUpperCase();
+      }
+
+      // Name — prefer cfg, fall back to OAuth metadata, then email prefix
+      const displayName = c.name?.trim() || meta.full_name || meta.name || email.split('@')[0];
+      el('profileName').textContent = displayName;
+
+      // Position — from cfg
+      const position = c.position?.trim() || '';
+      const titleRow = el('profileTitleRow');
+      if (position) {
+        el('profilePosition').textContent = position;
+        titleRow.style.display = '';
+        titleRow.style.marginTop = '2px';
+      } else {
+        titleRow.style.display = 'none';
+      }
+
+      // Email
+      el('profileEmailRow').textContent = email;
+
+      // User ID — stored in data attribute, shown only in dev mode
+      const uid   = user.id || '';
+      const uidEl = el('profileUid');
+      if (uidEl) {
+        uidEl.dataset.uid = uid;
+        const uidText = el('profileUidText');
+        if (uidText) uidText.textContent = uid;
+      }
     }
 
     // ── Sync Diagnostic ─────────────────────────────────
@@ -6276,6 +6292,7 @@
       renderDaySelector(); // refresh strip in case work-days changed
       updateWeeklyCalc();
       _refreshLastSaved();
+      refreshProfileCard(); // keep name/position in sync with inputs
       if (notifOn && 'Notification' in window) {
         if (Notification.permission === 'default') {
           Notification.requestPermission().then(p => {
@@ -8292,6 +8309,9 @@ ${sig}`
           const testCard = el('notifTestCard');
           if (testCard) {
             testCard.style.display = '';
+            // Show User ID on profile card in dev mode
+            const uidRow = el('profileUidRow');
+            if (uidRow) uidRow.style.display = '';
             showToast('Dev Mode enabled — reload to disable', 'info');
             testCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
           }
@@ -9222,13 +9242,14 @@ ${sig}`
             populateSettings();
             renderDaySelector();
             renderNotifs(); // apply synced dismissed state on load
+            refreshProfileCard(); // re-render card with pulled name/position
             if (loginDate) render(); else renderEmptyState();
           } finally { _applyingRemote = false; }
         }
         initRealtimeSync();
       });
 
-      // Hydrate the profile card with auth data (user ID, email, provider)
+      // Hydrate the profile card — auth data first, then cfg overlay when pullSettings resolves
       hydrateProfileCard();
 
       // Restore last active tab (persisted in sessionStorage across reloads)

@@ -2768,9 +2768,9 @@
   <!-- ── Support Project Modal ── -->
   <div class="overlay" id="supportOverlay" onclick="if(event.target===this)closeSupportModal()">
     <div class="dialog" style="max-width:320px">
-      <div class="dialog-head" style="display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);padding:14px">
+      <div class="dialog-head" style="display:flex;align-items:center;border-bottom:1px solid var(--border);padding:14px">
         <div class="dialog-title">Support Project</div>
-        <button class="btn-icon" onclick="closeSupportModal()" title="Close" style="margin:-4px -4px -4px 8px;flex-shrink:0">
+        <button class="btn-icon" onclick="closeSupportModal()" title="Close" style="margin-left:auto;flex-shrink:0">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>
       </div>
@@ -4514,8 +4514,13 @@
       d.textContent = desc;
       d.classList.toggle('visible', !!desc);
       const icon = el('toastIcon');
-      icon.innerHTML = _toastIcons[type] || _toastIcons.info;
-      icon.style.color = _toastColors[type] || _toastColors.info;
+      if (type === 'none') {
+        icon.style.display = 'none';
+      } else {
+        icon.style.display = '';
+        icon.innerHTML = _toastIcons[type] || _toastIcons.info;
+        icon.style.color = _toastColors[type] || _toastColors.info;
+      }
 
       const dismiss = () => t.classList.remove('show');
       const btn = el('toastActionBtn');
@@ -8550,7 +8555,7 @@ ${sig}`
         _devTimer = setTimeout(() => { _devTaps = 0; }, 2000);
         const left = 5 - _devTaps;
         if (_devTaps >= 3 && _devTaps < 5) {
-          showToast(`${left} more tap${left === 1 ? '' : 's'} to enter Developer`, 'info');
+          showToast(`${left} more tap${left === 1 ? '' : 's'} to enter Developer`, 'none');
         } else if (_devTaps >= 5) {
           _devTaps = 0;
           const testCard = el('notifTestCard');
@@ -8565,7 +8570,7 @@ ${sig}`
             // Show User ID on profile card in dev mode
             const uidRow = el('profileUidRow');
             if (uidRow) uidRow.style.display = '';
-            showToast('Welcome, Developer', 'info');
+            showToast('Welcome, Developer', 'none');
             testCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
           }
         }

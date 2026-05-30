@@ -137,8 +137,7 @@
     /* ── Navbar ── */
     .navbar { background: var(--muted); border: 1px solid var(--border); border-radius: var(--radius-lg);
       box-shadow: var(--shadow-xs); }
-    .nav-inner { height: 52px; padding: 0 8px 0 14px; display: flex; align-items: center; justify-content: space-between; }
-    .nav-left { display: flex; align-items: center; gap: 14px; }
+    .nav-inner { height: 52px; padding: 0 8px; display: flex; align-items: center; justify-content: space-between; }
     .nav-tabs { display: flex; align-items: center; gap: 4px; }
     .nav-tab { height: 34px; padding: 0 14px; border-radius: var(--radius-md); border: none;
       background: transparent; color: var(--muted-fg); font-size: 13px; font-weight: 500;
@@ -728,6 +727,9 @@
     .sponsor-btn:hover { background:var(--muted); }
     .about-version-badge { font-size:11px;font-weight:600;letter-spacing:.06em;
       background:var(--muted);color:var(--muted-fg);padding:2px 8px;border-radius:6px; }
+    .page-brand { position:fixed;top:12px;left:12px;z-index:10;display:inline-flex;
+      align-items:center;text-decoration:none;line-height:0; }
+    @media (max-width:640px) { .page-brand { display:none !important; } }
     .version-pill { position:fixed;bottom:16px;right:16px;
       display:inline-flex;align-items:center;gap:6px;padding:4px 4px 4px 12px;
       border-radius:100px;background:var(--background);border:1px solid var(--border);
@@ -1663,18 +1665,20 @@
     </div>
   </div>
 
+  <!-- Fixed brand logo — page top-left corner (desktop/tablet only) -->
+  <a href="/" class="page-brand" title="5pm">
+    <img id="navLogo" src="brand-light.svg" alt="5pm" height="28" style="display:block;border-radius:6px">
+  </a>
+
   <!-- ── App ── -->
   <div id="appWrap" style="max-width:600px;margin:0 auto;padding:24px 24px 0;">
     <!-- Navbar -->
     <nav class="navbar">
       <div class="nav-inner">
-        <div class="nav-left">
-          <img id="navLogo" src="brand-light.svg" alt="5pm" height="26" style="display:block;border-radius:6px;flex-shrink:0">
-          <div class="nav-tabs">
-            <button class="nav-tab active" data-view="home" id="tabHome">Overview</button>
-            <button class="nav-tab" data-view="analytics" id="tabAnalytics">Dashboard</button>
-            <button class="nav-tab" data-view="settings" id="tabSettings">Settings</button>
-          </div>
+        <div class="nav-tabs">
+          <button class="nav-tab active" data-view="home" id="tabHome">Overview</button>
+          <button class="nav-tab" data-view="analytics" id="tabAnalytics">Dashboard</button>
+          <button class="nav-tab" data-view="settings" id="tabSettings">Settings</button>
         </div>
         <div class="nav-actions">
           <button class="btn-icon" id="themeBtn" title="Theme · D">

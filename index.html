@@ -702,6 +702,21 @@
       .support-upi { width: 120px; }
     }
 
+    /* ── Dev code interface (Dark Knight) ── */
+    .diag-btn { height: 26px; padding: 0 10px; border-radius: 6px; font-size: 11px; font-weight: 500;
+      font-family: var(--font); background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.14);
+      color: #e8e8e8; cursor: pointer; display: inline-flex; align-items: center; justify-content: center;
+      gap: 5px; transition: background .12s; }
+    .diag-btn:hover { background: rgba(255,255,255,.13); }
+    .diag-btn.icon-only { width: 26px; padding: 0; }
+    /* Fluent-style scrollbar */
+    #syncDiagResult { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,.22) transparent; }
+    #syncDiagResult::-webkit-scrollbar { width: 10px; height: 10px; }
+    #syncDiagResult::-webkit-scrollbar-track { background: transparent; }
+    #syncDiagResult::-webkit-scrollbar-thumb { background: rgba(255,255,255,.2); border-radius: 10px;
+      border: 3px solid #0a0a0a; background-clip: padding-box; }
+    #syncDiagResult::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,.34); border: 3px solid #0a0a0a; background-clip: padding-box; }
+
     /* ── Checkout modal ── */
     .overlay { position: fixed; inset: 0; z-index: 200; background: rgba(0,0,0,.38);
       backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
@@ -2476,11 +2491,15 @@
                 </div>
                 <button class="btn-secondary" style="flex-shrink:0" onclick="runSyncDiagnostic()">Run Diagnostics</button>
               </div>
-              <!-- Code interface — Dark Knight theme, with a fixed Copy Log button -->
+              <!-- Code interface — Dark Knight theme, fixed Collapse + Copy Log buttons -->
               <div id="syncDiagWrap" style="display:none;position:relative">
-                <button id="syncDiagCopy" onclick="_copyDiagLog()"
-                  style="position:absolute;top:8px;right:8px;z-index:2;font-size:10px;font-weight:600;height:24px;padding:0 8px;border-radius:6px;border:1px solid #5a4a00;background:#1a1500;color:#ffd23f;cursor:pointer;font-family:var(--font)">Copy Log</button>
-                <div id="syncDiagResult" style="padding:14px 12px 12px;background:#0a0a0a;border:1px solid #222;border-radius:var(--radius-md);font-size:11px;font-family:'SF Mono',ui-monospace,monospace;line-height:1.7;color:#ffd23f;white-space:pre-wrap;word-break:break-all;max-height:280px;overflow:auto"></div>
+                <div style="position:absolute;top:8px;right:8px;z-index:2;display:flex;gap:6px">
+                  <button id="syncDiagToggle" class="diag-btn icon-only" onclick="_toggleDiagLog()" title="Collapse">
+                    <svg id="syncDiagChevron" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+                  </button>
+                  <button id="syncDiagCopy" class="diag-btn" onclick="_copyDiagLog()">Copy Log</button>
+                </div>
+                <div id="syncDiagResult" style="padding:14px 12px 12px;background:#0a0a0a;border:1px solid #222;border-radius:var(--radius-md);font-size:11px;font-family:'SF Mono',ui-monospace,monospace;line-height:1.7;color:#8a8f98;white-space:pre-wrap;word-break:break-all;max-height:280px;overflow:auto"></div>
               </div>
 
             </div>
@@ -6158,11 +6177,36 @@
       const btn = el('syncDiagCopy');
       if (btn) { const o = btn.textContent; btn.textContent = 'Copied'; setTimeout(() => btn.textContent = o, 1500); }
     }
+    function _toggleDiagLog() {
+      const out = el('syncDiagResult'), chev = el('syncDiagChevron'), btn = el('syncDiagToggle');
+      if (!out) return;
+      const collapsed = out.style.display === 'none';
+      out.style.display = collapsed ? '' : 'none';
+      if (btn) btn.title = collapsed ? 'Collapse' : 'Expand';
+      // Chevron points up when expanded, down when collapsed
+      if (chev) chev.innerHTML = collapsed ? '<polyline points="18 15 12 9 6 15"/>' : '<polyline points="6 9 12 15 18 9"/>';
+    }
+    // Priority colour map for the code interface:
+    //   red = errors · white = success · purple = headers · gray = normal/detail
+    function _diagColor(line) {
+      const t = line.trim();
+      if (/^\/{2,}.*\/{2,}$/.test(t)) return '#bd93f9';   // header → purple
+      if (line.includes('❌')) return '#ff5f56';          // error → red
+      if (line.includes('✅')) return '#ffffff';          // success → white
+      return '#8a8f98';                                    // normal/detail → gray
+    }
+    function _diagEsc(s) {
+      return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
     async function runSyncDiagnostic() {
       const wrap = el('syncDiagWrap'); if (wrap) wrap.style.display = 'block';
       const out = el('syncDiagResult');
+      out.style.display = ''; // ensure expanded on a fresh run
       const lines = [];
-      const log = (msg) => { lines.push(msg); out.textContent = lines.join('\n'); };
+      const log = (msg) => {
+        lines.push(msg);
+        out.innerHTML = lines.map(l => `<span style="color:${_diagColor(l)}">${_diagEsc(l)}</span>`).join('\n');
+      };
 
       log('//////Sync Diagnostic//////');
 

@@ -966,10 +966,14 @@
     .day-sel-btn.wkd-btn { flex: 0.75; border-style: dashed; }
     .day-sel-btn.wkd-btn.active { border-style: solid; }
 
-    /* ── This Week wrapper ── */
-    .this-week-wrap { background: var(--card); border-radius: 12px; padding: 8px; display: flex; flex-direction: column; gap: 8px; }
-    .this-week-header { display: flex; align-items: center; justify-content: space-between; }
-    .this-week-label { font-size: 11px; font-weight: 600; color: var(--muted-fg); letter-spacing: .05em; text-transform: uppercase; }
+    /* ── This Week wrapper — card with rc-head-style bordered header ── */
+    .this-week-wrap { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-lg);
+      overflow: hidden; box-shadow: var(--shadow-xs); display: flex; flex-direction: column; }
+    .dark .this-week-wrap { box-shadow: none; }
+    .this-week-header { display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 16px; border-bottom: 1px solid var(--border); }
+    .this-week-wrap .day-selector { padding: 14px 16px 16px; }
+    .this-week-label { font-size: 11px; font-weight: 600; color: var(--muted-fg); letter-spacing: .06em; text-transform: uppercase; }
     .this-week-nav { display: flex; gap: 4px; }
     .this-week-btn { width: 24px; height: 24px; border-radius: 6px; border: none; background: var(--muted); color: var(--foreground); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: background .12s; padding: 0; }
     .this-week-btn:hover { background: var(--border); }
@@ -2746,7 +2750,7 @@
         <!-- UPI ID — same width as QR (180px desktop / 120px mobile) -->
         <button id="upiCopyBtn" class="support-upi" onclick="_copyUpi()"
           style="background:var(--muted);border:1px solid var(--border);border-radius:var(--radius-md);padding:8px 10px;display:flex;align-items:center;justify-content:space-between;gap:6px;cursor:pointer">
-          <span id="upiLabel" style="font-size:10px;font-weight:600;font-family:monospace;color:var(--foreground);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">sampleupi@hdfc</span>
+          <span id="upiLabel" style="font-size:13px;font-weight:500;font-family:var(--font);color:var(--foreground);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">sampleupi@hdfc</span>
           <svg id="upiCopyIcon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;color:var(--muted-fg)"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
           <svg id="upiCheckIcon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;color:var(--success);display:none"><polyline points="20 6 9 17 4 12"/></svg>
         </button>

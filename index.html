@@ -3068,7 +3068,7 @@
   <!-- Auto-Stop Recovery Modal -->
   <div class="overlay" id="autoStopRecoveryOverlay" style="z-index:2100" onclick="if(event.target===this)closeAutoStopRecovery()">
     <div class="dialog" style="max-width:380px">
-      <div class="dialog-head" style="display:flex;align-items:flex-start;justify-content:space-between">
+      <div class="dialog-head" style="display:flex;align-items:flex-start;justify-content:space-between;padding:14px">
         <div>
           <div class="dialog-title">Your shift was auto-stopped</div>
           <div class="dialog-desc" id="asrDesc">It automatically ended an hour after your daily target.<br><br>When did you leave?</div>
@@ -3077,7 +3077,7 @@
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>
       </div>
-      <div class="dialog-body">
+      <div class="dialog-body" style="padding:0 14px 14px">
         <div style="position:relative" class="time-input-wrap">
           <input type="text" class="field-input" id="asrEndTime" placeholder="End time" autocomplete="off" style="padding-left:38px;width:100%">
           <button type="button" class="tp-icon-btn" onclick="openTpModal('asrEndTime',event,'End Time',_asrOnTimeChange)" title="Pick time">
@@ -3086,7 +3086,7 @@
         </div>
         <div class="err-msg" id="asrErr">Couldn't parse that time.</div>
       </div>
-      <div class="dialog-foot-row">
+      <div class="dialog-foot-row" style="padding:0 14px 14px">
         <button class="btn btn-cancel" onclick="closeAutoStopRecovery()">Keep</button>
         <button class="btn btn-primary" id="asrUpdateBtn" disabled onclick="_asrUpdate()">Update</button>
       </div>

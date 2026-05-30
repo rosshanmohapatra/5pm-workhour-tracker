@@ -221,6 +221,7 @@
     .btn-primary { background: var(--foreground); color: var(--background);
       height: 40px; padding: 0 24px; width: 100%; justify-content: center; }
     .btn-primary:hover { filter: brightness(.88); }
+    .btn-primary:disabled { opacity: .4; cursor: not-allowed; filter: none; }
     .btn-cancel { background: var(--muted); color: var(--foreground);
       height: 40px; padding: 0 16px; width: 100%;
       border: 1px solid var(--border); border-radius: var(--radius-md);
@@ -2455,6 +2456,12 @@
               Test Sync
             </button>
             <div id="syncDiagResult" style="display:none;padding:12px;background:var(--muted);border-radius:var(--radius-md);font-size:11px;font-family:monospace;line-height:1.7;color:var(--foreground);white-space:pre-wrap;word-break:break-all"></div>
+            <div style="height:1px;background:var(--border);margin:6px 0"></div>
+            <div class="section-label">Modal Tests</div>
+            <button class="btn-secondary" style="width:100%;justify-content:center;gap:6px" onclick="openAutoStopRecovery()">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              Auto-Stop Recovery
+            </button>
           </div>
         </div>
 
@@ -3054,6 +3061,34 @@
       <div class="dialog-foot">
         <button class="btn btn-primary" id="forgotSaveBtn">Save End Time</button>
         <button class="btn btn-cancel" id="forgotDismissBtn">Ignore</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Auto-Stop Recovery Modal -->
+  <div class="overlay" id="autoStopRecoveryOverlay" style="z-index:2100" onclick="if(event.target===this)closeAutoStopRecovery()">
+    <div class="dialog" style="max-width:380px">
+      <div class="dialog-head" style="display:flex;align-items:flex-start;justify-content:space-between">
+        <div>
+          <div class="dialog-title">Your shift was auto-stopped</div>
+          <div class="dialog-desc" id="asrDesc">Your session automatically ended at <strong id="asrTime">10:00 PM</strong> after exceeding your daily limit.<br><br>If you left earlier, you can update the end time below.</div>
+        </div>
+        <button class="btn-icon" onclick="closeAutoStopRecovery()" title="Close" style="margin:-4px -4px -4px 8px;flex-shrink:0">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="dialog-body">
+        <div style="position:relative" class="time-input-wrap">
+          <input type="text" class="field-input" id="asrEndTime" placeholder="End time" autocomplete="off" style="padding-left:38px;width:100%">
+          <button type="button" class="tp-icon-btn" onclick="openTpModal('asrEndTime',event,'End Time',_asrOnTimeChange)" title="Pick time">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M16.5 13C17.0523 13 17.5 12.5523 17.5 12C17.5 11.4477 17.0523 11 16.5 11H13V5.5C13 4.94772 12.5523 4.5 12 4.5C11.4477 4.5 11 4.94772 11 5.5V12C11 12.5523 11.4477 13 12 13H16.5Z" fill="currentColor"/><path fill-rule="evenodd" clip-rule="evenodd" d="M12 1C5.92487 1 1 5.92487 1 12C1 18.0751 5.92487 23 12 23C18.0751 23 23 18.0751 23 12C23 5.92487 18.0751 1 12 1ZM3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12Z" fill="currentColor"/></svg>
+          </button>
+        </div>
+        <div class="err-msg" id="asrErr">Couldn't parse that time.</div>
+      </div>
+      <div class="dialog-foot-row">
+        <button class="btn btn-cancel" onclick="closeAutoStopRecovery()">Keep</button>
+        <button class="btn btn-primary" id="asrUpdateBtn" disabled onclick="_asrUpdate()">Update</button>
       </div>
     </div>
   </div>
@@ -8027,6 +8062,85 @@ ${sig}`
       el('weekPlanOverlay').classList.remove('open');
     }
 
+    // ── AUTO-STOP RECOVERY ─────────────────────────────
+    // Offers a one-tap end-time correction for a session that was
+    // automatically stopped after exceeding the daily limit.
+    let _asrDayKey = null;       // day being corrected (null = demo/dev)
+    let _asrOriginal = '';       // prefilled value; Update enabled only when changed
+
+    // Scan recent days for an auto-stopped session not yet acknowledged.
+    function checkAutoStopRecovery() {
+      const candidate = Object.entries(Store.allDays())
+        .filter(([k, v]) => v && v.autostopped && !_asrSeen(k))
+        .sort((a, b) => (a[0] < b[0] ? 1 : -1))[0]; // newest first
+      if (candidate) { openAutoStopRecovery(candidate[0]); return true; }
+      return false;
+    }
+    function _asrSeen(k)    { try { return localStorage.getItem('wh_asr_seen_' + k); } catch { return false; } }
+    function _asrMarkSeen(k){ if (k) { try { localStorage.setItem('wh_asr_seen_' + k, '1'); } catch {} } }
+
+    // Open the recovery modal. dayKey omitted → demo mode (dev trigger).
+    function openAutoStopRecovery(dayKey) {
+      _asrDayKey = dayKey || null;
+      const log = dayKey ? (dayLog(dayKey) || {}) : null;
+      const prefill = (log && log.checkoutDisplay) ? log.checkoutDisplay : '10:00 PM';
+      el('asrTime').textContent = prefill;
+      const inp = el('asrEndTime');
+      inp.value = prefill;
+      _asrOriginal = prefill;
+      el('asrErr').classList.remove('show');
+      el('asrUpdateBtn').disabled = true;
+      _asrMarkSeen(dayKey); // shows once per auto-stopped session
+      el('autoStopRecoveryOverlay').classList.add('open');
+    }
+    function closeAutoStopRecovery() {
+      el('autoStopRecoveryOverlay').classList.remove('open');
+    }
+    // Enable Update only when the value is a valid time AND differs from prefill
+    function _asrOnTimeChange() {
+      const v = el('asrEndTime').value.trim();
+      const ok = parse(v) !== null && v !== _asrOriginal;
+      el('asrUpdateBtn').disabled = !ok;
+      el('asrErr').classList.remove('show');
+    }
+    function _asrUpdate() {
+      const e = parse(el('asrEndTime').value);
+      if (!e) { el('asrErr').classList.add('show'); return; }
+      const dk = _asrDayKey;
+      if (!dk) { closeAutoStopRecovery(); showToast('End time updated', 'success'); return; } // demo
+
+      const log = dayLog(dk) || {};
+      // Reconstruct login datetime from the day key + stored loginTime
+      let s = null;
+      if (log.loginTime) {
+        const pts = log.loginTime.split(':').map(Number);
+        s = new Date(dk + 'T00:00:00'); s.setHours(pts[0] || 0, pts[1] || 0, pts[2] || 0, 0);
+      }
+      // End datetime on the same calendar day (handle overnight)
+      let end = new Date(dk + 'T00:00:00'); end.setHours(e.getHours(), e.getMinutes(), e.getSeconds(), 0);
+      if (s && end <= s) end = new Date(end.getTime() + 86400000);
+      const worked = s ? Math.max(0, Math.floor((end - s) / 1000)) : Math.round((log.hoursWorked || 0) * 3600);
+
+      saveDayLogAndSync(dk, { ...log,
+        checkoutDisplay: short(end),
+        hoursWorked: worked / 3600,
+        autostopped: false,       // user corrected it — no longer an auto-stop
+        sessionTag: 'edited',
+        lastUpdated: new Date().toISOString()
+      });
+
+      // If correcting today's session, clear the live auto-stop UI
+      if (dk === todayKey()) {
+        autoStopped = false;
+        el('autostopBanner').classList.remove('show');
+        setCalcBtnState('ended');
+        renderEmptyState();
+      }
+      renderDaySelector(); renderHistory();
+      closeAutoStopRecovery();
+      showToast('End time updated', 'success');
+    }
+
     // ── FORGOT TO LOG OUT ──────────────────────────────
     let _forgotKey = null;
     function checkForgotLogout() {
@@ -8370,6 +8484,9 @@ ${sig}`
       }).catch(() => { ta.select(); document.execCommand('copy'); });
     });
 
+    // Auto-stop recovery: live-validate the end-time input
+    el('asrEndTime')?.addEventListener('input', _asrOnTimeChange);
+
     // Day edit modal
     el('dayEditSave').addEventListener('click', saveDayEditModal);
     el('dayEditCancel').addEventListener('click', closeDayEditModal);
@@ -8502,6 +8619,7 @@ ${sig}`
         closeFpModal?.();
         closeSupportModal?.();
         closeImportModal?.();
+        closeAutoStopRecovery?.();
         el('weekPlanOverlay')?.classList.remove('open');
         el('forgotLogoutOverlay')?.classList.remove('open');
         el('endSessionOverlay')?.classList.remove('open');
@@ -9258,8 +9376,13 @@ ${sig}`
       restoreSession();
       // Start checkpoint timer if session is active (survives reload)
       if (loginDate) _startCheckpoint();
-      // Check for forgot-to-logout
-      if (!loginDate) setTimeout(checkForgotLogout, 800);
+      // Recovery prompts. Auto-stop recovery runs even when loginDate is set
+      // (an auto-stopped session restores loginDate for display). Forgot-to-logout
+      // only applies when there's no active/ended session today.
+      setTimeout(() => {
+        const shown = checkAutoStopRecovery();
+        if (!shown && !loginDate) checkForgotLogout();
+      }, 800);
 
       // Always pull from Supabase on startup — merges by updated_at so newer side wins.
       // Previously this was guarded by "length === 0" which meant any device with local

@@ -2459,23 +2459,28 @@
                 </div>
               </div>
 
-              <!-- Sync — function row -->
+              <!-- Screens — function row -->
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+                <div>
+                  <div class="form-label">Auto Stop Tracking</div>
+                  <div class="form-sub">A modal when the user forgets to stop the timer &amp; it stops automatically.</div>
+                </div>
+                <button class="btn-secondary" style="flex-shrink:0" onclick="openAutoStopRecovery()">Open Modal</button>
+              </div>
+
+              <!-- Sync — function row (kept at the bottom) -->
               <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
                 <div>
                   <div class="form-label">Sync</div>
                   <div class="form-sub">Check the connection to your cloud data.</div>
                 </div>
-                <button class="btn-secondary" onclick="runSyncDiagnostic()">Run Diagnostics</button>
+                <button class="btn-secondary" style="flex-shrink:0" onclick="runSyncDiagnostic()">Run Diagnostics</button>
               </div>
-              <div id="syncDiagResult" style="display:none;padding:12px;background:var(--muted);border-radius:var(--radius-md);font-size:11px;font-family:monospace;line-height:1.7;color:var(--foreground);white-space:pre-wrap;word-break:break-all"></div>
-
-              <!-- Screens — function row -->
-              <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
-                <div>
-                  <div class="form-label">Auto-Stop Recovery</div>
-                  <div class="form-sub">Preview the recovery screen.</div>
-                </div>
-                <button class="btn-secondary" onclick="openAutoStopRecovery()">Open</button>
+              <!-- Code interface — Dark Knight theme, with a fixed Copy Log button -->
+              <div id="syncDiagWrap" style="display:none;position:relative">
+                <button id="syncDiagCopy" onclick="_copyDiagLog()"
+                  style="position:absolute;top:8px;right:8px;z-index:2;font-size:10px;font-weight:600;height:24px;padding:0 8px;border-radius:6px;border:1px solid #5a4a00;background:#1a1500;color:#ffd23f;cursor:pointer;font-family:var(--font)">Copy Log</button>
+                <div id="syncDiagResult" style="padding:14px 12px 12px;background:#0a0a0a;border:1px solid #222;border-radius:var(--radius-md);font-size:11px;font-family:'SF Mono',ui-monospace,monospace;line-height:1.7;color:#ffd23f;white-space:pre-wrap;word-break:break-all;max-height:280px;overflow:auto"></div>
               </div>
 
             </div>
@@ -6147,13 +6152,19 @@
     }
 
     // ── Sync Diagnostic ─────────────────────────────────
+    function _copyDiagLog() {
+      const txt = el('syncDiagResult')?.textContent || '';
+      navigator.clipboard?.writeText(txt);
+      const btn = el('syncDiagCopy');
+      if (btn) { const o = btn.textContent; btn.textContent = 'Copied'; setTimeout(() => btn.textContent = o, 1500); }
+    }
     async function runSyncDiagnostic() {
+      const wrap = el('syncDiagWrap'); if (wrap) wrap.style.display = 'block';
       const out = el('syncDiagResult');
-      out.style.display = 'block';
       const lines = [];
       const log = (msg) => { lines.push(msg); out.textContent = lines.join('\n'); };
 
-      log('── Sync Diagnostic ──');
+      log('//////Sync Diagnostic//////');
 
       // 1. Session check
       try {
@@ -6237,7 +6248,7 @@
         } catch (e) { log('❌ STEP 6 EXCEPTION: ' + e.message); }
       }
 
-      log('\n── Done ──');
+      log('\n//////Done//////');
     }
 
     function toggleCard(id) {

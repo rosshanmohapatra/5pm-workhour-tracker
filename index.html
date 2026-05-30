@@ -646,10 +646,12 @@
     .settings-section .settings-group { gap: 16px; }
     .settings-section-divider { height: 1px; background: var(--border); }
 
-    /* ── Sync status chip ── */
+    /* ── Sync button states ── */
     @keyframes sync-spin { to { transform: rotate(360deg); } }
-    #syncChip.syncing #syncChipDot { animation: sync-spin .7s linear infinite; border-radius: 0; width: 10px; height: 10px;
-      background: none; border: 1.5px solid currentColor; border-top-color: transparent; }
+    #syncBtn.syncing { pointer-events: none; }
+    #syncBtn.syncing #syncIconSpinner { animation: sync-spin .7s linear infinite; }
+    #syncBtn.synced { background: var(--success-bg); color: var(--success); border-color: var(--success-border); }
+    #syncBtn.error { background: var(--warning-bg); color: var(--warning); border-color: var(--warning-border); }
 
     /* ── Profile card (Settings) ── */
     .profile-card {
@@ -2062,18 +2064,15 @@
         <div class="settings-header" style="flex-direction:row;align-items:center;padding-bottom:12px;border-bottom:1px solid var(--border)">
           <div>
             <div class="settings-title">Settings</div>
+            <div class="form-sub" id="settingsLastSaved" style="font-size:11px;color:var(--muted-fg);margin-top:2px">Not saved yet</div>
           </div>
-          <div style="margin-left:auto;display:flex;align-items:center;gap:8px" id="syncStatusWrap">
-            <div id="syncChip" style="display:inline-flex;align-items:center;gap:4px;height:22px;padding:0 8px;border-radius:100px;font-size:10px;font-weight:600;letter-spacing:.02em;white-space:nowrap;background:var(--success-bg);color:var(--success)">
-              <span id="syncChipDot" style="width:6px;height:6px;border-radius:100px;background:currentColor;flex-shrink:0"></span>
-              <span id="syncChipLabel">Synced</span>
-            </div>
-            <div class="form-sub" id="settingsLastSaved" style="font-size:11px;color:var(--muted-fg);white-space:nowrap">Not saved yet</div>
-            <button class="btn-secondary" id="syncRetryBtn" onclick="retrySyncNow()" style="display:none;font-size:10px;height:22px;padding:0 8px;gap:4px;flex-shrink:0">
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
-              Retry
-            </button>
-          </div>
+          <button class="btn-secondary" id="syncBtn" onclick="_onSyncBtnClick()" style="margin-left:auto;font-size:11px;height:30px;padding:0 10px;gap:5px">
+            <svg id="syncIconDefault" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+            <svg id="syncIconSpinner" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+            <svg id="syncIconCheck" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:none"><polyline points="20 6 9 17 4 12"/></svg>
+            <svg id="syncIconError" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            <span id="syncBtnLabel">Sync</span>
+          </button>
         </div>
 
         <!-- Profile Card -->
@@ -7323,27 +7322,56 @@ ${sig}`
     }
     setInterval(_refreshLastSaved, 30000);
 
-    // Drive the sync chip + text + retry button
+    // Drive the sync button icon + label
+    let _syncResetTimer = null;
     function _setSyncStatus(state) {
-      const chip = el('syncChip'), label = el('syncChipLabel'), text = el('settingsLastSaved'), retry = el('syncRetryBtn');
-      if (!chip) return;
-      chip.classList.remove('syncing');
+      const btn = el('syncBtn'), label = el('syncBtnLabel');
+      if (!btn) return;
+      if (_syncResetTimer) { clearTimeout(_syncResetTimer); _syncResetTimer = null; }
+
+      // Hide all icons first
+      el('syncIconDefault').style.display = 'none';
+      el('syncIconSpinner').style.display = 'none';
+      el('syncIconCheck').style.display   = 'none';
+      el('syncIconError').style.display   = 'none';
+      btn.classList.remove('syncing', 'synced', 'error');
+
       if (state === 'syncing') {
-        chip.style.background = 'var(--blue-bg)'; chip.style.color = 'var(--blue)';
-        chip.classList.add('syncing');
+        el('syncIconSpinner').style.display = '';
+        btn.classList.add('syncing');
         label.textContent = 'Syncing';
-        text.textContent = 'Syncing…';
-        if (retry) retry.style.display = 'none';
       } else if (state === 'failed') {
-        chip.style.background = 'var(--destructive-bg)'; chip.style.color = 'var(--destructive)';
-        label.textContent = 'Failed';
-        text.textContent = 'Sync failed';
-        if (retry) retry.style.display = '';
-      } else {
-        chip.style.background = 'var(--success-bg)'; chip.style.color = 'var(--success)';
+        el('syncIconError').style.display = '';
+        btn.classList.add('error');
+        label.textContent = 'Sync Error';
+        // Return to default after 2s — but keep error state in backend
+        _syncResetTimer = setTimeout(() => _setSyncStatus('default'), 2000);
+      } else if (state === 'synced') {
+        el('syncIconCheck').style.display = '';
+        btn.classList.add('synced');
         label.textContent = 'Synced';
-        _refreshLastSaved();
-        if (retry) retry.style.display = 'none';
+        // Return to default after 2s
+        _syncResetTimer = setTimeout(() => _setSyncStatus('default'), 2000);
+      } else {
+        // default — idle state
+        el('syncIconDefault').style.display = '';
+        label.textContent = 'Sync';
+      }
+    }
+
+    // Click handler: in error state → retry; in default → manual sync
+    function _onSyncBtnClick() {
+      if (_lastFailedDays.length || _lastFailedCfg) {
+        retrySyncNow();
+      } else if (_hasPending()) {
+        _syncNow();
+      } else {
+        // Nothing dirty — force a full pull+push cycle
+        _setSyncStatus('syncing');
+        SbSync.pullAll().then(() => {
+          _setSyncStatus('synced');
+          showToast('Synced', 'success');
+        });
       }
     }
 

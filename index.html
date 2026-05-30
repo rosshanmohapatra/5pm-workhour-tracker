@@ -2117,7 +2117,7 @@
               <!-- User ID — dev mode only -->
               <div id="profileUidRow" style="display:none;margin-top:8px">
                 <div class="field-input" id="profileUid"
-                  onclick="navigator.clipboard?.writeText(this.dataset.uid||'');showToast('User ID copied','info')"
+                  onclick="navigator.clipboard?.writeText(this.dataset.uid||'');showToast('User ID copied','info','',{label:'Okay'})"
                   style="cursor:pointer;display:inline-flex;align-items:center;gap:8px;font-family:monospace;font-size:11px;color:var(--muted-fg);padding:6px 10px;height:auto">
                   <span id="profileUidText" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">—</span>
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
@@ -2824,7 +2824,7 @@
       <div class="wh-toast-title" id="toastTitle"></div>
       <div class="wh-toast-desc" id="toastDesc"></div>
     </div>
-    <button class="btn-secondary" style="font-size:11px;height:30px;padding:0 10px;flex-shrink:0" onclick="document.getElementById('ieToast').classList.remove('show')">Close</button>
+    <button class="btn-secondary" id="toastActionBtn" style="font-size:11px;height:30px;padding:0 10px;flex-shrink:0">Close</button>
   </div>
 
   <!-- ── Wheel Time Picker Modal ── -->
@@ -3717,7 +3717,7 @@
         const _fKey = 'wh_report_nudge_' + currentWeekId();
         if (!localStorage.getItem(_fKey)) {
           localStorage.setItem(_fKey, '1');
-          setTimeout(() => showToast('📋 Great work this week! Check your weekly report.', 'info'), 2500);
+          setTimeout(() => showToast('Check your weekly report', 'info', '', { label: 'Check', onClick: () => switchTab('analytics') }), 2500);
         }
       }
       // Reset state — clearLogin() is called inside closeCheckoutModal
@@ -4458,7 +4458,11 @@
       info:    '<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>',
     };
     const _toastColors = { success: 'var(--success)', error: 'var(--destructive)', info: 'var(--blue)' };
-    function showToast(title, type = 'info', desc = '') {
+    // showToast(title, type, desc, action)
+    //   action: undefined → default "Close" button
+    //           null       → no button
+    //           {label, onClick} → labeled action button (runs onClick, then dismisses)
+    function showToast(title, type = 'info', desc = '', action) {
       const t = el('ieToast'); if (!t) return;
       t.className = `wh-toast ${type}`;
       el('toastTitle').textContent = title;
@@ -4468,9 +4472,22 @@
       const icon = el('toastIcon');
       icon.innerHTML = _toastIcons[type] || _toastIcons.info;
       icon.style.color = _toastColors[type] || _toastColors.info;
+
+      const dismiss = () => t.classList.remove('show');
+      const btn = el('toastActionBtn');
+      if (btn) {
+        if (action === null) {
+          btn.style.display = 'none';
+        } else {
+          btn.style.display = '';
+          btn.textContent = action?.label || 'Close';
+          btn.onclick = () => { try { action?.onClick?.(); } finally { dismiss(); } };
+        }
+      }
+
       t.classList.add('show');
       if (_toastTimer) clearTimeout(_toastTimer);
-      _toastTimer = setTimeout(() => t.classList.remove('show'), 3800);
+      _toastTimer = setTimeout(dismiss, 3800);
     }
 
     // ── STAY HINT (Recommended action for target day) ──
@@ -4818,7 +4835,7 @@
     }
 
     function downloadWeekReport(weekOffset) {
-      if (!window.jspdf) { showToast('PDF library still loading — try again', 'error'); return; }
+      if (!window.jspdf) { showToast('Creating your Document', 'info', '', { label: 'Okay' }); return; }
       const _offset = (typeof weekOffset === 'number') ? weekOffset : daySelectorWeekOffset;
 
       const wk  = week(_offset);
@@ -4954,7 +4971,7 @@
       const _nudgeKey = 'wh_report_nudge_' + currentWeekId();
       if (!localStorage.getItem(_nudgeKey)) {
         localStorage.setItem(_nudgeKey, '1');
-        setTimeout(() => showToast('📋 Weekend — check your weekly report!', 'info'), 800);
+        setTimeout(() => showToast('Check your weekly report', 'info', '', { label: 'Check', onClick: () => switchTab('analytics') }), 800);
       }
       const hd = el('rcHeadDate'); if (hd) { hd.textContent = ''; hd.classList.remove('visible'); }
       // Show card, hide session-only elements
@@ -6911,7 +6928,7 @@ ${sig}`
       closeDayEditModal();
       renderDaySelector();
       if (key === todayKey()) renderEmptyState();
-      showUndoToast('Entry deleted.', () => {
+      showUndoToast('Entry Deleted', () => {
         if (_deletedEntryKey && _deletedEntryData) {
           saveDayLogAndSync(_deletedEntryKey, _deletedEntryData);
           renderDaySelector();
@@ -7292,23 +7309,25 @@ ${sig}`
         } catch { return null; }
       },
 
+      _lastErr: '', // last sync error code/message, surfaced in the failure toast
+
       // Push a single day. Returns true on success, false on failure.
       async pushDay(dk, entry) {
         try {
           const uid = await this._uid();
-          if (!uid) return false;
+          if (!uid) { this._lastErr = 'No active session'; return false; }
           const row = this._toRow(uid, dk, entry);
           const { data, error } = await window._sbClient.from('work_logs')
             .upsert(row, { onConflict: 'user_id,log_date' })
             .select('updated_at')
             .single();
-          if (error) { console.warn('[SbSync] pushDay:', dk, error.message); return false; }
+          if (error) { this._lastErr = error.code || error.message; console.warn('[SbSync] pushDay:', dk, error.message); return false; }
           if (data?.updated_at) {
             const local = Store.getDay(dk);
             if (local) Store.setDay(dk, { ...local, lastUpdated: data.updated_at });
           }
           return true;
-        } catch (e) { console.warn('[SbSync] pushDay failed:', e); return false; }
+        } catch (e) { this._lastErr = e.message || 'Network error'; console.warn('[SbSync] pushDay failed:', e); return false; }
       },
 
       // Push all localStorage days — called after a bulk import
@@ -7383,14 +7402,14 @@ ${sig}`
       async pushSettings(cfgObj) {
         try {
           const uid = await this._uid();
-          if (!uid) return false;
+          if (!uid) { this._lastErr = 'No active session'; return false; }
           const { error } = await window._sbClient.from('user_kv').upsert(
             { user_id: uid, key: 'config', value: { cfg: cfgObj, src: this._clientId }, updated_at: new Date().toISOString() },
             { onConflict: 'user_id,key' }
           );
-          if (error) { console.warn('[SbSync] pushSettings:', error.message); return false; }
+          if (error) { this._lastErr = error.code || error.message; console.warn('[SbSync] pushSettings:', error.message); return false; }
           return true;
-        } catch (e) { console.warn('[SbSync] pushSettings failed:', e); return false; }
+        } catch (e) { this._lastErr = e.message || 'Network error'; console.warn('[SbSync] pushSettings failed:', e); return false; }
       },
 
       // Fetch the stored config blob (or null if none yet)
@@ -7535,7 +7554,7 @@ ${sig}`
       if (!days.length && !cfgDirty) return;
       _syncInFlight = true;
       _setSyncStatus('syncing');
-      if (!silent) showToast('Syncing…', 'info');
+      SbSync._lastErr = '';
 
       let failed = false;
       const failedDays = [];
@@ -7559,10 +7578,12 @@ ${sig}`
       if (failed) {
         _lastFailedDays = failedDays;
         _setSyncStatus('failed');
-        if (!silent) showToast('Sync failed', 'error', 'Tap Retry in Settings.');
+        // The sync chip already conveys success/in-progress; only surface failures,
+        // with the error code and a one-tap retry.
+        if (!silent) showToast('Sync failed', 'error', SbSync._lastErr || 'Please try again', { label: 'Retry', onClick: retrySyncNow });
       } else {
         _setSyncStatus('synced');
-        if (!silent) showToast('Synced', 'success');
+        // Success / in-progress are shown via the sync chip — no toast (per design).
       }
     }
 
@@ -7613,7 +7634,7 @@ ${sig}`
     // online: network reconnect → flush queued mutations
     window.addEventListener('online', () => {
       if (_hasPending() || _lastFailedDays.length || _lastFailedCfg) {
-        showToast('Back online — syncing…', 'info');
+        showToast('Back Online', 'info', '', null);
         _flushSync();
       }
     });
@@ -7679,7 +7700,7 @@ ${sig}`
         renderDaySelector();
         renderNotifs(); // update dismissed state immediately on this device
         if (loginDate) render(); else renderEmptyState();
-        showToast('Settings synced from another device', 'info');
+        showToast('Settings updated', 'info', 'Changes from another device were synced.');
       } finally { _applyingRemote = false; }
     }
 
@@ -7768,7 +7789,7 @@ ${sig}`
       a.download = `wh_${name}_${date}.json`;
       document.body.appendChild(a); a.click();
       document.body.removeChild(a); URL.revokeObjectURL(url);
-      showToast('Log exported', 'success', 'Your backup file has been downloaded.');
+      showToast('Exporting', 'success', 'Your data is ready to download.');
     }
 
     function importLogFile(file) {
@@ -7818,7 +7839,7 @@ ${sig}`
         }
       };
       r.onerror = () => {
-        showToast('Could not read file', 'error');
+        showToast('Could not read file', 'error', 'Upload in json format');
         ['logFileInput', 'importModalFile'].forEach(id => { const inp = el(id); if (inp) inp.value = ''; });
       };
       r.readAsText(file);
@@ -7830,7 +7851,7 @@ ${sig}`
 
       const ok = Store.importSnap(snap);
       if (!ok) {
-        showToast('Import failed: could not apply data', 'error');
+        showToast('Import Failed', 'error', "Couldn't merge data");
         el('importConfirmOverlay').classList.remove('open');
         ['logFileInput','importModalFile'].forEach(id=>{const inp=el(id);if(inp)inp.value=''});
         return;
@@ -7865,7 +7886,7 @@ ${sig}`
       renderAnalytics();
 
       const name  = snap.user?.name || snap.cfg?.name || '';
-      showToast('Data imported', 'success', `${count} day${count !== 1 ? 's' : ''} restored${name ? ` · Welcome back, ${name}!` : '.'}`);
+      showToast('Import Successful', 'success', `${count} day${count !== 1 ? 's' : ''} restored${name ? ` · Welcome back, ${name}!` : '.'}`);
     }
 
     function saveDayEditModal() {
@@ -8107,7 +8128,7 @@ ${sig}`
       const e = parse(el('asrEndTime').value);
       if (!e) { el('asrErr').classList.add('show'); return; }
       const dk = _asrDayKey;
-      if (!dk) { closeAutoStopRecovery(); showToast('End time updated', 'success'); return; } // demo
+      if (!dk) { closeAutoStopRecovery(); showToast('Timer Auto Ended', 'success'); return; } // demo
 
       const log = dayLog(dk) || {};
       // Reconstruct login datetime from the day key + stored loginTime
@@ -8138,7 +8159,7 @@ ${sig}`
       }
       renderDaySelector(); renderHistory();
       closeAutoStopRecovery();
-      showToast('End time updated', 'success');
+      showToast('Timer Auto Ended', 'success');
     }
 
     // ── FORGOT TO LOG OUT ──────────────────────────────
@@ -8463,7 +8484,7 @@ ${sig}`
             // Show User ID on profile card in dev mode
             const uidRow = el('profileUidRow');
             if (uidRow) uidRow.style.display = '';
-            showToast('Dev Mode enabled — reload to disable', 'info');
+            showToast('Hello Developer', 'info');
             testCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
           }
         }
@@ -8996,7 +9017,7 @@ ${sig}`
     }
     function fpVerify() {
       closeFpModal();
-      showToast('Verification pending', 'info', 'Supabase integration coming soon.');
+      showToast('Verification pending', 'info', 'Integration Error');
     }
     function openAuthView() {
       el('fpViewEmail').style.display = 'none';
@@ -9009,7 +9030,7 @@ ${sig}`
     }
     function authVerify() {
       closeFpModal();
-      showToast('Authenticator pending', 'info', 'Supabase integration coming soon.');
+      showToast('Authenticator pending', 'info', 'Integration Error');
     }
     function _initAuthDigits() {
       const ids = ['authD0','authD1','authD2','authD3','authD4','authD5'];
@@ -9099,7 +9120,7 @@ ${sig}`
         el('upwdViewSent').style.display = '';
       } catch(e) {
         btn.disabled = false; btn.textContent = 'Send Reset Link'; btn.style.opacity = '';
-        showToast('Could not send reset link', 'error', e.message || 'Please try again.');
+        showToast("Couldn't Send Reset Link", 'error', e.message || 'Please try again.');
       }
     }
     // ── Supabase sign-out (window._sbClient is always ready — init'd in <head>) ──

@@ -2430,34 +2430,47 @@
         </div><!-- /Unified Settings Card -->
 
 
-        <!-- Test Notifications (dev panel — hidden by default, unlock with 5 taps on About Developer) -->
+        <!-- Developer (hidden by default — unlock with 5 taps on About Developer) -->
         <div class="settings-card" id="notifTestCard" style="display:none">
           <div class="settings-card-head" style="cursor:default">
-            <div class="section-label">Test Notifications</div>
+            <div class="section-label">Developer</div>
           </div>
           <div class="settings-card-body" style="padding-top:0;display:flex;flex-direction:column;gap:10px">
             <div style="font-size:12px;color:var(--muted-fg);line-height:1.5;margin-bottom:4px">
-              Fire each notification immediately to verify they work. Requires permission to be granted.
+              A space to preview 5pm before it ships.
+            </div>
+
+            <div class="section-label">Notifications</div>
+            <div style="font-size:12px;color:var(--muted-fg);line-height:1.5;margin-bottom:2px">
+              See how each alert looks on your device.
             </div>
             <div id="notifTestPermWarn" style="display:none;font-size:12px;color:var(--warning);font-weight:500;margin-bottom:4px">
-              Enable notifications in Settings → Allow Notifications first.
+              Turn on notifications in Settings to preview them.
             </div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-              <button class="btn btn-secondary" style="font-size:12px;height:34px" onclick="testNotif('target')">Daily Target Reached</button>
-              <button class="btn btn-secondary" style="font-size:12px;height:34px" onclick="testNotif('overtime')">Overworking Warning</button>
+              <button class="btn btn-secondary" style="font-size:12px;height:34px" onclick="testNotif('target')">Daily Target</button>
+              <button class="btn btn-secondary" style="font-size:12px;height:34px" onclick="testNotif('overtime')">Overtime</button>
               <button class="btn btn-secondary" style="font-size:12px;height:34px" onclick="testNotif('forgotStop')">Forgot to Stop</button>
               <button class="btn btn-secondary" style="font-size:12px;height:34px" onclick="testNotif('morningReminder')">Morning Reminder</button>
-              <button class="btn btn-secondary" style="font-size:12px;height:34px;grid-column:1/-1" onclick="testNotif('earlyLeave')">Early Leave Achieved</button>
+              <button class="btn btn-secondary" style="font-size:12px;height:34px;grid-column:1/-1" onclick="testNotif('earlyLeave')">Early Leave</button>
             </div>
+
             <div style="height:1px;background:var(--border);margin:6px 0"></div>
-            <div class="section-label">Sync Diagnostic</div>
+            <div class="section-label">Sync</div>
+            <div style="font-size:12px;color:var(--muted-fg);line-height:1.5;margin-bottom:2px">
+              Check the connection to your cloud data.
+            </div>
             <button class="btn-secondary" style="width:100%;justify-content:center;gap:6px" onclick="runSyncDiagnostic()">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
-              Test Sync
+              Run Diagnostics
             </button>
             <div id="syncDiagResult" style="display:none;padding:12px;background:var(--muted);border-radius:var(--radius-md);font-size:11px;font-family:monospace;line-height:1.7;color:var(--foreground);white-space:pre-wrap;word-break:break-all"></div>
+
             <div style="height:1px;background:var(--border);margin:6px 0"></div>
-            <div class="section-label">Modal Tests</div>
+            <div class="section-label">Screens</div>
+            <div style="font-size:12px;color:var(--muted-fg);line-height:1.5;margin-bottom:2px">
+              Open a screen to review its design.
+            </div>
             <button class="btn-secondary" style="width:100%;justify-content:center;gap:6px" onclick="openAutoStopRecovery()">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
               Auto-Stop Recovery
@@ -8475,7 +8488,7 @@ ${sig}`
         _devTimer = setTimeout(() => { _devTaps = 0; }, 2000);
         const left = 5 - _devTaps;
         if (_devTaps >= 3 && _devTaps < 5) {
-          showToast(`${left} more tap${left === 1 ? '' : 's'} to enable Dev Mode`, 'info');
+          showToast(`${left} more tap${left === 1 ? '' : 's'} to enter Developer`, 'info');
         } else if (_devTaps >= 5) {
           _devTaps = 0;
           const testCard = el('notifTestCard');
@@ -8484,7 +8497,7 @@ ${sig}`
             // Show User ID on profile card in dev mode
             const uidRow = el('profileUidRow');
             if (uidRow) uidRow.style.display = '';
-            showToast('Hello Developer', 'info');
+            showToast('Welcome, Developer', 'info');
             testCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
           }
         }

@@ -3071,13 +3071,14 @@
       <div class="dialog-head" style="display:flex;align-items:flex-start;justify-content:space-between;padding:14px">
         <div>
           <div class="dialog-title">Your shift was auto-stopped</div>
-          <div class="dialog-desc" id="asrDesc">It automatically ended an hour after your daily target.<br><br>When did you leave?</div>
+          <div class="dialog-desc" id="asrDesc">It automatically ended an hour after your daily target.</div>
         </div>
         <button class="btn-icon" onclick="closeAutoStopRecovery()" title="Close" style="margin:-4px -4px -4px 8px;flex-shrink:0">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>
       </div>
-      <div class="dialog-body" style="padding:0 14px 14px">
+      <div class="dialog-body" style="padding:0 14px 14px;gap:6px">
+        <div class="form-label">When did you leave?</div>
         <div style="position:relative" class="time-input-wrap">
           <input type="text" class="field-input" id="asrEndTime" placeholder="End time" autocomplete="off" style="padding-left:38px;width:100%">
           <button type="button" class="tp-icon-btn" onclick="openTpModal('asrEndTime',event,'End Time',_asrOnTimeChange)" title="Pick time">

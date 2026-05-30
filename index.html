@@ -455,7 +455,7 @@
 
     /* ── Result card ── */
     .result-card { display: block; }
-    .rc-head { padding: 14px 16px; border-bottom: 1px solid var(--border);
+    .rc-head { padding: 16px; border-bottom: 1px solid var(--border);
       display: flex; align-items: center; justify-content: space-between; }
     .rc-head-left { display: flex; align-items: center; gap: 8px; }
     .rc-body { padding: 16px; display: flex; flex-direction: column; gap: 12px; }
@@ -971,8 +971,8 @@
       overflow: hidden; box-shadow: var(--shadow-xs); display: flex; flex-direction: column; }
     .dark .this-week-wrap { box-shadow: none; }
     .this-week-header { display: flex; align-items: center; justify-content: space-between;
-      padding: 14px 16px; border-bottom: 1px solid var(--border); }
-    .this-week-wrap .day-selector { padding: 14px 16px 16px; }
+      padding: 16px; border-bottom: 1px solid var(--border); }
+    .this-week-wrap .day-selector { padding: 16px; }
     .this-week-label { font-size: 11px; font-weight: 600; color: var(--muted-fg); letter-spacing: .06em; text-transform: uppercase; }
     .this-week-nav { display: flex; gap: 4px; }
     .this-week-btn { width: 24px; height: 24px; border-radius: 6px; border: none; background: var(--muted); color: var(--foreground); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: background .12s; padding: 0; }
@@ -2710,16 +2710,16 @@
   <!-- ── Support Project Modal ── -->
   <div class="overlay" id="supportOverlay" onclick="if(event.target===this)closeSupportModal()">
     <div class="dialog" style="max-width:320px">
-      <div class="dialog-head" style="display:flex;align-items:flex-start;justify-content:space-between">
+      <div class="dialog-head" style="display:flex;align-items:flex-start;justify-content:space-between;border-bottom:1px solid var(--border)">
         <div class="dialog-title">Support Project</div>
         <button class="btn-icon" onclick="closeSupportModal()" title="Close" style="margin:-4px -4px -4px 8px;flex-shrink:0">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>
       </div>
-      <div style="padding:0 20px;display:flex;flex-direction:column;align-items:center;gap:14px">
+      <div style="padding:18px 20px 0;display:flex;flex-direction:column;align-items:center;gap:14px">
         <!-- Description -->
         <p style="font-size:13px;color:var(--muted-fg);text-align:center;line-height:1.5;margin:0">
-          If 5pm helped you leave work on time, consider supporting the project.
+          If 5pm helped you leave work on time, help me make it better.
         </p>
         <!-- QR Code — 180px desktop / 120px mobile -->
         <div id="supportQrWrap" class="support-qr" style="border-radius:12px;border:1px solid var(--border);background:var(--muted);display:flex;align-items:center;justify-content:center;overflow:hidden">
@@ -2750,7 +2750,7 @@
         <!-- UPI ID — same width as QR (180px desktop / 120px mobile) -->
         <button id="upiCopyBtn" class="support-upi" onclick="_copyUpi()"
           style="background:var(--muted);border:1px solid var(--border);border-radius:var(--radius-md);padding:8px 10px;display:flex;align-items:center;justify-content:space-between;gap:6px;cursor:pointer">
-          <span id="upiLabel" style="font-size:13px;font-weight:500;font-family:var(--font);color:var(--foreground);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">sampleupi@hdfc</span>
+          <span id="upiLabel" style="font-size:13px;font-weight:400;font-family:var(--font);color:var(--muted-fg);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">sampleupi@hdfc</span>
           <svg id="upiCopyIcon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;color:var(--muted-fg)"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
           <svg id="upiCheckIcon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;color:var(--success);display:none"><polyline points="20 6 9 17 4 12"/></svg>
         </button>

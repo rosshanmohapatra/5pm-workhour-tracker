@@ -192,8 +192,11 @@
     .btn-icon:hover  { background: var(--muted); color: var(--foreground); }
     .dark .btn-icon:hover { background: var(--muted); }
     .btn-icon:active { opacity: .82; transform: scale(.97); }
-    .btn-icon.notif-active { background: var(--foreground); color: var(--background); }
-    .btn-icon.notif-active:hover { background: var(--foreground); filter: brightness(.88); color: var(--background); }
+    /* Active state mirrors the active nav tab — subtle card bg, not flashy black */
+    .btn-icon.notif-active { background: var(--card); color: var(--foreground); box-shadow: var(--shadow-xs); }
+    .btn-icon.notif-active:hover { background: var(--card); color: var(--foreground); }
+    .dark .btn-icon.notif-active { background: var(--muted); color: var(--foreground); box-shadow: none; }
+    .dark .btn-icon.notif-active:hover { background: var(--muted); color: var(--foreground); }
     .notif-badge { position: absolute; top: 6px; right: 6px; width: 7px; height: 7px;
       border-radius: 50%; background: var(--destructive);
       border: 1.5px solid var(--muted);
@@ -352,9 +355,6 @@
     .notif-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; }
     .notif-head { padding: 12px 16px; border-bottom: 1px solid var(--border);
       display: flex; align-items: center; justify-content: space-between; }
-    .notif-clear-btn { font-size: 12px; font-weight: 500; color: var(--muted-fg);
-      background: none; border: none; padding: 0; transition: color .12s; }
-    .notif-clear-btn:hover { color: var(--foreground); }
     .notif-item { display: flex; align-items: flex-start; gap: 10px;
       padding: 12px 16px; position: relative; }
     .notif-item + .notif-item { border-top: 1px solid var(--border); }
@@ -1220,10 +1220,6 @@
       .plan-btn:hover { background: transparent; color: var(--muted-fg); }
       .plan-btn:active { background: var(--muted); color: var(--foreground); }
 
-      .notif-clear-btn { transition: none; }
-      .notif-clear-btn:hover { color: var(--muted-fg); }
-      .notif-clear-btn:active { color: var(--foreground); }
-
       .info-icon-btn { transition: none; }
       .info-icon-btn:hover { color: var(--muted-fg); }
       .info-icon-btn:active { color: var(--foreground); }
@@ -1736,7 +1732,7 @@
     <div class="notif-card">
       <div class="notif-head">
         <span class="section-label">Notifications</span>
-        <button class="notif-clear-btn" id="notifClearAll">Clear All</button>
+        <button class="btn-secondary" id="notifClearAll" style="font-size:11px;height:30px;padding:0 10px">Clear All</button>
       </div>
       <div id="notifList"><div class="notif-empty">No notifications right now.</div></div>
     </div>

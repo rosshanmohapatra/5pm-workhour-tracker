@@ -137,7 +137,8 @@
     /* ── Navbar ── */
     .navbar { background: var(--muted); border: 1px solid var(--border); border-radius: var(--radius-lg);
       box-shadow: var(--shadow-xs); }
-    .nav-inner { height: 52px; padding: 0 8px; display: flex; align-items: center; justify-content: space-between; }
+    .nav-inner { height: 52px; padding: 0 8px 0 14px; display: flex; align-items: center; justify-content: space-between; }
+    .nav-left { display: flex; align-items: center; gap: 14px; }
     .nav-tabs { display: flex; align-items: center; gap: 4px; }
     .nav-tab { height: 34px; padding: 0 14px; border-radius: var(--radius-md); border: none;
       background: transparent; color: var(--muted-fg); font-size: 13px; font-weight: 500;
@@ -455,7 +456,7 @@
 
     /* ── Result card ── */
     .result-card { display: block; }
-    .rc-head { padding: 16px; border-bottom: 1px solid var(--border);
+    .rc-head { padding: 12px; border-bottom: 1px solid var(--border);
       display: flex; align-items: center; justify-content: space-between; }
     .rc-head-left { display: flex; align-items: center; gap: 8px; }
     .rc-body { padding: 16px; display: flex; flex-direction: column; gap: 12px; }
@@ -727,7 +728,7 @@
     .sponsor-btn:hover { background:var(--muted); }
     .about-version-badge { font-size:11px;font-weight:600;letter-spacing:.06em;
       background:var(--muted);color:var(--muted-fg);padding:2px 8px;border-radius:6px; }
-    .version-pill { position:fixed;bottom:8px;left:50%;transform:translateX(-50%);
+    .version-pill { position:fixed;bottom:16px;right:16px;
       display:inline-flex;align-items:center;gap:6px;padding:4px 4px 4px 12px;
       border-radius:100px;background:var(--background);border:1px solid var(--border);
       font-family:var(--font);z-index:10;text-decoration:none;
@@ -971,7 +972,7 @@
       overflow: hidden; box-shadow: var(--shadow-xs); display: flex; flex-direction: column; }
     .dark .this-week-wrap { box-shadow: none; }
     .this-week-header { display: flex; align-items: center; justify-content: space-between;
-      padding: 16px; border-bottom: 1px solid var(--border); }
+      padding: 12px; border-bottom: 1px solid var(--border); }
     .this-week-wrap .day-selector { padding: 16px; }
     .this-week-label { font-size: 11px; font-weight: 600; color: var(--muted-fg); letter-spacing: .06em; text-transform: uppercase; }
     .this-week-nav { display: flex; gap: 4px; }
@@ -1667,10 +1668,13 @@
     <!-- Navbar -->
     <nav class="navbar">
       <div class="nav-inner">
-        <div class="nav-tabs">
-          <button class="nav-tab active" data-view="home" id="tabHome">Overview</button>
-          <button class="nav-tab" data-view="analytics" id="tabAnalytics">Dashboard</button>
-          <button class="nav-tab" data-view="settings" id="tabSettings">Settings</button>
+        <div class="nav-left">
+          <img id="navLogo" src="brand-light.svg" alt="5pm" height="26" style="display:block;border-radius:6px;flex-shrink:0">
+          <div class="nav-tabs">
+            <button class="nav-tab active" data-view="home" id="tabHome">Overview</button>
+            <button class="nav-tab" data-view="analytics" id="tabAnalytics">Dashboard</button>
+            <button class="nav-tab" data-view="settings" id="tabSettings">Settings</button>
+          </div>
         </div>
         <div class="nav-actions">
           <button class="btn-icon" id="themeBtn" title="Theme · D">
@@ -2457,7 +2461,7 @@
 
   <!-- Version pill -->
   <a href="https://github.com/rosshanmohapatra/5pm-workhour-tracker/releases" target="_blank" rel="noopener" class="version-pill">
-    <span style="font-size:11px;font-weight:600;color:var(--muted-fg);letter-spacing:.01em">5pm</span>
+    <span style="font-size:11px;font-weight:600;color:var(--muted-fg);letter-spacing:.01em">Version</span>
     <span class="vp-tagline">- Work Hour Tracker</span>
     <span style="font-size:10px;font-weight:600;letter-spacing:.05em;
       background:var(--muted);color:var(--muted-fg);padding:4px 7px;border-radius:100px">v0.9.5</span>
@@ -8107,6 +8111,8 @@ ${sig}`
       const logoSrc = d ? 'brand-dark.svg' : 'brand-light.svg';
       const mobLogo = document.getElementById('mobLogo');
       if (mobLogo) mobLogo.src = logoSrc;
+      const navLogo = document.getElementById('navLogo');
+      if (navLogo) navLogo.src = logoSrc;
       const installLogo = document.getElementById('installPromptLogo');
       if (installLogo) installLogo.src = logoSrc;
     }

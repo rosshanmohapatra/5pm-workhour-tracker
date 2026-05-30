@@ -684,6 +684,14 @@
     .profile-chip.uid { background: var(--muted); color: var(--muted-fg); font-family: monospace; font-size: 9px; letter-spacing: 0;
       cursor: pointer; display: flex; justify-content: space-between; height: auto; padding: 4px 8px; }
 
+    /* ── Support modal QR + UPI sizing ── */
+    .support-qr  { width: 180px; height: 180px; }
+    .support-upi { width: 180px; }
+    @media (max-width: 640px) {
+      .support-qr  { width: 120px; height: 120px; }
+      .support-upi { width: 120px; }
+    }
+
     /* ── Checkout modal ── */
     .overlay { position: fixed; inset: 0; z-index: 200; background: rgba(0,0,0,.38);
       backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
@@ -2709,8 +2717,8 @@
         <p style="font-size:13px;color:var(--muted-fg);text-align:center;line-height:1.5;margin:0">
           If 5pm helped you leave work on time, consider supporting the project.
         </p>
-        <!-- QR Code — 80×80 -->
-        <div id="supportQrWrap" style="width:80px;height:80px;border-radius:12px;border:1px solid var(--border);background:var(--muted);display:flex;align-items:center;justify-content:center;overflow:hidden">
+        <!-- QR Code — 180px desktop / 120px mobile -->
+        <div id="supportQrWrap" class="support-qr" style="border-radius:12px;border:1px solid var(--border);background:var(--muted);display:flex;align-items:center;justify-content:center;overflow:hidden">
           <svg width="75%" height="75%" viewBox="0 0 140 140" fill="none">
             <rect width="140" height="140" rx="4" fill="var(--card)"/>
             <g fill="var(--foreground)">
@@ -2735,9 +2743,9 @@
             </g>
           </svg>
         </div>
-        <!-- UPI ID — same 80px width as QR, text + copy icon, copied state -->
-        <button id="upiCopyBtn" onclick="_copyUpi()"
-          style="width:80px;background:var(--muted);border:1px solid var(--border);border-radius:var(--radius-md);padding:8px 10px;display:flex;align-items:center;justify-content:space-between;gap:6px;cursor:pointer">
+        <!-- UPI ID — same width as QR (180px desktop / 120px mobile) -->
+        <button id="upiCopyBtn" class="support-upi" onclick="_copyUpi()"
+          style="background:var(--muted);border:1px solid var(--border);border-radius:var(--radius-md);padding:8px 10px;display:flex;align-items:center;justify-content:space-between;gap:6px;cursor:pointer">
           <span id="upiLabel" style="font-size:10px;font-weight:600;font-family:monospace;color:var(--foreground);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">sampleupi@hdfc</span>
           <svg id="upiCopyIcon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;color:var(--muted-fg)"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
           <svg id="upiCheckIcon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;color:var(--success);display:none"><polyline points="20 6 9 17 4 12"/></svg>

@@ -379,6 +379,14 @@
     .notif-item:hover .notif-dismiss { display: flex; }
     .notif-dismiss:hover { background: var(--muted); color: var(--foreground); }
     .notif-empty { padding: 16px; font-size: 13px; color: var(--muted-fg); text-align: center; }
+    /* iOS-style "nothing to clear" shake */
+    @keyframes ios-shake {
+      10%, 90% { transform: translateX(-1px); }
+      20%, 80% { transform: translateX(2px); }
+      30%, 50%, 70% { transform: translateX(-4px); }
+      40%, 60% { transform: translateX(4px); }
+    }
+    .ios-shake { animation: ios-shake .5s cubic-bezier(.36,.07,.19,.97) both; }
 
     /* ── Shift combo (input + button inside) ── */
     .shift-cta { display: flex; flex-direction: column; gap: 10px; }
@@ -8242,7 +8250,17 @@ ${sig}`
     el('mobNotifBtn')?.addEventListener('click', toggleNotifPanel);
     el('notifBtn').addEventListener('click', toggleNotifPanel);
     el('notifClearAll').addEventListener('click', () => {
-      buildNotifs().forEach(n => addDismissed(n.id));
+      const pending = buildNotifs();
+      if (!pending.length) {
+        // Nothing to clear — iOS-style shake to say "stop clicking"
+        const btn = el('notifClearAll');
+        btn.classList.remove('ios-shake');
+        void btn.offsetWidth; // reflow so the animation can re-trigger
+        btn.classList.add('ios-shake');
+        btn.addEventListener('animationend', () => btn.classList.remove('ios-shake'), { once: true });
+        return;
+      }
+      pending.forEach(n => addDismissed(n.id));
       renderNotifs();
     });
     ['inpDailyH','inpDailyM'].forEach(id => {

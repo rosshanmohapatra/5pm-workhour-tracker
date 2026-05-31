@@ -2116,7 +2116,7 @@
       <div class="analytics-card">
         <div class="analytics-card-head">
           <span class="analytics-card-title">Your Penalties</span>
-          <button class="btn-secondary" id="penaltyClearAll" style="font-size:11px;height:30px;padding:0 10px" onclick="clearAllPenalties()">Clear All</button>
+          <button class="btn-secondary" id="penaltyClearAll" style="font-size:11px;height:30px;padding:0 10px">Clear All</button>
         </div>
         <div class="penalty-list" id="penaltiesList">
           <div class="penalty-empty" style="padding:24px 16px">Scanning…</div>
@@ -6772,7 +6772,16 @@
       renderPenalties();
     }
     function clearAllPenalties() {
-      _penaltyData.forEach(p => _discardedPenalties.add(p.key));
+      const visible = _penaltyData.filter(p => !_discardedPenalties.has(p.key));
+      if (!visible.length) {
+        const btn = el('penaltyClearAll');
+        btn.classList.remove('ios-shake');
+        void btn.offsetWidth;
+        btn.classList.add('ios-shake');
+        btn.addEventListener('animationend', () => btn.classList.remove('ios-shake'), { once: true });
+        return;
+      }
+      visible.forEach(p => _discardedPenalties.add(p.key));
       localStorage.setItem('wh_discarded_penalties', JSON.stringify([..._discardedPenalties]));
       renderPenalties();
     }
@@ -8571,6 +8580,7 @@ ${sig}`
       pending.forEach(n => addDismissed(n.id));
       renderNotifs();
     });
+    el('penaltyClearAll').addEventListener('click', clearAllPenalties);
     ['inpDailyH','inpDailyM'].forEach(id => {
       el(id)?.addEventListener('change', autoSaveSettings);
       el(id)?.addEventListener('input', autoSaveSettings);

@@ -6142,8 +6142,10 @@
       }
 
       // Name + email on one line
-      const displayName = c.name?.trim() || meta.full_name || meta.name || email.split('@')[0];
-      el('profileName').textContent = `${displayName} (${email})`;
+      const displayName = c.name?.trim() || meta.full_name || meta.name || '';
+      el('profileName').innerHTML = displayName
+        ? `${displayName} <span class="profile-position">(${email})</span>`
+        : email;
 
       // Position — shown below name line
       const position = c.position?.trim() || '';

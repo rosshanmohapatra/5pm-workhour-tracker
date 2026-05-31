@@ -562,8 +562,11 @@
     .wk-row-actions { display: flex; align-items: center; gap: 8px; justify-self: end; }
     .wk-edit-icon-btn { width: 28px; height: 28px; border-radius: 6px; border: 1px solid var(--border);
       background: var(--muted); color: var(--muted-fg); display: flex; align-items: center;
-      justify-content: center; cursor: pointer; transition: background .12s, color .12s; }
+      justify-content: center; cursor: pointer; transition: background .12s, color .12s, opacity .12s;
+      opacity: 0; }
+    .wk-row:hover .wk-edit-icon-btn { opacity: 1; }
     .wk-edit-icon-btn:hover { background: var(--border); color: var(--foreground); }
+    @media (hover: none) { .wk-edit-icon-btn { opacity: 1; } }
     .wk-time-inputs { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted-fg); }
 
     /* Recommended row */
@@ -4168,16 +4171,22 @@
       }
 
       // Position
-      const refEl = event?.currentTarget || event?.target || el(targetInputId);
+      const _isLoginInput = targetInputId === 'tc-r7m2';
+      const refEl = _isLoginInput
+        ? (el('shiftInputRow') || event?.currentTarget || event?.target)
+        : (event?.currentTarget || event?.target || el(targetInputId));
       const refRect = refEl?.getBoundingClientRect();
       if (refRect) {
-        const GAP = 8, mW = 256, mH = 320, pad = 8;
-        let top = refRect.bottom + GAP;
+        const GAP = 12, mW = 256, mH = 260, pad = 8;
+        // Login input: prefer above; everything else: prefer below
+        let top = _isLoginInput
+          ? refRect.top - mH - GAP
+          : refRect.bottom + GAP;
         let left = refRect.left;
+        if (top < pad) top = refRect.bottom + GAP;          // fallback below if above clips
+        if (top + mH > window.innerHeight - pad) top = Math.max(pad, refRect.top - mH - GAP);
         if (left + mW > window.innerWidth - pad) left = window.innerWidth - mW - pad;
         if (left < pad) left = pad;
-        if (top + mH > window.innerHeight - pad) top = Math.max(pad, refRect.top - mH - GAP);
-        if (top < pad) top = pad;
         modal.style.top = top + 'px'; modal.style.left = left + 'px';
       }
       modal.classList.add('open');
@@ -5833,7 +5842,7 @@
             pill.innerHTML = `<span class="dot-live"></span>${dur(ds)}`;
             totalSecs += ds;
             totalSurplusSecs += Math.max(0, ds - c.dailyH * 3600);
-          } else if (log?.hoursWorked != null) {
+          } else if (log?.hoursWorked != null && (!isToday || log?.checkoutDisplay)) {
             const diff = wSecs - c.dailyH * 3600;
             pill.className = 'wk-pill';
             if (diff > 120) {

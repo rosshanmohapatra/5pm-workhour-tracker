@@ -25,7 +25,7 @@
         }
       } else if (event === 'INITIAL_SESSION' && !location.search.includes('code=')) {
         // No session and no OAuth code being processed — send to login
-        window.location.replace('login.html');
+        window.location.replace('/login.html');
       }
       // SIGNED_OUT is handled by confirmLogout() / confirmDeleteProfile() below
     });
@@ -2301,7 +2301,8 @@
             </div>
             <input type="hidden" id="inpWorkDays" value="5">
 
-            <!-- Recommend Timings Toggle -->
+            <!-- Recommend Timings Toggle + expandable block -->
+            <div>
             <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;cursor:pointer" onclick="el('inpRecommendTimings').click()">
               <div>
                 <div class="form-label">Recommend Timings</div>
@@ -2314,7 +2315,7 @@
             </div>
 
             <!-- Leave Early + Stay Late (hidden when Recommend Timings is off) -->
-            <div id="recommendTimingsBlock">
+            <div id="recommendTimingsBlock" style="margin-top:16px">
               <!-- Leave Early Plan (multi-select) -->
               <div class="target-day-block">
                 <div class="target-day-head">
@@ -2345,6 +2346,7 @@
                 </div>
               </div>
             </div>
+            </div><!-- /Recommend Timings wrapper -->
 
           </div>
         </div><!-- /Advanced section -->
@@ -2387,10 +2389,15 @@
               </div>
             </div>
 
-            <div class="settings-section-divider"></div>
+          </div>
+        </div><!-- /System section -->
 
-            <!-- Danger Zone label — visual only, not a divider -->
-            <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--destructive)">Danger Zone</div>
+        <div class="settings-section-divider"></div>
+
+        <!-- ── Danger Zone ── -->
+        <div class="settings-section">
+          <div class="settings-section-header" style="color:var(--destructive)">Danger Zone</div>
+          <div class="settings-group">
 
             <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
               <div>
@@ -2409,7 +2416,7 @@
             </div>
 
           </div>
-        </div><!-- /System section -->
+        </div><!-- /Danger Zone section -->
 
         <div class="settings-section-divider"></div>
 
@@ -6053,8 +6060,9 @@
       const recBlock = el('recommendTimingsBlock');
       if (recBlock) {
         const recOn = c.recommendTimings !== false;
-        recBlock.style.maxHeight = recOn ? '500px' : '0';
-        recBlock.style.opacity   = recOn ? '1' : '0';
+        recBlock.style.maxHeight  = recOn ? '500px' : '0';
+        recBlock.style.opacity    = recOn ? '1' : '0';
+        recBlock.style.marginTop  = recOn ? '16px' : '0';
       }
       switchStTab(c.weeklyOn ? 'weekly' : 'daily');
       document.querySelectorAll('.plan-btn[data-sday]').forEach(btn => {
@@ -6357,7 +6365,8 @@
       const recBlock = el('recommendTimingsBlock');
       if (recBlock) {
         recBlock.style.maxHeight = checked ? '500px' : '0';
-        recBlock.style.opacity  = checked ? '1' : '0';
+        recBlock.style.opacity   = checked ? '1' : '0';
+        recBlock.style.marginTop = checked ? '16px' : '0';
       }
       const wpBlock = el('wpRecommendBlock');
       if (wpBlock) wpBlock.style.display = checked ? '' : 'none';

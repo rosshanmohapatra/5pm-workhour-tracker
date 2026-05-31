@@ -46,6 +46,7 @@
   <!-- jsPDF + AutoTable for direct PDF export (no print dialog) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" defer></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
 
   <!-- PWA / home-screen -->
   <meta name="application-name" content="5pm">
@@ -695,12 +696,9 @@
       cursor: pointer; display: flex; justify-content: space-between; height: auto; padding: 4px 8px; }
 
     /* ── Support modal QR + UPI sizing ── */
-    .support-qr  { width: 180px; height: 180px; }
-    .support-upi { width: 180px; }
-    @media (max-width: 640px) {
-      .support-qr  { width: 120px; height: 120px; }
-      .support-upi { width: 120px; }
-    }
+    .support-qr  { width: 100%; aspect-ratio: 1; border-radius: 12px; border: 1px solid var(--border); background: #ffffff; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+    .support-qr canvas, .support-qr img { width: 100%; height: auto; display: block; }
+    .support-upi { width: 100%; }
 
     /* ── Dev code interface (Dark Knight) ── */
     .diag-btn { height: 26px; padding: 0 10px; border-radius: 6px; font-size: 11px; font-weight: 500;
@@ -2769,7 +2767,7 @@
   <div class="overlay" id="supportOverlay" onclick="if(event.target===this)closeSupportModal()">
     <div class="dialog" style="max-width:320px">
       <div class="dialog-head" style="display:flex;align-items:center;border-bottom:1px solid var(--border);padding:14px">
-        <div class="dialog-title">Support Project</div>
+        <div class="dialog-title">Support Development</div>
         <button class="btn-icon" onclick="closeSupportModal()" title="Close" style="margin-left:auto;flex-shrink:0">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>
@@ -2779,42 +2777,15 @@
         <p style="font-size:13px;color:var(--muted-fg);text-align:center;line-height:1.5;margin:0">
           If 5pm helped you leave work on time, help me make it better.
         </p>
-        <!-- QR Code — 180px desktop / 120px mobile -->
-        <div id="supportQrWrap" class="support-qr" style="border-radius:12px;border:1px solid var(--border);background:var(--muted);display:flex;align-items:center;justify-content:center;overflow:hidden">
-          <svg width="75%" height="75%" viewBox="0 0 140 140" fill="none">
-            <rect width="140" height="140" rx="4" fill="var(--card)"/>
-            <g fill="var(--foreground)">
-              <rect x="12" y="12" width="8" height="8"/><rect x="20" y="12" width="8" height="8"/><rect x="28" y="12" width="8" height="8"/><rect x="36" y="12" width="8" height="8"/><rect x="44" y="12" width="8" height="8"/><rect x="52" y="12" width="8" height="8"/><rect x="60" y="12" width="8" height="8"/>
-              <rect x="12" y="20" width="8" height="8"/><rect x="60" y="20" width="8" height="8"/>
-              <rect x="12" y="28" width="8" height="8"/><rect x="28" y="28" width="8" height="8"/><rect x="36" y="28" width="8" height="8"/><rect x="44" y="28" width="8" height="8"/><rect x="60" y="28" width="8" height="8"/>
-              <rect x="12" y="36" width="8" height="8"/><rect x="28" y="36" width="8" height="8"/><rect x="36" y="36" width="8" height="8"/><rect x="44" y="36" width="8" height="8"/><rect x="60" y="36" width="8" height="8"/>
-              <rect x="12" y="44" width="8" height="8"/><rect x="28" y="44" width="8" height="8"/><rect x="36" y="44" width="8" height="8"/><rect x="44" y="44" width="8" height="8"/><rect x="60" y="44" width="8" height="8"/>
-              <rect x="12" y="52" width="8" height="8"/><rect x="60" y="52" width="8" height="8"/>
-              <rect x="12" y="60" width="8" height="8"/><rect x="20" y="60" width="8" height="8"/><rect x="28" y="60" width="8" height="8"/><rect x="36" y="60" width="8" height="8"/><rect x="44" y="60" width="8" height="8"/><rect x="52" y="60" width="8" height="8"/><rect x="60" y="60" width="8" height="8"/>
-              <rect x="76" y="12" width="8" height="8"/><rect x="84" y="12" width="8" height="8"/><rect x="92" y="12" width="8" height="8"/><rect x="100" y="12" width="8" height="8"/><rect x="108" y="12" width="8" height="8"/><rect x="116" y="12" width="8" height="8"/><rect x="124" y="12" width="8" height="8"/>
-              <rect x="76" y="20" width="8" height="8"/><rect x="124" y="20" width="8" height="8"/>
-              <rect x="76" y="28" width="8" height="8"/><rect x="92" y="28" width="8" height="8"/><rect x="100" y="28" width="8" height="8"/><rect x="108" y="28" width="8" height="8"/><rect x="124" y="28" width="8" height="8"/>
-              <rect x="76" y="36" width="8" height="8"/><rect x="92" y="36" width="8" height="8"/><rect x="100" y="36" width="8" height="8"/><rect x="108" y="36" width="8" height="8"/><rect x="124" y="36" width="8" height="8"/>
-              <rect x="76" y="44" width="8" height="8"/><rect x="92" y="44" width="8" height="8"/><rect x="100" y="44" width="8" height="8"/><rect x="108" y="44" width="8" height="8"/><rect x="124" y="44" width="8" height="8"/>
-              <rect x="76" y="52" width="8" height="8"/><rect x="124" y="52" width="8" height="8"/>
-              <rect x="76" y="60" width="8" height="8"/><rect x="84" y="60" width="8" height="8"/><rect x="92" y="60" width="8" height="8"/><rect x="100" y="60" width="8" height="8"/><rect x="108" y="60" width="8" height="8"/><rect x="116" y="60" width="8" height="8"/><rect x="124" y="60" width="8" height="8"/>
-              <rect x="76" y="76" width="8" height="8"/><rect x="92" y="84" width="8" height="8"/><rect x="108" y="76" width="8" height="8"/>
-              <rect x="84" y="92" width="8" height="8"/><rect x="100" y="100" width="8" height="8"/><rect x="116" y="92" width="8" height="8"/>
-              <rect x="36" y="76" width="8" height="8"/><rect x="52" y="84" width="8" height="8"/><rect x="28" y="92" width="8" height="8"/>
-              <rect x="44" y="100" width="8" height="8"/><rect x="60" y="108" width="8" height="8"/>
-            </g>
-          </svg>
-        </div>
-        <!-- UPI ID — same width as QR (180px desktop / 120px mobile) -->
+        <!-- QR Code — full-width, 1:1 ratio -->
+        <div id="supportQrWrap" class="support-qr"></div>
+        <!-- UPI ID — full width -->
         <button id="upiCopyBtn" class="support-upi" onclick="_copyUpi()"
           style="background:var(--muted);border:1px solid var(--border);border-radius:var(--radius-md);padding:8px 10px;display:flex;align-items:center;justify-content:space-between;gap:6px;cursor:pointer">
-          <span id="upiLabel" style="font-size:13px;font-weight:400;font-family:var(--font);color:var(--muted-fg);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">sampleupi@hdfc</span>
+          <span id="upiLabel" style="font-size:13px;font-weight:400;font-family:var(--font);color:var(--muted-fg);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">roshan.394@superyes</span>
           <svg id="upiCopyIcon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;color:var(--muted-fg)"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
           <svg id="upiCheckIcon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;color:var(--success);display:none"><polyline points="20 6 9 17 4 12"/></svg>
         </button>
-      </div>
-      <div style="padding:12px 20px 20px">
-        <button class="btn-secondary" style="width:100%;justify-content:center" onclick="closeSupportModal()">Close</button>
       </div>
     </div>
   </div>
@@ -9190,12 +9161,23 @@ ${sig}`
       if (btn) { btn.disabled = false; btn.textContent = 'Send Reset Link'; btn.style.opacity = ''; }
       el('upwdOverlay').classList.add('open');
     }
-    // ── Support Project Modal ──────────────────────────────────────────────
-    function openSupportModal() { el('supportOverlay').classList.add('open'); }
+    // ── Support Development Modal ─────────────────────────────────────────
+    function openSupportModal() {
+      el('supportOverlay').classList.add('open');
+      var wrap = el('supportQrWrap');
+      if (typeof QRCode !== 'undefined' && wrap && !wrap.firstChild) {
+        new QRCode(wrap, {
+          text: 'upi://pay?pa=roshan.394@superyes&pn=Roshan%20Mohapatra&cu=INR',
+          width: 256, height: 256,
+          colorDark: '#000000', colorLight: '#ffffff',
+          correctLevel: QRCode.CorrectLevel.M
+        });
+      }
+    }
     function closeSupportModal() { el('supportOverlay').classList.remove('open'); }
     let _upiResetTimer = null;
     function _copyUpi() {
-      navigator.clipboard?.writeText('sampleupi@hdfc');
+      navigator.clipboard?.writeText('roshan.394@superyes');
       // Copied state: swap icon, tint button, reset after 2s
       el('upiCopyIcon').style.display = 'none';
       el('upiCheckIcon').style.display = '';

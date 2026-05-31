@@ -400,14 +400,14 @@
     .shift-combo:focus-within { border-color: var(--muted-fg); }
     .shift-combo-input.err { color: var(--destructive); }
     /* Placeholder div that replaces the input at rest — invisible to Safari autofill scanner */
-    .tc-ph { cursor:text; color:var(--muted-fg); display:flex; align-items:center; height:100%; }
-    .tc-ph.tc-ph-has-val { color:var(--foreground); }
+    .tc-ph { cursor:text; color:var(--muted-fg) !important; display:flex; align-items:center; height:100%; }
+    .tc-ph.tc-ph-has-val { color:var(--foreground) !important; }
     .shift-combo-clock { color: var(--muted-fg); flex-shrink: 0; }
     .shift-combo-input { flex: 1; background: transparent; border: none; outline: none;
       font-size: 14px; font-family: var(--font); color: var(--foreground); height: 100%; }
     .shift-combo-input::placeholder { color: var(--muted-fg); }
     .shift-combo-btn { height: 38px; padding: 0 16px; border-radius: var(--radius-md); border: none;
-      background: var(--foreground); color: var(--background); font-size: 13px;
+      background: var(--btn-primary-bg); color: var(--card); font-size: 13px;
       font-weight: 600; font-family: var(--font); white-space: nowrap; cursor: pointer;
       flex-shrink: 0; transition: filter .14s; }
     .shift-combo-btn:hover { filter: brightness(.88); }
@@ -890,22 +890,40 @@
     .center-overlay .email-modal { border-radius: 16px !important; border-bottom: 1px solid var(--border) !important;
       max-width: 360px; transform: scale(.95); transition: transform .2s cubic-bezier(.32,1,.54,1), opacity .2s; }
     .center-overlay.open .email-modal { transform: scale(1); }
-    .email-modal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+    .email-modal-head { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 0; }
+    .email-modal-sep { height: 1px; background: var(--border); margin: 12px -20px 14px; }
     .email-modal-title { font-size: 15px; font-weight: 700; color: var(--foreground); }
-    .email-modal-close { width: 30px; height: 30px; border-radius: 50%; background: var(--muted);
-      border: none; color: var(--muted-fg); font-size: 16px; display: flex; align-items: center;
-      justify-content: center; cursor: pointer; }
-    .email-modal-date { font-size: 12px; color: var(--muted-fg); margin-bottom: 12px; }
+    .email-modal-close { width: 30px; height: 30px; border-radius: var(--radius-md); background: transparent;
+      border: 1px solid transparent; color: var(--muted-fg); font-size: 14px; display: flex; align-items: center;
+      justify-content: center; cursor: pointer; transition: background .14s, border-color .14s, color .14s;
+      position: absolute; top: 12px; right: 12px; }
+    .email-modal-close:hover { border-color: var(--border); color: var(--foreground); }
+    .email-modal-date { font-size: 12px; color: var(--muted-fg); margin-top: 2px; }
     .email-textarea { width: 100%; min-height: 200px; font-size: 12px; font-family: var(--font);
       padding: 10px 12px; background: var(--muted); color: var(--foreground);
       border: 1px solid var(--border); border-radius: 8px; resize: vertical;
       line-height: 1.6; outline: none; }
     .email-textarea:focus { border-color: var(--ring); background: var(--background); }
     .email-modal-actions { display: flex; gap: 8px; margin-top: 12px; }
-    .email-copy-btn { flex: 1; height: 40px; border-radius: var(--radius-md); border: 1px solid var(--border);
-      background: var(--muted); color: var(--foreground); font-size: 13px; font-weight: 600;
-      font-family: var(--font); cursor: pointer; transition: background .14s; }
+    .email-copy-btn { height: 26px; padding: 0 8px; border-radius: var(--radius); border: 1px solid var(--border);
+      background: var(--muted); color: var(--foreground); font-size: 11px; font-weight: 600;
+      font-family: var(--font); cursor: pointer; transition: background .14s; display: inline-flex; align-items: center; gap: 4px; }
     .email-copy-btn:hover { background: var(--border); }
+    .email-field-wrap { position: relative; }
+    .email-copy-hover { position: absolute; top: 6px; right: 6px; opacity: 0; pointer-events: none;
+      transition: opacity .15s; z-index: 1; }
+    .email-field-wrap:hover .email-copy-hover,
+    .email-copy-hover:focus-within { opacity: 1; pointer-events: all; }
+    @media (min-width: 641px) {
+      #emailModalOverlay { align-items: center !important; padding: 20px; }
+      #emailModalOverlay .email-modal {
+        border-radius: var(--radius-xl) !important;
+        border-bottom: 1px solid var(--border) !important;
+        max-width: 480px; max-height: none; overflow-y: visible;
+        transform: scale(.95); transition: transform .2s cubic-bezier(.32,1,.54,1) !important; }
+      #emailModalOverlay.open .email-modal { transform: scale(1); }
+      #emailModalOverlay .email-textarea { resize: none; }
+    }
 
     /* ── Selected day context (Home header) ── */
     .sel-day-ctx { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; }
@@ -3170,26 +3188,37 @@
     </div>
   </div>
   <div class="email-modal-overlay" id="emailModalOverlay">
-    <div class="email-modal">
+    <div class="email-modal" style="position:relative">
+      <button class="email-modal-close" id="emailModalClose">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
       <div class="email-modal-head">
-        <span class="email-modal-title">Email</span>
-        <button class="email-modal-close" id="emailModalClose">✕</button>
+        <div>
+          <div class="email-modal-title">Email Draft</div>
+          <div class="email-modal-date" id="emailModalDate"></div>
+        </div>
       </div>
-      <div class="email-modal-date" id="emailModalDate"></div>
+      <div class="email-modal-sep"></div>
       <div style="display:flex;flex-direction:column;gap:10px">
         <div>
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">
-            <span style="font-size:11px;font-weight:600;color:var(--muted-fg);letter-spacing:.05em;text-transform:uppercase">Subject</span>
-            <button class="email-copy-btn" id="emailCopySubjectBtn" style="flex:none;height:26px;padding:0 10px;font-size:11px">Copy</button>
+          <span style="font-size:11px;font-weight:600;color:var(--muted-fg);letter-spacing:.05em;text-transform:uppercase;display:block;margin-bottom:5px">Subject</span>
+          <div class="email-field-wrap">
+            <input class="email-textarea" id="emailModalSubject" type="text" style="min-height:unset;height:38px;resize:none;padding:0 12px;display:flex;align-items:center;padding-right:80px" readonly>
+            <button class="email-copy-btn email-copy-hover" id="emailCopySubjectBtn">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+              <span id="emailCopySubjectLabel">Copy</span>
+            </button>
           </div>
-          <input class="email-textarea" id="emailModalSubject" type="text" style="min-height:unset;height:38px;resize:none;padding:0 12px;display:flex;align-items:center" readonly>
         </div>
         <div>
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">
-            <span style="font-size:11px;font-weight:600;color:var(--muted-fg);letter-spacing:.05em;text-transform:uppercase">Body</span>
-            <button class="email-copy-btn" id="emailCopyBodyBtn" style="flex:none;height:26px;padding:0 10px;font-size:11px">Copy</button>
+          <span style="font-size:11px;font-weight:600;color:var(--muted-fg);letter-spacing:.05em;text-transform:uppercase;display:block;margin-bottom:5px">Body</span>
+          <div class="email-field-wrap">
+            <textarea class="email-textarea" id="emailModalTextarea" rows="10" style="padding-top:32px"></textarea>
+            <button class="email-copy-btn email-copy-hover" id="emailCopyBodyBtn">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+              <span id="emailCopyBodyLabel">Copy</span>
+            </button>
           </div>
-          <textarea class="email-textarea" id="emailModalTextarea" rows="10"></textarea>
         </div>
       </div>
     </div>
@@ -3229,7 +3258,7 @@
     function timeAgo(date) {
       if (!date) return '';
       const s = Math.floor((Date.now() - date.getTime()) / 1000);
-      if (s < 60)   return 'just now';
+      if (s < 60)   return 'a few seconds ago';
       if (s < 3600) { const m = Math.floor(s / 60);    return `${m}m ago`; }
       if (s < 86400){ const h = Math.floor(s / 3600);  return `${h}h ago`; }
       const d = Math.floor(s / 86400); return `${d} day${d > 1 ? 's' : ''} ago`;
@@ -6841,10 +6870,12 @@
             ${shortDesc ? `<span class="penalty-delta">${shortDesc}</span>` : ''}
           </div>
           <div style="display:flex;gap:6px;flex-shrink:0">
-            <button class="btn-sm" style="color:var(--muted-fg)" onclick="discardPenalty('${p.key}')">Discard</button>
             <button class="btn-sm" onclick="openEmailModal('${p.key}')">
               <svg width="10" height="10" viewBox="0 0 24 24" fill="none"><path fill-rule="evenodd" clip-rule="evenodd" d="M23 6V18C23 19.6523 21.6523 21 20 21H4C2.34772 21 1 19.6523 1 18V6C1 4.34315 2.34315 3 4 3H20C21.6569 3 23 4.34315 23 6ZM3.10658 5.55395C3.27196 5.22692 3.61204 5 4 5H20C20.388 5 20.728 5.22692 20.8934 5.55395L12 11.7793L3.10658 5.55395ZM3 7.92066L10.8531 13.4178C11.5417 13.8999 12.4583 13.8999 13.1469 13.4178L21 7.92066V18C21 18.5477 20.5477 19 20 19H4C3.45228 19 3 18.5477 3 18V7.92066Z" fill="currentColor"/></svg>
               Email
+            </button>
+            <button class="btn-sm" style="color:var(--muted-fg);width:30px;padding:0;justify-content:center" onclick="discardPenalty('${p.key}')" title="Discard">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </button>
           </div>
         </div>
@@ -7698,10 +7729,10 @@ ${sig}`
     });
     // pagehide: PWA close, navigation away
     window.addEventListener('pagehide', () => _flushSync({ silent: true }));
-    // beforeunload: desktop browser close — show prompt if unsynced data OR active session
+    // beforeunload: flush silently if dirty; only block reload when actively tracking
     window.addEventListener('beforeunload', (e) => {
-      if (_hasPending() || _syncInFlight || loginDate) {
-        if (_hasPending() || _syncInFlight) _flushSync({ silent: true });
+      if (_hasPending() || _syncInFlight) _flushSync({ silent: true });
+      if (loginDate) {
         e.preventDefault();           // Chrome shows "Leave site?" dialog
         e.returnValue = '';           // required for Chrome
       }
@@ -8602,16 +8633,18 @@ ${sig}`
     }
     el('emailCopySubjectBtn').addEventListener('click', () => {
       const inp = el('emailModalSubject');
+      const lbl = el('emailCopySubjectLabel');
       navigator.clipboard.writeText(inp.value).then(() => {
-        el('emailCopySubjectBtn').textContent = 'Copied!';
-        setTimeout(() => { el('emailCopySubjectBtn').textContent = 'Copy'; }, 2000);
+        lbl.textContent = 'Copied!';
+        setTimeout(() => { lbl.textContent = 'Copy'; }, 2000);
       }).catch(() => { inp.select(); document.execCommand('copy'); });
     });
     el('emailCopyBodyBtn').addEventListener('click', () => {
       const ta = el('emailModalTextarea');
+      const lbl = el('emailCopyBodyLabel');
       navigator.clipboard.writeText(ta.value).then(() => {
-        el('emailCopyBodyBtn').textContent = 'Copied!';
-        setTimeout(() => { el('emailCopyBodyBtn').textContent = 'Copy'; }, 2000);
+        lbl.textContent = 'Copied!';
+        setTimeout(() => { lbl.textContent = 'Copy'; }, 2000);
       }).catch(() => { ta.select(); document.execCommand('copy'); });
     });
 

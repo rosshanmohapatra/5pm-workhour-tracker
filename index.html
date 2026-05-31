@@ -8477,7 +8477,7 @@ ${sig}`
       el(id)?.addEventListener('input', autoSaveSettings);
     });
     ['inpShiftStart','inpShiftEnd'].forEach(id => { el(id)?.addEventListener('change', autoSaveSettings); });
-    ['inpName', 'inpCompany'].forEach(id => {
+    ['inpName', 'inpCompany', 'inpPosition'].forEach(id => {
       el(id)?.addEventListener('input', autoSaveSettings);
       el(id)?.addEventListener('change', autoSaveSettings);
     });
@@ -9524,7 +9524,7 @@ ${sig}`
       const _PULL_COOLDOWN = 10 * 60 * 1000; // 10 minutes
       const _lastPull = parseInt(localStorage.getItem('wh_last_pull') || '0', 10);
       const _pullStale = (Date.now() - _lastPull) > _PULL_COOLDOWN;
-      const _shouldPull = _pullStale || !!loginDate || _hasPending();
+      const _shouldPull = _pullStale || (!!loginDate && !autoStopped) || _hasPending();
 
       if (_shouldPull) {
         SbSync.pullAll().then(() => {

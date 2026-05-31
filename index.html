@@ -2233,7 +2233,8 @@
           <div class="settings-section-header">Advanced</div>
           <div class="settings-group">
 
-            <!-- Allow Notifications -->
+            <!-- Allow Notifications + sub-toggles (grouped so hidden sub doesn't add gap) -->
+            <div style="display:flex;flex-direction:column;gap:0">
             <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;cursor:pointer" onclick="el('inpNotifOn').click()">
               <div>
                 <div class="form-label">Allow Notifications</div>
@@ -2246,7 +2247,7 @@
             </div>
 
             <!-- Sub-toggles (expand smoothly when notifications enabled) -->
-            <div id="notifSubGroup" style="overflow:hidden;max-height:0;transition:max-height .3s cubic-bezier(.4,0,.2,1),opacity .22s;opacity:0;pointer-events:none">
+            <div id="notifSubGroup" style="overflow:hidden;max-height:0;transition:max-height .3s cubic-bezier(.4,0,.2,1),opacity .22s,margin-top .3s;opacity:0;pointer-events:none;margin-top:0">
               <div style="display:flex;flex-direction:column;gap:16px">
 
                 <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;cursor:pointer" onclick="el('inpNotifTarget').click()">
@@ -2284,6 +2285,7 @@
 
               </div>
             </div>
+            </div><!-- /notif group wrapper -->
 
             <!-- Include Saturday Toggle -->
             <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;cursor:pointer" onclick="el('inpIncludeSat').click()">
@@ -3619,10 +3621,12 @@
           sub.style.pointerEvents = '';
           sub.style.maxHeight = sub.scrollHeight + 200 + 'px';
           sub.style.opacity   = '1';
+          sub.style.marginTop = '16px';
         } else {
           sub.style.pointerEvents = 'none';
           sub.style.maxHeight = '0';
           sub.style.opacity   = '0';
+          sub.style.marginTop = '0';
         }
       }
       if (isOn) {
@@ -6039,7 +6043,7 @@
       if (el('inpNotifOvertime'))  el('inpNotifOvertime').checked  = c.notifOvertime  !== false;
       // Restore sub-toggle visibility if notifications are already on
       const _nsg = el('notifSubGroup');
-      if (_nsg && c.notifOn) { _nsg.style.maxHeight = '400px'; _nsg.style.opacity = '1'; _nsg.style.pointerEvents = ''; }
+      if (_nsg && c.notifOn) { _nsg.style.maxHeight = '400px'; _nsg.style.opacity = '1'; _nsg.style.pointerEvents = ''; _nsg.style.marginTop = '16px'; }
       const satToggle = el('inpIncludeSat'); if (satToggle) satToggle.checked = (c.workDays === 6);
       const recToggle = el('inpRecommendTimings');
       if (recToggle) { recToggle.checked = c.recommendTimings !== false; }
@@ -6111,13 +6115,15 @@
       const meta  = user.user_metadata || {};
       const c     = cfg();
 
-      // Avatar
+      // Avatar (element may not exist if avatar UI is hidden)
       const avatarUrl = meta.avatar_url || meta.picture || null;
       const avatarEl  = el('profileAvatar');
-      if (avatarUrl) {
-        avatarEl.innerHTML = `<img src="${avatarUrl}" alt="" referrerpolicy="no-referrer">`;
-      } else {
-        avatarEl.textContent = (email[0] || '?').toUpperCase();
+      if (avatarEl) {
+        if (avatarUrl) {
+          avatarEl.innerHTML = `<img src="${avatarUrl}" alt="" referrerpolicy="no-referrer">`;
+        } else {
+          avatarEl.textContent = (email[0] || '?').toUpperCase();
+        }
       }
 
       // Name — prefer cfg, fall back to OAuth metadata, then email prefix

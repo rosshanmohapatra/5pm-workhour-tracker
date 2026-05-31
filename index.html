@@ -4661,9 +4661,12 @@
     }
 
     function _wkndDayData(lastWk) {
-      const c = cfg(), dailySecs = c.dailyH * 3600;
+      const c = cfg(), dailySecs = c.dailyH * 3600, tk = todayKey();
       return lastWk.map(d => {
-        const log = dayLog(d.key) || {};
+        // Future days and today-before-any-work must read as empty — never show stale Supabase data
+        const isFuture        = d.key > tk;
+        const isUnworkedToday = d.key === tk && !loginDate && !dayLog(tk)?.checkoutDisplay;
+        const log = (isFuture || isUnworkedToday) ? {} : (dayLog(d.key) || {});
         const ov = log.override;
         const worked = (log.hoursWorked || 0) * 3600;
         const target = ov === 'halfday' ? dailySecs / 2 : dailySecs;

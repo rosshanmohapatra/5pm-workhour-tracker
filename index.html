@@ -7536,9 +7536,10 @@ ${sig}`
       } else if (_hasPending()) {
         _syncNow();
       } else {
-        // Nothing dirty — force a full pull+push cycle
+        // Nothing dirty — force a full pull+push cycle; reset cooldown timer
         _setSyncStatus('syncing');
         SbSync.pullAll().then(() => {
+          localStorage.setItem('wh_last_pull', String(Date.now()));
           _setSyncStatus('synced');
           showToast('Synced', 'success');
         });
@@ -9501,30 +9502,41 @@ ${sig}`
         if (!shown && !loginDate) checkForgotLogout();
       }, 800);
 
-      // Always pull from Supabase on startup — merges by updated_at so newer side wins.
-      // Previously this was guarded by "length === 0" which meant any device with local
-      // data would never receive updates from other devices.
-      SbSync.pullAll().then(() => {
+      // Pull from Supabase on startup only when stale (>10 min), actively tracking,
+      // or there is pending local data — avoids redundant round-trips on casual reloads.
+      const _PULL_COOLDOWN = 10 * 60 * 1000; // 10 minutes
+      const _lastPull = parseInt(localStorage.getItem('wh_last_pull') || '0', 10);
+      const _pullStale = (Date.now() - _lastPull) > _PULL_COOLDOWN;
+      const _shouldPull = _pullStale || !!loginDate || _hasPending();
+
+      if (_shouldPull) {
+        SbSync.pullAll().then(() => {
+          localStorage.setItem('wh_last_pull', String(Date.now()));
+          renderHistory(); renderDaySelector();
+          if (!loginDate) renderEmptyState();
+        });
+
+        // Pull saved settings from Supabase, then subscribe to real-time changes.
+        SbSync.pullSettings().then(remoteCfg => {
+          if (remoteCfg && typeof remoteCfg === 'object') {
+            _applyingRemote = true;
+            try {
+              Store.setCfg(remoteCfg);
+              populateSettings();
+              renderDaySelector();
+              renderNotifs(); // apply synced dismissed state on load
+              refreshProfileCard(); // re-render card with pulled name/position
+              if (loginDate) render(); else renderEmptyState();
+            } finally { _applyingRemote = false; }
+          }
+          initRealtimeSync();
+        });
+      } else {
+        // Data is fresh — render from local, still wire up realtime for live edits.
         renderHistory(); renderDaySelector();
         if (!loginDate) renderEmptyState();
-      });
-
-      // Pull saved settings from Supabase, then subscribe to real-time changes.
-      // Settings sync across devices: whatever was last saved becomes the source of truth.
-      SbSync.pullSettings().then(remoteCfg => {
-        if (remoteCfg && typeof remoteCfg === 'object') {
-          _applyingRemote = true;
-          try {
-            Store.setCfg(remoteCfg);
-            populateSettings();
-            renderDaySelector();
-            renderNotifs(); // apply synced dismissed state on load
-            refreshProfileCard(); // re-render card with pulled name/position
-            if (loginDate) render(); else renderEmptyState();
-          } finally { _applyingRemote = false; }
-        }
         initRealtimeSync();
-      });
+      }
 
       // Hydrate the profile card — auth data first, then cfg overlay when pullSettings resolves
       hydrateProfileCard();

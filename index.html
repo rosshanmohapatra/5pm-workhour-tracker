@@ -2130,14 +2130,12 @@
         <div class="settings-card-merged">
           <!-- Profile row -->
           <div class="profile-card" id="profileCard" style="border:none;border-radius:0;box-shadow:none">
-            <div class="profile-info" style="display:flex;align-items:center;justify-content:space-between;gap:12px">
-              <div style="flex:1;min-width:0">
-                <div class="profile-name" id="profileName">—</div>
-                <div class="profile-email-row" id="profileEmailRow">—</div>
-              </div>
-              <div id="profileTitleRow" style="display:none;flex-shrink:0;text-align:right">
+            <div class="profile-info">
+              <div class="profile-name" id="profileName">—</div>
+              <div id="profileTitleRow" style="display:none">
                 <span id="profilePosition" class="profile-position"></span>
               </div>
+              <div id="profileEmailRow" class="profile-email-row" style="display:none"></div>
               <!-- User ID — dev mode only -->
               <div id="profileUidRow" style="display:none;margin-top:8px">
                 <div class="field-input" id="profileUid"
@@ -6143,11 +6141,11 @@
         }
       }
 
-      // Name — prefer cfg, fall back to OAuth metadata, then email prefix
+      // Name + email on one line
       const displayName = c.name?.trim() || meta.full_name || meta.name || email.split('@')[0];
-      el('profileName').textContent = displayName;
+      el('profileName').textContent = `${displayName} (${email})`;
 
-      // Position — from cfg
+      // Position — shown below name line
       const position = c.position?.trim() || '';
       const titleRow = el('profileTitleRow');
       if (position) {
@@ -6157,8 +6155,9 @@
         titleRow.style.display = 'none';
       }
 
-      // Email
-      el('profileEmailRow').textContent = email;
+      // Email row hidden — email is now inline in the name line
+      const emailRow = el('profileEmailRow');
+      if (emailRow) emailRow.style.display = 'none';
 
       // User ID — stored in data attribute, shown only in dev mode
       const uid   = user.id || '';

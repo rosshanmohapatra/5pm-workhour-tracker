@@ -696,9 +696,10 @@
       cursor: pointer; display: flex; justify-content: space-between; height: auto; padding: 4px 8px; }
 
     /* ── Support modal QR + UPI sizing ── */
-    .support-qr  { width: min(220px, 100%); aspect-ratio: 1; border-radius: 12px; border: 1px solid var(--border); background: #ffffff; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+    .support-qr  { width: min(280px, 100%); aspect-ratio: 1; border-radius: 12px; border: 1px solid var(--border); background: #ffffff; display: flex; align-items: center; justify-content: center; overflow: hidden; padding: 16px; }
     .support-qr canvas, .support-qr img { width: 100%; height: auto; display: block; }
-    .support-upi { width: 100%; }
+    .support-upi { width: min(280px, 100%); background: var(--muted); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 8px 10px; display: flex; align-items: center; justify-content: space-between; gap: 6px; cursor: pointer; transition: background .12s; }
+    .support-upi:hover { background: var(--border); }
 
     /* ── Dev code interface (Dark Knight) ── */
     .diag-btn { height: 26px; padding: 0 10px; border-radius: 6px; font-size: 11px; font-weight: 500;
@@ -2765,7 +2766,7 @@
 
   <!-- ── Support Project Modal ── -->
   <div class="overlay" id="supportOverlay" onclick="if(event.target===this)closeSupportModal()">
-    <div class="dialog" style="max-width:320px">
+    <div class="dialog" style="max-width:550px">
       <div class="dialog-head" style="display:flex;align-items:flex-start;justify-content:space-between;border-bottom:1px solid var(--border);padding:16px 16px 14px 20px">
         <div>
           <div class="dialog-title">Support Development</div>
@@ -2779,11 +2780,10 @@
         <!-- QR Code — capped at 220px, 1:1 -->
         <div id="supportQrWrap" class="support-qr"></div>
         <!-- UPI ID -->
-        <button id="upiCopyBtn" class="support-upi" onclick="_copyUpi()"
-          style="background:var(--muted);border:1px solid var(--border);border-radius:var(--radius-md);padding:8px 10px;display:flex;align-items:center;justify-content:space-between;gap:6px;cursor:pointer">
+        <button id="upiCopyBtn" class="support-upi" onclick="_copyUpi()">
           <span id="upiLabel" style="font-size:13px;font-weight:400;font-family:var(--font);color:var(--muted-fg);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">roshan.394@superyes</span>
           <svg id="upiCopyIcon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;color:var(--muted-fg)"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-          <svg id="upiCheckIcon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;color:var(--success);display:none"><polyline points="20 6 9 17 4 12"/></svg>
+          <svg id="upiCheckIcon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;color:var(--foreground);display:none"><polyline points="20 6 9 17 4 12"/></svg>
         </button>
       </div>
     </div>
@@ -9178,19 +9178,13 @@ ${sig}`
     let _upiResetTimer = null;
     function _copyUpi() {
       navigator.clipboard?.writeText('roshan.394@superyes');
-      // Copied state: swap icon, tint button, reset after 2s
+      // Copied state: swap icon only, no color change
       el('upiCopyIcon').style.display = 'none';
       el('upiCheckIcon').style.display = '';
-      el('upiCopyBtn').style.background = 'var(--success-bg)';
-      el('upiCopyBtn').style.borderColor = 'var(--success-border)';
-      el('upiLabel').style.color = 'var(--success)';
       if (_upiResetTimer) clearTimeout(_upiResetTimer);
       _upiResetTimer = setTimeout(() => {
         el('upiCopyIcon').style.display = '';
         el('upiCheckIcon').style.display = 'none';
-        el('upiCopyBtn').style.background = '';
-        el('upiCopyBtn').style.borderColor = '';
-        el('upiLabel').style.color = '';
       }, 2000);
     }
 

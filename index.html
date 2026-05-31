@@ -1931,7 +1931,7 @@
                 </div>
               </div>
               <div style="display:flex;justify-content:flex-end">
-                <button class="btn btn-primary" style="height:38px;font-size:13px;padding:0 20px" onclick="openWeekReport()">Check Report</button>
+                <button class="btn-secondary" style="height:38px;font-size:13px;padding:0 16px" onclick="openWeekReport()">Check Full Report</button>
               </div>
             </div>
 
@@ -2083,9 +2083,8 @@
             <span class="wk-footer-val" id="wkSurplus" style="color:var(--muted-fg)">+0m</span>
           </div>
           <div style="display:flex;justify-content:flex-end;margin-top:12px">
-            <button class="btn btn-primary" style="height:36px;font-size:12px;padding:0 16px;display:inline-flex;align-items:center;gap:6px" onclick="openWeekReport(analyticsWeekOffset)">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-              Export
+            <button class="btn-secondary" style="height:36px;font-size:12px;padding:0 16px" onclick="openWeekReport(analyticsWeekOffset)">
+              Check Full Report
             </button>
           </div>
         </div>
@@ -2550,7 +2549,7 @@
         <table id="weekReportTable" style="width:100%;border-collapse:collapse;font-size:12px"></table>
       </div>
       <div class="dialog-foot" style="flex-shrink:0;padding-top:12px;display:flex;justify-content:flex-end">
-        <button class="btn btn-primary" style="height:40px;font-size:13px;padding:0 20px;display:inline-flex;align-items:center;gap:7px" onclick="downloadWeekReport()">
+        <button class="btn btn-primary" style="height:40px;font-size:13px;padding:0 20px;display:inline-flex;align-items:center;gap:7px;width:auto" onclick="downloadWeekReport()">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
           Export
         </button>

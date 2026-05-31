@@ -696,7 +696,7 @@
       cursor: pointer; display: flex; justify-content: space-between; height: auto; padding: 4px 8px; }
 
     /* ── Support modal QR + UPI sizing ── */
-    .support-qr  { width: 100%; aspect-ratio: 1; border-radius: 12px; border: 1px solid var(--border); background: #ffffff; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+    .support-qr  { width: min(220px, 100%); aspect-ratio: 1; border-radius: 12px; border: 1px solid var(--border); background: #ffffff; display: flex; align-items: center; justify-content: center; overflow: hidden; }
     .support-qr canvas, .support-qr img { width: 100%; height: auto; display: block; }
     .support-upi { width: 100%; }
 
@@ -2766,20 +2766,19 @@
   <!-- ── Support Project Modal ── -->
   <div class="overlay" id="supportOverlay" onclick="if(event.target===this)closeSupportModal()">
     <div class="dialog" style="max-width:320px">
-      <div class="dialog-head" style="display:flex;align-items:center;border-bottom:1px solid var(--border);padding:14px">
-        <div class="dialog-title">Support Development</div>
-        <button class="btn-icon" onclick="closeSupportModal()" title="Close" style="margin-left:auto;flex-shrink:0">
+      <div class="dialog-head" style="display:flex;align-items:flex-start;justify-content:space-between;border-bottom:1px solid var(--border);padding:16px 16px 14px 20px">
+        <div>
+          <div class="dialog-title">Support Development</div>
+          <div class="dialog-desc" style="margin-top:3px">If 5pm helped you leave work on time, help me make it better.</div>
+        </div>
+        <button class="btn-icon" onclick="closeSupportModal()" title="Close" style="margin:-2px -2px 0 10px;flex-shrink:0">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>
       </div>
-      <div style="padding:18px 20px 0;display:flex;flex-direction:column;align-items:center;gap:14px">
-        <!-- Description -->
-        <p style="font-size:13px;color:var(--muted-fg);text-align:center;line-height:1.5;margin:0">
-          If 5pm helped you leave work on time, help me make it better.
-        </p>
-        <!-- QR Code — full-width, 1:1 ratio -->
+      <div style="padding:18px 20px 20px;display:flex;flex-direction:column;align-items:center;gap:14px">
+        <!-- QR Code — capped at 220px, 1:1 -->
         <div id="supportQrWrap" class="support-qr"></div>
-        <!-- UPI ID — full width -->
+        <!-- UPI ID -->
         <button id="upiCopyBtn" class="support-upi" onclick="_copyUpi()"
           style="background:var(--muted);border:1px solid var(--border);border-radius:var(--radius-md);padding:8px 10px;display:flex;align-items:center;justify-content:space-between;gap:6px;cursor:pointer">
           <span id="upiLabel" style="font-size:13px;font-weight:400;font-family:var(--font);color:var(--muted-fg);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">roshan.394@superyes</span>

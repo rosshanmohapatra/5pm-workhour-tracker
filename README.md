@@ -2,7 +2,7 @@
 
 > **Leave on time, every time.**
 
-5pm is a personal work-hour tracker that tells you exactly when to leave each day. It tracks login time in real time, computes remaining hours against a daily/weekly target, and surfaces a live "leave at" recommendation — so you work your hours honestly and not a minute more.
+5pm is a personal work-hour tracker that tells you exactly when to leave each day. It tracks login time in real time, computes remaining hours against a daily/weekly target, and surfaces a live "leave at" recommendation - so you work your hours honestly and not a minute more.
 
 ---
 

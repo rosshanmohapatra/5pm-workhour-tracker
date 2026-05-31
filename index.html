@@ -4668,7 +4668,7 @@
         const worked = (log.hoursWorked || 0) * 3600;
         const target = ov === 'halfday' ? dailySecs / 2 : dailySecs;
         const diff   = worked - target;
-        const hasLog = log.hoursWorked != null;
+        const hasLog = log.hoursWorked != null && (log.hoursWorked > 0 || ov === 'holiday' || ov === 'leave');
 
         let attendance = '—';
         if (ov === 'leave')    attendance = 'Leave';
@@ -5511,7 +5511,17 @@
       el('wkndBadgeTitle').textContent = title;
       el('wkndBadgeSubtitle').textContent = until;
       const daysEl = el('wkndBadgeDays');
-      if (daysEl) daysEl.innerHTML = rows.map(r => _badgeDayCircle(r, dailySecs)).join('');
+      if (daysEl) {
+        const emptyRow = day => ({ day, worked: 0, isPenalty: false, attendance: '—', totalHours: '—', surplusSecs: 0 });
+        const circleRows = rows.map((r, i) => {
+          const dk = wk[i]?.key;
+          if (!dk) return r;
+          if (dk > tk) return emptyRow(r.day); // future day — always empty
+          if (dk === tk && !loginDate && !Store.getDay(dk)?.checkoutDisplay) return emptyRow(r.day); // today not yet worked
+          return r;
+        });
+        daysEl.innerHTML = circleRows.map(r => _badgeDayCircle(r, dailySecs)).join('');
+      }
       badgeCard.style.display = '';
     }
 
@@ -7718,8 +7728,9 @@ ${sig}`
       let failed = false;
       const failedDays = [];
 
-      // Batch day pushes
+      // Batch day pushes — never push future dates (futurePlan flags stay local)
       for (const dk of days) {
+        if (dk > todayKey()) continue;
         const entry = Store.getDay(dk);
         if (entry) {
           const ok = await SbSync.pushDay(dk, entry);

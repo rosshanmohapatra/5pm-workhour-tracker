@@ -139,7 +139,7 @@
 
     /* ── Navbar ── */
     .navbar { background: var(--muted); border: 1px solid var(--border); border-radius: var(--radius-lg);
-      box-shadow: var(--shadow-xs); }
+      box-shadow: var(--shadow-sm); position: sticky; top: 16px; z-index: 50; }
     .nav-inner { height: 52px; padding: 0 8px; display: flex; align-items: center; justify-content: space-between; }
     .nav-tabs { display: flex; align-items: center; gap: 4px; }
     .nav-tab { height: 34px; padding: 0 14px; border-radius: var(--radius-md); border: 1px solid transparent;
@@ -990,7 +990,7 @@
       background: var(--warning); opacity: 0; transition: opacity .15s; }
     .day-sel-btn.has-penalty .dsel-dot { opacity: 1; }
     .day-sel-btn:hover:not(:disabled):not(.future):not(.active) { border-color: var(--foreground); color: var(--foreground); background: var(--muted); }
-    .day-sel-btn.active { background: var(--foreground); color: var(--background); border-color: var(--foreground); }
+    .day-sel-btn.active { background: var(--btn-primary-bg); color: var(--card); border-color: var(--btn-primary-bg); }
     .day-sel-btn.active .dsel-dot { background: var(--background); opacity: .6; }
     .day-sel-btn:disabled { opacity: .28; cursor: default; pointer-events: none; }
     .day-sel-btn.future { opacity: .5; }
@@ -1911,7 +1911,6 @@
           <!-- ── Weekend empty state ── -->
           <div id="weekendView">
             <div style="text-align:center;padding:8px 0 18px">
-              <div style="font-size:26px;margin-bottom:10px">🌴</div>
               <div id="wkndPageTitle" style="font-size:17px;font-weight:700;color:var(--foreground);letter-spacing:-.02em;margin-bottom:4px">Enjoy Your Weekend</div>
               <div style="font-size:13px;color:var(--muted-fg);line-height:1.5">You're done with the week.</div>
             </div>
@@ -2131,12 +2130,14 @@
         <div class="settings-card-merged">
           <!-- Profile row -->
           <div class="profile-card" id="profileCard" style="border:none;border-radius:0;box-shadow:none">
-            <div class="profile-info">
-              <div class="profile-name" id="profileName">—</div>
-              <div class="profile-title-row" id="profileTitleRow" style="display:none">
+            <div class="profile-info" style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+              <div style="flex:1;min-width:0">
+                <div class="profile-name" id="profileName">—</div>
+                <div class="profile-email-row" id="profileEmailRow">—</div>
+              </div>
+              <div id="profileTitleRow" style="display:none;flex-shrink:0;text-align:right">
                 <span id="profilePosition" class="profile-position"></span>
               </div>
-              <div class="profile-email-row" id="profileEmailRow">—</div>
               <!-- User ID — dev mode only -->
               <div id="profileUidRow" style="display:none;margin-top:8px">
                 <div class="field-input" id="profileUid"
@@ -6152,7 +6153,6 @@
       if (position) {
         el('profilePosition').textContent = position;
         titleRow.style.display = '';
-        titleRow.style.marginTop = '2px';
       } else {
         titleRow.style.display = 'none';
       }

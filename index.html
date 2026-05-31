@@ -687,7 +687,7 @@
     .profile-info { flex: 1; min-width: 0; }
     .profile-name { font-size: 15px; font-weight: 700; color: var(--foreground); line-height: 1.2;
       overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .profile-position { font-size: 12px; color: var(--muted-fg); line-height: 1.3; }
+    .profile-position { font-size: 12px; font-weight: 400; color: var(--muted-fg); line-height: 1.3; }
     .profile-email-row { font-size: 12px; color: var(--muted-fg); margin-top: 2px;
       overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .profile-chip {
@@ -977,8 +977,8 @@
       font-size: 12px; font-weight: 500; font-family: var(--font); cursor: pointer;
       transition: background .14s; }
     .modal-override-btn:hover { background: var(--border); }
-    .modal-override-btn.active { background: var(--foreground); color: var(--background);
-      border-color: var(--foreground); }
+    .modal-override-btn.active { background: var(--btn-primary-bg); color: var(--card);
+      border-color: var(--btn-primary-bg); }
     .modal-time-row { display: flex; align-items: center; gap: 8px; }
     .modal-time-row .field-input { flex: 1; }
     .modal-time-sep { color: var(--muted-fg); font-size: 14px; flex-shrink: 0; }
@@ -1353,32 +1353,32 @@
       font-size: 11px; font-weight: 600; color: var(--muted-fg);
       letter-spacing: .07em; text-transform: uppercase;
     }
-    .tp-wheels-wrap { position: relative; height: 200px; overflow: hidden; }
+    .tp-wheels-wrap { position: relative; height: 156px; overflow: hidden; }
     .tp-wheels { display: flex; height: 100%; }
     .tp-wheel {
       flex: 1; overflow-y: scroll; scroll-snap-type: y mandatory;
       -webkit-overflow-scrolling: touch; scrollbar-width: none;
-      padding-top: 78px; padding-bottom: 78px;
+      padding-top: 59px; padding-bottom: 59px;
     }
     .tp-wheel::-webkit-scrollbar { display: none; }
     .tp-wheel-item {
-      height: 44px; display: flex; align-items: center; justify-content: center;
-      scroll-snap-align: center; font-size: 19px; font-weight: 600;
+      height: 38px; display: flex; align-items: center; justify-content: center;
+      scroll-snap-align: center; font-size: 16px; font-weight: 600;
       color: var(--muted-fg); cursor: pointer; user-select: none;
       font-variant-numeric: tabular-nums; transition: color .1s, opacity .1s;
     }
     .tp-wheel-item.active { color: var(--foreground); }
     .tp-center-bar {
       position: absolute; pointer-events: none; top: 50%; transform: translateY(-50%);
-      left: 0; right: 0; height: 44px;
+      left: 0; right: 0; height: 38px;
       border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
     }
     .tp-fade-top {
-      position: absolute; top: 0; left: 0; right: 0; height: 78px; pointer-events: none;
+      position: absolute; top: 0; left: 0; right: 0; height: 59px; pointer-events: none;
       background: linear-gradient(to bottom, var(--card) 30%, transparent);
     }
     .tp-fade-bot {
-      position: absolute; bottom: 0; left: 0; right: 0; height: 78px; pointer-events: none;
+      position: absolute; bottom: 0; left: 0; right: 0; height: 59px; pointer-events: none;
       background: linear-gradient(to top, var(--card) 30%, transparent);
     }
     .tp-footer { display: flex; gap: 8px; padding: 12px 14px; border-top: 1px solid var(--border); }
@@ -1829,19 +1829,14 @@
       <div id="futureDayPlan" style="display:none">
         <div class="card" style="padding:20px 16px;display:flex;flex-direction:column;gap:16px">
           <!-- Question -->
-          <div style="text-align:center;font-size:14px;font-weight:500;color:var(--muted-fg)" id="futureDayQuestion">Any plans for this day?</div>
+          <div style="font-size:14px;font-weight:600;color:var(--foreground)" id="futureDayQuestion">Any plans for this day?</div>
           <!-- Plan type pills -->
-          <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap" id="futureDayChips"></div>
+          <div style="display:flex;gap:8px;justify-content:flex-start;flex-wrap:wrap" id="futureDayChips"></div>
           <!-- Reason input (shown after a plan is picked) -->
           <div id="futureDayReasonWrap" style="display:none">
             <textarea id="futureDayReason" placeholder="Add a reason (optional)" rows="2"
               style="width:100%;resize:none;border:1px solid var(--border);border-radius:8px;background:var(--input-bg);color:var(--foreground);font-family:var(--font);font-size:13px;padding:10px 12px;outline:none;transition:border-color .15s"
               oninput="saveFutureDayReason(this.value)"></textarea>
-          </div>
-          <!-- Hours remaining -->
-          <div id="futureDayHoursRow" style="display:flex;align-items:center;justify-content:space-between;font-size:12px;color:var(--muted-fg)">
-            <span>Hours Remaining</span>
-            <span id="futureDayHoursVal" style="font-weight:600;color:var(--foreground)">—</span>
           </div>
           <!-- CTA button -->
           <button class="shift-start-btn" id="futurePlanBtn" style="font-size:13px;height:40px;border-radius:10px" onclick="toggleFuturePlanMode()">New Plan</button>
@@ -5443,6 +5438,7 @@
       renderDaySelector();
       updateSelDayHeader(key);
       el('futureDayPlan').style.display = 'none';
+      el('wkndBadgeCard').style.display = 'none';
       el('resultCard').style.display = '';
 
       const headDateEl = el('rcHeadDate');
@@ -5474,6 +5470,42 @@
       }
     }
 
+    function _renderFutureDayBadge() {
+      const badgeCard = el('wkndBadgeCard');
+      if (!badgeCard) return;
+      const wk = week(daySelectorWeekOffset), tk = todayKey();
+      const c = cfg(), dailySecs = c.dailyH * 3600;
+      const rows = _wkndDayData(wk);
+      const now = new Date();
+      const dow = now.getDay();
+      const daysUntilFri = Math.max(0, 5 - dow);
+      const until = `${daysUntilFri} Day${daysUntilFri !== 1 ? 's' : ''} Until Friday`;
+
+      const pastRows = rows.filter((_, i) => wk[i] && wk[i].key <= tk);
+      const daysWorked  = pastRows.filter(r => r.worked > 0).length;
+      const penaltyDays = pastRows.filter(r => r.isPenalty).length;
+
+      let icon, title;
+      if (daysWorked === 0) {
+        icon = _BADGE_ICONS.trending; title = 'New Week';
+      } else if (penaltyDays === 0 && daysWorked >= 2) {
+        icon = _BADGE_ICONS.lock; title = 'Going Strong';
+      } else if (penaltyDays === 0 && daysWorked === 1) {
+        icon = _BADGE_ICONS.sparkle; title = 'Good Start';
+      } else if (penaltyDays <= 1) {
+        icon = _BADGE_ICONS.scale; title = 'On Track';
+      } else {
+        icon = _BADGE_ICONS.target; title = 'Keep Going';
+      }
+
+      el('wkndBadgeIcon').innerHTML = icon;
+      el('wkndBadgeTitle').textContent = title;
+      el('wkndBadgeSubtitle').textContent = until;
+      const daysEl = el('wkndBadgeDays');
+      if (daysEl) daysEl.innerHTML = rows.map(r => _badgeDayCircle(r, dailySecs)).join('');
+      badgeCard.style.display = '';
+    }
+
     function selectFutureDay(key) {
       selectedDayKey = key;
       el('rcBody')?.classList.remove('weekend-mode');
@@ -5491,6 +5523,7 @@
       el('futureDayQuestion').textContent = `Any plans for ${day?.name || 'this day'}?`;
 
       _renderFutureDayInline(key, log, day);
+      _renderFutureDayBadge();
     }
 
     function _renderFutureDayInline(key, log, day) {
@@ -5505,8 +5538,7 @@
         { key: 'holiday', label: 'Holiday' },
       ];
       el('futureDayChips').innerHTML = planTypes.map(p =>
-        `<button class="wp-override-btn${planKey === p.key ? ' active' : ''}"
-          style="height:34px;border-radius:8px;font-size:12px;font-weight:600"
+        `<button class="modal-override-btn${planKey === p.key ? ' active' : ''}"
           onclick="_selectFuturePlanType('${key}','${p.key}',this)">${p.label}</button>`
       ).join('');
 
@@ -5516,15 +5548,6 @@
         reasonWrap.style.display = hasPlan ? '' : 'none';
         const ta = el('futureDayReason');
         if (ta) ta.value = log?.futureReason || '';
-      }
-
-      // Hours remaining
-      const hoursVal = el('futureDayHoursVal');
-      if (hoursVal) {
-        const target = planKey === 'halfday' ? c.dailyH / 2
-                     : (planKey === 'leave' || planKey === 'holiday') ? 0
-                     : c.dailyH;
-        hoursVal.textContent = target > 0 ? dur(target * 3600) : 'Day off';
       }
 
       // CTA button
@@ -5794,7 +5817,16 @@
           rightWrap.className = 'wk-row-actions';
 
           const pill = document.createElement('div');
-          const isPastDay = !isToday && day.date < new Date();
+          const isPastDay = !isToday && day.key < tk;
+          const isFutureDay = !isToday && day.key > tk;
+          if (isFutureDay) {
+            pill.className = 'wk-pill';
+            pill.textContent = '–';
+            row.appendChild(pill);
+            row.appendChild(rightWrap);
+            rows.appendChild(row);
+            continue;
+          }
           if (isToday && loginDate) {
             const ds = Math.max(0, Math.floor((new Date() - loginDate) / 1000));
             pill.className = 'wk-pill live';
@@ -5860,7 +5892,7 @@
           surpEl.textContent = sm > 0 ? `+${sh}h ${sm}m` : `+${sh}h`;
           surpEl.style.color = 'var(--success)';
         } else {
-          surpEl.textContent = '+0m';
+          surpEl.textContent = '0m';
           surpEl.style.color = 'var(--muted-fg)';
         }
       }

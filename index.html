@@ -540,7 +540,7 @@
     .wk-collapsible { overflow: hidden; transition: max-height .28s ease, opacity .22s; }
     .wk-collapsible.open     { max-height: 500px; opacity: 1; }
     .wk-collapsible.minimized { max-height: 0; opacity: 0; }
-    .wk-rows { padding: 4px 0; }
+    .wk-rows { padding: 12px; }
     .wk-row { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center;
       padding: 10px 14px; cursor: pointer; border-radius: 6px; position: relative; transition: background .12s; }
     .wk-row:hover { background: var(--muted); }
@@ -862,11 +862,12 @@
     .sc-total-val { font-size: 15px; font-weight: 700; color: var(--success); }
 
     /* Penalty rows */
-    .penalty-list { display: flex; flex-direction: column; }
-    .penalty-row { border-top: 1px solid var(--border); }
-    .penalty-row:first-child { border-top: none; }
+    .penalty-list { display: flex; flex-direction: column; padding: 12px; gap: 2px; }
+    .penalty-row { border-radius: 8px; cursor: pointer; transition: background .12s; }
+    .penalty-row:hover { background: var(--muted); }
+    .penalty-discard-btn:hover { color: var(--destructive) !important; background: var(--destructive-bg) !important; border-color: var(--destructive-bg) !important; }
     .penalty-row-main { display: flex; align-items: center; justify-content: space-between;
-      padding: 11px 16px; }
+      padding: 9px 10px; }
     .penalty-info { display: flex; flex-direction: column; gap: 2px; }
     .penalty-date { font-size: 13px; font-weight: 600; color: var(--foreground); }
     .penalty-delta { font-size: 11px; color: var(--warning); font-weight: 500; }
@@ -884,7 +885,7 @@
     .email-modal { background: var(--card); border-radius: 18px 18px 0 0;
       width: 100%; max-width: 480px; padding: 24px 20px 32px;
       transform: translateY(100%); transition: transform .25s cubic-bezier(.32,1,.54,1);
-      max-height: 85vh; overflow-y: auto; border: 1px solid var(--border); border-bottom: none; }
+      max-height: 75vh; overflow-y: auto; border: 1px solid var(--border); border-bottom: none; }
     .email-modal-overlay.open .email-modal { transform: translateY(0); }
     .center-overlay { align-items: center !important; padding: 20px; }
     .center-overlay .email-modal { border-radius: 16px !important; border-bottom: 1px solid var(--border) !important;
@@ -899,10 +900,11 @@
       position: absolute; top: 12px; right: 12px; }
     .email-modal-close:hover { border-color: var(--border); color: var(--foreground); }
     .email-modal-date { font-size: 12px; color: var(--muted-fg); margin-top: 2px; }
-    .email-textarea { width: 100%; min-height: 200px; font-size: 12px; font-family: var(--font);
+    .email-textarea { width: 100%; min-height: unset; font-size: 12px; font-family: var(--font);
       padding: 10px 12px; background: var(--muted); color: var(--foreground);
-      border: 1px solid var(--border); border-radius: 8px; resize: vertical;
-      line-height: 1.6; outline: none; }
+      border: 1px solid var(--border); border-radius: 8px; resize: none;
+      line-height: 1.6; outline: none; overflow-y: hidden;
+      field-sizing: content; }
     .email-textarea:focus { border-color: var(--ring); background: var(--background); }
     .email-modal-actions { display: flex; gap: 8px; margin-top: 12px; }
     .email-copy-btn { height: 26px; padding: 0 8px; border-radius: var(--radius); border: 1px solid var(--border);
@@ -2116,6 +2118,7 @@
       <div class="analytics-card">
         <div class="analytics-card-head">
           <span class="analytics-card-title">Your Penalties</span>
+          <button class="btn-secondary" id="penaltyClearAll" style="font-size:11px;height:30px;padding:0 10px" onclick="clearAllPenalties()">Clear All</button>
         </div>
         <div class="penalty-list" id="penaltiesList">
           <div class="penalty-empty" style="padding:24px 16px">Scanning…</div>
@@ -6714,6 +6717,11 @@
       localStorage.setItem('wh_discarded_penalties', JSON.stringify([..._discardedPenalties]));
       renderPenalties();
     }
+    function clearAllPenalties() {
+      _penaltyData.forEach(p => _discardedPenalties.add(p.key));
+      localStorage.setItem('wh_discarded_penalties', JSON.stringify([..._discardedPenalties]));
+      renderPenalties();
+    }
 
     // ── Helper: get all Mon–Fri days in a given month up to today ──
     function getWeekdaysInMonth(year, month) {
@@ -6783,7 +6791,7 @@
         }
         container.innerHTML = visibleDaily.map(p => {
             const dateStr = `${FULL_DAYS_EN[p.date.getDay()]}, ${MONTHS[p.date.getMonth()]} ${p.date.getDate()}`;
-            return penaltyRowHtml(p, dateStr, `−${dur(p.deficit)} short of ${dur(c.dailyH*3600)} daily target`);
+            return penaltyRowHtml(p, dateStr, `−${dur(p.deficit)} Short`);
           }).join('');
 
       } else {
@@ -6856,26 +6864,26 @@
         container.innerHTML = visibleWeekly.map(p => {
             const dateStr = `Week of ${p.rangeStr}`;
             const adjH = ((adjustedWeeklyTarget(p.wkDays.map(d=>({key:dateKey(d),date:d}))))/3600).toFixed(1).replace(/\.0$/,'');
-            const desc = `${dur(p.totalSecs)} logged — ${dur(p.deficit)} short of ${adjH}h adjusted target`;
+            const desc = `−${dur(p.deficit)} Short`;
             return penaltyRowHtml(p, dateStr, desc, true);
           }).join('');
       }
     }
 
     function penaltyRowHtml(p, dateStr, shortDesc, isWeekly) {
-      return `<div class="penalty-row">
+      return `<div class="penalty-row" onclick="openEmailModal('${p.key}')">
         <div class="penalty-row-main">
           <div class="penalty-info">
             <span class="penalty-date">${dateStr}</span>
             ${shortDesc ? `<span class="penalty-delta">${shortDesc}</span>` : ''}
           </div>
           <div style="display:flex;gap:6px;flex-shrink:0">
-            <button class="btn-sm" onclick="openEmailModal('${p.key}')">
+            <button class="btn-sm" onclick="event.stopPropagation();openEmailModal('${p.key}')">
               <svg width="10" height="10" viewBox="0 0 24 24" fill="none"><path fill-rule="evenodd" clip-rule="evenodd" d="M23 6V18C23 19.6523 21.6523 21 20 21H4C2.34772 21 1 19.6523 1 18V6C1 4.34315 2.34315 3 4 3H20C21.6569 3 23 4.34315 23 6ZM3.10658 5.55395C3.27196 5.22692 3.61204 5 4 5H20C20.388 5 20.728 5.22692 20.8934 5.55395L12 11.7793L3.10658 5.55395ZM3 7.92066L10.8531 13.4178C11.5417 13.8999 12.4583 13.8999 13.1469 13.4178L21 7.92066V18C21 18.5477 20.5477 19 20 19H4C3.45228 19 3 18.5477 3 18V7.92066Z" fill="currentColor"/></svg>
               Email
             </button>
-            <button class="btn-sm" style="color:var(--muted-fg);width:30px;padding:0;justify-content:center" onclick="discardPenalty('${p.key}')" title="Discard">
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            <button class="btn-sm penalty-discard-btn" style="color:var(--muted-fg);width:30px;padding:0;justify-content:center" onclick="event.stopPropagation();discardPenalty('${p.key}')" title="Discard">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
             </button>
           </div>
         </div>

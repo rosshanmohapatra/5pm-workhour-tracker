@@ -7362,7 +7362,26 @@ ${sig}`
       const key = _dayEditKey;
       const backup = dayLog(key);
       _deletedEntryKey = key; _deletedEntryData = backup || null;
-      // Remove from Store + sync deletion
+
+      // If deleting today's entry while a session is active or saved:
+      // 1. Stop the ticker immediately — otherwise render() re-writes the
+      //    deleted log every second, making the deletion appear to not work.
+      // 2. Clear the session store — otherwise a reload restores the ghost
+      //    session via restoreSession() even though the log is gone.
+      if (key === todayKey()) {
+        cancelScheduledNotifications();
+        if (ticker) { clearInterval(ticker); ticker = null; }
+        _stopCheckpoint();
+        loginDate = null; _sessionAccSecs = 0; _sessionCheckoutTime = null;
+        autoStopped = false; wasDone = false; notifSent = false;
+        Store.clearSession();
+        setCalcBtnState('start');
+        el('shiftInputRow').classList.remove('active-state', 'hidden');
+        el('shiftActiveLabel').textContent = '—';
+        el('autostopBanner').classList.remove('show');
+      }
+
+      // Remove from localStorage + queue Supabase sync
       Store.remove(KEY.day + key);
       _markDirty(key); _syncNow();
       closeDayEditModal();
@@ -7378,8 +7397,7 @@ ${sig}`
           renderHistory();
           renderPenalties();
           renderSurplusCircles();
-          if (_deletedEntryKey === todayKey() && loginDate) render();
-          else if (_deletedEntryKey === todayKey()) renderEmptyState();
+          if (_deletedEntryKey === todayKey()) renderEmptyState();
         }
         _deletedEntryKey = null; _deletedEntryData = null;
       });

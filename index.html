@@ -3825,9 +3825,12 @@
         sessionTag:      ex.sessionTag || 'realtime'
       });
       persist();
-      // Show insights modal with full day info
+      // Daily Report only when Recommend Timings is ON — rec-off users see the
+      // Daily Target Reached modal instead (which already has the key info).
       const firstLoginStr = ex.loginDisplay || short(loginDate);
-      showCheckoutModal(firstLoginStr, now, totalSecs);
+      if (cfg().recommendTimings !== false) {
+        showCheckoutModal(firstLoginStr, now, totalSecs);
+      }
       // Friday nudge — remind to check weekly report (once per week)
       const _dow = new Date().getDay();
       const _isFriday = _dow === 5 || (cfg().workDays >= 6 && _dow === 6);
@@ -3838,11 +3841,23 @@
           setTimeout(() => showToast('Check your weekly report', 'info', '', { label: 'Check', onClick: () => switchTab('analytics') }), 2500);
         }
       }
-      // Reset state — clearLogin() is called inside closeCheckoutModal
-      _sessionAccSecs = 0; _sessionCheckoutTime = null;
-      loginDate = null; autoStopped = false;
-      setCalcBtnState('start');
-      el('shiftInputRow').classList.remove('active-state', 'hidden');
+      // Reset state — clearLogin() is called inside closeCheckoutModal (rec-on),
+      // or directly here (rec-off, no modal).
+      if (cfg().recommendTimings === false) {
+        _sessionAccSecs = 0; _sessionCheckoutTime = null;
+        loginDate = null; autoStopped = false;
+        setCalcBtnState('start');
+        el('shiftInputRow').classList.remove('active-state', 'hidden');
+        el('shiftActiveLabel').textContent = '—';
+        renderDaySelector();
+        renderEmptyState();
+      } else {
+        // clearLogin() called inside closeCheckoutModal
+        _sessionAccSecs = 0; _sessionCheckoutTime = null;
+        loginDate = null; autoStopped = false;
+        setCalcBtnState('start');
+        el('shiftInputRow').classList.remove('active-state', 'hidden');
+      }
     }
 
     // ── END SESSION: pauses mid-day, keeps hours, shows Resume ───────────────
@@ -5361,9 +5376,14 @@
       // Split button stays in its current running/ended state — End Session is in the dropdown
       if (isDone && !wasDone) {
         wasDone = true;
-        // When Recommend Timings is OFF, show a modal instead of just the banner
+        // When Recommend Timings is OFF, pause the session and show the target modal.
+        // The counter stops — gap while modal is open is not counted as work time.
         if (cfg().recommendTimings === false) {
-          el('dailyTargetHours').textContent = dur(worked);
+          if (ticker) { clearInterval(ticker); ticker = null; }
+          // Freeze accumulated seconds at the exact moment target was reached
+          _sessionAccSecs += Math.floor((now - loginDate) / 1000);
+          loginDate = null; // session paused
+          el('dailyTargetHours').textContent = dur(_sessionAccSecs);
           el('dailyTargetReachedOverlay').classList.add('open');
         }
       } else if (!isDone) wasDone = false;
@@ -8769,7 +8789,7 @@ ${sig}`
     el('endSessionBtn').addEventListener('click', e => {
       e.stopPropagation();
       const dd = el('calcBtnDropdown'); if (dd) dd.style.display = 'none';
-      openEndSessionModal();
+      confirmEndSession(); // no confirmation step — End Session is never accidental enough to warrant it
     });
     el('coDone').addEventListener('click', closeCheckoutModal);
     el('checkoutOverlay').addEventListener('click', e => { if (e.target === el('checkoutOverlay')) closeCheckoutModal(); });
@@ -8921,11 +8941,35 @@ ${sig}`
 
     // Daily Target Reached modal (Recommend Timings OFF)
     el('dailyTargetCancelBtn').addEventListener('click', () => {
+      // "Keep Going" — resume session from this moment; gap while modal was open is not counted
       el('dailyTargetReachedOverlay').classList.remove('open');
+      loginDate = new Date();
+      if (ticker) clearInterval(ticker);
+      ticker = setInterval(render, 1000);
     });
     el('dailyTargetEndBtn').addEventListener('click', () => {
+      // "End Session" — session already paused; save log silently (no Daily Report)
       el('dailyTargetReachedOverlay').classList.remove('open');
-      openEndSessionModal();
+      cancelScheduledNotifications();
+      const now = new Date();
+      const tk = todayKey(), ex = dayLog(tk) || {};
+      saveDayLogAndSync(tk, {
+        ...ex,
+        checkoutDisplay: short(now),
+        checkoutTime:    `${p2(now.getHours())}:${p2(now.getMinutes())}:${p2(now.getSeconds())}`,
+        hoursWorked:     _sessionAccSecs / 3600,
+        lastUpdated:     now.toISOString(),
+        sessionTag:      ex.sessionTag || 'realtime'
+      });
+      persist();
+      _sessionAccSecs = 0; _sessionCheckoutTime = null;
+      loginDate = null; autoStopped = false; wasDone = false;
+      setCalcBtnState('start');
+      el('shiftInputRow').classList.remove('active-state', 'hidden');
+      el('shiftActiveLabel').textContent = '—';
+      el('autostopBanner').classList.remove('show');
+      renderDaySelector();
+      renderEmptyState();
     });
 
     el('npSave').addEventListener('click', saveNewPlan);

@@ -932,12 +932,12 @@
 
     /* ── Selected day context (Home header) ── */
     .sel-day-ctx { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; }
-    .sel-day-left { display: flex; flex-direction: column; gap: 0px; }
+    .sel-day-left { display: flex; flex-direction: column; gap: 0px; flex: 1 1 0; min-width: 0; }
     .sel-day-date-str { font-size: 12px; color: var(--muted-fg); font-weight: 500; letter-spacing: .01em; }
-    .sel-day-rel { font-size: 28px; font-weight: 700; color: var(--foreground);
-      line-height: 1.15; letter-spacing: -.7px; margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .sel-day-rel { font-size: 22px; font-weight: 700; color: var(--foreground);
+      line-height: 1.15; letter-spacing: -.5px; margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .sel-day-clock { font-size: 15px; font-weight: 600; color: var(--foreground);
-      font-variant-numeric: tabular-nums; letter-spacing: -.3px; padding-bottom: 3px; white-space: nowrap; }
+      font-variant-numeric: tabular-nums; letter-spacing: -.3px; padding-bottom: 3px; white-space: nowrap; flex-shrink: 0; }
 
     /* ── Session tags ── */
     .tag-pill { display: inline-flex; align-items: center; font-size: 9px; font-weight: 700;
@@ -1253,8 +1253,12 @@
       .split-chevron-btn:active { opacity: .8; }
 
       .day-sel-btn { transition: none; }
-      .day-sel-btn:hover:not(:disabled):not(.future):not(.active) { background: var(--muted); border-color: var(--foreground); color: var(--foreground); }
-      .day-sel-btn:active:not(:disabled):not(.future) { background: var(--muted); border-color: var(--foreground); color: var(--foreground); }
+      /* Reset hover to no-op — on touch, hover sticks after tap */
+      .day-sel-btn:hover:not(:disabled):not(.future):not(.active) { background: var(--background); border-color: var(--border); color: var(--muted-fg); }
+      /* Only show feedback while finger is actually down */
+      .day-sel-btn:active:not(:disabled):not(.future):not(.active) { background: var(--muted); border-color: var(--foreground); color: var(--foreground); }
+      .this-week-btn:hover { background: var(--muted); }
+      .this-week-btn:active { background: var(--border); }
 
       .rc-update-btn { transition: none; }
       .rc-update-btn:hover { background: var(--muted); color: var(--foreground); }
@@ -5498,7 +5502,7 @@
       if (!container) return;
       const mondayKey = week(0)[0].key;
       const mondayBtn = container.querySelector(`.day-sel-btn[data-key="${mondayKey}"]`);
-      if (mondayBtn) container.scrollLeft = Math.max(0, mondayBtn.offsetLeft - 16);
+      if (mondayBtn) container.scrollLeft = Math.max(0, mondayBtn.offsetLeft - 6);
     }
 
     // ── Lazy-load helpers ──
@@ -9154,17 +9158,61 @@ ${sig}`
       });
     })();
 
-    // ── Continuous day strip — label sync + lazy past-day loading ──
+    // ── Continuous day strip — manual touch scroll + label sync + lazy loading ──
+    // Uses a manual touchmove handler (non-passive, calls preventDefault) so that
+    // a horizontal swipe on the strip never triggers iOS pull-to-refresh, regardless
+    // of the vertical component. Native overflow scroll handles mouse/trackpad.
     (function _initDayStripScroll() {
       const container = el('daySelectorRow');
       if (!container) return;
+
+      let _sx = 0, _sy = 0, _lx = 0, _horiz = null, _vx = 0, _lt = 0, _mid = null;
+
+      container.addEventListener('touchstart', e => {
+        if (e.touches.length !== 1) return;
+        _sx = _lx = e.touches[0].clientX;
+        _sy = e.touches[0].clientY;
+        _horiz = null; _vx = 0; _lt = Date.now();
+        if (_mid) { cancelAnimationFrame(_mid); _mid = null; }
+      }, { passive: true });
+
+      container.addEventListener('touchmove', e => {
+        if (e.touches.length !== 1) return;
+        const cx = e.touches[0].clientX, cy = e.touches[0].clientY;
+        if (_horiz === null) {
+          const adx = Math.abs(cx - _sx), ady = Math.abs(cy - _sy);
+          if (adx < 4 && ady < 4) return; // wait for intent
+          _horiz = adx >= ady;
+        }
+        if (_horiz) {
+          e.preventDefault(); // block pull-to-refresh for horizontal gestures
+          const dx = _lx - cx;
+          container.scrollLeft = Math.max(0, container.scrollLeft + dx);
+          const now = Date.now();
+          _vx = dx / Math.max(now - _lt, 1); // px/ms
+          _lt = now;
+        }
+        _lx = cx;
+      }, { passive: false });
+
+      container.addEventListener('touchend', () => {
+        if (!_horiz || Math.abs(_vx) < 0.05) return;
+        let v = _vx;
+        (function step() {
+          if (Math.abs(v) < 0.05) return;
+          container.scrollLeft = Math.max(0, container.scrollLeft + v * 16);
+          v *= 0.94;
+          _mid = requestAnimationFrame(step);
+        })();
+      }, { passive: true });
+
+      // Label + lazy-load on any scroll (manual drag, momentum, or programmatic)
       let _raf = null;
       container.addEventListener('scroll', () => {
         if (_raf) return;
         _raf = requestAnimationFrame(() => {
           _raf = null;
           _updateWeekLabel();
-          // When the user reaches within 150px of the left edge, prepend 2 more past weeks
           if (container.scrollLeft < 150) _dsLoadMorePast();
         });
       }, { passive: true });

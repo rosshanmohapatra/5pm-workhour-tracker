@@ -1004,7 +1004,7 @@
     .day-selector { display: flex; gap: 6px; overflow-x: auto; -webkit-overflow-scrolling: touch;
       scrollbar-width: none; -ms-overflow-style: none; }
     .day-selector::-webkit-scrollbar { display: none; }
-    .day-sel-btn { flex: 1 0 52px; display: flex; flex-direction: column; align-items: center;
+    .day-sel-btn { flex: 0 0 60px; display: flex; flex-direction: column; align-items: center;
       gap: 4px; padding: 10px 4px 8px; border-radius: 10px; border: 1px solid var(--border);
       background: var(--background); color: var(--muted-fg); cursor: pointer;
       transition: background .12s, color .12s, border-color .12s; font-family: var(--font); }
@@ -5449,137 +5449,174 @@
     }
 
     // ── DAY SELECTOR (Home) ────────────────────────────
-    function renderDaySelector() {
-      const wk = week(daySelectorWeekOffset), tk = todayKey(), now = new Date();
-      // When on the weekend view, no weekday should appear active
-      const isWeekendActive = selectedDayKey === '__wknd__';
-      const selKey = isWeekendActive ? null : (selectedDayKey || tk);
+    let _dsSel = null; // last key scrolled-to — prevents redundant scrolls on every tick
+
+    function _dsScrollTo(container, btn, behavior) {
+      const left = Math.max(0, btn.offsetLeft - container.clientWidth / 2 + btn.offsetWidth / 2);
+      if (behavior === 'smooth') container.scrollTo({ left, behavior: 'smooth' });
+      else container.scrollLeft = left;
+    }
+
+    // Returns the week label for any date key — O(1) date math, no loop.
+    function _weekLabelForKey(key) {
+      const d = new Date(key + 'T12:00');
+      const dow = d.getDay();
+      const mon = new Date(d); mon.setDate(d.getDate() + (dow === 0 ? -6 : 1 - dow)); mon.setHours(0,0,0,0);
+      const today = new Date(); today.setHours(0,0,0,0);
+      const todayDow = today.getDay();
+      const thisMon = new Date(today); thisMon.setDate(today.getDate() + (todayDow === 0 ? -6 : 1 - todayDow));
+      const off = Math.round((mon - thisMon) / (7 * 86400000));
+      return off === 0 ? 'This Week' : weekRangeLabel(off);
+    }
+
+    function _updateWeekLabel() {
+      const label = el('thisWeekLabel'), container = el('daySelectorRow');
+      if (!label || !container) return;
+      // Track the FIRST visible day at the left edge, not the center.
+      const scrollLeft = container.scrollLeft;
+      let firstVisible = null;
+      container.querySelectorAll('.day-sel-btn[data-key]').forEach(btn => {
+        if (!firstVisible && (btn.offsetLeft + btn.offsetWidth) > scrollLeft) firstVisible = btn;
+      });
+      if (firstVisible) label.textContent = _weekLabelForKey(firstVisible.dataset.key);
+    }
+
+    function _syncOffsetFromKey(key) {
+      const d = new Date(key + 'T12:00');
+      const dow = d.getDay();
+      const mon = new Date(d); mon.setDate(d.getDate() + (dow === 0 ? -6 : 1 - dow)); mon.setHours(0,0,0,0);
+      const today = new Date(); today.setHours(0,0,0,0);
+      const todayDow = today.getDay();
+      const thisMon = new Date(today); thisMon.setDate(today.getDate() + (todayDow === 0 ? -6 : 1 - todayDow));
+      daySelectorWeekOffset = Math.round((mon - thisMon) / (7 * 86400000));
+    }
+
+    // ── Lazy-load helpers ──
+    let _dsEarliestOffset = -2; // tracks how far back we've rendered
+
+    function _dsMakeBtn(day, now, tk, selKey, c) {
+      const btn = document.createElement('button');
+      const log = dayLog(day.key);
+      const isFuture = day.date > now && day.key !== tk;
+      btn.className = 'day-sel-btn';
+      btn.dataset.key = day.key;
+      if (selKey && day.key === selKey) btn.classList.add('active');
+      if (log?.hoursWorked != null && log?.override !== 'leave' && log?.override !== 'holiday') {
+        const t = c.dailyH * 3600, dt = log?.override === 'halfday' ? t / 2 : t;
+        if ((dt - log.hoursWorked * 3600) > 300) btn.classList.add('has-penalty');
+      }
+      if (isFuture) btn.classList.add('future');
+      btn.innerHTML = `<span class="dsel-name">${day.name.slice(0,3)}</span>`
+                    + `<span class="dsel-num">${day.date.getDate()}</span>`
+                    + `<span class="dsel-dot"></span>`;
+      btn.addEventListener('click', () => {
+        if (isFuture) selectFutureDay(day.key);
+        else selectDay(day.key);
+        _syncOffsetFromKey(day.key);
+      });
+      return btn;
+    }
+
+    function _dsLoadMorePast() {
+      const newEarliest = _dsEarliestOffset - 2;
+      if (newEarliest < -52) return; // cap at ~1 year back
       const container = el('daySelectorRow');
-      container.innerHTML = '';
-      wk.forEach(day => {
-        const btn = document.createElement('button');
-        const log = dayLog(day.key);
-        const isFuture = daySelectorWeekOffset === 0 && day.date > now && day.key !== tk;
-        btn.className = 'day-sel-btn';
-        if (selKey && day.key === selKey) btn.classList.add('active');
-        // Yellow penalty dot — only when worked < daily target (>5 min short), not for leave/holiday
-        if (log?.hoursWorked != null && log?.override !== 'leave' && log?.override !== 'holiday') {
-          const _target = cfg().dailyH * 3600;
-          const _dayTarget = log?.override === 'halfday' ? _target / 2 : _target;
-          if ((_dayTarget - log.hoursWorked * 3600) > 300) btn.classList.add('has-penalty');
-        }
-        if (isFuture) btn.classList.add('future');
-        btn.innerHTML = `<span class="dsel-name">${day.name.slice(0,3)}</span>`
-                      + `<span class="dsel-num">${day.date.getDate()}</span>`
-                      + `<span class="dsel-dot"></span>`;
-        btn.addEventListener('click', () => {
-          if (isFuture) { selectFutureDay(day.key); }
-          else { selectDay(day.key); }
+      const now = new Date(), tk = todayKey(), c = cfg();
+      const selKey = selectedDayKey === '__wknd__' ? null : (selectedDayKey || tk);
+      const days = [];
+      for (let off = newEarliest; off < _dsEarliestOffset; off++) week(off).forEach(d => days.push(d));
+      const frag = document.createDocumentFragment();
+      days.forEach(day => frag.appendChild(_dsMakeBtn(day, now, tk, selKey, c)));
+      const scrollBefore = container.scrollLeft;
+      container.insertBefore(frag, container.firstChild);
+      container.scrollLeft = scrollBefore + days.length * 66; // 60px btn + 6px gap
+      _dsEarliestOffset = newEarliest;
+    }
+
+    function renderDaySelector() {
+      const tk = todayKey(), now = new Date(), c = cfg();
+      const selKey = selectedDayKey === '__wknd__' ? null : (selectedDayKey || tk);
+      const container = el('daySelectorRow');
+
+      // ── Soft update: just toggle classes, never reset scroll ──
+      const existing = container.querySelectorAll('.day-sel-btn[data-key]');
+      if (existing.length > 0) {
+        let selFound = false;
+        existing.forEach(btn => {
+          const key = btn.dataset.key;
+          const isActive = !!(selKey && key === selKey);
+          btn.classList.toggle('active', isActive);
+          if (isActive) selFound = true;
+          const log = dayLog(key);
+          btn.classList.toggle('future', new Date(key + 'T12:00') > now && key !== tk);
+          btn.classList.remove('has-penalty');
+          if (log?.hoursWorked != null && log?.override !== 'leave' && log?.override !== 'holiday') {
+            const t = c.dailyH * 3600, dt = log?.override === 'halfday' ? t / 2 : t;
+            if ((dt - log.hoursWorked * 3600) > 300) btn.classList.add('has-penalty');
+          }
         });
+        if (!selKey || selFound) {
+          if (selKey && selKey !== _dsSel) {
+            const activeBtn = container.querySelector('.day-sel-btn.active');
+            if (activeBtn) _dsScrollTo(container, activeBtn, 'smooth');
+            _dsSel = selKey;
+          }
+          _updateDayNavBtns();
+          return;
+        }
+      }
+
+      // ── Full render: 2 past weeks + current week + next week (lazy: more loaded on demand) ──
+      _dsEarliestOffset = -2;
+      const days = [];
+      for (let off = -2; off <= 1; off++) week(off).forEach(d => days.push(d));
+
+      container.innerHTML = '';
+      _dsSel = null;
+      let activeBtn = null, todayBtn = null;
+
+      days.forEach(day => {
+        const btn = _dsMakeBtn(day, now, tk, selKey, c);
+        if (selKey && day.key === selKey) { btn.classList.add('active'); activeBtn = btn; }
+        if (day.key === tk) todayBtn = btn;
         container.appendChild(btn);
       });
 
-      // WKD slot — navigation still works via arrows; button is hidden from strip
-
-      const label = el('thisWeekLabel');
-      if (label) label.textContent = daySelectorWeekOffset === 0 ? 'This Week' : weekRangeLabel(daySelectorWeekOffset);
+      // Scroll so today (or active day) is the FIRST visible day — user swipes left for history.
+      const target = activeBtn || todayBtn;
+      if (target) {
+        _dsSel = selKey;
+        requestAnimationFrame(() => { container.scrollLeft = Math.max(0, target.offsetLeft - 16); });
+      }
       _updateDayNavBtns();
-    }
-
-    function _slideDay(dir) {
-      const dsRow = el('daySelectorRow');
-      if (!dsRow) return;
-      dsRow.classList.remove('wk-fwd', 'wk-back');
-      void dsRow.offsetWidth;
-      dsRow.classList.add(dir > 0 ? 'wk-fwd' : 'wk-back');
-      setTimeout(() => dsRow.classList.remove('wk-fwd', 'wk-back'), 260);
-    }
-
-    // Shift the entire week strip (used by mobile swipe). dir>0 = next week, dir<0 = prev week.
-    function navDaySelectorWeek(dir) {
-      if (dir > 0 && daySelectorWeekOffset >= 1)   return; // cap forward at next week
-      if (dir < 0 && daySelectorWeekOffset <= -52) return; // cap back at 52 weeks
-      daySelectorWeekOffset += (dir > 0 ? 1 : -1);
-      const wk  = week(daySelectorWeekOffset);
-      const tk  = todayKey();
-      const now = new Date();
-      // Land on today if it's in the new week, otherwise Monday
-      const hasToday  = wk.some(d => d.key === tk);
-      const targetKey = hasToday ? tk : wk[0].key;
-      const targetDay = wk.find(d => d.key === targetKey);
-      if (targetKey !== tk && targetDay && targetDay.date > now) selectFutureDay(targetKey);
-      else selectDay(targetKey);
-      _slideDay(dir); // animate after the row re-renders
+      _updateWeekLabel();
     }
 
     function navDaySelectorDay(dir) {
-      const wk  = week(daySelectorWeekOffset);
-      const tk  = todayKey();
+      const container = el('daySelectorRow');
+      const btns = Array.from(container.querySelectorAll('.day-sel-btn[data-key]'));
+      if (!btns.length) return;
+      const selKey = selectedDayKey === '__wknd__' ? null : (selectedDayKey || todayKey());
+      const curIdx = selKey ? btns.findIndex(b => b.dataset.key === selKey) : -1;
+      const targetIdx = Math.max(0, Math.min(btns.length - 1, curIdx + dir));
+      if (targetIdx === curIdx) return;
+      const targetBtn = btns[targetIdx];
+      const targetKey = targetBtn.dataset.key;
       const now = new Date();
-
-      // ── Weekend slot navigation ──────────────────────────
-      if (selectedDayKey === '__wknd__') {
-        if (dir > 0) {
-          if (daySelectorWeekOffset <= 0) {
-            // WKD → Monday of next week (allow from offset 0 too, block only at offset > 0)
-            daySelectorWeekOffset++;
-            _slideDay(1);
-            selectDay(week(daySelectorWeekOffset)[0].key);
-          }
-          // At offset > 0, WKD is the last stop — next btn disabled
-        } else {
-          // WKD → Friday of the current strip
-          selectDay(wk[wk.length - 1].key);
-        }
-        _updateDayNavBtns();
-        return;
-      }
-
-      // ── Normal weekday navigation ────────────────────────
-      const selKey = selectedDayKey || tk;
-      const curIdx = wk.findIndex(d => d.key === selKey);
-
-      if (dir > 0) {
-        if (curIdx >= 0 && curIdx < wk.length - 1) {
-          // Move forward within the strip
-          const nextDay = wk[curIdx + 1];
-          const isFut = daySelectorWeekOffset === 0 && nextDay.date > now && nextDay.key !== tk;
-          if (isFut) selectFutureDay(nextDay.key); else selectDay(nextDay.key);
-        } else {
-          // Last work day → WKD slot (current, past, and next week all get a WKD)
-          if (daySelectorWeekOffset <= 1) {
-            selectWeekendView();
-          }
-        }
-      } else {
-        if (curIdx > 0) {
-          // Move backward within the strip
-          selectDay(wk[curIdx - 1].key);
-        } else if (daySelectorWeekOffset > -52) {
-          // Monday → WKD of the previous week (slide strip)
-          daySelectorWeekOffset--;
-          _slideDay(-1);
-          selectWeekendView();
-        }
-      }
-      _updateDayNavBtns();
+      const dayDate = new Date(targetKey + 'T12:00');
+      if (dayDate > now && targetKey !== todayKey()) selectFutureDay(targetKey);
+      else selectDay(targetKey);
+      _syncOffsetFromKey(targetKey);
     }
 
     function _updateDayNavBtns() {
-      const wk = week(daySelectorWeekOffset);
-      const selKey = selectedDayKey || todayKey();
-      const curIdx = wk.findIndex(d => d.key === selKey);
+      const container = el('daySelectorRow');
+      const btns = container ? Array.from(container.querySelectorAll('.day-sel-btn[data-key]')) : [];
+      const selKey = selectedDayKey === '__wknd__' ? null : (selectedDayKey || todayKey());
+      const curIdx = selKey ? btns.findIndex(b => b.dataset.key === selKey) : -1;
       const prevBtn = el('weekPrevBtn'), nextBtn = el('weekNextBtn');
-
-      if (selectedDayKey === '__wknd__') {
-        // WKD: always can go back to Friday; next blocked once at next-week WKD (offset >= 1)
-        if (prevBtn) prevBtn.disabled = false;
-        if (nextBtn) nextBtn.disabled = daySelectorWeekOffset >= 1;
-      } else {
-        // Weekdays: back blocked only at 52-week limit; next never blocked (worst case → WKD at offset 1)
-        if (prevBtn) prevBtn.disabled = daySelectorWeekOffset <= -52 && curIdx <= 0;
-        if (nextBtn) nextBtn.disabled = false;
-      }
+      if (prevBtn) prevBtn.disabled = curIdx <= 0;
+      if (nextBtn) nextBtn.disabled = curIdx >= btns.length - 1;
     }
 
     function _ordinal(n) {
@@ -9092,27 +9129,19 @@ ${sig}`
       });
     })();
 
-    // ── Mobile swipe on the week card — shift the entire week left/right ──
-    (function _initWeekSwipe() {
-      const wrap = document.querySelector('.this-week-wrap');
-      if (!wrap) return;
-      let startX = 0, startY = 0, tracking = false;
-      const THRESHOLD = 45; // min horizontal px to count as a swipe
-      wrap.addEventListener('touchstart', e => {
-        if (e.touches.length !== 1) { tracking = false; return; }
-        startX = e.touches[0].clientX;
-        startY = e.touches[0].clientY;
-        tracking = true;
-      }, { passive: true });
-      wrap.addEventListener('touchend', e => {
-        if (!tracking) return;
-        tracking = false;
-        const t = e.changedTouches[0];
-        const dx = t.clientX - startX;
-        const dy = t.clientY - startY;
-        // Horizontal intent only — ignore mostly-vertical gestures
-        if (Math.abs(dx) < THRESHOLD || Math.abs(dx) < Math.abs(dy)) return;
-        navDaySelectorWeek(dx < 0 ? 1 : -1); // swipe left → next week, right → prev week
+    // ── Continuous day strip — label sync + lazy past-day loading ──
+    (function _initDayStripScroll() {
+      const container = el('daySelectorRow');
+      if (!container) return;
+      let _raf = null;
+      container.addEventListener('scroll', () => {
+        if (_raf) return;
+        _raf = requestAnimationFrame(() => {
+          _raf = null;
+          _updateWeekLabel();
+          // When the user reaches within 150px of the left edge, prepend 2 more past weeks
+          if (container.scrollLeft < 150) _dsLoadMorePast();
+        });
       }, { passive: true });
     })();
 

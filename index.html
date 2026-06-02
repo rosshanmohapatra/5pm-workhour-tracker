@@ -1204,76 +1204,85 @@
       /* Kill all hover visuals on touch; show only on :active (finger down) */
       button { -webkit-tap-highlight-color: transparent; }
 
-      .btn-icon:hover { background: transparent; color: var(--muted-fg); }
-      .dark .btn-icon:hover { background: transparent; }
+      /* btn-icon: hover = pressed state */
       .btn-icon { transition: none; }
+      .btn-icon:hover { background: var(--card); color: var(--foreground); }
+      .dark .btn-icon:hover { background: var(--muted); }
       .btn-icon:active { background: var(--card); color: var(--foreground); }
       .dark .btn-icon:active { background: var(--muted); }
 
-      .mob-tab { transition: none; }
-      .mob-tab:hover { color: var(--muted-fg); }
+      .mob-tab { transition: none; padding-bottom: 6px; }
+      .mob-tab:hover { color: var(--foreground); }
       .mob-tab.active:hover { color: var(--foreground); }
       .mob-tab:active { color: var(--foreground); }
 
+      /* All hover states mirror :active (pressed) — no lingering hover on touch */
       .btn-primary { transition: none; }
-      .btn-primary:hover { opacity: 1; }
+      .btn-primary:hover { opacity: .82; }
       .btn-primary:active { opacity: .82; }
 
+      .btn-secondary { transition: none; }
+      .btn-secondary:hover { background: var(--muted); }
+      .btn-secondary:active { background: var(--muted); }
+
       .btn-ghost-destructive { transition: none; }
-      .btn-ghost-destructive:hover { opacity: 1; }
+      .btn-ghost-destructive:hover { opacity: .75; }
       .btn-ghost-destructive:active { opacity: .75; }
 
       .btn-ghost-danger { transition: none; }
-      .btn-ghost-danger:hover { background: transparent; color: var(--foreground); border-color: var(--border); }
+      .btn-ghost-danger:hover { background: var(--destructive-bg); color: var(--destructive); border-color: var(--destructive-border); }
       .btn-ghost-danger:active { background: var(--destructive-bg); color: var(--destructive); border-color: var(--destructive-border); }
 
       .shift-start-btn { transition: none; }
-      .shift-start-btn:hover { opacity: 1; }
+      .shift-start-btn:hover { opacity: .82; }
       .shift-start-btn:active { opacity: .82; }
 
       .shift-resume-btn { transition: none; }
-      .shift-resume-btn:hover { background: var(--success-bg); }
+      .shift-resume-btn:hover { background: var(--success-border); }
       .shift-resume-btn:active { background: var(--success-border); }
 
       .shift-combo-btn { transition: none; }
-      .shift-combo-btn:hover { opacity: 1; }
+      .shift-combo-btn:hover { opacity: .8; }
       .shift-combo-btn:active { opacity: .8; }
 
       .split-chevron-btn { transition: none; }
-      .split-chevron-btn:hover { opacity: 1; }
+      .split-chevron-btn:hover { opacity: .8; }
       .split-chevron-btn:active { opacity: .8; }
 
       .day-sel-btn { transition: none; }
-      .day-sel-btn:hover:not(:disabled):not(.future):not(.active) { background: transparent; border-color: var(--border); color: var(--muted-fg); }
+      .day-sel-btn:hover:not(:disabled):not(.future):not(.active) { background: var(--muted); border-color: var(--foreground); color: var(--foreground); }
       .day-sel-btn:active:not(:disabled):not(.future) { background: var(--muted); border-color: var(--foreground); color: var(--foreground); }
 
       .rc-update-btn { transition: none; }
-      .rc-update-btn:hover { background: transparent; color: var(--muted-fg); }
+      .rc-update-btn:hover { background: var(--muted); color: var(--foreground); }
       .rc-update-btn:active { background: var(--muted); color: var(--foreground); }
 
       .wk-minimize-btn { transition: none; }
-      .wk-minimize-btn:hover { background: transparent; color: var(--muted-fg); }
+      .wk-minimize-btn:hover { background: var(--muted); color: var(--foreground); }
       .wk-minimize-btn:active { background: var(--muted); color: var(--foreground); }
 
       .wk-edit-icon-btn { transition: none; }
-      .wk-edit-icon-btn:hover { background: transparent; color: var(--muted-fg); }
+      .wk-edit-icon-btn:hover { background: var(--border); color: var(--foreground); }
       .wk-edit-icon-btn:active { background: var(--border); color: var(--foreground); }
 
       .rec-ack-btn { transition: none; }
-      .rec-ack-btn:hover { background: transparent; }
+      .rec-ack-btn:hover { background: var(--border); }
       .rec-ack-btn:active { background: var(--border); }
 
       .plan-btn { transition: none; }
-      .plan-btn:hover { background: transparent; color: var(--muted-fg); }
+      .plan-btn:hover { background: var(--muted); color: var(--foreground); }
       .plan-btn:active { background: var(--muted); color: var(--foreground); }
 
       .info-icon-btn { transition: none; }
-      .info-icon-btn:hover { color: var(--muted-fg); }
+      .info-icon-btn:hover { color: var(--foreground); }
       .info-icon-btn:active { color: var(--foreground); }
 
       .ob-btn-ghost { transition: none; }
-      .ob-btn-ghost:hover { background: transparent; color: var(--muted-fg); }
+      .ob-btn-ghost:hover { background: var(--muted); color: var(--foreground); }
       .ob-btn-ghost:active { background: var(--muted); color: var(--foreground); }
+
+      .penalty-discard-btn:hover { color: var(--destructive) !important; background: var(--muted) !important; }
+      .penalty-discard-btn:active { color: var(--destructive) !important; background: var(--muted) !important; }
     }
 
     /* ── Pull-to-refresh indicator ── */
@@ -2472,7 +2481,7 @@
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
               Support Project
             </button>
-            <button class="btn-secondary" style="font-size:12px;height:32px;padding:0 10px;gap:5px" onclick="window.open('mailto:roshankanhu@gmail.com?subject=[5pm] Help Request','_blank')">
+            <button class="btn-secondary" style="font-size:12px;height:32px;padding:0 10px;gap:5px" onclick="window.open('https://roshan.framer.wiki/#contact','_blank')">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
               Need Help
             </button>
@@ -2575,6 +2584,53 @@
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
           Export
         </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Continue Working Modal (Quick Start after hours already logged) ── -->
+  <div class="overlay" id="continueWorkingOverlay" onclick="if(event.target===this)el('continueWorkingOverlay').classList.remove('open')">
+    <div class="dialog" style="max-width:360px">
+      <div class="dialog-head" style="display:flex;align-items:flex-start;justify-content:space-between">
+        <div>
+          <div class="dialog-title">Continue Working?</div>
+          <div class="dialog-desc" id="continueWorkingDesc">You've already logged hours today.</div>
+        </div>
+        <button class="btn-icon" onclick="el('continueWorkingOverlay').classList.remove('open')" title="Close" style="margin:-4px -4px -4px 8px;flex-shrink:0">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div style="padding:0 20px 16px">
+        <div style="background:var(--muted);border-radius:10px;padding:14px 16px;display:flex;align-items:center;justify-content:space-between">
+          <span style="font-size:12px;color:var(--muted-fg);font-weight:500">Logged Today</span>
+          <span id="continueWorkingHours" style="font-size:18px;font-weight:700;color:var(--foreground);letter-spacing:-.02em">—</span>
+        </div>
+      </div>
+      <div style="padding:0 20px 20px;display:flex;justify-content:flex-end;gap:8px">
+        <button class="btn-secondary" id="continueWorkingCancelBtn">Cancel</button>
+        <button class="btn btn-primary" id="continueWorkingProceedBtn" style="height:38px;padding:0 16px;font-size:13px">Proceed</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Daily Target Reached Modal (Recommend Timings OFF) ── -->
+  <div class="overlay" id="dailyTargetReachedOverlay">
+    <div class="dialog" style="max-width:360px">
+      <div class="dialog-head" style="display:flex;align-items:flex-start;justify-content:space-between">
+        <div>
+          <div class="dialog-title">Daily Target Reached! 🎉</div>
+          <div class="dialog-desc">Great work today. You've hit your hours.</div>
+        </div>
+      </div>
+      <div style="padding:0 20px 16px">
+        <div style="background:var(--success-bg);border:1px solid var(--success-border);border-radius:10px;padding:14px 16px;display:flex;align-items:center;justify-content:space-between">
+          <span style="font-size:12px;color:var(--success);font-weight:600">Hours Logged</span>
+          <span id="dailyTargetHours" style="font-size:18px;font-weight:700;color:var(--success);letter-spacing:-.02em">—</span>
+        </div>
+      </div>
+      <div style="padding:0 20px 20px;display:flex;justify-content:flex-end;gap:8px">
+        <button class="btn-secondary" id="dailyTargetCancelBtn">Keep Going</button>
+        <button class="btn btn-primary" id="dailyTargetEndBtn" style="height:38px;padding:0 16px;font-size:13px">End Session</button>
       </div>
     </div>
   </div>
@@ -3810,7 +3866,7 @@
       });
       Store.clearSession();
       loginDate = null; autoStopped = false;
-      setCalcBtnState('ended');
+      setCalcBtnState('start');
       el('shiftInputRow').classList.remove('active-state', 'hidden');
       el('shiftActiveLabel').textContent = '—';
       el('autostopBanner').classList.remove('show');
@@ -4637,6 +4693,35 @@
       }
       const eff = effSecs();
       const _tkE = todayKey(), _logE = dayLog(_tkE) || {};
+
+      // If session was ended today (no active session but hours logged), show them
+      const endedSecs = _sessionAccSecs > 0
+        ? _sessionAccSecs
+        : (_logE.hoursWorked && _logE.checkoutDisplay ? Math.round(_logE.hoursWorked * 3600) : 0);
+
+      if (endedSecs > 0) {
+        const isDoneE = eff > 0 && endedSecs >= eff;
+        const h = Math.floor(endedSecs / 3600), m = Math.floor((endedSecs % 3600) / 60);
+        el('rcWorked').textContent = `${h}h ${p2(m)}m`;
+        el('rcWorked').style.color = isDoneE ? 'var(--muted-fg)' : '';
+        el('rcTarget').textContent = isDoneE ? '+' + dur(Math.max(0, endedSecs - eff)) : dur(Math.max(0, eff - endedSecs));
+        el('rcTarget').style.color = 'var(--muted-fg)';
+        if (el('rcTargetLabel')) swapText('rcTargetLabel', isDoneE ? 'Extra Time' : 'Remaining');
+        swapText('rcElapsedLabel', 'Paused', { color: 'var(--muted-fg)' });
+        const pct = eff > 0 ? Math.min((endedSecs / eff) * 100, 100) : 100;
+        el('progFill').style.width = pct.toFixed(1) + '%';
+        el('progFill').classList.toggle('done', isDoneE);
+        if (isDoneE) el('progFill').classList.add('target-reached');
+        else el('progFill').classList.remove('target-reached');
+        el('progLabel').textContent = isDoneE ? 'Target Reached' : `${Math.floor(pct)}%`;
+        el('rcToday').innerHTML = buildTargetHtml(eff);
+        el('stayHint').style.display = 'none';
+        el('otBanner').classList.remove('show');
+        el('doneBanner').classList.remove('show');
+        el('autostopBanner').classList.remove('show');
+        return;
+      }
+
       el('rcWorked').textContent = '—';
       el('rcWorked').style.color = 'var(--muted-fg)';
       el('rcTarget').textContent = dur(eff); el('rcTarget').style.color = 'var(--muted-fg)';
@@ -4845,7 +4930,16 @@
       el('weekReportRange').textContent =
         `${MONTHS[mon.getMonth()]} ${mon.getDate()} to ${MONTHS[fri.getMonth()]} ${fri.getDate()}, ${fri.getFullYear()}`;
 
-      const rows = _wkndDayData(wk);
+      const tk = todayKey();
+      const rawRows = _wkndDayData(wk);
+      // Extra guard: always blank out future days regardless of cached data
+      const rows = rawRows.map((r, i) => {
+        if (wk[i] && wk[i].key > tk) {
+          return { ...r, entry:'—', exit:'—', attendance:'—', penalty:'—', totalHours:'—', surplus:'—',
+                   worked:0, surplusSecs:0, isPenalty:false };
+        }
+        return r;
+      });
       const totalWorked  = rows.reduce((s, r) => s + r.worked, 0);
       const totalSurplus = rows.reduce((s, r) => s + r.surplusSecs, 0);
 
@@ -4863,14 +4957,17 @@
         <th style="${TH}">${surpHdr}</th>
       </tr></thead><tbody>`;
 
-      for (const r of rows) {
+      for (let i = 0; i < rows.length; i++) {
+        const r = rows[i];
+        const isFutureRow = wk[i] && wk[i].key > tk;
         const penColor = r.isPenalty ? 'color:var(--destructive)' : r.penalty === 'None' ? 'color:var(--muted-fg)' : '';
         const surColor = r.surplusSecs > 0 ? 'color:var(--success)' : 'color:var(--muted-fg)';
-        html += `<tr>
+        const rowStyle = isFutureRow ? 'opacity:.45' : '';
+        html += `<tr style="${rowStyle}">
           <td style="${TD('font-weight:500')}">${r.day}</td>
           <td style="${TD('color:var(--muted-fg)')}">${r.entry}</td>
           <td style="${TD('color:var(--muted-fg)')}">${r.exit}</td>
-          <td style="${TD('vertical-align:middle')}">${_attChip(r.attendance)}</td>
+          <td style="${TD('vertical-align:middle')}">${isFutureRow ? '<span style="color:var(--muted-fg)">—</span>' : _attChip(r.attendance)}</td>
           <td style="${TD(penColor)}">${r.penalty}</td>
           <td style="${TD()}">${r.totalHours}</td>
           <td style="${TD(surColor)}">${r.surplus}</td>
@@ -5262,8 +5359,14 @@
       }
 
       // Split button stays in its current running/ended state — End Session is in the dropdown
-      if (isDone && !wasDone) wasDone = true;
-      else if (!isDone) wasDone = false;
+      if (isDone && !wasDone) {
+        wasDone = true;
+        // When Recommend Timings is OFF, show a modal instead of just the banner
+        if (cfg().recommendTimings === false) {
+          el('dailyTargetHours').textContent = dur(worked);
+          el('dailyTargetReachedOverlay').classList.add('open');
+        }
+      } else if (!isDone) wasDone = false;
 
       const tk = todayKey(), ex = dayLog(tk) || {};
       saveDayLog(tk, { ...ex,
@@ -6098,7 +6201,27 @@
       // of the current login, it's a small correction — skip the outside-shift warning.
       const isSmallCorrection = loginDate && Math.abs(p - loginDate) <= 3600000;
       if (isOutsideShift(p) && !isSmallCorrection) { showOutsideShiftModal(p); return; }
+
+      // If hours already exist for today (ended session), show "Continue?" modal
+      const todayLog = dayLog(todayKey());
+      const existingSecs = _sessionAccSecs > 0
+        ? _sessionAccSecs
+        : (todayLog?.hoursWorked ? Math.round(todayLog.hoursWorked * 3600) : 0);
+      if (existingSecs > 0 && !loginDate) {
+        openContinueWorkingModal(p, existingSecs);
+        return;
+      }
       _startSession(p);
+    }
+
+    // ── CONTINUE WORKING MODAL ────────────────────────
+    let _cwPendingLogin = null;
+    function openContinueWorkingModal(pendingLogin, existingSecs) {
+      _cwPendingLogin = pendingLogin;
+      el('continueWorkingHours').textContent = dur(existingSecs);
+      el('continueWorkingDesc').textContent =
+        `You've already logged ${dur(existingSecs)} today. New hours will be added on top.`;
+      el('continueWorkingOverlay').classList.add('open');
     }
 
     function clearLogin() {
@@ -8293,6 +8416,14 @@ ${sig}`
       _asrOriginal = prefill;
       el('asrErr').classList.remove('show');
       el('asrUpdateBtn').disabled = true;
+      // Show which day was auto-stopped (e.g. "Your Monday shift was auto-stopped")
+      if (dayKey) {
+        const d = new Date(dayKey + 'T12:00');
+        const dayName = FULL_DAYS_EN[d.getDay()];
+        el('asrDesc').textContent = `Your ${dayName} session was automatically stopped after your daily target + buffer.`;
+      } else {
+        el('asrDesc').textContent = 'It automatically ended after your daily target + buffer.';
+      }
       _asrMarkSeen(dayKey); // shows once per auto-stopped session
       el('autoStopRecoveryOverlay').classList.add('open');
     }
@@ -8554,6 +8685,18 @@ ${sig}`
     initServiceWorker(); // register service worker for Web Push
     scheduleMorningReminder();  // schedule next-day 9am nudge if not yet logged in
 
+    // SW postMessage → end session when a push notification is clicked
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.addEventListener('message', e => {
+        if (e.data?.type !== 'notification_click') return;
+        window.focus();
+        if (loginDate) {
+          // End the active session — confirms checkout on notification tap
+          openEndSessionModal();
+        }
+      });
+    }
+
     // ── EVENTS ─────────────────────────────────────────
     document.querySelectorAll('.nav-tab').forEach(tab => {
       tab.addEventListener('click', () => switchTab(tab.dataset.view));
@@ -8609,7 +8752,6 @@ ${sig}`
     el('calcBtn').addEventListener('click', () => {
       const state = el('calcBtn').dataset.state || 'start';
       if (state === 'running') endSession();
-      else if (state === 'ended') resumeShift();
       else calculate();
     });
 
@@ -8760,8 +8902,32 @@ ${sig}`
       if (e.target === el('forgotLogoutOverlay')) { _forgotKey = null; el('forgotLogoutOverlay').classList.remove('open'); }
     });
 
-    // Resume shift
-    el('resumeBtn').addEventListener('click', resumeShift);
+    // Continue Working modal
+    el('continueWorkingCancelBtn').addEventListener('click', () => {
+      el('continueWorkingOverlay').classList.remove('open');
+      _cwPendingLogin = null;
+    });
+    el('continueWorkingProceedBtn').addEventListener('click', () => {
+      el('continueWorkingOverlay').classList.remove('open');
+      const p = _cwPendingLogin || new Date();
+      _cwPendingLogin = null;
+      // Restore accumulated hours from today's log if not already set
+      const todayLog = dayLog(todayKey());
+      if (_sessionAccSecs === 0 && todayLog?.hoursWorked) {
+        _sessionAccSecs = Math.round(todayLog.hoursWorked * 3600);
+      }
+      _startSession(p);
+    });
+
+    // Daily Target Reached modal (Recommend Timings OFF)
+    el('dailyTargetCancelBtn').addEventListener('click', () => {
+      el('dailyTargetReachedOverlay').classList.remove('open');
+    });
+    el('dailyTargetEndBtn').addEventListener('click', () => {
+      el('dailyTargetReachedOverlay').classList.remove('open');
+      openEndSessionModal();
+    });
+
     el('npSave').addEventListener('click', saveNewPlan);
     el('npCancel').addEventListener('click', closeNewPlanModal);
     el('newPlanOverlay').addEventListener('click', e => { if (e.target === el('newPlanOverlay')) closeNewPlanModal(); });

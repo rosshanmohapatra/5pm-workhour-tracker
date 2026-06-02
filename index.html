@@ -6221,7 +6221,18 @@
       const c = cfg();
       const s = parse(c.shiftStart || '09:00 AM'), e = parse(c.shiftEnd || '06:00 PM');
       if (!s || !e) return false;
-      return p < s || p > e;
+      // Compare hours+minutes as integers — avoids Date-object millisecond drift
+      // where a login at exactly 11:30 could compare as < 11:30:00.000 and falsely trigger.
+      const pM = p.getHours() * 60 + p.getMinutes();
+      const sM = s.getHours() * 60 + s.getMinutes();
+      const eM = e.getHours() * 60 + e.getMinutes();
+      if (eM >= sM) {
+        // Normal shift (e.g. 11:30 AM → 9:30 PM): outside = before start OR after end
+        return pM < sM || pM > eM;
+      } else {
+        // Overnight shift (e.g. 10:00 PM → 6:00 AM): outside = gap between end and start
+        return pM > eM && pM < sM;
+      }
     }
     function showOutsideShiftModal(p) {
       _pendingLoginP = p;
@@ -6253,9 +6264,7 @@
       // If there's already an active session and the new time is within 1 hour
       // of the current login, it's a small correction — skip the outside-shift warning.
       const isSmallCorrection = loginDate && Math.abs(p - loginDate) <= 3600000;
-      // Only warn about schedule mismatch when Recommend Timings is ON — that's when
-      // shiftStart/shiftEnd are configured and meaningful.
-      if (isOutsideShift(p) && !isSmallCorrection && cfg().recommendTimings !== false) { showOutsideShiftModal(p); return; }
+      if (isOutsideShift(p) && !isSmallCorrection) { showOutsideShiftModal(p); return; }
 
       // If hours already exist for today (ended session), show "Continue?" modal
       const todayLog = dayLog(todayKey());

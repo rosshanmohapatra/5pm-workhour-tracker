@@ -935,7 +935,7 @@
     .sel-day-left { display: flex; flex-direction: column; gap: 0px; }
     .sel-day-date-str { font-size: 12px; color: var(--muted-fg); font-weight: 500; letter-spacing: .01em; }
     .sel-day-rel { font-size: 28px; font-weight: 700; color: var(--foreground);
-      line-height: 1.15; letter-spacing: -.7px; margin-top: 1px; }
+      line-height: 1.15; letter-spacing: -.7px; margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .sel-day-clock { font-size: 15px; font-weight: 600; color: var(--foreground);
       font-variant-numeric: tabular-nums; letter-spacing: -.3px; padding-bottom: 3px; white-space: nowrap; }
 
@@ -1001,7 +1001,7 @@
       box-shadow: 0 1px 2px rgba(0,0,0,.15); }
 
     /* ── Day selector strip ── */
-    .day-selector { display: flex; gap: 6px; overflow-x: auto; -webkit-overflow-scrolling: touch;
+    .day-selector { display: flex; gap: 8px; overflow-x: auto; -webkit-overflow-scrolling: touch;
       scrollbar-width: none; -ms-overflow-style: none;
       touch-action: pan-x; overscroll-behavior-x: contain; }
     .day-selector::-webkit-scrollbar { display: none; }
@@ -5492,6 +5492,15 @@
       daySelectorWeekOffset = Math.round((mon - thisMon) / (7 * 86400000));
     }
 
+    // Scroll the strip so Monday of the current week is the first visible button.
+    function _dsResetScroll() {
+      const container = el('daySelectorRow');
+      if (!container) return;
+      const mondayKey = week(0)[0].key;
+      const mondayBtn = container.querySelector(`.day-sel-btn[data-key="${mondayKey}"]`);
+      if (mondayBtn) container.scrollLeft = Math.max(0, mondayBtn.offsetLeft - 16);
+    }
+
     // ── Lazy-load helpers ──
     let _dsEarliestOffset = -2; // tracks how far back we've rendered
 
@@ -5530,7 +5539,7 @@
       days.forEach(day => frag.appendChild(_dsMakeBtn(day, now, tk, selKey, c)));
       const scrollBefore = container.scrollLeft;
       container.insertBefore(frag, container.firstChild);
-      container.scrollLeft = scrollBefore + days.length * 66; // 60px btn + 6px gap
+      container.scrollLeft = scrollBefore + days.length * 68; // 60px btn + 8px gap
       _dsEarliestOffset = newEarliest;
     }
 
@@ -5583,12 +5592,9 @@
         container.appendChild(btn);
       });
 
-      // Scroll so today (or active day) is the FIRST visible day — user swipes left for history.
-      const target = activeBtn || todayBtn;
-      if (target) {
-        _dsSel = selKey;
-        requestAnimationFrame(() => { container.scrollLeft = Math.max(0, target.offsetLeft - 16); });
-      }
+      // On load, always show Monday of current week first — user swipes left for history.
+      if (activeBtn) _dsSel = selKey;
+      requestAnimationFrame(() => _dsResetScroll());
       _updateDayNavBtns();
       _updateWeekLabel();
     }
@@ -6879,7 +6885,7 @@
       window.scrollTo(0, 0);
       if (name === 'settings') populateSettings();
       if (name === 'analytics') renderAnalytics();
-      if (name === 'home') { if (loginDate) render(); else renderEmptyState(); }
+      if (name === 'home') { if (loginDate) render(); else renderEmptyState(); _dsResetScroll(); }
     }
 
     // ── ANALYTICS ──────────────────────────────────────

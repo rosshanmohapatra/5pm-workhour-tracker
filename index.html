@@ -2279,6 +2279,18 @@
             </div>
             <input type="hidden" id="inpWorkDays" value="5">
 
+            <!-- Break Time Toggle -->
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;cursor:pointer" onclick="el('inpBreakTime').click()">
+              <div>
+                <div class="form-label">Track Break Time</div>
+                <div class="form-sub">Adds a button to pause the count during break hours. You can either pause or end session directly.</div>
+              </div>
+              <label class="toggle" onclick="event.stopPropagation()">
+                <input type="checkbox" id="inpBreakTime" checked onchange="autoSaveSettings()">
+                <span class="toggle-track"></span>
+              </label>
+            </div>
+
             <!-- Recommend Timings Toggle + expandable block -->
             <div>
             <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;cursor:pointer" onclick="el('inpRecommendTimings').click()">
@@ -2325,18 +2337,6 @@
               </div>
             </div>
             </div><!-- /Recommend Timings wrapper -->
-
-            <!-- Break Time Toggle -->
-            <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;cursor:pointer" onclick="el('inpBreakTime').click()">
-              <div>
-                <div class="form-label">Track Break Time</div>
-                <div class="form-sub">Adds a Pause button so you can stop the clock during breaks. When off, a single End Session button replaces the split button.</div>
-              </div>
-              <label class="toggle" onclick="event.stopPropagation()">
-                <input type="checkbox" id="inpBreakTime" checked onchange="autoSaveSettings()">
-                <span class="toggle-track"></span>
-              </label>
-            </div>
 
           </div>
         </div><!-- /Advanced section -->
@@ -3567,7 +3567,10 @@
       // Web Push handles the real notification via service worker.
       // This fallback fires only if the tab is open and SW isn't active.
       if ('Notification' in window && Notification.permission === 'granted' && !notifSent) {
-        const n = new Notification('Time to go! 🎉', { body: `${dur(s)} logged. Click to check out.` });
+        const _isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+        const _title = _isIOS ? '' : 'Time to go!';
+        const _body  = _isIOS ? `Time to go! — ${dur(s)} logged. Tap to check out.` : `${dur(s)} logged. Tap to check out.`;
+        const n = new Notification(_title, { body: _body });
         n.onclick = () => { window.focus(); if (loginDate) checkout(); };
         notifSent = true;
       }
@@ -3634,8 +3637,13 @@
     async function _fireNotif(type) {
       const msg = _NOTIF_MSGS[type]; if (!msg) return;
       if (!('Notification' in window) || Notification.permission !== 'granted') return;
+      // On iOS, Safari appends "from [App]" as a subtitle under the title, creating
+      // a 3-line notification. Fold the title into the body so iOS stays at 2 lines.
+      const _isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+      const displayTitle = _isIOS ? '' : msg.title;
+      const displayBody  = _isIOS ? `${msg.title} — ${msg.body}` : msg.body;
       const opts = {
-        body:               msg.body,
+        body:               displayBody,
         tag:                msg.tag,
         icon:               '/apple-touch-icon.png',
         requireInteraction: !!msg.requireInteraction,
@@ -3645,7 +3653,7 @@
       // and PWA). Chrome Android doesn't support it at all (throws TypeError),
       // which lets us fall through to the SW path below.
       try {
-        const n = new Notification(msg.title, opts);
+        const n = new Notification(displayTitle, opts);
         n.onclick = () => window.focus();
         return;
       } catch (_) {}
@@ -3658,7 +3666,7 @@
             navigator.serviceWorker.ready,
             new Promise((_, rej) => setTimeout(() => rej(new Error('sw timeout')), 4000)),
           ]);
-          await reg.showNotification(msg.title, opts);
+          await reg.showNotification(displayTitle, opts);
         } catch (_) {}
       }
     }
@@ -3707,17 +3715,30 @@
 
     function scheduleMorningReminder() {
       if (!cfg().notifOn || Notification.permission !== 'granted') return;
+      const c        = cfg();
       const todayStr = todayKey();
       const sentKey  = 'wh_morning_sent_' + todayStr;
       if (localStorage.getItem(sentKey)) return;   // already sent today
       if (dayLog(todayStr)?.loginTime) return;      // already logged in today
-      const now     = new Date();
-      const dow     = now.getDay();
+      const now = new Date();
+      const dow = now.getDay();
       if (dow === 0 || dow === 6) return;           // skip weekends
-      const target9 = new Date(now);
-      target9.setHours(9, 0, 0, 0);
-      const delay = target9.getTime() - now.getTime();
-      if (delay <= 0) return;                       // past 9am already
+      // Fire 30 min after shift start (fallback: 9:00 AM → fires at 9:30 AM)
+      const shiftStr = c.shiftStart || '09:00 AM';
+      const sm = /^(\d{1,2}):(\d{2})\s*(AM|PM)$/i.exec(shiftStr);
+      const shiftDate = new Date(now);
+      if (sm) {
+        let h = parseInt(sm[1], 10);
+        const m = parseInt(sm[2], 10);
+        if (sm[3].toUpperCase() === 'PM' && h !== 12) h += 12;
+        if (sm[3].toUpperCase() === 'AM' && h === 12) h = 0;
+        shiftDate.setHours(h, m, 0, 0);
+      } else {
+        shiftDate.setHours(9, 0, 0, 0);
+      }
+      const triggerAt = new Date(shiftDate.getTime() + 30 * 60 * 1000);
+      const delay = triggerAt.getTime() - now.getTime();
+      if (delay <= 0) return;                       // window already passed
       const id = setTimeout(() => {
         // Re-check at fire time — user may have logged in since scheduling
         if (!dayLog(todayKey())?.loginTime && Notification.permission === 'granted') {
@@ -6818,6 +6839,7 @@
       window.scrollTo(0, 0);
       if (name === 'settings') populateSettings();
       if (name === 'analytics') renderAnalytics();
+      if (name === 'home') { if (loginDate) render(); else renderEmptyState(); }
     }
 
     // ── ANALYTICS ──────────────────────────────────────
@@ -7299,12 +7321,19 @@ ${sig}`
       _markDirty(key); _syncNow();
       closeDayEditModal();
       renderDaySelector();
+      renderHistory();
+      renderPenalties();
+      renderSurplusCircles();
       if (key === todayKey()) renderEmptyState();
       showUndoToast('Entry Deleted', () => {
         if (_deletedEntryKey && _deletedEntryData) {
           saveDayLogAndSync(_deletedEntryKey, _deletedEntryData);
           renderDaySelector();
+          renderHistory();
+          renderPenalties();
+          renderSurplusCircles();
           if (_deletedEntryKey === todayKey() && loginDate) render();
+          else if (_deletedEntryKey === todayKey()) renderEmptyState();
         }
         _deletedEntryKey = null; _deletedEntryData = null;
       });
@@ -8761,7 +8790,11 @@ ${sig}`
         window.focus();
         if (loginDate) {
           // End the active session — confirms checkout on notification tap
+          switchTab('home');
           openEndSessionModal();
+        } else {
+          // Session already ended — navigate home so the user sees the completed record
+          switchTab('home');
         }
       });
     }

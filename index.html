@@ -1001,8 +1001,10 @@
       box-shadow: 0 1px 2px rgba(0,0,0,.15); }
 
     /* ── Day selector strip ── */
-    .day-selector { display: flex; gap: 6px; }
-    .day-sel-btn { flex: 1; display: flex; flex-direction: column; align-items: center;
+    .day-selector { display: flex; gap: 6px; overflow-x: auto; -webkit-overflow-scrolling: touch;
+      scrollbar-width: none; -ms-overflow-style: none; }
+    .day-selector::-webkit-scrollbar { display: none; }
+    .day-sel-btn { flex: 1 0 52px; display: flex; flex-direction: column; align-items: center;
       gap: 4px; padding: 10px 4px 8px; border-radius: 10px; border: 1px solid var(--border);
       background: var(--background); color: var(--muted-fg); cursor: pointer;
       transition: background .12s, color .12s, border-color .12s; font-family: var(--font); }
@@ -1019,7 +1021,7 @@
     .day-sel-btn.future { opacity: .5; }
     .day-sel-btn.future:hover { border-color: var(--border); background: var(--muted); color: var(--muted-fg); cursor: pointer; }
     /* WKD slot — slightly narrower, uses palm-tree icon */
-    .day-sel-btn.wkd-btn { flex: 0.75; border-style: dashed; }
+    .day-sel-btn.wkd-btn { flex: 0.75 0 42px; border-style: dashed; }
     .day-sel-btn.wkd-btn.active { border-style: solid; }
 
     /* ── This Week wrapper — card with rc-head-style bordered header ── */

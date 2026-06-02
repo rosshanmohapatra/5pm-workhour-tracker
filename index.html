@@ -2266,60 +2266,6 @@
           <div class="settings-section-header">Advanced</div>
           <div class="settings-group">
 
-            <!-- Allow Notifications + sub-toggles (grouped so hidden sub doesn't add gap) -->
-            <div style="display:flex;flex-direction:column;gap:0">
-            <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;cursor:pointer" onclick="el('inpNotifOn').click()">
-              <div>
-                <div class="form-label">Allow Notifications</div>
-                <div class="form-sub">Native push alerts for your shift milestones.</div>
-              </div>
-              <label class="toggle" onclick="event.stopPropagation()">
-                <input type="checkbox" id="inpNotifOn" onchange="onNotifToggleChange()">
-                <span class="toggle-track"></span>
-              </label>
-            </div>
-
-            <!-- Sub-toggles (expand smoothly when notifications enabled) -->
-            <div id="notifSubGroup" style="overflow:hidden;max-height:0;transition:max-height .3s cubic-bezier(.4,0,.2,1),opacity .22s,margin-top .3s;opacity:0;pointer-events:none;margin-top:0">
-              <div style="display:flex;flex-direction:column;gap:16px">
-
-                <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;cursor:pointer" onclick="el('inpNotifTarget').click()">
-                  <div>
-                    <div class="form-label" style="font-size:13px">Daily Target</div>
-                    <div class="form-sub">When your daily target is complete.</div>
-                  </div>
-                  <label class="toggle" style="flex-shrink:0;margin-top:2px" onclick="event.stopPropagation()">
-                    <input type="checkbox" id="inpNotifTarget" onchange="autoSaveSettings()">
-                    <span class="toggle-track"></span>
-                  </label>
-                </div>
-
-                <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;cursor:pointer" onclick="el('inpNotifKickstart').click()">
-                  <div>
-                    <div class="form-label" style="font-size:13px">Kickstart</div>
-                    <div class="form-sub">5 minutes before your target. Time to wrap up.</div>
-                  </div>
-                  <label class="toggle" style="flex-shrink:0;margin-top:2px" onclick="event.stopPropagation()">
-                    <input type="checkbox" id="inpNotifKickstart" onchange="autoSaveSettings()">
-                    <span class="toggle-track"></span>
-                  </label>
-                </div>
-
-                <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;cursor:pointer" onclick="el('inpNotifOvertime').click()">
-                  <div>
-                    <div class="form-label" style="font-size:13px">Overtime</div>
-                    <div class="form-sub">5 minutes past your target. A nudge to leave.</div>
-                  </div>
-                  <label class="toggle" style="flex-shrink:0;margin-top:2px" onclick="event.stopPropagation()">
-                    <input type="checkbox" id="inpNotifOvertime" onchange="autoSaveSettings()">
-                    <span class="toggle-track"></span>
-                  </label>
-                </div>
-
-              </div>
-            </div>
-            </div><!-- /notif group wrapper -->
-
             <!-- Include Saturday Toggle -->
             <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;cursor:pointer" onclick="el('inpIncludeSat').click()">
               <div>
@@ -2380,8 +2326,84 @@
             </div>
             </div><!-- /Recommend Timings wrapper -->
 
+            <!-- Break Time Toggle -->
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;cursor:pointer" onclick="el('inpBreakTime').click()">
+              <div>
+                <div class="form-label">Track Break Time</div>
+                <div class="form-sub">Adds a Pause button so you can stop the clock during breaks. When off, a single End Session button replaces the split button.</div>
+              </div>
+              <label class="toggle" onclick="event.stopPropagation()">
+                <input type="checkbox" id="inpBreakTime" checked onchange="autoSaveSettings()">
+                <span class="toggle-track"></span>
+              </label>
+            </div>
+
           </div>
         </div><!-- /Advanced section -->
+
+        <div class="settings-section-divider"></div>
+
+        <!-- ── Notifications ── -->
+        <div class="settings-section">
+          <div class="settings-section-header">Notifications</div>
+          <div class="settings-group">
+
+            <!-- Allow Notifications + sub-toggles -->
+            <div style="display:flex;flex-direction:column;gap:0">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;cursor:pointer" onclick="el('inpNotifOn').click()">
+              <div>
+                <div class="form-label">Allow Notifications</div>
+                <div class="form-sub">Native push alerts for your shift milestones.</div>
+              </div>
+              <label class="toggle" onclick="event.stopPropagation()">
+                <input type="checkbox" id="inpNotifOn" onchange="onNotifToggleChange()">
+                <span class="toggle-track"></span>
+              </label>
+            </div>
+
+            <!-- Sub-toggles (expand smoothly when notifications enabled) -->
+            <div id="notifSubGroup" style="overflow:hidden;max-height:0;transition:max-height .3s cubic-bezier(.4,0,.2,1),opacity .22s,margin-top .3s;opacity:0;pointer-events:none;margin-top:0">
+              <div style="display:flex;flex-direction:column;gap:16px">
+
+                <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;cursor:pointer" onclick="el('inpNotifTarget').click()">
+                  <div>
+                    <div class="form-label" style="font-size:13px">Daily Target</div>
+                    <div class="form-sub">When your daily target is complete.</div>
+                  </div>
+                  <label class="toggle" style="flex-shrink:0;margin-top:2px" onclick="event.stopPropagation()">
+                    <input type="checkbox" id="inpNotifTarget" onchange="autoSaveSettings()">
+                    <span class="toggle-track"></span>
+                  </label>
+                </div>
+
+                <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;cursor:pointer" onclick="el('inpNotifKickstart').click()">
+                  <div>
+                    <div class="form-label" style="font-size:13px">Kickstart</div>
+                    <div class="form-sub">5 minutes before your target. Time to wrap up.</div>
+                  </div>
+                  <label class="toggle" style="flex-shrink:0;margin-top:2px" onclick="event.stopPropagation()">
+                    <input type="checkbox" id="inpNotifKickstart" onchange="autoSaveSettings()">
+                    <span class="toggle-track"></span>
+                  </label>
+                </div>
+
+                <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;cursor:pointer" onclick="el('inpNotifOvertime').click()">
+                  <div>
+                    <div class="form-label" style="font-size:13px">Overtime</div>
+                    <div class="form-sub">5 minutes past your target. A nudge to leave.</div>
+                  </div>
+                  <label class="toggle" style="flex-shrink:0;margin-top:2px" onclick="event.stopPropagation()">
+                    <input type="checkbox" id="inpNotifOvertime" onchange="autoSaveSettings()">
+                    <span class="toggle-track"></span>
+                  </label>
+                </div>
+
+              </div>
+            </div>
+            </div><!-- /notif group wrapper -->
+
+          </div>
+        </div><!-- /Notifications section -->
 
         <div class="settings-section-divider"></div>
 
@@ -3322,7 +3344,7 @@
     }
 
     // ── CONFIG ─────────────────────────────────────────
-    const CFG_DEF = { dailyH:9, weeklyH:45, weeklyOn:true, lateDays:[], earlyLeaveEntries:[], lateEntries:[], notifOn:false, notifTarget:true, notifKickstart:true, notifOvertime:true, name:'', position:'', targetDay:null, autoStopBuf:2, tzOffset:330, shiftType:'morning', workDays:5, recommendTimings:true, dismissed:[] };
+    const CFG_DEF = { dailyH:9, weeklyH:45, weeklyOn:true, lateDays:[], earlyLeaveEntries:[], lateEntries:[], notifOn:false, notifTarget:true, notifKickstart:true, notifOvertime:true, name:'', position:'', targetDay:null, autoStopBuf:2, tzOffset:330, shiftType:'morning', workDays:5, recommendTimings:true, breakTime:true, dismissed:[] };
     function cfg() { const r=Store.getCfg(); return r?{...CFG_DEF,...r}:{...CFG_DEF}; }
 
     // ── PUSH USER ID ───────────────────────────────────
@@ -3922,12 +3944,14 @@
 
       const penaltyDays = [];
       for (const day of wk) {
-        if (day.key === tk) continue;
+        if (day.key >= tk) continue; // skip today and all future days
         const log = dayLog(day.key);
-        if (log?.hoursWorked != null) {
-          const deficit = c.dailyH * 3600 - log.hoursWorked * 3600;
-          if (deficit > 300) penaltyDays.push({ day, deficit });
-        }
+        if (!log?.hoursWorked) continue;
+        const ov = log.override;
+        if (ov === 'holiday' || ov === 'leave') continue; // no penalty on off days
+        const dayTarget = ov === 'halfday' ? (c.dailyH * 3600) / 2 : c.dailyH * 3600;
+        const deficit = dayTarget - log.hoursWorked * 3600;
+        if (deficit > 300) penaltyDays.push({ day, deficit });
       }
       if (penaltyDays.length > 0) {
         const id = `penalty-${wk[0].key}`;
@@ -6127,9 +6151,18 @@
       btn.dataset.state = state;
       if (dd) dd.style.display = 'none';
       if (state === 'running') {
-        btn.textContent = 'Pause'; btn.classList.add('pause-shift');
-        wrap?.classList.add('split-btn-wrap');
-        if (chev) { chev.style.display = ''; chev.className = 'split-chevron-btn pause-shift-chev'; }
+        const breakOn = cfg().breakTime !== false;
+        if (breakOn) {
+          // Pause + chevron → End Session dropdown (full split)
+          btn.textContent = 'Pause'; btn.classList.add('pause-shift');
+          wrap?.classList.add('split-btn-wrap');
+          if (chev) { chev.style.display = ''; chev.className = 'split-chevron-btn pause-shift-chev'; }
+        } else {
+          // Single "End Session" button — no pause, no split
+          btn.textContent = 'End Session'; btn.classList.add('end-shift');
+          wrap?.classList.remove('split-btn-wrap');
+          if (chev) chev.style.display = 'none';
+        }
         const loginInpR = el('tc-r7m2');
         if (loginInpR) { loginInpR.value = ''; }
         _tcSetLabel('Update Login Time');
@@ -6220,7 +6253,9 @@
       // If there's already an active session and the new time is within 1 hour
       // of the current login, it's a small correction — skip the outside-shift warning.
       const isSmallCorrection = loginDate && Math.abs(p - loginDate) <= 3600000;
-      if (isOutsideShift(p) && !isSmallCorrection) { showOutsideShiftModal(p); return; }
+      // Only warn about schedule mismatch when Recommend Timings is ON — that's when
+      // shiftStart/shiftEnd are configured and meaningful.
+      if (isOutsideShift(p) && !isSmallCorrection && cfg().recommendTimings !== false) { showOutsideShiftModal(p); return; }
 
       // If hours already exist for today (ended session), show "Continue?" modal
       const todayLog = dayLog(todayKey());
@@ -6290,6 +6325,8 @@
       const satToggle = el('inpIncludeSat'); if (satToggle) satToggle.checked = (c.workDays === 6);
       const recToggle = el('inpRecommendTimings');
       if (recToggle) { recToggle.checked = c.recommendTimings !== false; }
+      const btToggle = el('inpBreakTime');
+      if (btToggle) { btToggle.checked = c.breakTime !== false; }
       const recBlock = el('recommendTimingsBlock');
       if (recBlock) {
         const recOn = c.recommendTimings !== false;
@@ -6667,9 +6704,12 @@
       const now = nowTz();
       const workDays = parseInt(el('inpWorkDays')?.value || '5', 10) || 5;
       const recommendTimings = el('inpRecommendTimings')?.checked ?? true;
+      const breakTime = el('inpBreakTime')?.checked ?? true;
       saveCfg({ dailyH: daily, weeklyH, weeklyOn: on, lateDays, earlyLeaveDays, notifOn, notifTarget, notifKickstart, notifOvertime, name, position,
-                targetDay, shiftType, shiftStart, shiftEnd, tzOffset, workDays, recommendTimings,
+                targetDay, shiftType, shiftStart, shiftEnd, tzOffset, workDays, recommendTimings, breakTime,
                 autoStopBuf: cfg().autoStopBuf ?? 2 });
+      // If session is running, refresh button state to reflect break-time change
+      if (loginDate) setCalcBtnState('running');
       renderDaySelector(); // refresh strip in case work-days changed
       updateWeeklyCalc();
       _refreshLastSaved();
@@ -8771,8 +8811,10 @@ ${sig}`
     // Shift presets handled by renderShiftPresets() / applyShiftPreset()
     el('calcBtn').addEventListener('click', () => {
       const state = el('calcBtn').dataset.state || 'start';
-      if (state === 'running') endSession();
-      else calculate();
+      if (state === 'running') {
+        if (cfg().breakTime !== false) endSession();  // Pause mode
+        else confirmEndSession();                      // Direct End Session (no break time)
+      } else calculate();
     });
 
     // Split button: chevron toggles End Session dropdown

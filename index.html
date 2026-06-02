@@ -1002,7 +1002,8 @@
 
     /* ── Day selector strip ── */
     .day-selector { display: flex; gap: 6px; overflow-x: auto; -webkit-overflow-scrolling: touch;
-      scrollbar-width: none; -ms-overflow-style: none; }
+      scrollbar-width: none; -ms-overflow-style: none;
+      touch-action: pan-x; overscroll-behavior-x: contain; }
     .day-selector::-webkit-scrollbar { display: none; }
     .day-sel-btn { flex: 0 0 60px; display: flex; flex-direction: column; align-items: center;
       gap: 4px; padding: 10px 4px 8px; border-radius: 10px; border: 1px solid var(--border);

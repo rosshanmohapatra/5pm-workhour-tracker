@@ -3191,25 +3191,6 @@
   </div>
 
   <!-- Forgot to Log Out Modal -->
-  <div class="overlay" id="forgotLogoutOverlay">
-    <div class="dialog">
-      <div class="dialog-head" style="text-align:center">
-        <span class="co-emoji">🕐</span>
-        <div class="dialog-title">You forgot to log out?</div>
-        <div class="dialog-desc" id="forgotLogoutDesc">Your session on Monday wasn't ended.</div>
-      </div>
-      <div class="dialog-body">
-        <div class="modal-time-row">
-          <input type="text" class="field-input" id="forgotEndTime" placeholder="End time  06:30 PM">
-        </div>
-        <div class="err-msg" id="forgotErr">Couldn't parse that time.</div>
-      </div>
-      <div class="dialog-foot">
-        <button class="btn btn-primary" id="forgotSaveBtn">Save End Time</button>
-        <button class="btn btn-cancel" id="forgotDismissBtn">Ignore</button>
-      </div>
-    </div>
-  </div>
 
   <!-- Auto-Stop Recovery Modal -->
   <div class="overlay" id="autoStopRecoveryOverlay" style="z-index:2100" onclick="if(event.target===this)closeAutoStopRecovery()">
@@ -8675,46 +8656,6 @@ ${sig}`
       showToast('Timer Auto Ended', 'success');
     }
 
-    // ── FORGOT TO LOG OUT ──────────────────────────────
-    let _forgotKey = null;
-    function checkForgotLogout() {
-      const now = new Date();
-      // Check previous weekdays for loginTime but no checkoutTime
-      for (let i = 1; i <= 7; i++) {
-        const d = new Date(now); d.setDate(now.getDate() - i);
-        const dow = d.getDay();
-        if (dow === 0 || dow === 6) continue;
-        const key = dateKey(d);
-        const log = dayLog(key);
-        if (log?.loginTime && !log?.checkoutDisplay && log?.hoursWorked == null) {
-          const dayName = FULL_DAYS_EN[d.getDay()];
-          _forgotKey = key;
-          el('forgotLogoutDesc').textContent = `Your session on ${dayName}, ${MONTHS[d.getMonth()]} ${d.getDate()} wasn't ended. Set an end time?`;
-          el('forgotEndTime').value = '';
-          el('forgotErr').classList.remove('show');
-          el('forgotLogoutOverlay').classList.add('open');
-          return;
-        }
-      }
-    }
-
-    function saveForgotLogout() {
-      if (!_forgotKey) return;
-      const e = parse(el('forgotEndTime').value);
-      if (!e) { el('forgotErr').classList.add('show'); return; }
-      el('forgotErr').classList.remove('show');
-      const log = dayLog(_forgotKey) || {};
-      const s = log.loginTime ? (() => {
-        const pts = log.loginTime.split(':').map(Number);
-        const d = new Date(_forgotKey + 'T12:00'); d.setHours(pts[0],pts[1],pts[2],0); return d;
-      })() : null;
-      const worked = s ? Math.floor((e - s) / 1000) : 0;
-      saveDayLogAndSync(_forgotKey, { ...log, checkoutDisplay: short(e), hoursWorked: worked / 3600,
-        lastUpdated: new Date().toISOString(), sessionTag: 'edited' });
-      _forgotKey = null;
-      el('forgotLogoutOverlay').classList.remove('open');
-      renderDaySelector();
-    }
 
     // ── RESUME SHIFT ────────────────────────────────────
     function resumeShift() {
@@ -9099,15 +9040,6 @@ ${sig}`
     el('weekPlanSkip').addEventListener('click', dismissWeekPlan);
     el('weekPlanOverlay').addEventListener('click', e => { if (e.target === el('weekPlanOverlay')) dismissWeekPlan(); });
 
-    // Forgot logout modal
-    el('forgotSaveBtn').addEventListener('click', saveForgotLogout);
-    el('forgotDismissBtn').addEventListener('click', () => {
-      _forgotKey = null; el('forgotLogoutOverlay').classList.remove('open');
-    });
-    el('forgotLogoutOverlay').addEventListener('click', e => {
-      if (e.target === el('forgotLogoutOverlay')) { _forgotKey = null; el('forgotLogoutOverlay').classList.remove('open'); }
-    });
-
     // Continue Working modal
     el('continueWorkingCancelBtn').addEventListener('click', () => {
       el('continueWorkingOverlay').classList.remove('open');
@@ -9294,7 +9226,6 @@ ${sig}`
         closeImportModal?.();
         closeAutoStopRecovery?.();
         el('weekPlanOverlay')?.classList.remove('open');
-        el('forgotLogoutOverlay')?.classList.remove('open');
         el('endSessionOverlay')?.classList.remove('open');
         el('logoutOverlay')?.classList.remove('open');
         el('newPlanOverlay')?.classList.remove('open');
@@ -10057,10 +9988,7 @@ ${sig}`
       // Recovery prompts. Auto-stop recovery runs even when loginDate is set
       // (an auto-stopped session restores loginDate for display). Forgot-to-logout
       // only applies when there's no active/ended session today.
-      setTimeout(() => {
-        const shown = checkAutoStopRecovery();
-        if (!shown && !loginDate) checkForgotLogout();
-      }, 800);
+      setTimeout(() => { checkAutoStopRecovery(); }, 800);
 
       // Always pull from Supabase on launch — cross-device accuracy requires fresh data
       // regardless of when the last pull happened.
@@ -10127,8 +10055,7 @@ ${sig}`
       // Show week plan modal if needed (only after onboarding is complete)
       if (localStorage.getItem(OB_DONE_KEY) && shouldShowWeekPlan()) setTimeout(() => {
         // Don't open Week Plan if a higher-priority recovery modal is already visible
-        const recoveryOpen = el('autoStopRecoveryOverlay')?.classList.contains('open')
-                          || el('forgotLogoutOverlay')?.classList.contains('open');
+        const recoveryOpen = el('autoStopRecoveryOverlay')?.classList.contains('open');
         if (!recoveryOpen) openWeekPlanModal();
       }, 1200);
     })();

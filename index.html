@@ -9959,11 +9959,20 @@ ${sig}`
           ticker = setInterval(render, 1000);
         } else { renderEmptyState(); }
       } else if (tl?.loginTime && !tl?.autostopped && tl?.checkoutDisplay) {
-        // Completed session (exit time explicitly set) — show ended state, do NOT start ticker
-        setCalcBtnState('ended');
+        // Session has an exit time. Distinguish true checkout from a mid-day pause:
+        // checkout() saves checkoutTime; endSession() saves sessionDate instead.
+        // If neither is present (cross-device pull), default to 'start' — safer.
         el('shiftInputRow').classList.remove('active-state', 'hidden');
-        el('shiftActiveLabel').textContent = '—';
         el('autostopBanner').classList.remove('show');
+        const _isPaused = !tl.checkoutTime && tl.sessionDate === tk;
+        if (_isPaused) {
+          setCalcBtnState('ended'); // paused mid-day — Resume makes sense
+          const _pausedDur = dur(Math.round((tl.hoursWorked || 0) * 3600));
+          el('shiftActiveLabel').textContent = `Paused · ${_pausedDur}`;
+        } else {
+          setCalcBtnState('start'); // true checkout or cross-device end — Quick Start
+          el('shiftActiveLabel').textContent = '—';
+        }
         renderEmptyState();
       } else if (tl?.autostopped) {
         // Restore auto-stopped state
@@ -10007,7 +10016,7 @@ ${sig}`
           loginDate = null; autoStopped = false; wasDone = false; notifSent = false;
           _sessionAccSecs = _pulled.hoursWorked ? Math.round(_pulled.hoursWorked * 3600) : 0;
           Store.clearSession();
-          setCalcBtnState('ended');
+          setCalcBtnState('start'); // session ended on another device — show Quick Start, not Resume
           el('shiftInputRow').classList.remove('active-state', 'hidden');
           el('shiftActiveLabel').textContent = '—';
           el('autostopBanner').classList.remove('show');

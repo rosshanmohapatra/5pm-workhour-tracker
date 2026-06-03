@@ -5454,7 +5454,9 @@
       }
 
       // Split button stays in its current running/ended state — End Session is in the dropdown
-      if (isDone && !wasDone) {
+      // Guard: never show the target modal for an auto-stopped session — the ASR modal
+      // already handles it, and render() is still called while loginDate is set for display.
+      if (isDone && !wasDone && !autoStopped) {
         wasDone = true;
         // When Recommend Timings is OFF, pause the session and show the target modal.
         // The counter stops — gap while modal is open is not counted as work time.
@@ -8657,9 +8659,13 @@ ${sig}`
         lastUpdated: new Date().toISOString()
       });
 
-      // If correcting today's session, clear the live auto-stop UI
+      // If correcting today's session, fully clear the live auto-stop state so
+      // subsequent render() calls don't re-trigger the Daily Target modal.
       if (dk === todayKey()) {
-        autoStopped = false;
+        autoStopped = false; wasDone = false;
+        if (ticker) { clearInterval(ticker); ticker = null; }
+        loginDate = null; // session is over — prevent render() from running again
+        Store.clearSession();
         el('autostopBanner').classList.remove('show');
         setCalcBtnState('ended');
         renderEmptyState();
@@ -10083,7 +10089,9 @@ ${sig}`
         }
 
         renderHistory(); renderDaySelector();
-        if (!loginDate) renderEmptyState(); else render();
+        // Don't call render() for auto-stopped sessions — the ticker is dead and
+        // render() would incorrectly fire the Daily Target modal.
+        if (!loginDate || autoStopped) renderEmptyState(); else render();
       });
 
       // Pull settings + wire up realtime — always, regardless of pull cooldown.
@@ -10117,7 +10125,12 @@ ${sig}`
       }
 
       // Show week plan modal if needed (only after onboarding is complete)
-      if (localStorage.getItem(OB_DONE_KEY) && shouldShowWeekPlan()) setTimeout(openWeekPlanModal, 1200);
+      if (localStorage.getItem(OB_DONE_KEY) && shouldShowWeekPlan()) setTimeout(() => {
+        // Don't open Week Plan if a higher-priority recovery modal is already visible
+        const recoveryOpen = el('autoStopRecoveryOverlay')?.classList.contains('open')
+                          || el('forgotLogoutOverlay')?.classList.contains('open');
+        if (!recoveryOpen) openWeekPlanModal();
+      }, 1200);
     })();
   </script>
 

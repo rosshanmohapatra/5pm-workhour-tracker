@@ -1005,6 +1005,18 @@
       scrollbar-width: none; -ms-overflow-style: none;
       touch-action: pan-x; overscroll-behavior-x: contain; }
     .day-selector::-webkit-scrollbar { display: none; }
+    /* Hide nav arrows — scroll replaces them */
+    .this-week-nav { display: none; }
+    /* Desktop: exactly 5 days visible; thin overlay scrollbar on hover */
+    @media (hover: hover) and (min-width: 641px) {
+      .day-sel-btn { flex: 0 0 calc((100% - 32px) / 5) !important; }
+      .day-selector { scrollbar-width: thin; scrollbar-color: transparent transparent; }
+      .day-selector::-webkit-scrollbar { display: block; height: 4px; }
+      .day-selector::-webkit-scrollbar-track { background: transparent; }
+      .day-selector::-webkit-scrollbar-thumb { background: transparent; border-radius: 4px; }
+      .day-selector:hover { scrollbar-color: rgba(128,128,128,.35) transparent; }
+      .day-selector:hover::-webkit-scrollbar-thumb { background: rgba(128,128,128,.35); }
+    }
     .day-sel-btn { flex: 0 0 60px; display: flex; flex-direction: column; align-items: center;
       gap: 4px; padding: 10px 4px 8px; border-radius: 10px; border: 1px solid var(--border);
       background: var(--background); color: var(--muted-fg); cursor: pointer;
@@ -5502,7 +5514,7 @@
       if (!container) return;
       const mondayKey = week(0)[0].key;
       const mondayBtn = container.querySelector(`.day-sel-btn[data-key="${mondayKey}"]`);
-      if (mondayBtn) container.scrollLeft = Math.max(0, mondayBtn.offsetLeft - 6);
+      if (mondayBtn) container.scrollLeft = Math.max(0, mondayBtn.offsetLeft - 8);
     }
 
     // ── Lazy-load helpers ──

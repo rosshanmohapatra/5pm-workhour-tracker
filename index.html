@@ -3876,6 +3876,17 @@
           && cfg().notifOn && Notification.permission === 'granted') {
         _fireNotif('earlyLeave');
       }
+      // Priority push — bypass dirty queue so other devices see the session end immediately.
+      // Fire-and-forget: if it fails, _markDirty ensures a retry via the normal queue.
+      { const _pk = tk; const _pe_snap = { ...ex,
+          checkoutTime:    `${p2(now.getHours())}:${p2(now.getMinutes())}:${p2(now.getSeconds())}`,
+          checkoutDisplay: short(now),
+          hoursWorked:     (_sessionAccSecs + sessionSecs) / 3600,
+          lastUpdated:     now.toISOString(),
+          sessionTag:      ex.sessionTag || 'realtime',
+        };
+        SbSync.pushDay(_pk, _pe_snap).then(ok => { if (!ok) _markDirty(_pk); });
+      }
       const punchInDisplay = ex.loginDisplay || short(loginDate); // first login of the day
       saveDayLogAndSync(tk, { ...ex,
         loginTime:       `${loginDate.getHours()}:${loginDate.getMinutes()}:${loginDate.getSeconds()}`,
@@ -3932,7 +3943,7 @@
       const sessionSecs = Math.floor((now - loginDate) / 1000);
       _sessionAccSecs   += sessionSecs;
       _sessionCheckoutTime = now;
-      saveDayLogAndSync(tk, { ...ex,
+      const _esEntry = { ...ex,
         loginTime:       ex.loginTime || `${loginDate.getHours()}:${loginDate.getMinutes()}:${loginDate.getSeconds()}`,
         loginDisplay:    ex.loginDisplay || short(loginDate),
         checkoutDisplay: short(now),
@@ -3940,7 +3951,12 @@
         lastUpdated:     now.toISOString(),
         sessionTag:      ex.sessionTag || 'realtime',
         sessionDate:     tk
-      });
+      };
+      saveDayLogAndSync(tk, _esEntry);
+      // Priority push — bypass dirty queue so other devices see the end immediately.
+      { const _pk = tk, _pe = _esEntry;
+        SbSync.pushDay(_pk, _pe).then(ok => { if (!ok) _markDirty(_pk); });
+      }
       Store.clearSession();
       loginDate = null; autoStopped = false;
       setCalcBtnState('start');
@@ -10040,41 +10056,51 @@ ${sig}`
         if (!shown && !loginDate) checkForgotLogout();
       }, 800);
 
-      // Pull from Supabase on startup only when stale (>10 min), actively tracking,
-      // or there is pending local data — avoids redundant round-trips on casual reloads.
-      const _PULL_COOLDOWN = 10 * 60 * 1000; // 10 minutes
-      const _lastPull = parseInt(localStorage.getItem('wh_last_pull') || '0', 10);
-      const _pullStale = (Date.now() - _lastPull) > _PULL_COOLDOWN;
-      const _shouldPull = _pullStale || (!!loginDate && !autoStopped) || _hasPending();
+      // Always pull from Supabase on launch — cross-device accuracy requires fresh data
+      // regardless of when the last pull happened.
+      SbSync.pullAll().then(() => {
+        localStorage.setItem('wh_last_pull', String(Date.now()));
 
-      if (_shouldPull) {
-        SbSync.pullAll().then(() => {
-          localStorage.setItem('wh_last_pull', String(Date.now()));
-          renderHistory(); renderDaySelector();
-          if (!loginDate) renderEmptyState();
-        });
+        // ── Cross-device session reconciliation ──────────────────────────────
+        // If Supabase says today's session is ended (another device checked out)
+        // but we still have a live local ticker running, force-stop silently —
+        // no modals, no prompts. Whichever device has the latest timestamp wins.
+        const _pulled = Store.getDay(todayKey());
+        if (_pulled?.checkoutDisplay && loginDate) {
+          cancelScheduledNotifications();
+          if (ticker) { clearInterval(ticker); ticker = null; }
+          _stopCheckpoint();
+          loginDate = null; autoStopped = false; wasDone = false; notifSent = false;
+          _sessionAccSecs = _pulled.hoursWorked ? Math.round(_pulled.hoursWorked * 3600) : 0;
+          Store.clearSession();
+          setCalcBtnState('ended');
+          el('shiftInputRow').classList.remove('active-state', 'hidden');
+          el('shiftActiveLabel').textContent = '—';
+          el('autostopBanner').classList.remove('show');
+          // Close any modals that fired from stale local state before the pull landed
+          el('dailyTargetReachedOverlay')?.classList.remove('open');
+          el('endSessionOverlay')?.classList.remove('open');
+        }
 
-        // Pull saved settings from Supabase, then subscribe to real-time changes.
-        SbSync.pullSettings().then(remoteCfg => {
-          if (remoteCfg && typeof remoteCfg === 'object') {
-            _applyingRemote = true;
-            try {
-              Store.setCfg(remoteCfg);
-              populateSettings();
-              renderDaySelector();
-              renderNotifs(); // apply synced dismissed state on load
-              refreshProfileCard(); // re-render card with pulled name/position
-              if (loginDate) render(); else renderEmptyState();
-            } finally { _applyingRemote = false; }
-          }
-          initRealtimeSync();
-        });
-      } else {
-        // Data is fresh — render from local, still wire up realtime for live edits.
         renderHistory(); renderDaySelector();
-        if (!loginDate) renderEmptyState();
+        if (!loginDate) renderEmptyState(); else render();
+      });
+
+      // Pull settings + wire up realtime — always, regardless of pull cooldown.
+      SbSync.pullSettings().then(remoteCfg => {
+        if (remoteCfg && typeof remoteCfg === 'object') {
+          _applyingRemote = true;
+          try {
+            Store.setCfg(remoteCfg);
+            populateSettings();
+            renderDaySelector();
+            renderNotifs(); // apply synced dismissed state on load
+            refreshProfileCard(); // re-render card with pulled name/position
+            if (loginDate) render(); else renderEmptyState();
+          } finally { _applyingRemote = false; }
+        }
         initRealtimeSync();
-      }
+      });
 
       // Hydrate the profile card — auth data first, then cfg overlay when pullSettings resolves
       hydrateProfileCard();

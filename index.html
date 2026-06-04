@@ -492,13 +492,13 @@
     .rc-numbers { display: flex; align-items: baseline; gap: 12px; }
     .rc-left-col { display: flex; flex-direction: column; gap: 2px; }
     .rc-right-col { margin-left:auto;display:flex;flex-direction:column;gap:2px;align-items:flex-end; }
-    .rc-target-val { font-size:36px;font-weight:700;letter-spacing:-1.5px;line-height:1; }
+    .rc-target-val { font-size:32px;font-weight:500;letter-spacing:-1px;line-height:32px;color:#fafafa; }
     .rc-target-label { font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted-fg);text-align:right; }
     .rc-elapsed-row { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; margin-top: 2px; }
     .rc-rem-sep { font-size: 11px; color: var(--muted-fg); opacity: 0.45; font-weight: 700; line-height: 1; }
     .rc-rem-inline { font-size: 11px; font-weight: 600; letter-spacing: .04em; line-height: 1; }
     .rc-rem-text { font-size: 11px; font-weight: 600; color: var(--muted-fg); letter-spacing: .06em; text-transform: uppercase; line-height: 1; }
-    .rc-worked { font-size: 36px; font-weight: 700; letter-spacing: -1.5px; line-height: 1; }
+    .rc-worked { font-size: 32px; font-weight: 500; letter-spacing: -1px; line-height: 32px; color: #fafafa; }
     .rc-elapsed-label { font-size: 11px; font-weight: 600; letter-spacing: .08em;
       text-transform: uppercase; color: var(--muted-fg); margin-top: 2px; }
     .progress-wrap { display: flex; flex-direction: column; gap: 6px; }
@@ -1075,7 +1075,6 @@
     .rc-io-box { flex:1; background:var(--muted); border-radius:var(--radius-md); padding:12px;
       border: 1px solid var(--border); display:flex; flex-direction:column; justify-content:center;
       transition: background 200ms ease, flex 300ms cubic-bezier(0.22,1,0.36,1); }
-    @media (max-width:640px) { .rc-io-box { padding:8px; } }
     .rc-io-label { font-size:10px; font-weight:600; text-transform:uppercase;
       letter-spacing:.08em; color:var(--muted-fg); margin-bottom:3px; }
     .rc-io-val { font-size:15px; font-weight:600; color:var(--foreground);
@@ -1198,8 +1197,8 @@
       .login-row { flex-wrap: wrap; }
       #tc-r7m2, #tc-r7m2-ph { min-width: 0; }
       /* Today card numbers — keep in one line */
-      .rc-worked { font-size: 26px; letter-spacing: -1px; }
-      .rc-target-val { font-size: 26px; letter-spacing: -1px; }
+      .rc-worked { font-size: 24px; letter-spacing: -.5px; line-height: 24px; }
+      .rc-target-val { font-size: 24px; letter-spacing: -.5px; line-height: 24px; }
       /* Stack "Not Started" label above the remaining time */
       .rc-elapsed-row { flex-direction: column; align-items: flex-start; gap: 1px; }
       .rc-rem-sep { display: none !important; }
@@ -1371,6 +1370,21 @@
     }
     .shift-tp-btn:hover { background: rgba(0,0,0,.07); color: var(--foreground); }
     .dark .shift-tp-btn:hover { background: rgba(255,255,255,.09); }
+
+    /* ── Segmented time input (ShadCN-style HH : MM AM/PM) ── */
+    .tp-seg-group { flex:1; min-width:0; display:flex; align-items:center; gap:2px; padding:0 8px; }
+    .tp-seg-input { width:22px; padding:0; background:transparent; border:none; outline:none;
+      font-size:14px; font-weight:500; font-family:var(--font); color:var(--foreground);
+      text-align:center; font-variant-numeric:tabular-nums; }
+    .tp-seg-input::placeholder { color:var(--muted-fg); opacity:.6; }
+    .tp-seg-sep { font-size:14px; font-weight:500; color:var(--muted-fg); flex-shrink:0; user-select:none; }
+    .tp-seg-period { font-size:11px; font-weight:600; letter-spacing:.04em; padding:3px 7px;
+      border-radius:6px; background:var(--muted); color:var(--foreground); border:1px solid var(--border);
+      cursor:pointer; font-family:var(--font); margin-left:4px; flex-shrink:0; transition:background .1s; }
+    .tp-seg-period:hover { background:var(--border); }
+    .tp-seg-clock { background:none; border:none; color:var(--muted-fg); cursor:pointer;
+      padding:4px 5px; display:flex; align-items:center; border-radius:6px; flex-shrink:0; transition:color .1s; }
+    .tp-seg-clock:hover { color:var(--foreground); }
 
     /* ── Wheel time picker modal ── */
     .tp-modal {
@@ -2007,23 +2021,28 @@
       <div class="shift-cta" id="todayLoginSection">
         <!-- Single combo: input + button inside -->
         <div class="shift-combo" id="shiftInputRow">
-          <button type="button" class="shift-tp-btn" id="loginTpBtn" onclick="openTpModal('tc-r7m2',event,'Log In',calculate)" title="Pick start time">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M16.5 13C17.0523 13 17.5 12.5523 17.5 12C17.5 11.4477 17.0523 11 16.5 11H13V5.5C13 4.94772 12.5523 4.5 12 4.5C11.4477 4.5 11 4.94772 11 5.5V12C11 12.5523 11.4477 13 12 13H16.5Z" fill="currentColor"/><path fill-rule="evenodd" clip-rule="evenodd" d="M12 1C5.92487 1 1 5.92487 1 12C1 18.0751 5.92487 23 12 23C18.0751 23 23 18.0751 23 12C23 5.92487 18.0751 1 12 1ZM3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12Z" fill="currentColor"/></svg>
-          </button>
-          <!-- Decoy absorber: sits in DOM (opacity:0, not display:none) so Safari finds it first.
-               autocomplete="username" attracts Vercel credential suggestions away from the real field. -->
+          <!-- Decoy absorber for Safari autofill — must stay in DOM -->
           <input type="email" name="q7z3x" autocomplete="email" tabindex="-1"
             style="position:absolute;opacity:0;height:0;width:0;pointer-events:none;border:none;padding:0">
-          <!-- Visible placeholder div — a <div> is invisible to Safari's autofill scanner -->
-          <div class="shift-combo-input tc-ph" id="tc-r7m2-ph" onclick="_tcActivate()">Enter Login Time</div>
-          <!-- Real input: display:none at rest, shown only on explicit tap via _tcActivate().
-               placeholder is neutral ("9:30 AM") — no "login" keyword to trigger Safari heuristics.
-               name is obfuscated (x8k4p), id is obfuscated (tc-r7m2). -->
-          <input class="shift-combo-input" id="tc-r7m2" type="text" inputmode="numeric"
-            name="x8k4p" placeholder="9:30 AM"
-            autocomplete="off"
-            spellcheck="false" data-lpignore="true" data-form-type="other" data-1p-ignore="true"
-            style="display:none">
+          <!-- Hidden sync target — all existing parse/modal/keydown logic reads/writes here -->
+          <input id="tc-r7m2" type="text" autocomplete="off" spellcheck="false"
+            data-lpignore="true" data-form-type="other" data-1p-ignore="true"
+            style="position:absolute;opacity:0;height:0;width:0;pointer-events:none;border:none;padding:0">
+          <!-- Segmented time input: HH : MM AM/PM + clock trigger -->
+          <div class="tp-seg-group" id="tpSegGroup">
+            <input class="tp-seg-input" id="tpSegH" type="text" inputmode="numeric" maxlength="2" placeholder="--"
+              autocomplete="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true">
+            <span class="tp-seg-sep">:</span>
+            <input class="tp-seg-input" id="tpSegM" type="text" inputmode="numeric" maxlength="2" placeholder="--"
+              autocomplete="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true">
+            <button class="tp-seg-period" id="tpSegPeriod" type="button">AM</button>
+            <button class="tp-seg-clock" type="button" onclick="openTpModal('tc-r7m2',event,'Log In',calculate)" title="Pick time">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.75"/>
+                <path d="M12 7v5l3 3" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </button>
+          </div>
           <span class="shift-combo-active-label" id="shiftActiveLabel">—</span>
           <div id="calcBtnWrap" style="position:relative;display:flex;align-items:stretch">
             <button class="shift-combo-btn" id="calcBtn">Quick Start</button>
@@ -4250,6 +4269,102 @@
       requestAnimationFrame(() => { wheel.scrollTop = (midOffset + selectedIdx) * TP_ITEM_H; });
     }
 
+    // ── Segmented time input logic ────────────────────────────────────────────
+    let _tpSegSyncing = false;
+
+    function _tpSegFromDate(d) {
+      const h = el('tpSegH'), m = el('tpSegM'), per = el('tpSegPeriod');
+      if (!h || !m || !per) return;
+      let hours = d.getHours(); const mins = d.getMinutes();
+      const isPm = hours >= 12;
+      hours = hours % 12 || 12;
+      h.value = String(hours);
+      m.value = String(mins).padStart(2, '0');
+      per.textContent = isPm ? 'PM' : 'AM';
+    }
+
+    function _tpSegClear() {
+      const h = el('tpSegH'), m = el('tpSegM'), per = el('tpSegPeriod'), inp = el('tc-r7m2');
+      if (h)   h.value = '';
+      if (m)   m.value = '';
+      if (per) per.textContent = 'AM';
+      if (inp) inp.value = '';
+    }
+
+    function _tpSegSync() {
+      const h = el('tpSegH'), m = el('tpSegM'), per = el('tpSegPeriod'), inp = el('tc-r7m2');
+      if (!h || !m || !per || !inp) return;
+      if (!h.value || m.value.length < 2) return;
+      const timeStr = `${h.value}:${m.value} ${per.textContent.trim()}`;
+      _tpSegSyncing = true;
+      inp.value = timeStr;
+      inp.dispatchEvent(new Event('input', { bubbles: true }));
+      _tpSegSyncing = false;
+    }
+
+    function _tpSegTogglePeriod() {
+      const per = el('tpSegPeriod');
+      if (!per) return;
+      per.textContent = per.textContent.trim() === 'AM' ? 'PM' : 'AM';
+      _tpSegSync();
+    }
+
+    function _tpSegInit() {
+      const h = el('tpSegH'), m = el('tpSegM'), per = el('tpSegPeriod'), inp = el('tc-r7m2');
+      if (!h || !m || !per) return;
+
+      h.addEventListener('focus', () => h.select());
+      m.addEventListener('focus', () => m.select());
+
+      h.addEventListener('input', () => {
+        h.value = h.value.replace(/\D/g, '').slice(0, 2);
+        const n = parseInt(h.value);
+        if (h.value.length === 2) {
+          if (n < 1)  h.value = '1';
+          if (n > 12) h.value = '12';
+          m.focus(); m.select();
+        }
+        _tpSegSync();
+      });
+
+      h.addEventListener('keydown', e => {
+        if (e.key === 'Enter')     { _tpSegSync(); calculate(); }
+        if (e.key === 'Tab' && !e.shiftKey) { e.preventDefault(); m.focus(); m.select(); }
+        if (e.key === 'ArrowRight' && h.selectionStart === h.value.length) { m.focus(); m.select(); }
+      });
+
+      m.addEventListener('input', () => {
+        m.value = m.value.replace(/\D/g, '').slice(0, 2);
+        const n = parseInt(m.value);
+        if (m.value.length === 2 && n > 59) m.value = '59';
+        _tpSegSync();
+      });
+
+      m.addEventListener('keydown', e => {
+        if (e.key === 'Enter')     { _tpSegSync(); calculate(); }
+        if (e.key === 'Backspace' && m.value === '') { h.focus(); h.select(); }
+        if (e.key === 'Tab' && !e.shiftKey) { e.preventDefault(); per.focus(); }
+        if (e.key === 'Tab' && e.shiftKey)  { e.preventDefault(); h.focus(); h.select(); }
+        if (e.key === 'ArrowLeft' && m.selectionStart === 0) { h.focus(); h.select(); }
+      });
+
+      per.addEventListener('click', () => _tpSegTogglePeriod());
+      per.addEventListener('keydown', e => {
+        if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); _tpSegTogglePeriod(); }
+        if (e.key === 'Backspace' || (e.key === 'Tab' && e.shiftKey)) { e.preventDefault(); m.focus(); m.select(); }
+      });
+
+      // Sync segments when wheel modal confirms (fires 'change' on tc-r7m2)
+      if (inp) {
+        inp.addEventListener('change', () => {
+          if (_tpSegSyncing || !inp.value) return;
+          const p = parse(inp.value.trim());
+          if (p) _tpSegFromDate(p);
+        });
+      }
+    }
+    // ─────────────────────────────────────────────────────────────────────────
+
     function _tpInitWheels() {
       ['tpWheelH', 'tpWheelM', 'tpWheelAp'].forEach(wheelId => {
         const wheel = el(wheelId);
@@ -6256,11 +6371,6 @@
     // ── CALCULATE ──────────────────────────────────────
     function showErr(msg) {
       el('errMsg').textContent = msg;
-      // Make sure the real input is visible so the user can correct their entry
-      const ph = el('tc-r7m2-ph'), inp = el('tc-r7m2');
-      if (ph) ph.style.display = 'none';
-      if (inp) inp.style.display = '';
-      el('tc-r7m2').classList.add('err');
       el('errMsg').classList.add('show');
       // P12 — shake the input row
       const row = el('shiftInputRow');
@@ -6299,6 +6409,7 @@
         }
         const loginInpR = el('tc-r7m2');
         if (loginInpR) { loginInpR.value = ''; }
+        _tpSegClear();
         _tcSetLabel('Update Login Time');
       } else if (state === 'ended') {
         btn.textContent = 'Resume'; btn.classList.add('resume-shift');
@@ -9973,6 +10084,7 @@ ${sig}`
     (function init() {
       _migrateLegacyDismissed(); // one-time migration from legacy wh_dismissed key
       _tpInitWheels();
+      _tpSegInit();
       _setTodayDateChip();
       setInterval(tickHeader, 1000);
       tickHeader();

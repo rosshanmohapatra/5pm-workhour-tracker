@@ -5624,9 +5624,11 @@
     }
 
     // ── DAY SELECTOR (Home) ────────────────────────────
-    let _dsSel = null; // last key scrolled-to — prevents redundant scrolls on every tick
+    let _dsSel = null;      // last key scrolled-to — prevents redundant scrolls on every tick
+    let _dsUserNav = false; // true when a click/nav triggered the render (forces re-centre)
 
     function _dsScrollTo(container, btn, behavior) {
+      if (!container.clientWidth) return; // layout not ready
       const left = Math.max(0, btn.offsetLeft - container.clientWidth / 2 + btn.offsetWidth / 2);
       if (behavior === 'smooth') container.scrollTo({ left, behavior: 'smooth' });
       else container.scrollLeft = left;
@@ -5666,16 +5668,20 @@
       daySelectorWeekOffset = Math.round((mon - thisMon) / (7 * 86400000));
     }
 
-    // Scroll the strip so today's card is centred in the viewport.
-    // The goal is 5 visible cards with today in the middle position.
+    // Scroll the strip so today's card is centred. Retries until layout is ready
+    // (on desktop, offsetLeft can be 0 in the first rAF if CSS hasn't been applied yet).
     function _dsResetScroll() {
       const container = el('daySelectorRow');
       if (!container) return;
       const tk = todayKey();
       const todayBtn = container.querySelector(`.day-sel-btn[data-key="${tk}"]`);
-      if (todayBtn) {
-        _dsScrollTo(container, todayBtn); // centres today (instant, no animation)
+      if (!todayBtn) return;
+      if (!container.clientWidth || todayBtn.offsetLeft === 0) {
+        // Layout not settled — retry after next paint
+        requestAnimationFrame(() => _dsResetScroll());
+        return;
       }
+      _dsScrollTo(container, todayBtn);
     }
 
     // ── Lazy-load helpers ──
@@ -5697,6 +5703,7 @@
                     + `<span class="dsel-num">${day.date.getDate()}</span>`
                     + `<span class="dsel-dot"></span>`;
       btn.addEventListener('click', () => {
+        _dsUserNav = true;
         if (isFuture) selectFutureDay(day.key);
         else selectDay(day.key);
         _syncOffsetFromKey(day.key);
@@ -5743,11 +5750,12 @@
           }
         });
         if (!selKey || selFound) {
-          if (selKey && selKey !== _dsSel) {
+          if (selKey && (selKey !== _dsSel || _dsUserNav)) {
             const activeBtn = container.querySelector('.day-sel-btn.active');
             if (activeBtn) _dsScrollTo(container, activeBtn, 'smooth');
             _dsSel = selKey;
           }
+          _dsUserNav = false;
           _updateDayNavBtns();
           return;
         }
@@ -5788,6 +5796,7 @@
       const targetKey = targetBtn.dataset.key;
       const now = new Date();
       const dayDate = new Date(targetKey + 'T12:00');
+      _dsUserNav = true;
       if (dayDate > now && targetKey !== todayKey()) selectFutureDay(targetKey);
       else selectDay(targetKey);
       _syncOffsetFromKey(targetKey);
@@ -6127,8 +6136,7 @@
       swapText('rcElapsedLabel', 'Total Logged', { color: 'var(--muted-fg)' });
       if (isDone) {
         el('otBanner').classList.remove('show');
-        el('doneMsg').textContent = `${dur(worked)} logged`;
-        el('doneBanner').classList.add('show');
+        el('doneBanner').classList.remove('show');
         el('progFill').classList.add('target-reached');
         el('progTrack')?.classList.add('target-reached');
         if (el('progWrap')) el('progWrap').style.display = 'none';

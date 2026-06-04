@@ -1925,7 +1925,6 @@
             <div class="rc-right-col">
               <div class="rc-target-val" id="rcTarget" style="color:var(--muted-fg)">—</div>
               <div class="rc-target-label" id="rcTargetLabel">Remaining</div>
-              <div class="rc-completed-chip" id="rcCompletedChip" style="display:none">Completed</div>
             </div>
           </div>
           <div class="progress-wrap" id="progWrap">
@@ -4128,7 +4127,7 @@
       return short(d);
     }
 
-    function buildTargetHtml(eff) {
+    function buildTargetHtml(eff, isDone) {
       const tk = todayKey();
       const log = dayLog(tk) || {};
       const hasCustomTarget = log.todayTargetH != null;
@@ -4155,12 +4154,19 @@
           <input type="hidden" id="inTimeEditInput" value="${inVal}">
         </div>`;
       } else {
-        // No active session — show stored login time (or "—" if none recorded yet)
+        // Session ended — show Duration card with actual login → logout times
+        const outVal = log.checkoutDisplay || '—';
         leftCardHtml = `
         <div class="rc-io-box" id="inTimeBox">
-          <div class="rc-io-label">Log In</div>
+          <div class="rc-io-label">Duration</div>
           <div class="rc-io-val-row">
-            <div class="rc-io-val" id="metaLogin">${inVal}</div>
+            <div class="rc-io-duration">
+              <span class="rc-io-val" id="metaLogin">${inVal}</span>
+              <span class="rc-io-duration-arrow">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none"><path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </span>
+              <span class="rc-io-val" id="metaLogout">${outVal}</span>
+            </div>
           </div>
           <input type="hidden" id="inTimeEditInput" value="${inVal}">
         </div>`;
@@ -4172,8 +4178,11 @@
           <div class="rc-io-label">Target</div>
           <div class="rc-io-val-row">
             <div class="rc-io-val" id="metaTarget">${dur(eff)}</div>
-            ${!hasCustomTarget && cfg().recommendTimings !== false ? `<span class="custom-target-chip">Recommended</span>` : ''}
-            ${hasCustomTarget  ? `<button class="rc-io-edit-btn" title="Reset to recommended" onclick="event.stopPropagation();clearTodayTarget()" style="color:var(--muted-fg)">✕</button>` : ''}
+            ${isDone
+              ? `<span class="rc-completed-chip">Completed</span>`
+              : (!hasCustomTarget && cfg().recommendTimings !== false ? `<span class="custom-target-chip">Recommended</span>` : '')
+            }
+            ${!isDone && hasCustomTarget ? `<button class="rc-io-edit-btn" title="Reset to recommended" onclick="event.stopPropagation();clearTodayTarget()" style="color:var(--muted-fg)">✕</button>` : ''}
           </div>
         </div>
       </div>`;
@@ -4823,17 +4832,15 @@
         el('rcTarget').style.color = 'var(--muted-fg)';
         if (el('rcTargetLabel')) swapText('rcTargetLabel', isDoneE ? 'Extra Time' : 'Remaining');
         // Bug fix: show "Done" (not "Paused") when target was reached
-        swapText('rcElapsedLabel', isDoneE ? 'Done' : 'Paused', { color: 'var(--muted-fg)' });
-        // Bug fix: hide the progress-bar divider + "Target Reached" text when done;
-        //          show "Completed" chip in the target column instead.
+        // When done the Completed chip is inside the Target box — no need for a separate label.
+        swapText('rcElapsedLabel', isDoneE ? '' : 'Paused', { color: 'var(--muted-fg)' });
         if (el('progWrap')) el('progWrap').style.display = isDoneE ? 'none' : '';
-        if (el('rcCompletedChip')) el('rcCompletedChip').style.display = isDoneE ? 'inline-flex' : 'none';
         const pct = eff > 0 ? Math.min((endedSecs / eff) * 100, 100) : 100;
         el('progFill').style.width = pct.toFixed(1) + '%';
         el('progFill').classList.toggle('done', isDoneE);
         if (isDoneE) { el('progFill').classList.add('target-reached'); el('progLabel').textContent = ''; }
         else { el('progFill').classList.remove('target-reached'); el('progLabel').textContent = `${Math.floor(pct)}%`; }
-        el('rcToday').innerHTML = buildTargetHtml(eff);
+        el('rcToday').innerHTML = buildTargetHtml(eff, isDoneE);
         el('stayHint').style.display = 'none';
         el('otBanner').classList.remove('show');
         el('doneBanner').classList.remove('show');
@@ -4847,12 +4854,11 @@
       if (el('rcTargetLabel')) swapText('rcTargetLabel', 'Remaining');
       swapText('rcElapsedLabel', 'Not Started', { color: 'var(--muted-fg)' });
       if (el('progWrap')) el('progWrap').style.display = '';
-      if (el('rcCompletedChip')) el('rcCompletedChip').style.display = 'none';
       _setTodayDateChip();
       el('progFill').style.width = '0%';
       el('progFill').classList.remove('done');
       el('progLabel').textContent = '';
-      el('rcToday').innerHTML = buildTargetHtml(eff);
+      el('rcToday').innerHTML = buildTargetHtml(eff, false);
       el('stayHint').style.display = 'none';
       el('otBanner').classList.remove('show');
       el('doneBanner').classList.remove('show');
@@ -5460,11 +5466,8 @@
       el('progFill').style.width = pct.toFixed(1) + '%';
       el('progFill').classList.toggle('done', isDone);
       el('progLabel').textContent = isDone ? 'Target Reached' : `${Math.floor(pct)}%`;
-      // Completed chip is only for the ended-session state — hide it while session runs.
       if (el('progWrap')) el('progWrap').style.display = '';
-      if (el('rcCompletedChip')) el('rcCompletedChip').style.display = 'none';
-
-      el('rcToday').innerHTML = buildTargetHtml(eff);
+      el('rcToday').innerHTML = buildTargetHtml(eff, false);
 
       // Stay hint
       const hint = buildStayHint();
@@ -5926,12 +5929,13 @@
           </div>
         </div>`;
       let surplusText = '—', surplusColor = 'var(--muted-fg)', surplusLabel = _surplusLabel();
+      let isDone = false;
       if (workedSecs != null && targetSecs != null) {
         const diff = workedSecs - targetSecs;
         if (Math.abs(diff) < 60) {
-          surplusText = 'On Target'; surplusColor = 'var(--success)'; surplusLabel = _surplusLabel();
+          surplusText = 'On Target'; surplusColor = 'var(--success)'; surplusLabel = _surplusLabel(); isDone = true;
         } else if (diff > 0) {
-          surplusText = durShort(diff); surplusColor = 'var(--success)'; surplusLabel = _surplusLabel();
+          surplusText = durShort(diff); surplusColor = 'var(--success)'; surplusLabel = _surplusLabel(); isDone = true;
         } else {
           surplusText = durShort(diff); surplusColor = 'var(--foreground)'; surplusLabel = 'Balance';
         }
@@ -5939,7 +5943,10 @@
       const surplusCard = `
         <div class="rc-io-box">
           <div class="rc-io-label">${surplusLabel}</div>
-          <div class="rc-io-val" style="color:${surplusColor}">${surplusText}</div>
+          <div class="rc-io-val-row">
+            <div class="rc-io-val" style="color:${surplusColor}">${surplusText}</div>
+            ${isDone ? `<span class="rc-completed-chip">Completed</span>` : ''}
+          </div>
         </div>`;
       return `<div class="rc-io-row">${durationCard}${surplusCard}</div>`;
     }
@@ -5960,7 +5967,6 @@
         el('progFill').classList.remove('done', 'target-reached');
         el('progTrack')?.classList.remove('target-reached');
         if (el('progWrap')) el('progWrap').style.display = '';
-        if (el('rcCompletedChip')) el('rcCompletedChip').style.display = 'none';
         if (el('rcTargetLabel')) swapText('rcTargetLabel', 'Remaining');
         el('stayHint').style.display = 'none';
         el('otBanner').classList.remove('show');
@@ -6001,7 +6007,6 @@
         el('rcWorked').textContent = '—'; el('rcWorked').style.color = 'var(--muted-fg)';
         swapText('rcElapsedLabel', 'Total Logged', { color: 'var(--muted-fg)' });
         if (el('progWrap')) el('progWrap').style.display = '';
-        if (el('rcCompletedChip')) el('rcCompletedChip').style.display = 'none';
         _setTodayDateChip();
         el('progFill').style.width = '0%'; el('progFill').classList.remove('done');
         el('progLabel').textContent = isFutureDay ? '' : 'No data logged for this day';
@@ -6020,15 +6025,12 @@
         el('doneBanner').classList.add('show');
         el('progFill').classList.add('target-reached');
         el('progTrack')?.classList.add('target-reached');
-        // Hide the divider + label; show Completed chip
         if (el('progWrap')) el('progWrap').style.display = 'none';
-        if (el('rcCompletedChip')) el('rcCompletedChip').style.display = 'inline-flex';
       } else {
         el('otBanner').classList.remove('show'); el('doneBanner').classList.remove('show');
         el('progFill').classList.remove('target-reached');
         el('progTrack')?.classList.remove('target-reached');
         if (el('progWrap')) el('progWrap').style.display = '';
-        if (el('rcCompletedChip')) el('rcCompletedChip').style.display = 'none';
       }
       const pct = Math.min((worked / target) * 100, 100);
       el('progFill').style.width = pct.toFixed(1) + '%';

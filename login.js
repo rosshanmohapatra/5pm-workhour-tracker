@@ -18,9 +18,10 @@
 // instance and reuse it everywhere on this page.
 // Named _sb (not supabase) so it never clashes with a `const supabase` that an
 // old cached version of login.html may have already declared in global scope.
+// Credentials come from lib/config.js (loaded via <script> in login.html before this file).
 const _sb = window.supabase.createClient(
-  'https://ivgathdwiptuymrqzruq.supabase.co',
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml2Z2F0aGR3aXB0dXltcnF6cnVxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkzODkzMjYsImV4cCI6MjA5NDk2NTMyNn0.cp30eXfoqrESRRzInQLcoierU-Qup4HNAHxPsu21aJ8',
+  window.__SB_URL,
+  window.__SB_ANON_KEY,
   { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } }
 );
 

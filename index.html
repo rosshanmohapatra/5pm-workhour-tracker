@@ -2,14 +2,16 @@
 <html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
   <!-- Auth gate — hide the page immediately; onAuthStateChange below reveals it -->
   <script>document.documentElement.style.visibility='hidden';</script>
+  <!-- Single source of truth for Supabase credentials (sets window.__SB_URL / __SB_ANON_KEY) -->
+  <script src="/lib/config.js"></script>
   <!-- Supabase JS SDK — must load before the auth gate script that follows -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <script>
     // Initialise the Supabase client right away (SDK is already available above).
     // We store it on window so the rest of the page script can reuse it.
     window._sbClient = window.supabase.createClient(
-      'https://ivgathdwiptuymrqzruq.supabase.co',
-      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml2Z2F0aGR3aXB0dXltcnF6cnVxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkzODkzMjYsImV4cCI6MjA5NDk2NTMyNn0.cp30eXfoqrESRRzInQLcoierU-Qup4HNAHxPsu21aJ8',
+      window.__SB_URL,
+      window.__SB_ANON_KEY,
       { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } }
     );
     // Replace the localStorage gate with Supabase's real session check.
@@ -509,6 +511,12 @@
     .progress-fill.done { background: var(--success); }
     .progress-fill.target-reached { opacity: 0; }
     .progress-label { font-size: 14px; font-weight: 600; color: var(--muted-fg); white-space: nowrap; }
+    .rc-completed-chip {
+      display: inline-flex; align-items: center; margin-top: 5px;
+      font-size: 10px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase;
+      color: var(--success); background: var(--success-bg); border: 1px solid var(--success-border);
+      border-radius: 99px; padding: 2px 8px;
+    }
     .rc-meta { display: flex; gap: 16px; flex-wrap: wrap; }
     .rc-meta-item { font-size: 12px; color: var(--muted-fg); }
     .rc-meta-item b { color: var(--foreground); }
@@ -1917,9 +1925,10 @@
             <div class="rc-right-col">
               <div class="rc-target-val" id="rcTarget" style="color:var(--muted-fg)">—</div>
               <div class="rc-target-label" id="rcTargetLabel">Remaining</div>
+              <div class="rc-completed-chip" id="rcCompletedChip" style="display:none">Completed</div>
             </div>
           </div>
-          <div class="progress-wrap">
+          <div class="progress-wrap" id="progWrap">
             <div class="progress-bar-row">
               <div class="progress-track" id="progTrack">
                 <div class="progress-fill" id="progFill" style="width:0%"></div>
@@ -3361,14 +3370,20 @@
     }
 
     // ── DISMISSED NOTIFICATIONS ────────────────────────
-    // Dismissed IDs live inside cfg() so they sync across devices via user_kv.
-    // Falls back to the legacy wh_dismissed localStorage key for existing data.
+    // Dismissed IDs live inside cfg() and sync across devices via user_kv.
     function getDismissed() {
-      const c = cfg();
-      // cfg.dismissed is the source of truth once populated
-      if (Array.isArray(c.dismissed) && c.dismissed.length) return c.dismissed;
-      // Legacy fallback (local-only, pre-sync era)
-      return Store.get(KEY.dismissed, []);
+      return cfg().dismissed ?? [];
+    }
+
+    // Migrate legacy wh_dismissed key (pre-sync era) into cfg() once, then delete it.
+    // Called once from init(); safe to call multiple times (no-op after first run).
+    function _migrateLegacyDismissed() {
+      const legacy = Store.get(KEY.dismissed, null);
+      if (!Array.isArray(legacy) || legacy.length === 0) return;
+      const current = cfg().dismissed ?? [];
+      const merged  = pruneDismissed([...new Set([...current, ...legacy])]);
+      saveCfg({ ...cfg(), dismissed: merged });
+      localStorage.removeItem(KEY.dismissed); // wh_dismissed no longer needed
     }
     // Drop IDs whose date suffix is older than 14 days — keeps cfg blob small
     function pruneDismissed(ids) {
@@ -3656,9 +3671,16 @@
         const n = new Notification(displayTitle, opts);
         n.onclick = () => window.focus();
         return;
-      } catch (_) {}
+      } catch (err1) {
+        // Expected on Chrome Android — fall through to SW path.
+        // On desktop this should never fire; log it so we can debug if it does.
+        if (!(err1 instanceof TypeError)) {
+          console.warn('[notif] Notification constructor failed unexpectedly:', err1);
+        }
+      }
       // Path 2 — SW showNotification.
       // Required on Chrome Android (new Notification() unavailable there).
+      // Also acts as fallback on any desktop browser that rejects the constructor.
       // serviceWorker.ready waits for the SW to fully activate on first visit.
       if ('serviceWorker' in navigator) {
         try {
@@ -3667,7 +3689,11 @@
             new Promise((_, rej) => setTimeout(() => rej(new Error('sw timeout')), 4000)),
           ]);
           await reg.showNotification(displayTitle, opts);
-        } catch (_) {}
+        } catch (err2) {
+          // Both paths failed — nothing we can do silently, but log it so issues
+          // are visible in DevTools rather than disappearing without a trace.
+          console.warn('[notif] SW showNotification failed:', err2);
+        }
       }
     }
 
@@ -4090,11 +4116,24 @@
     }
 
     // ── TARGET HTML ────────────────────────────────────
+    // Derive a human-readable login time from a stored day log (works even when
+    // loginDate is null — e.g. after session ends and loginDate is cleared).
+    function _loginDisplayFromLog(log) {
+      if (!log) return '—';
+      if (log.loginDisplay) return log.loginDisplay;          // already formatted
+      if (!log.loginTime)   return '—';                       // no data
+      const p = log.loginTime.split(':').map(Number);         // "H:M:S" → [H, M, S]
+      const d = new Date();
+      d.setHours(p[0] || 0, p[1] || 0, p[2] || 0, 0);
+      return short(d);
+    }
+
     function buildTargetHtml(eff) {
       const tk = todayKey();
       const log = dayLog(tk) || {};
       const hasCustomTarget = log.todayTargetH != null;
-      const inVal = loginDate ? short(loginDate) : '—';
+      // Use stored login time when session is ended (loginDate is null after checkout).
+      const inVal = loginDate ? short(loginDate) : _loginDisplayFromLog(log);
 
       // Duration card (active session) — shows "LoginTime → LogoutTime", opens tab picker
       let leftCardHtml;
@@ -4116,14 +4155,14 @@
           <input type="hidden" id="inTimeEditInput" value="${inVal}">
         </div>`;
       } else {
-        // No active session — plain Log In card
+        // No active session — show stored login time (or "—" if none recorded yet)
         leftCardHtml = `
         <div class="rc-io-box" id="inTimeBox">
           <div class="rc-io-label">Log In</div>
           <div class="rc-io-val-row">
-            <div class="rc-io-val" id="metaLogin">—</div>
+            <div class="rc-io-val" id="metaLogin">${inVal}</div>
           </div>
-          <input type="hidden" id="inTimeEditInput" value="—">
+          <input type="hidden" id="inTimeEditInput" value="${inVal}">
         </div>`;
       }
 
@@ -4783,13 +4822,17 @@
         el('rcTarget').textContent = isDoneE ? '+' + dur(Math.max(0, endedSecs - eff)) : dur(Math.max(0, eff - endedSecs));
         el('rcTarget').style.color = 'var(--muted-fg)';
         if (el('rcTargetLabel')) swapText('rcTargetLabel', isDoneE ? 'Extra Time' : 'Remaining');
-        swapText('rcElapsedLabel', 'Paused', { color: 'var(--muted-fg)' });
+        // Bug fix: show "Done" (not "Paused") when target was reached
+        swapText('rcElapsedLabel', isDoneE ? 'Done' : 'Paused', { color: 'var(--muted-fg)' });
+        // Bug fix: hide the progress-bar divider + "Target Reached" text when done;
+        //          show "Completed" chip in the target column instead.
+        if (el('progWrap')) el('progWrap').style.display = isDoneE ? 'none' : '';
+        if (el('rcCompletedChip')) el('rcCompletedChip').style.display = isDoneE ? 'inline-flex' : 'none';
         const pct = eff > 0 ? Math.min((endedSecs / eff) * 100, 100) : 100;
         el('progFill').style.width = pct.toFixed(1) + '%';
         el('progFill').classList.toggle('done', isDoneE);
-        if (isDoneE) el('progFill').classList.add('target-reached');
-        else el('progFill').classList.remove('target-reached');
-        el('progLabel').textContent = isDoneE ? 'Target Reached' : `${Math.floor(pct)}%`;
+        if (isDoneE) { el('progFill').classList.add('target-reached'); el('progLabel').textContent = ''; }
+        else { el('progFill').classList.remove('target-reached'); el('progLabel').textContent = `${Math.floor(pct)}%`; }
         el('rcToday').innerHTML = buildTargetHtml(eff);
         el('stayHint').style.display = 'none';
         el('otBanner').classList.remove('show');
@@ -4801,7 +4844,10 @@
       el('rcWorked').textContent = '—';
       el('rcWorked').style.color = 'var(--muted-fg)';
       el('rcTarget').textContent = dur(eff); el('rcTarget').style.color = 'var(--muted-fg)';
+      if (el('rcTargetLabel')) swapText('rcTargetLabel', 'Remaining');
       swapText('rcElapsedLabel', 'Not Started', { color: 'var(--muted-fg)' });
+      if (el('progWrap')) el('progWrap').style.display = '';
+      if (el('rcCompletedChip')) el('rcCompletedChip').style.display = 'none';
       _setTodayDateChip();
       el('progFill').style.width = '0%';
       el('progFill').classList.remove('done');
@@ -5414,6 +5460,9 @@
       el('progFill').style.width = pct.toFixed(1) + '%';
       el('progFill').classList.toggle('done', isDone);
       el('progLabel').textContent = isDone ? 'Target Reached' : `${Math.floor(pct)}%`;
+      // Completed chip is only for the ended-session state — hide it while session runs.
+      if (el('progWrap')) el('progWrap').style.display = '';
+      if (el('rcCompletedChip')) el('rcCompletedChip').style.display = 'none';
 
       el('rcToday').innerHTML = buildTargetHtml(eff);
 
@@ -5507,13 +5556,16 @@
       daySelectorWeekOffset = Math.round((mon - thisMon) / (7 * 86400000));
     }
 
-    // Scroll the strip so Monday of the current week is the first visible button.
+    // Scroll the strip so today's card is centred in the viewport.
+    // The goal is 5 visible cards with today in the middle position.
     function _dsResetScroll() {
       const container = el('daySelectorRow');
       if (!container) return;
-      const mondayKey = week(0)[0].key;
-      const mondayBtn = container.querySelector(`.day-sel-btn[data-key="${mondayKey}"]`);
-      if (mondayBtn) container.scrollLeft = Math.max(0, mondayBtn.offsetLeft - 8);
+      const tk = todayKey();
+      const todayBtn = container.querySelector(`.day-sel-btn[data-key="${tk}"]`);
+      if (todayBtn) {
+        _dsScrollTo(container, todayBtn); // centres today (instant, no animation)
+      }
     }
 
     // ── Lazy-load helpers ──
@@ -5850,8 +5902,6 @@
     }
 
 
-    // (scheduleFutureDay / unscheduleFutureDay removed — superseded by inline future-day plan UI)
-
     // Override label helper used in past-day view
     function overrideLabel(ov) {
       if (ov === 'holiday') return '<span style="font-size:12px;font-weight:600;color:var(--muted-fg);background:var(--muted);padding:2px 8px;border-radius:6px">Holiday</span>';
@@ -5909,6 +5959,8 @@
         el('progFill').style.width = '0%';
         el('progFill').classList.remove('done', 'target-reached');
         el('progTrack')?.classList.remove('target-reached');
+        if (el('progWrap')) el('progWrap').style.display = '';
+        if (el('rcCompletedChip')) el('rcCompletedChip').style.display = 'none';
         if (el('rcTargetLabel')) swapText('rcTargetLabel', 'Remaining');
         el('stayHint').style.display = 'none';
         el('otBanner').classList.remove('show');
@@ -5948,6 +6000,8 @@
       if (!log || log.hoursWorked == null) {
         el('rcWorked').textContent = '—'; el('rcWorked').style.color = 'var(--muted-fg)';
         swapText('rcElapsedLabel', 'Total Logged', { color: 'var(--muted-fg)' });
+        if (el('progWrap')) el('progWrap').style.display = '';
+        if (el('rcCompletedChip')) el('rcCompletedChip').style.display = 'none';
         _setTodayDateChip();
         el('progFill').style.width = '0%'; el('progFill').classList.remove('done');
         el('progLabel').textContent = isFutureDay ? '' : 'No data logged for this day';
@@ -5966,18 +6020,23 @@
         el('doneBanner').classList.add('show');
         el('progFill').classList.add('target-reached');
         el('progTrack')?.classList.add('target-reached');
+        // Hide the divider + label; show Completed chip
+        if (el('progWrap')) el('progWrap').style.display = 'none';
+        if (el('rcCompletedChip')) el('rcCompletedChip').style.display = 'inline-flex';
       } else {
         el('otBanner').classList.remove('show'); el('doneBanner').classList.remove('show');
         el('progFill').classList.remove('target-reached');
         el('progTrack')?.classList.remove('target-reached');
+        if (el('progWrap')) el('progWrap').style.display = '';
+        if (el('rcCompletedChip')) el('rcCompletedChip').style.display = 'none';
       }
       const pct = Math.min((worked / target) * 100, 100);
       el('progFill').style.width = pct.toFixed(1) + '%';
       el('progFill').classList.toggle('done', isDone);
-      el('progLabel').textContent = isDone ? 'Target Reached' : `${Math.floor(pct)}%`;
+      el('progLabel').textContent = isDone ? '' : `${Math.floor(pct)}%`;
       _setTodayDateChip();
       el('stayHint').style.display = 'none';
-      const loginDisp = log.loginDisplay || '—';
+      const loginDisp = log.loginDisplay || _loginDisplayFromLog(log);
       const outDisp   = log.checkoutDisplay || '—';
       el('rcToday').innerHTML = targetRow + _pastDayKpiHtml(loginDisp, outDisp, worked, target);
     }
@@ -8929,8 +8988,6 @@ ${sig}`
       if (analyticsWeekOffset < 0) { analyticsWeekOffset++; renderAnalytics(); }
     });
 
-    // pastSaveBtn removed — editing now uses day edit modal
-
     el('emailModalClose').addEventListener('click', closeEmailModal);
     el('emailModalOverlay').addEventListener('click', e => { if (e.target === el('emailModalOverlay')) closeEmailModal(); });
     el('outsideShiftOverlay').addEventListener('click', e => { if (e.target === el('outsideShiftOverlay')) closeOutsideShiftModal(); });
@@ -9688,9 +9745,6 @@ ${sig}`
     function closeUpwdModal() {
       el('upwdOverlay').classList.remove('open');
     }
-    // (legacy stubs kept for safety — old views no longer exist in HTML)
-    function upwdShowMethod() {
-    }
     // Real Supabase password-reset flow
     async function upwdSendResetLink() {
       const btn = el('upwdSendLinkBtn');
@@ -9924,6 +9978,7 @@ ${sig}`
 
     // ── INIT ───────────────────────────────────────────
     (function init() {
+      _migrateLegacyDismissed(); // one-time migration from legacy wh_dismissed key
       _tpInitWheels();
       _setTodayDateChip();
       setInterval(tickHeader, 1000);

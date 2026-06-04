@@ -4178,7 +4178,7 @@
         <div class="rc-io-box editable" id="outTimeBox" onclick="openDailyTargetPicker(event)">
           <div class="rc-io-label">Target</div>
           <div class="rc-io-val-row">
-            <div class="rc-io-val" id="metaTarget">${dur(eff)}</div>
+            <span class="rc-io-val" id="metaTarget">${dur(eff)}</span>
             ${isDone
               ? `<span class="rc-completed-chip">Completed</span>`
               : (!hasCustomTarget && cfg().recommendTimings !== false ? `<span class="custom-target-chip">Recommended</span>` : '')

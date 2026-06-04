@@ -511,19 +511,6 @@
     .progress-fill.done { background: var(--success); }
     .progress-fill.target-reached { opacity: 0; }
     .progress-label { font-size: 14px; font-weight: 600; color: var(--muted-fg); white-space: nowrap; }
-    .rc-completed-chip {
-      display: inline-flex; align-items: center; gap: 4px;
-      font-size: 10px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase;
-      color: var(--success); background: var(--success-bg); border: 1px solid var(--success-border);
-      border-radius: 99px; padding: 3px 7px;
-      cursor: default; overflow: hidden; user-select: none;
-    }
-    .rc-cc-text {
-      max-width: 0; opacity: 0; overflow: hidden; white-space: nowrap;
-      transition: max-width .45s cubic-bezier(.4,0,.2,1), opacity .3s ease;
-    }
-    .rc-completed-chip:hover .rc-cc-text,
-    .rc-completed-chip.rc-cc-expanded .rc-cc-text { max-width: 80px; opacity: 1; }
     .rc-meta { display: flex; gap: 16px; flex-wrap: wrap; }
     .rc-meta-item { font-size: 12px; color: var(--muted-fg); }
     .rc-meta-item b { color: var(--foreground); }
@@ -4183,13 +4170,10 @@
       const ioHtml = `<div class="rc-io-row">
         ${leftCardHtml}
         <div class="rc-io-box editable" id="outTimeBox" onclick="openDailyTargetPicker(event)">
-          <div class="rc-io-label">Target</div>
+          <div class="rc-io-label">${isDone ? 'Target Reached' : 'Target'}</div>
           <div class="rc-io-val-row">
             <span class="rc-io-val" id="metaTarget">${dur(eff)}</span>
-            ${isDone
-              ? `<span class="rc-completed-chip" onclick="this.classList.toggle('rc-cc-expanded')"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" style="flex-shrink:0"><path fill-rule="evenodd" clip-rule="evenodd" d="M21.2285 6.60358C21.619 6.9941 21.619 7.62726 21.2285 8.01779L10.2557 18.9906C9.86764 19.3786 9.23938 19.3815 8.84786 18.997L2.66233 12.9219C2.2683 12.5349 2.2626 11.9017 2.64959 11.5077L3.3503 10.7943C3.73729 10.4002 4.37043 10.3945 4.76445 10.7815L9.53589 15.4678L19.1072 5.89647C19.4977 5.50595 20.1309 5.50595 20.5214 5.89647L21.2285 6.60358Z" fill="currentColor"/></svg><span class="rc-cc-text">Completed</span></span>`
-              : (!hasCustomTarget && cfg().recommendTimings !== false ? `<span class="custom-target-chip">Recommended</span>` : '')
-            }
+            ${!isDone && !hasCustomTarget && cfg().recommendTimings !== false ? `<span class="custom-target-chip">Recommended</span>` : ''}
             ${!isDone && hasCustomTarget ? `<button class="rc-io-edit-btn" title="Reset to recommended" onclick="event.stopPropagation();clearTodayTarget()" style="color:var(--muted-fg)">✕</button>` : ''}
           </div>
         </div>
@@ -5953,7 +5937,6 @@
           <div class="rc-io-label">${surplusLabel}</div>
           <div class="rc-io-val-row">
             <div class="rc-io-val" style="color:${surplusColor}">${surplusText}</div>
-            ${isDone ? `<span class="rc-completed-chip" onclick="this.classList.toggle('rc-cc-expanded')"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" style="flex-shrink:0"><path fill-rule="evenodd" clip-rule="evenodd" d="M21.2285 6.60358C21.619 6.9941 21.619 7.62726 21.2285 8.01779L10.2557 18.9906C9.86764 19.3786 9.23938 19.3815 8.84786 18.997L2.66233 12.9219C2.2683 12.5349 2.2626 11.9017 2.64959 11.5077L3.3503 10.7943C3.73729 10.4002 4.37043 10.3945 4.76445 10.7815L9.53589 15.4678L19.1072 5.89647C19.4977 5.50595 20.1309 5.50595 20.5214 5.89647L21.2285 6.60358Z" fill="currentColor"/></svg><span class="rc-cc-text">Completed</span></span>` : ''}
           </div>
         </div>`;
       return `<div class="rc-io-row">${durationCard}${surplusCard}</div>`;

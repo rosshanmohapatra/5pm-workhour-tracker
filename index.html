@@ -26,6 +26,11 @@
           history.replaceState(null, '', location.pathname); // clean up URL bar
         }
       } else if (event === 'INITIAL_SESSION' && !location.search.includes('code=')) {
+        // Localhost dev bypass — skip auth gate so the app is directly accessible
+        if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
+          document.documentElement.style.visibility = '';
+          return;
+        }
         // No session and no OAuth code being processed — send to login
         window.location.replace('/login.html');
       }
@@ -398,8 +403,8 @@
     .shift-cta { display: flex; flex-direction: column; gap: 10px; }
     .shift-combo { display: flex; align-items: center; background: var(--card);
       border: 1.5px solid var(--border); border-radius: var(--radius-lg); height: 52px;
-      padding: 0 6px; gap: 8px; transition: border-color .15s; box-shadow: var(--shadow-xs); }
-    .shift-combo:focus-within { border-color: var(--muted-fg); }
+      padding: 6px; gap: 6px; transition: background .15s, border-color .15s; box-shadow: var(--shadow-xs); }
+    .shift-combo:focus-within { background: color-mix(in srgb, var(--card) 60%, var(--muted) 40%); border-color: var(--border); }
     .shift-combo-input.err { color: var(--destructive); }
     /* Placeholder div that replaces the input at rest — invisible to Safari autofill scanner */
     .tc-ph { cursor:text; color:var(--muted-fg) !important; display:flex; align-items:center; height:100%; }
@@ -1406,65 +1411,63 @@
     .shift-tp-btn:hover { background: rgba(0,0,0,.07); color: var(--foreground); }
     .dark .shift-tp-btn:hover { background: rgba(255,255,255,.09); }
 
-    /* ── Segmented time input (ShadCN-style HH : MM AM/PM) ── */
-    .tp-seg-group { flex:1; min-width:0; display:flex; align-items:center; gap:2px; padding:0 8px; }
-    .tp-seg-input { width:22px; padding:0; background:transparent; border:none; outline:none;
-      font-size:14px; font-weight:500; font-family:var(--font); color:var(--foreground);
-      text-align:center; font-variant-numeric:tabular-nums; }
-    .tp-seg-input::placeholder { color:var(--muted-fg); opacity:.6; }
-    .tp-seg-sep { font-size:14px; font-weight:500; color:var(--muted-fg); flex-shrink:0; user-select:none; }
-    .tp-seg-period { font-size:11px; font-weight:600; letter-spacing:.04em; padding:3px 7px;
-      border-radius:6px; background:var(--muted); color:var(--foreground); border:1px solid var(--border);
-      cursor:pointer; font-family:var(--font); margin-left:4px; flex-shrink:0; transition:background .1s; }
-    .tp-seg-period:hover { background:var(--border); }
+    /* ── Segmented time input ── */
     .tp-seg-clock { background:none; border:none; color:var(--muted-fg); cursor:pointer;
-      padding:4px 5px; display:flex; align-items:center; border-radius:6px; flex-shrink:0; transition:color .1s; }
-    .tp-seg-clock:hover { color:var(--foreground); }
+      width:38px; height:38px; display:flex; align-items:center; justify-content:center;
+      border-radius:var(--radius-md); flex-shrink:0; margin-left:4px;
+      transition:color .15s, background .15s; }
+    .tp-seg-clock:hover { color:var(--foreground); background:var(--muted); }
+    .tp-free-input { flex:1; min-width:0; background:transparent; border:none; outline:none;
+      font-size:14px; font-weight:500; font-family:var(--font); color:var(--foreground);
+      padding:0 4px; font-variant-numeric:tabular-nums;
+      white-space:nowrap; text-overflow:ellipsis; }
+    .tp-free-input::placeholder { color:var(--muted-fg); opacity:.55; }
 
     /* ── Wheel time picker modal ── */
     .tp-modal {
       position: fixed; z-index: 2300; background: var(--card); border: 1px solid var(--border);
-      border-radius: 16px; box-shadow: 0 12px 40px rgba(0,0,0,.18), 0 2px 8px rgba(0,0,0,.08);
-      width: 256px; display: none; flex-direction: column; overflow: hidden; pointer-events: all;
+      border-radius: 14px; box-shadow: 0 12px 40px rgba(0,0,0,.18), 0 2px 8px rgba(0,0,0,.08);
+      width: 216px; display: none; flex-direction: column; overflow: hidden; pointer-events: all;
     }
     .tp-modal.open { display: flex; }
     .tp-modal-header {
-      padding: 11px 16px 10px; border-bottom: 1px solid var(--border);
+      padding: 10px 14px 9px; border-bottom: 1px solid var(--border);
       display: flex; align-items: center; justify-content: flex-start;
     }
     .tp-modal-title {
       font-size: 11px; font-weight: 600; color: var(--muted-fg);
       letter-spacing: .07em; text-transform: uppercase;
     }
-    .tp-wheels-wrap { position: relative; height: 156px; overflow: hidden; }
+    /* Wheel geometry: item 34px, 3 visible rows → wrap 102px, pad (102-34)/2 = 34 */
+    .tp-wheels-wrap { position: relative; height: 102px; overflow: hidden; }
     .tp-wheels { display: flex; height: 100%; }
     .tp-wheel {
       flex: 1; overflow-y: scroll; scroll-snap-type: y mandatory;
       -webkit-overflow-scrolling: touch; scrollbar-width: none;
-      padding-top: 59px; padding-bottom: 59px;
+      padding-top: 34px; padding-bottom: 34px;
     }
     .tp-wheel::-webkit-scrollbar { display: none; }
     .tp-wheel-item {
-      height: 38px; display: flex; align-items: center; justify-content: center;
-      scroll-snap-align: center; font-size: 16px; font-weight: 600;
+      height: 34px; display: flex; align-items: center; justify-content: center;
+      scroll-snap-align: center; font-size: 15px; font-weight: 600;
       color: var(--muted-fg); cursor: pointer; user-select: none;
-      font-variant-numeric: tabular-nums; transition: color .1s, opacity .1s;
+      font-variant-numeric: tabular-nums; transition: color .12s, opacity .12s;
     }
     .tp-wheel-item.active { color: var(--foreground); }
     .tp-center-bar {
       position: absolute; pointer-events: none; top: 50%; transform: translateY(-50%);
-      left: 0; right: 0; height: 38px;
+      left: 0; right: 0; height: 34px;
       border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
     }
     .tp-fade-top {
-      position: absolute; top: 0; left: 0; right: 0; height: 59px; pointer-events: none;
-      background: linear-gradient(to bottom, var(--card) 30%, transparent);
+      position: absolute; top: 0; left: 0; right: 0; height: 34px; pointer-events: none;
+      background: linear-gradient(to bottom, var(--card) 20%, transparent);
     }
     .tp-fade-bot {
-      position: absolute; bottom: 0; left: 0; right: 0; height: 59px; pointer-events: none;
-      background: linear-gradient(to top, var(--card) 30%, transparent);
+      position: absolute; bottom: 0; left: 0; right: 0; height: 34px; pointer-events: none;
+      background: linear-gradient(to top, var(--card) 20%, transparent);
     }
-    .tp-footer { display: flex; gap: 8px; padding: 12px 14px; border-top: 1px solid var(--border); }
+    .tp-footer { display: flex; gap: 8px; padding: 10px 12px; border-top: 1px solid var(--border); }
     .tp-cancel-btn {
       flex: 1; height: 34px; border-radius: 8px; border: 1px solid var(--border);
       background: var(--muted); color: var(--foreground); font-size: 13px; font-weight: 500;
@@ -1477,8 +1480,9 @@
       font-family: var(--font); cursor: pointer; transition: opacity .12s;
     }
     .tp-set-btn:hover { opacity: .88; }
-    /* Hide AM/PM wheel when picker is used for duration input */
-    .tp-modal.tp-duration-mode #tpWheelAp { display: none; }
+    /* Hide AM/PM wheel for duration input or 24-hour clock mode */
+    .tp-modal.tp-duration-mode #tpWheelAp,
+    .tp-modal.tp-24h #tpWheelAp { display: none; }
     /* Tab bar inside wheel time picker header */
     .tp-tab-bar { display:flex; gap:0; align-items:flex-end; }
     .tp-tab {
@@ -2069,21 +2073,17 @@
           <input id="tc-r7m2" type="text" autocomplete="off" spellcheck="false"
             data-lpignore="true" data-form-type="other" data-1p-ignore="true"
             style="position:absolute;opacity:0;height:0;width:0;pointer-events:none;border:none;padding:0">
-          <!-- Segmented time input: HH : MM AM/PM + clock trigger -->
-          <div class="tp-seg-group" id="tpSegGroup">
-            <input class="tp-seg-input" id="tpSegH" type="text" inputmode="numeric" maxlength="2" placeholder="--"
-              autocomplete="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true">
-            <span class="tp-seg-sep">:</span>
-            <input class="tp-seg-input" id="tpSegM" type="text" inputmode="numeric" maxlength="2" placeholder="--"
-              autocomplete="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true">
-            <button class="tp-seg-period" id="tpSegPeriod" type="button">AM</button>
-            <button class="tp-seg-clock" type="button" onclick="openTpModal('tc-r7m2',event,'Log In',calculate)" title="Pick time">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.75"/>
-                <path d="M12 7v5l3 3" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-            </button>
-          </div>
+          <!-- Clock trigger — left side -->
+          <button class="tp-seg-clock" type="button" onclick="openTpModal('tc-r7m2',event,'Log In',calculate)" title="Pick time">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
+              <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.75"/>
+              <path d="M12 7v5l3 3" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </button>
+          <!-- Free-text time input -->
+          <input class="tp-free-input" id="tpFreeInput" type="text" inputmode="text"
+            placeholder="Enter time" maxlength="14"
+            autocomplete="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true">
           <span class="shift-combo-active-label" id="shiftActiveLabel">—</span>
           <div id="calcBtnWrap" style="position:relative;display:flex;align-items:stretch">
             <button class="shift-combo-btn" id="calcBtn">Quick Start</button>
@@ -2369,6 +2369,18 @@
               </div>
               <label class="toggle" onclick="event.stopPropagation()">
                 <input type="checkbox" id="inpBreakTime" checked onchange="autoSaveSettings()">
+                <span class="toggle-track"></span>
+              </label>
+            </div>
+
+            <!-- 24-hour Clock Toggle -->
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;cursor:pointer" onclick="el('inp24h').click()">
+              <div>
+                <div class="form-label">Use 24-hour Clock</div>
+                <div class="form-sub">Show all times in 24-hour format and hide AM/PM everywhere.</div>
+              </div>
+              <label class="toggle" onclick="event.stopPropagation()">
+                <input type="checkbox" id="inp24h" onchange="onUse24hChange()">
                 <span class="toggle-track"></span>
               </label>
             </div>
@@ -2687,7 +2699,7 @@
     <span style="font-size:11px;font-weight:600;color:var(--muted-fg);letter-spacing:.01em">Version</span>
     <span class="vp-tagline">- Work Hour Tracker</span>
     <span style="font-size:10px;font-weight:600;letter-spacing:.05em;
-      background:var(--muted);color:var(--muted-fg);padding:4px 7px;border-radius:100px">v1.0</span>
+      background:var(--muted);color:var(--muted-fg);padding:4px 7px;border-radius:100px">v1.0.1</span>
   </a>
 
   <!-- ── Weekly Report Modal ── -->
@@ -3306,35 +3318,6 @@
     </div>
   </div>
 
-  <!-- Future Login Prediction Modal -->
-  <div class="overlay" id="futurePredictOverlay">
-    <div class="dialog" style="max-width:360px">
-      <div class="co-daily-head">
-        <div class="dialog-title">Login Prediction</div>
-        <button class="btn-icon" onclick="el('futurePredictOverlay').classList.remove('open')" title="Close">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-        </button>
-      </div>
-      <div class="dialog-body">
-        <div class="co-stats-row">
-          <div class="co-stat">
-            <div class="co-stat-label">Log In</div>
-            <div class="co-stat-val" id="fpLoginTime">—</div>
-          </div>
-          <div class="co-stat-divider"></div>
-          <div class="co-stat">
-            <div class="co-stat-label">Log Out</div>
-            <div class="co-stat-val" id="fpLogoutTime">—</div>
-          </div>
-        </div>
-        <div class="co-footer-note" id="fpNote">Based on your daily target</div>
-      </div>
-      <div class="dialog-foot-row">
-        <button class="btn" style="background:var(--muted);color:var(--foreground);border:1.5px solid var(--border)" onclick="el('futurePredictOverlay').classList.remove('open')">Dismiss</button>
-        <button class="btn btn-primary" onclick="_fpProceed()">Log In Anyway</button>
-      </div>
-    </div>
-  </div>
 
   <!-- Outside Shift Modal -->
   <div class="email-modal-overlay center-overlay" id="outsideShiftOverlay">
@@ -3390,7 +3373,7 @@
 
   <script>
 
-    const APP_VERSION = '1.0';
+    const APP_VERSION = '1.0.1';
     localStorage.setItem('wh_ver', APP_VERSION);
 
     // ── HELPERS ─────────────────────────────────────────
@@ -3429,7 +3412,7 @@
     }
 
     // ── CONFIG ─────────────────────────────────────────
-    const CFG_DEF = { dailyH:9, weeklyH:45, weeklyOn:true, lateDays:[], earlyLeaveEntries:[], lateEntries:[], notifOn:false, notifTarget:true, notifKickstart:true, notifOvertime:true, name:'', position:'', targetDay:null, autoStopBuf:2, tzOffset:330, shiftType:'morning', workDays:5, recommendTimings:true, breakTime:true, dismissed:[] };
+    const CFG_DEF = { dailyH:9, weeklyH:45, weeklyOn:true, lateDays:[], earlyLeaveEntries:[], lateEntries:[], notifOn:false, notifTarget:true, notifKickstart:true, notifOvertime:true, name:'', position:'', targetDay:null, autoStopBuf:2, tzOffset:330, shiftType:'morning', workDays:5, recommendTimings:true, breakTime:true, use24h:false, dismissed:[] };
     function cfg() { const r=Store.getCfg(); return r?{...CFG_DEF,...r}:{...CFG_DEF}; }
 
     // ── PUSH USER ID ───────────────────────────────────
@@ -3561,17 +3544,24 @@
     const p2 = n => String(n).padStart(2, '0');
     function clock(d) {
       let h = d.getHours(), m = d.getMinutes(), s = d.getSeconds();
+      if (cfg().use24h) return `${p2(h)}:${p2(m)}:${p2(s)}`;
       const ap = h >= 12 ? 'PM' : 'AM'; h = h % 12 || 12;
       return `${p2(h)}:${p2(m)}:${p2(s)} ${ap}`;
     }
     function short(d) {
       let h = d.getHours(), m = d.getMinutes();
+      if (cfg().use24h) return `${p2(h)}:${p2(m)}`;
       const ap = h >= 12 ? 'PM' : 'AM'; h = h % 12 || 12;
       return `${p2(h)}:${p2(m)} ${ap}`;
     }
     function dur(secs) {
       const s = Math.abs(secs), h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60);
       return `${h}h ${p2(m)}m`;
+    }
+    // Like dur() but omits the hours component when h === 0 (e.g. "23m" instead of "0h 23m")
+    function durWorked(secs) {
+      const s = Math.max(0, secs), h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60);
+      return h === 0 ? `${m}m` : `${h}h ${p2(m)}m`;
     }
     // Compact surplus/deficit: "+12m" instead of "+0h 12m". Uses Math.round for sub-hour values.
     function durShort(secs) {
@@ -3606,8 +3596,10 @@
       if (m === 0) return `${h}${sf('Hrs')}`;
       return `${h}${sf('Hrs')} ${m}${sf('Mins')}`;
     }
-    // Returns HTML with grey AM/PM for a "H:MM AM" string
+    // Returns HTML with grey AM/PM for a "H:MM AM" string.
+    // In 24h mode, reformat any stored 12h string and drop the AM/PM entirely.
     function timeHtml(t) {
+      if (cfg().use24h) { const p = parse(t); return p ? short(p) : t.replace(/\s*(AM|PM)\s*$/i, ''); }
       const i = t.lastIndexOf(' ');
       if (i < 0) return t;
       return `${t.slice(0, i)}<span class="co-val-suf"> ${t.slice(i + 1)}</span>`;
@@ -3632,7 +3624,8 @@
       const d = new Date(); d.setHours(h, m, s, 0); return d;
     }
     function shiftDefaultAP() {
-      return (cfg().shiftStart || '09:00 AM').toUpperCase().includes('PM') ? 'PM' : 'AM';
+      const p = parse(cfg().shiftStart || '09:00 AM');
+      return (p && p.getHours() >= 12) ? 'PM' : 'AM';
     }
     function parseLogin(raw) {
       const s = raw.trim().toUpperCase().replace(/\s+/g, ' ');
@@ -4309,27 +4302,29 @@
     let _tpLoginState  = { h: 11, m: 0, ap: 0 };
     let _tpLogoutState = { h: 11, m: 0, ap: 1 };
     let _tpHIdx = 11, _tpMIdx = 0, _tpApIdx = 0;
-    const TP_HOURS = ['01','02','03','04','05','06','07','08','09','10','11','12'];
+    let _tp24Active = false;      // true when the open picker is a 24h clock-time picker
+    const TP_HOURS   = ['01','02','03','04','05','06','07','08','09','10','11','12'];
+    const TP_HOURS24 = Array.from({length:24}, (_, i) => String(i).padStart(2, '0')); // '00'..'23'
     const TP_MINS  = Array.from({length:60}, (_, i) => String(i).padStart(2, '0'));
     const TP_AMPM  = ['AM', 'PM'];
-    const TP_ITEM_H = 44;
+    const TP_ITEM_H = 34; // must match .tp-wheel-item height in CSS
+
+    // Hours array for the current picker — 00–23 in active 24h clock mode, else 01–12
+    function _tpHoursArr() { return _tp24Active ? TP_HOURS24 : TP_HOURS; }
+    function _tpUse24() { return cfg().use24h === true; }
+
+    function _tpWheelItems(wheelId) {
+      return wheelId === 'tpWheelH' ? _tpHoursArr() : wheelId === 'tpWheelM' ? TP_MINS : TP_AMPM;
+    }
 
     function _tpPopulateWheel(id, items, selectedIdx) {
       const wheel = el(id);
       if (!wheel) return;
-      const isLooping = id !== 'tpWheelAp';
-      const COPIES = isLooping ? 3 : 1;
-      const N = items.length;
-      const midOffset = Math.floor(COPIES / 2) * N;
-      const rows = [];
-      for (let c = 0; c < COPIES; c++) {
-        for (let i = 0; i < N; i++) {
-          const isActive = c === Math.floor(COPIES / 2) && i === selectedIdx;
-          rows.push(`<div class="tp-wheel-item${isActive ? ' active' : ''}" data-idx="${i}">${items[i]}</div>`);
-        }
-      }
-      wheel.innerHTML = rows.join('');
-      requestAnimationFrame(() => { wheel.scrollTop = (midOffset + selectedIdx) * TP_ITEM_H; });
+      wheel.innerHTML = items.map((it, i) =>
+        `<div class="tp-wheel-item${i === selectedIdx ? ' active' : ''}" data-idx="${i}">${it}</div>`
+      ).join('');
+      // Center the selected item once the modal is laid out
+      requestAnimationFrame(() => { wheel.scrollTop = selectedIdx * TP_ITEM_H; });
     }
 
     // ── Week picker ──────────────────────────────────────────────────────────
@@ -4448,161 +4443,114 @@
     let _tpSegSyncing = false;
 
     function _tpSegFromDate(d) {
-      const h = el('tpSegH'), m = el('tpSegM'), per = el('tpSegPeriod');
-      if (!h || !m || !per) return;
-      let hours = d.getHours(); const mins = d.getMinutes();
-      const isPm = hours >= 12;
-      hours = hours % 12 || 12;
-      h.value = String(hours);
-      m.value = String(mins).padStart(2, '0');
-      per.textContent = isPm ? 'PM' : 'AM';
+      const input = el('tpFreeInput');
+      if (!input) return;
+      input.value = short(d); // honors the 24h setting
     }
 
     function _tpSegClear() {
-      const h = el('tpSegH'), m = el('tpSegM'), per = el('tpSegPeriod'), inp = el('tc-r7m2');
-      if (h)   h.value = '';
-      if (m)   m.value = '';
-      if (per) per.textContent = 'AM';
-      if (inp) inp.value = '';
+      const input = el('tpFreeInput'), inp = el('tc-r7m2');
+      if (input) input.value = '';
+      if (inp)   inp.value = '';
     }
-
-    function _tpSegSync() {
-      const h = el('tpSegH'), m = el('tpSegM'), per = el('tpSegPeriod'), inp = el('tc-r7m2');
-      if (!h || !m || !per || !inp) return;
-      if (!h.value || m.value.length < 2) return;
-      const timeStr = `${h.value}:${m.value} ${per.textContent.trim()}`;
-      _tpSegSyncing = true;
-      inp.value = timeStr;
-      inp.dispatchEvent(new Event('input', { bubbles: true }));
-      _tpSegSyncing = false;
-    }
-
-    function _tpSegTogglePeriod() {
-      const per = el('tpSegPeriod');
-      if (!per) return;
-      per.textContent = per.textContent.trim() === 'AM' ? 'PM' : 'AM';
-      _tpSegSync();
-    }
-
     function _tpSegInit() {
-      const h = el('tpSegH'), m = el('tpSegM'), per = el('tpSegPeriod'), inp = el('tc-r7m2');
-      if (!h || !m || !per) return;
+      const input = el('tpFreeInput'), hidden = el('tc-r7m2');
+      if (!input) return;
 
-      h.addEventListener('focus', () => h.select());
-      m.addEventListener('focus', () => m.select());
+      function _syncHidden() {
+        hidden.value = input.value;
+        hidden.dispatchEvent(new Event('input', { bubbles: true }));
+      }
 
-      h.addEventListener('input', () => {
-        h.value = h.value.replace(/\D/g, '').slice(0, 2);
-        const n = parseInt(h.value);
-        if (h.value.length === 2) {
-          if (n < 1)  h.value = '1';
-          if (n > 12) h.value = '12';
-          m.focus(); m.select();
+      input.addEventListener('input', () => {
+        // Collapse any newlines/tabs from a pasted timestamp (e.g. Keka) into one clean line
+        if (/[\n\r\t]/.test(input.value)) {
+          input.value = input.value.replace(/[\n\r\t]+/g, ' ').replace(/\s+/g, ' ').trim();
         }
-        _tpSegSync();
+        _syncHidden();
       });
 
-      h.addEventListener('keydown', e => {
-        if (e.key === 'Enter')     { _tpSegSync(); calculate(); }
-        if (e.key === 'Tab' && !e.shiftKey) { e.preventDefault(); m.focus(); m.select(); }
-        if (e.key === 'ArrowRight' && h.selectionStart === h.value.length) { m.focus(); m.select(); }
+      input.addEventListener('keydown', e => {
+        if (e.key === 'Enter') { calculate(); }
       });
 
-      m.addEventListener('input', () => {
-        m.value = m.value.replace(/\D/g, '').slice(0, 2);
-        const n = parseInt(m.value);
-        if (m.value.length === 2 && n > 59) m.value = '59';
-        _tpSegSync();
-      });
-
-      m.addEventListener('keydown', e => {
-        if (e.key === 'Enter')     { _tpSegSync(); calculate(); }
-        if (e.key === 'Backspace' && m.value === '') { h.focus(); h.select(); }
-        if (e.key === 'Tab' && !e.shiftKey) { e.preventDefault(); per.focus(); }
-        if (e.key === 'Tab' && e.shiftKey)  { e.preventDefault(); h.focus(); h.select(); }
-        if (e.key === 'ArrowLeft' && m.selectionStart === 0) { h.focus(); h.select(); }
-      });
-
-      per.addEventListener('click', () => _tpSegTogglePeriod());
-      per.addEventListener('keydown', e => {
-        if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); _tpSegTogglePeriod(); }
-        if (e.key === 'Backspace' || (e.key === 'Tab' && e.shiftKey)) { e.preventDefault(); m.focus(); m.select(); }
-      });
-
-      // Sync segments when wheel modal confirms (fires 'change' on tc-r7m2)
-      if (inp) {
-        inp.addEventListener('change', () => {
-          if (_tpSegSyncing || !inp.value) return;
-          const p = parse(inp.value.trim());
-          if (p) _tpSegFromDate(p);
+      // Wheel picker result → fill input (AM/PM already resolved by the picker)
+      if (hidden) {
+        hidden.addEventListener('change', () => {
+          if (!hidden.value) return;
+          const p = parse(hidden.value.trim());
+          if (p) input.value = short(p); // short() honors the 24h setting
         });
       }
     }
     // ─────────────────────────────────────────────────────────────────────────
 
+    function _tpStoreIdx(wheelId, idx) {
+      if (wheelId === 'tpWheelH')       _tpHIdx  = idx;
+      else if (wheelId === 'tpWheelM')  _tpMIdx  = idx;
+      else if (wheelId === 'tpWheelAp') _tpApIdx = idx;
+    }
+
+    // Reliable wheel scroller. Mouse/trackpad: intercept the wheel and move
+    // exactly ONE item per notch (native wheel delta is ~100px ≈ 3 items, which
+    // is what caused the "scrolls 3 at a time" jump). Touch/drag: let native CSS
+    // scroll-snap stop on each item, then read the nearest index once it settles.
     function _tpInitWheels() {
       ['tpWheelH', 'tpWheelM', 'tpWheelAp'].forEach(wheelId => {
         const wheel = el(wheelId);
         if (!wheel) return;
-        const isLooping = wheelId !== 'tpWheelAp';
-        const COPIES = isLooping ? 3 : 1;
-        let _snapTimer;
-        // Intercept mouse wheel: one item per tick, controlled speed
+        let _settleTimer, _targetIdx = 0, _lastWheel = 0, _cooldown = false;
+
+        const itemCount = () => _tpWheelItems(wheelId).length;
+        const clampIdx  = i => Math.max(0, Math.min(itemCount() - 1, i));
+        const nearestIdx = () => clampIdx(Math.round(wheel.scrollTop / TP_ITEM_H));
+        const highlight = idx => {
+          wheel.querySelectorAll('.tp-wheel-item').forEach(item =>
+            item.classList.toggle('active', +item.dataset.idx === idx));
+        };
+        const apply = (idx, smooth) => {
+          idx = clampIdx(idx);
+          _targetIdx = idx;
+          highlight(idx);
+          wheel.scrollTo({ top: idx * TP_ITEM_H, behavior: smooth ? 'smooth' : 'auto' });
+          _tpStoreIdx(wheelId, idx);
+        };
+
+        // Mouse / trackpad — one item per notch, with a short cooldown so a fast
+        // trackpad flick steps at a controlled pace instead of flying past values.
         wheel.addEventListener('wheel', e => {
           e.preventDefault();
-          const items = wheelId === 'tpWheelH' ? TP_HOURS : wheelId === 'tpWheelM' ? TP_MINS : TP_AMPM;
-          const N = items.length;
-          const midOffset = Math.floor(COPIES / 2) * N;
-          const rawIdx = Math.round(wheel.scrollTop / TP_ITEM_H);
-          const nextRaw = rawIdx + (e.deltaY > 0 ? 1 : -1);
-          const idx = ((nextRaw % N) + N) % N;
-          const clampedRaw = Math.max(0, Math.min(COPIES * N - 1, nextRaw));
-          const snapTo = (Math.abs(clampedRaw - (midOffset + idx)) < N)
-            ? (midOffset + idx) * TP_ITEM_H
-            : clampedRaw * TP_ITEM_H;
-          wheel.scrollTo({ top: snapTo, behavior: 'smooth' });
-          clearTimeout(_snapTimer);
-          _snapTimer = setTimeout(() => {
-            wheel.querySelectorAll('.tp-wheel-item').forEach(item =>
-              item.classList.toggle('active', +item.dataset.idx === idx));
-            const finalTop = (midOffset + idx) * TP_ITEM_H;
-            if (Math.abs(wheel.scrollTop - finalTop) > N * TP_ITEM_H * 0.5) wheel.scrollTop = finalTop;
-            if (wheelId === 'tpWheelH')  _tpHIdx  = idx;
-            if (wheelId === 'tpWheelM')  _tpMIdx  = idx;
-            if (wheelId === 'tpWheelAp') _tpApIdx = idx;
-          }, 150);
+          if (_cooldown) return;
+          const now = Date.now();
+          // Resync to actual position when starting a fresh gesture (e.g. after a
+          // tap-scroll or re-opening the picker repositioned the wheel).
+          if (now - _lastWheel > 200) _targetIdx = nearestIdx();
+          _lastWheel = now;
+          apply(_targetIdx + (e.deltaY > 0 ? 1 : -1), true);
+          _cooldown = true;
+          setTimeout(() => { _cooldown = false; }, 60);
         }, { passive: false });
+
+        // Touch / native scroll — snap handles stepping; read & store on settle.
         wheel.addEventListener('scroll', () => {
-          clearTimeout(_snapTimer);
-          _snapTimer = setTimeout(() => {
-            const items = wheelId === 'tpWheelH' ? TP_HOURS : wheelId === 'tpWheelM' ? TP_MINS : TP_AMPM;
-            const N = items.length;
-            const midOffset = Math.floor(COPIES / 2) * N;
-            const totalItems = COPIES * N;
-            const rawIdx = Math.max(0, Math.min(totalItems - 1, Math.round(wheel.scrollTop / TP_ITEM_H)));
-            const idx = ((rawIdx % N) + N) % N;
-            wheel.querySelectorAll('.tp-wheel-item').forEach(item =>
-              item.classList.toggle('active', +item.dataset.idx === idx));
-            const snapTop = (midOffset + idx) * TP_ITEM_H;
-            const diff = Math.abs(wheel.scrollTop - snapTop);
-            if (diff > N * TP_ITEM_H * 0.5) {
-              wheel.scrollTop = snapTop;
-            } else {
-              wheel.scrollTo({ top: snapTop, behavior: 'smooth' });
+          highlight(nearestIdx());
+          clearTimeout(_settleTimer);
+          _settleTimer = setTimeout(() => {
+            const idx = nearestIdx();
+            _targetIdx = idx;
+            highlight(idx);
+            if (Math.abs(wheel.scrollTop - idx * TP_ITEM_H) > 1) {
+              wheel.scrollTo({ top: idx * TP_ITEM_H, behavior: 'smooth' });
             }
-            if (wheelId === 'tpWheelH')  _tpHIdx  = idx;
-            if (wheelId === 'tpWheelM')  _tpMIdx  = idx;
-            if (wheelId === 'tpWheelAp') _tpApIdx = idx;
-          }, 80);
+            _tpStoreIdx(wheelId, idx);
+          }, 90);
         }, { passive: true });
+
+        // Tap a value to select it directly
         wheel.addEventListener('click', e => {
           const item = e.target.closest('.tp-wheel-item');
           if (!item) return;
-          const items = wheelId === 'tpWheelH' ? TP_HOURS : wheelId === 'tpWheelM' ? TP_MINS : TP_AMPM;
-          const N = items.length;
-          const midOffset = Math.floor(COPIES / 2) * N;
-          const idx = +item.dataset.idx;
-          wheel.scrollTo({ top: (midOffset + idx) * TP_ITEM_H, behavior: 'smooth' });
+          apply(+item.dataset.idx, true);
         });
       });
     }
@@ -4620,16 +4568,20 @@
       const titleEl = el('tpModalTitle');
       if (titleEl) titleEl.textContent = title || 'Set Time';
 
+      // 24h clock mode → 00–23 hours, AM/PM wheel hidden
+      _tp24Active = _tpUse24();
+      modal.classList.toggle('tp-24h', _tp24Active);
+
       // Pre-fill from current field value
       const inp = el(targetInputId);
       if (inp) {
         const parsed = parse((inp.value || '').trim());
         if (parsed) {
           const h = parsed.getHours(), m = parsed.getMinutes();
-          _tpApIdx = h >= 12 ? 1 : 0;
-          _tpHIdx  = (h % 12 || 12) - 1;
+          if (_tp24Active) { _tpHIdx = h; _tpApIdx = 0; }
+          else { _tpApIdx = h >= 12 ? 1 : 0; _tpHIdx = (h % 12 || 12) - 1; }
           _tpMIdx  = m;
-        } else { _tpHIdx = 11; _tpMIdx = 0; _tpApIdx = 0; }
+        } else { _tpHIdx = _tp24Active ? 9 : 11; _tpMIdx = 0; _tpApIdx = 0; }
       }
 
       // Position
@@ -4639,7 +4591,7 @@
         : (event?.currentTarget || event?.target || el(targetInputId));
       const refRect = refEl?.getBoundingClientRect();
       if (refRect) {
-        const GAP = 12, mW = 256, mH = 260, pad = 8;
+        const GAP = 12, mW = 216, mH = 200, pad = 8;
         // Login input: prefer above; everything else: prefer below
         let top = _isLoginInput
           ? refRect.top - mH - GAP
@@ -4654,7 +4606,7 @@
       modal.classList.add('open');
 
       // Populate wheels after modal is visible
-      _tpPopulateWheel('tpWheelH',  TP_HOURS, _tpHIdx);
+      _tpPopulateWheel('tpWheelH',  _tpHoursArr(), _tpHIdx);
       _tpPopulateWheel('tpWheelM',  TP_MINS,  _tpMIdx);
       _tpPopulateWheel('tpWheelAp', TP_AMPM,  _tpApIdx);
 
@@ -4665,6 +4617,7 @@
     function openDailyTargetPicker(event) {
       if (event) { event.stopPropagation(); event.preventDefault(); }
       _tpDurationMode = true;
+      _tp24Active = false; // duration uses 1–12 hours regardless of clock format
       // Pre-fill wheels from the current effective target
       const eff = effSecs();
       const totalMins = Math.round(eff / 60);
@@ -4696,7 +4649,7 @@
         if (top < pad) top = pad;
         modal.style.top = top + 'px'; modal.style.left = left + 'px';
       }
-      _tpPopulateWheel('tpWheelH',  TP_HOURS, _tpHIdx);
+      _tpPopulateWheel('tpWheelH',  _tpHoursArr(), _tpHIdx);
       _tpPopulateWheel('tpWheelM',  TP_MINS,  _tpMIdx);
       _tpPopulateWheel('tpWheelAp', TP_AMPM,  _tpApIdx);
       modal.classList.add('open');
@@ -4711,15 +4664,20 @@
       _tpDurationMode = false;
       _tpActiveTab = 'login';
       _tpTargetId = null; _tpCallback = null; _tpClearFn = null;
+      _tp24Active = _tpUse24();
 
       // Pre-fill login wheels
       const lH = loginDate.getHours(), lM = loginDate.getMinutes();
-      _tpLoginState = { h: (lH % 12 || 12) - 1, m: lM, ap: lH >= 12 ? 1 : 0 };
+      _tpLoginState = _tp24Active
+        ? { h: lH, m: lM, ap: 0 }
+        : { h: (lH % 12 || 12) - 1, m: lM, ap: lH >= 12 ? 1 : 0 };
 
       // Pre-fill logout wheels (login + today's effective target)
       const logoutDate = new Date(loginDate.getTime() + effSecs() * 1000);
       const loH = logoutDate.getHours(), loM = logoutDate.getMinutes();
-      _tpLogoutState = { h: (loH % 12 || 12) - 1, m: loM, ap: loH >= 12 ? 1 : 0 };
+      _tpLogoutState = _tp24Active
+        ? { h: loH, m: loM, ap: 0 }
+        : { h: (loH % 12 || 12) - 1, m: loM, ap: loH >= 12 ? 1 : 0 };
 
       // Start on login tab
       _tpHIdx = _tpLoginState.h; _tpMIdx = _tpLoginState.m; _tpApIdx = _tpLoginState.ap;
@@ -4732,6 +4690,7 @@
 
       const modal = el('tpModal');
       if (!modal) return;
+      modal.classList.toggle('tp-24h', _tp24Active);
       const titleEl = el('tpModalTitle');
       if (titleEl) titleEl.textContent = 'Log In';
       const cancelBtn = el('tpCancelBtn');
@@ -4748,7 +4707,7 @@
         if (top < pad) top = pad;
         modal.style.top = top + 'px'; modal.style.left = left + 'px';
       }
-      _tpPopulateWheel('tpWheelH',  TP_HOURS, _tpHIdx);
+      _tpPopulateWheel('tpWheelH',  _tpHoursArr(), _tpHIdx);
       _tpPopulateWheel('tpWheelM',  TP_MINS,  _tpMIdx);
       _tpPopulateWheel('tpWheelAp', TP_AMPM,  _tpApIdx);
       modal.classList.add('open', 'tab-mode');
@@ -4774,7 +4733,7 @@
       const titleEl = el('tpModalTitle');
       if (titleEl) titleEl.textContent = tab === 'login' ? 'Log In' : 'Log Out';
       // Re-populate wheels
-      _tpPopulateWheel('tpWheelH',  TP_HOURS, _tpHIdx);
+      _tpPopulateWheel('tpWheelH',  _tpHoursArr(), _tpHIdx);
       _tpPopulateWheel('tpWheelM',  TP_MINS,  _tpMIdx);
       _tpPopulateWheel('tpWheelAp', TP_AMPM,  _tpApIdx);
     }
@@ -4801,8 +4760,9 @@
     function closeTpModal() {
       _tpDurationMode = false;
       _tpTabMode = false;
+      _tp24Active = false;
       _tpActiveTab = 'login';
-      el('tpModal')?.classList.remove('open', 'tp-duration-mode', 'tab-mode');
+      el('tpModal')?.classList.remove('open', 'tp-duration-mode', 'tab-mode', 'tp-24h');
       document.removeEventListener('mousedown', _tpOutsideClick);
       _tpTargetId = null; _tpCallback = null; _tpClearFn = null;
       const cancelBtn = el('tpCancelBtn');
@@ -4826,9 +4786,10 @@
         else                          _tpLogoutState = { h: _tpHIdx, m: _tpMIdx, ap: _tpApIdx };
 
         function _stateToDate(st) {
-          const h = st.h + 1, m = st.m, ap = TP_AMPM[st.ap];
-          const h24 = ap === 'PM' ? (h === 12 ? 12 : h + 12) : (h === 12 ? 0 : h);
-          const d = new Date(); d.setHours(h24, m, 0, 0); return d;
+          let h24;
+          if (_tp24Active) { h24 = st.h; }
+          else { const h = st.h + 1, ap = TP_AMPM[st.ap]; h24 = ap === 'PM' ? (h === 12 ? 12 : h + 12) : (h === 12 ? 0 : h); }
+          const d = new Date(); d.setHours(h24, st.m, 0, 0); return d;
         }
         const newLogin  = _stateToDate(_tpLoginState);
         const newLogout = _stateToDate(_tpLogoutState);
@@ -4875,9 +4836,10 @@
       if (!_tpTargetId) { closeTpModal(); return; }
       const inp = el(_tpTargetId);
       if (inp) {
-        const h = _tpHIdx + 1, m = _tpMIdx, ap = TP_AMPM[_tpApIdx];
-        const h24 = ap === 'PM' ? (h === 12 ? 12 : h + 12) : (h === 12 ? 0 : h);
-        const d = new Date(); d.setHours(h24, m, 0, 0);
+        let h24;
+        if (_tp24Active) { h24 = _tpHIdx; }
+        else { const h = _tpHIdx + 1, ap = TP_AMPM[_tpApIdx]; h24 = ap === 'PM' ? (h === 12 ? 12 : h + 12) : (h === 12 ? 0 : h); }
+        const d = new Date(); d.setHours(h24, _tpMIdx, 0, 0);
         inp.value = short(d);
         inp.dispatchEvent(new Event('input',  { bubbles: true }));
         inp.dispatchEvent(new Event('change', { bubbles: true }));
@@ -5107,15 +5069,14 @@
 
       if (endedSecs > 0) {
         const isDoneE = eff > 0 && endedSecs >= eff;
-        const h = Math.floor(endedSecs / 3600), m = Math.floor((endedSecs % 3600) / 60);
-        el('rcWorked').textContent = `${h}h ${p2(m)}m`;
+        el('rcWorked').textContent = durWorked(endedSecs);
         el('rcWorked').style.color = isDoneE ? 'var(--muted-fg)' : '';
         el('rcTarget').textContent = isDoneE ? '+' + dur(Math.max(0, endedSecs - eff)) : dur(Math.max(0, eff - endedSecs));
         el('rcTarget').style.color = 'var(--muted-fg)';
         if (el('rcTargetLabel')) swapText('rcTargetLabel', isDoneE ? 'Extra Time' : 'Remaining');
-        // Bug fix: show "Done" (not "Paused") when target was reached
-        // When done the Completed chip is inside the Target box — no need for a separate label.
-        swapText('rcElapsedLabel', isDoneE ? '' : 'Paused', { color: 'var(--muted-fg)' });
+        // "Paused" = mid-day pause with Resume available; "Ended" = full checkout
+        const _endedLabel = _sessionAccSecs > 0 ? 'Paused' : 'Ended';
+        swapText('rcElapsedLabel', isDoneE ? '' : _endedLabel, { color: 'var(--muted-fg)' });
         if (el('progWrap')) el('progWrap').style.display = isDoneE ? 'none' : '';
         const pct = eff > 0 ? Math.min((endedSecs / eff) * 100, 100) : 100;
         el('progFill').style.width = pct.toFixed(1) + '%';
@@ -5130,7 +5091,7 @@
         return;
       }
 
-      el('rcWorked').textContent = '—';
+      el('rcWorked').textContent = '0m';
       el('rcWorked').style.color = 'var(--muted-fg)';
       el('rcTarget').textContent = dur(eff); el('rcTarget').style.color = 'var(--muted-fg)';
       if (el('rcTargetLabel')) swapText('rcTargetLabel', 'Remaining');
@@ -5710,9 +5671,8 @@
       const autoStopAt = (c.dailyH + (c.autoStopBuf ?? 2)) * 3600;
       if (!autoStopped && worked >= autoStopAt) { doAutoStop(); return; }
 
-      const h = Math.floor(worked / 3600), m = Math.floor((worked % 3600) / 60);
-      animateDuration('rcWorked', `${h}h ${p2(m)}m`);
-      el('rcWorked').style.color = isDone ? 'var(--muted-fg)' : '';
+      animateDuration('rcWorked', durWorked(worked));
+      el('rcWorked').style.color = isDone ? 'var(--muted-fg)' : '#fafafa';
       if (el('rcTarget')) el('rcTarget').style.color = '';
       // "Leave at" badge: prefer personal Out Time target if set
       const _tkNow = todayKey(), _logNow = dayLog(_tkNow) || {};
@@ -6632,24 +6592,6 @@
       _startCheckpoint(); // periodic sync while session active
       _syncNow();         // immediately push the start event
     }
-    // Shows a prediction modal when the user enters a future login time.
-    // Instead of a hard error, it shows "logged in at X → log out at Y" so
-    // the user can confirm they intended it (e.g. pre-logging a start time).
-    let _fpPendingP = null;
-    function showFuturePredictModal(p) {
-      _fpPendingP = p;
-      el('fpLoginTime').textContent = short(p);
-      const targetSecs = effSecs();
-      const logoutDate = new Date(p.getTime() + (targetSecs || cfg().dailyH * 3600) * 1000);
-      el('fpLogoutTime').textContent = short(logoutDate);
-      el('fpNote').textContent = `Based on your ${dur(targetSecs || cfg().dailyH * 3600)} daily target`;
-      el('futurePredictOverlay').classList.add('open');
-    }
-    function _fpProceed() {
-      el('futurePredictOverlay').classList.remove('open');
-      if (_fpPendingP) { _startSession(_fpPendingP); }
-      _fpPendingP = null;
-    }
     function isOutsideShift(p) {
       const c = cfg();
       const s = parse(c.shiftStart || '09:00 AM'), e = parse(c.shiftEnd || '06:00 PM');
@@ -6690,7 +6632,6 @@
       if (raw) {
         p = parseLogin(raw);
         if (!p) { showErr("Couldn't parse that. Try: 11:30, 1130, 11:30 AM, or 13:30"); return; }
-        if (p > new Date()) { showFuturePredictModal(p); return; }
       } else {
         p = new Date();
       }
@@ -6769,6 +6710,8 @@
       if (recToggle) { recToggle.checked = c.recommendTimings !== false; }
       const btToggle = el('inpBreakTime');
       if (btToggle) { btToggle.checked = c.breakTime !== false; }
+      const h24Toggle = el('inp24h');
+      if (h24Toggle) { h24Toggle.checked = c.use24h === true; }
       const recBlock = el('recommendTimingsBlock');
       if (recBlock) {
         const recOn = c.recommendTimings !== false;
@@ -7092,6 +7035,21 @@
       if (loginDate) render(); else renderEmptyState();
     }
 
+    function onUse24hChange() {
+      autoSaveSettings(); // persist the new use24h flag first so short() formats correctly
+      // Reformat the Shift Type start/end fields to match the chosen clock format
+      ['inpShiftStart', 'inpShiftEnd'].forEach(id => {
+        const e = el(id);
+        if (e && e.value) { const p = parse(e.value); if (p) e.value = short(p); }
+      });
+      autoSaveSettings(); // re-save the reformatted shift strings
+      // Immediately refresh visible time displays (header clock + cards)
+      if (typeof tickHeader === 'function') tickHeader();
+      const lbl = el('shiftActiveLabel');
+      if (loginDate && lbl) lbl.textContent = `Started at ${short(loginDate)}`;
+      if (loginDate) render(); else renderEmptyState();
+    }
+
     function toggleIncludeSaturday(checked) {
       const n = checked ? 6 : 5;
       const inp = el('inpWorkDays'); if (inp) inp.value = n;
@@ -7147,8 +7105,9 @@
       const workDays = parseInt(el('inpWorkDays')?.value || '5', 10) || 5;
       const recommendTimings = el('inpRecommendTimings')?.checked ?? true;
       const breakTime = el('inpBreakTime')?.checked ?? true;
+      const use24h = el('inp24h')?.checked ?? false;
       saveCfg({ dailyH: daily, weeklyH, weeklyOn: on, lateDays, earlyLeaveDays, notifOn, notifTarget, notifKickstart, notifOvertime, name, position,
-                targetDay, shiftType, shiftStart, shiftEnd, tzOffset, workDays, recommendTimings, breakTime,
+                targetDay, shiftType, shiftStart, shiftEnd, tzOffset, workDays, recommendTimings, breakTime, use24h,
                 autoStopBuf: cfg().autoStopBuf ?? 2 });
       // If session is running, refresh button state to reflect break-time change
       if (loginDate) setCalcBtnState('running');
@@ -9579,7 +9538,6 @@ ${sig}`
         el('logoutOverlay')?.classList.remove('open');
         el('newPlanOverlay')?.classList.remove('open');
         el('importConfirmOverlay')?.classList.remove('open');
-        el('futurePredictOverlay')?.classList.remove('open');
         el('inTimeEditWrap')?.classList.remove('open');
         el('outTargetEditWrap')?.classList.remove('open');
       }

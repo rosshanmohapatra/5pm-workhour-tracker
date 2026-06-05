@@ -492,13 +492,13 @@
     .rc-numbers { display: flex; align-items: baseline; gap: 12px; }
     .rc-left-col { display: flex; flex-direction: column; gap: 2px; }
     .rc-right-col { margin-left:auto;display:flex;flex-direction:column;gap:2px;align-items:flex-end; }
-    .rc-target-val { font-size:32px;font-weight:500;letter-spacing:-1px;line-height:32px;color:#fafafa; }
+    .rc-target-val { font-size:32px;font-weight:600;letter-spacing:-1px;line-height:32px;color:#fafafa; }
     .rc-target-label { font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted-fg);text-align:right; }
     .rc-elapsed-row { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; margin-top: 2px; }
     .rc-rem-sep { font-size: 11px; color: var(--muted-fg); opacity: 0.45; font-weight: 700; line-height: 1; }
     .rc-rem-inline { font-size: 11px; font-weight: 600; letter-spacing: .04em; line-height: 1; }
     .rc-rem-text { font-size: 11px; font-weight: 600; color: var(--muted-fg); letter-spacing: .06em; text-transform: uppercase; line-height: 1; }
-    .rc-worked { font-size: 32px; font-weight: 500; letter-spacing: -1px; line-height: 32px; color: #fafafa; }
+    .rc-worked { font-size: 32px; font-weight: 600; letter-spacing: -1px; line-height: 32px; color: #fafafa; }
     .rc-elapsed-label { font-size: 11px; font-weight: 600; letter-spacing: .08em;
       text-transform: uppercase; color: var(--muted-fg); margin-top: 2px; }
     .progress-wrap { display: flex; flex-direction: column; gap: 6px; }
@@ -938,11 +938,8 @@
     .sel-day-date-str { font-size: 12px; color: var(--muted-fg); font-weight: 500; letter-spacing: .01em; }
     .sel-day-rel { font-size: 22px; font-weight: 700; color: var(--foreground);
       line-height: 1.15; letter-spacing: -.5px; margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .sel-day-clock { height:28px; padding:0 10px; border-radius:6px; border:1px solid var(--border);
-      background:transparent; color:var(--muted-fg); font-size:11px; font-weight:600;
-      font-family:var(--font); cursor:pointer; display:inline-flex; align-items:center; gap:5px;
-      transition:background .12s, color .12s; letter-spacing:.02em; white-space:nowrap; flex-shrink:0; }
-    .sel-day-clock:hover { background:var(--muted); color:var(--foreground); }
+    .sel-day-clock { font-size:15px; font-weight:600; color:var(--foreground);
+      font-variant-numeric:tabular-nums; letter-spacing:-.3px; padding-bottom:3px; white-space:nowrap; flex-shrink:0; }
 
     /* ── Session tags ── */
     .tag-pill { display: inline-flex; align-items: center; font-size: 9px; font-weight: 700;
@@ -1052,13 +1049,15 @@
       transition:background .12s, color .12s; letter-spacing:.02em; white-space:nowrap; }
     .this-week-label-btn:hover { background:var(--muted); color:var(--foreground); }
     /* ── Week picker calendar ── */
-    .wp-picker-overlay { position:fixed; inset:0; z-index:2000; background:rgba(0,0,0,.45);
-      display:none; align-items:center; justify-content:center; padding:20px; }
-    .wp-picker-overlay.open { display:flex; }
+    /* Day picker dropdown — anchored below trigger button, no backdrop */
+    .wp-picker-overlay { position:fixed; z-index:2000; display:none; }
+    .wp-picker-overlay.open { display:block; }
     .wp-picker-dialog { background:var(--card); border:1px solid var(--border); border-radius:16px;
       padding:16px; width:280px; box-shadow:0 16px 48px rgba(0,0,0,.22); }
+    /* Header: month/year LEFT, nav arrows RIGHT */
     .wp-picker-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
-    .wp-picker-month { font-size:14px; font-weight:600; color:var(--foreground); }
+    .wp-picker-month { font-size:14px; font-weight:600; color:var(--foreground); flex:1; }
+    .wp-picker-navs { display:flex; gap:4px; }
     .wp-picker-nav { width:28px; height:28px; border-radius:6px; border:1px solid var(--border);
       background:var(--muted); color:var(--foreground); display:flex; align-items:center;
       justify-content:center; cursor:pointer; transition:background .1s; padding:0; flex-shrink:0; }
@@ -1067,26 +1066,22 @@
     .wp-picker-weekdays span { text-align:center; font-size:10px; font-weight:600; color:var(--muted-fg);
       letter-spacing:.06em; text-transform:uppercase; padding:4px 0; }
     .wp-picker-grid { display:flex; flex-direction:column; gap:2px; }
-    .wp-picker-week { display:grid; grid-template-columns:repeat(5,1fr); gap:2px;
-      border-radius:8px; cursor:pointer; transition:background .12s; padding:2px; }
-    .wp-picker-week:hover { background:var(--muted); }
-    .wp-picker-week.wp-cur { background:var(--btn-primary-bg); }
-    .wp-picker-week.wp-cur .wp-picker-day { color:var(--card) !important; }
+    .wp-picker-week { display:grid; grid-template-columns:repeat(5,1fr); gap:2px; padding:2px; cursor:default; }
     .wp-picker-day { text-align:center; font-size:13px; font-weight:500; color:var(--foreground);
       padding:6px 2px; border-radius:6px; font-variant-numeric:tabular-nums; line-height:1; }
-    .wp-picker-day.wp-out { color:var(--muted-fg); opacity:.35; }
-    .wp-picker-day.wp-today { color:var(--success); font-weight:700; }
-    .wp-picker-footer { display:flex; gap:8px; margin-top:12px; }
-    .wp-picker-cancel { flex:1; height:34px; border-radius:8px; border:1px solid var(--border);
-      background:transparent; color:var(--foreground); font-size:13px; font-weight:500;
-      font-family:var(--font); cursor:pointer; transition:background .12s; }
-    .wp-picker-cancel:hover { background:var(--muted); }
-    .wp-picker-view { flex:1; height:34px; border-radius:8px; border:none;
+    .wp-picker-day.wp-out { color:var(--muted-fg); opacity:.35; pointer-events:none; }
+    /* Today: no special colour — just normal text */
+    /* Selected day: white container, dark text */
+    .wp-picker-day.wp-sel { background:#fff; color:#09090b !important; font-weight:700; border-radius:6px; }
+    .dark .wp-picker-day.wp-sel { background:#fff; color:#09090b !important; }
+    .wp-picker-day:not(.wp-out) { cursor:pointer; transition:background .1s; }
+    .wp-picker-day:not(.wp-out):not(.wp-sel):hover { background:var(--muted); border-radius:6px; }
+    /* Jump to Today CTA */
+    .wp-jump-today { width:100%; height:34px; border-radius:8px; border:none; margin-top:12px;
       background:var(--btn-primary-bg); color:var(--card); font-size:13px; font-weight:600;
       font-family:var(--font); cursor:pointer; transition:opacity .12s; }
-    .wp-picker-view:hover { opacity:.88; }
-    .wp-picker-week.wp-pending { background:var(--muted); }
-    .wp-picker-week.wp-pending .wp-picker-day { color:var(--foreground) !important; }
+    .wp-jump-today:hover:not(:disabled) { opacity:.88; }
+    .wp-jump-today:disabled { opacity:.35; cursor:default; }
     .this-week-nav { display: flex; gap: 4px; }
     .this-week-btn { width: 24px; height: 24px; border-radius: 6px; border: none; background: var(--muted); color: var(--foreground); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: background .12s; padding: 0; }
     .this-week-btn:hover { background: var(--border); }
@@ -1894,19 +1889,13 @@
         <div class="sel-day-left">
           <div class="sel-day-rel" id="selDayRel">Today</div>
         </div>
-        <button class="sel-day-clock" id="selDayClock" type="button" onclick="openWeekPicker()">
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" style="flex-shrink:0;opacity:.7">
-            <rect x="3" y="4" width="18" height="18" rx="2" stroke="currentColor" stroke-width="2"/>
-            <path d="M16 2v4M8 2v4M3 10h18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-          </svg>
-          <span id="selDayClockText">—</span>
-        </button>
+        <div class="sel-day-clock" id="selDayClock">—</div>
       </div>
 
       <!-- Day selector (Mon–Fri of current week) -->
       <div class="this-week-wrap">
         <div class="this-week-header">
-          <button class="this-week-label-btn" id="thisWeekLabel" onclick="openWeekPicker()" type="button">
+          <button class="this-week-label-btn" id="thisWeekLabel" onclick="openWeekPicker(this)" type="button">
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" style="flex-shrink:0;opacity:.7">
               <rect x="3" y="4" width="18" height="18" rx="2" stroke="currentColor" stroke-width="2"/>
               <path d="M16 2v4M8 2v4M3 10h18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
@@ -2672,25 +2661,24 @@
   </div>
 
   <!-- ── Week Picker ── -->
-  <div id="wpPickerOverlay" class="wp-picker-overlay" onclick="if(event.target===this)closeWeekPicker()">
+  <div id="wpPickerOverlay" class="wp-picker-overlay">
     <div class="wp-picker-dialog">
       <div class="wp-picker-head">
-        <button class="wp-picker-nav" onclick="_wpPrevMonth()" type="button">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path fill-rule="evenodd" clip-rule="evenodd" d="M16.7071 3.29289C17.0976 3.68342 17.0976 4.31658 16.7071 4.70711L9.41421 12L16.7071 19.2929C17.0976 19.6834 17.0976 20.3166 16.7071 20.7071C16.3166 21.0976 15.6834 21.0976 15.2929 20.7071L7.29289 12.7071C6.90237 12.3166 6.90237 11.6834 7.29289 11.2929L15.2929 3.29289C15.6834 2.90237 16.3166 2.90237 16.7071 3.29289Z" fill="currentColor"/></svg>
-        </button>
         <span class="wp-picker-month" id="wpPickerMonth">June 2026</span>
-        <button class="wp-picker-nav" onclick="_wpNextMonth()" type="button">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path fill-rule="evenodd" clip-rule="evenodd" d="M7.29289 3.29289C7.68342 2.90237 8.31658 2.90237 8.70711 3.29289L16.7071 11.2929C17.0976 11.6834 17.0976 12.3166 16.7071 12.7071L8.70711 20.7071C8.31658 21.0976 7.68342 21.0976 7.29289 20.7071C6.90237 20.3166 6.90237 19.6834 7.29289 19.2929L14.5858 12L7.29289 4.70711C6.90237 4.31658 6.90237 3.68342 7.29289 3.29289Z" fill="currentColor"/></svg>
-        </button>
+        <div class="wp-picker-navs">
+          <button class="wp-picker-nav" onclick="_wpPrevMonth()" type="button">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path fill-rule="evenodd" clip-rule="evenodd" d="M16.7071 3.29289C17.0976 3.68342 17.0976 4.31658 16.7071 4.70711L9.41421 12L16.7071 19.2929C17.0976 19.6834 17.0976 20.3166 16.7071 20.7071C16.3166 21.0976 15.6834 21.0976 15.2929 20.7071L7.29289 12.7071C6.90237 12.3166 6.90237 11.6834 7.29289 11.2929L15.2929 3.29289C15.6834 2.90237 16.3166 2.90237 16.7071 3.29289Z" fill="currentColor"/></svg>
+          </button>
+          <button class="wp-picker-nav" onclick="_wpNextMonth()" type="button">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path fill-rule="evenodd" clip-rule="evenodd" d="M7.29289 3.29289C7.68342 2.90237 8.31658 2.90237 8.70711 3.29289L16.7071 11.2929C17.0976 11.6834 17.0976 12.3166 16.7071 12.7071L8.70711 20.7071C8.31658 21.0976 7.68342 21.0976 7.29289 20.7071C6.90237 20.3166 6.90237 19.6834 7.29289 19.2929L14.5858 12L7.29289 4.70711C6.90237 4.31658 6.90237 3.68342 7.29289 3.29289Z" fill="currentColor"/></svg>
+          </button>
+        </div>
       </div>
       <div class="wp-picker-weekdays">
         <span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span>
       </div>
       <div class="wp-picker-grid" id="wpPickerGrid"></div>
-      <div class="wp-picker-footer">
-        <button class="wp-picker-cancel" onclick="closeWeekPicker()" type="button">Cancel</button>
-        <button class="wp-picker-view"   onclick="_wpConfirm()"       type="button">View</button>
-      </div>
+      <button class="wp-jump-today" id="wpJumpTodayBtn" onclick="_wpJumpToday()" type="button">Today</button>
     </div>
   </div>
 
@@ -4072,13 +4060,8 @@
       el('dayName').textContent  = FULL_DAYS_EN[n.getDay()];
       el('dayDate').textContent  = `${MONTHS[n.getMonth()]} ${n.getDate()}`;
       el('dayClock').textContent = timeStr;
-      const clkTxt = el('selDayClockText');
-      if (clkTxt) {
-        const selDate = selectedDayKey && selectedDayKey !== '__wknd__'
-          ? new Date(selectedDayKey + 'T12:00')
-          : n;
-        clkTxt.textContent = `${FULL_DAYS_EN[selDate.getDay()]}, ${_ordinal(selDate.getDate())} ${MONTHS[selDate.getMonth()]}`;
-      }
+      const clkEl = el('selDayClock');
+      if (clkEl) clkEl.textContent = timeStr;
       _setTodayDateChip();
     }
 
@@ -4350,26 +4333,43 @@
     }
 
     // ── Week picker ──────────────────────────────────────────────────────────
-    let _wpYear = 0, _wpMonth = 0, _wpPendingKey = null;
+    let _wpYear = 0, _wpMonth = 0;
 
-    function openWeekPicker() {
-      // Open at the month of the currently selected week
+    function openWeekPicker(triggerEl) {
+      // Open at the month of the currently selected day
       const refDate = selectedDayKey && selectedDayKey !== '__wknd__'
         ? new Date(selectedDayKey + 'T12:00')
         : new Date();
       _wpYear  = refDate.getFullYear();
       _wpMonth = refDate.getMonth();
-      _wpPendingKey = week(daySelectorWeekOffset)[0]?.key || null; // pre-select current week
       _wpRenderCal();
-      el('wpPickerOverlay').classList.add('open');
+      const overlay = el('wpPickerOverlay');
+      overlay.classList.add('open');
+      // Position below the trigger button (fall back to thisWeekLabel if not passed)
+      const btn = triggerEl || el('thisWeekLabel');
+      if (btn) {
+        const r = btn.getBoundingClientRect();
+        overlay.style.top  = (r.bottom + 6) + 'px';
+        overlay.style.left = r.left + 'px';
+      }
+      // Close on outside click
+      setTimeout(() => {
+        document.addEventListener('click', _wpOutsideClick, { once: true, capture: true });
+      }, 0);
+    }
+    function _wpOutsideClick(e) {
+      const overlay = el('wpPickerOverlay');
+      if (overlay && !overlay.contains(e.target) && e.target !== el('thisWeekLabel')) {
+        closeWeekPicker();
+      } else if (overlay && overlay.classList.contains('open')) {
+        // Re-register for next click outside
+        setTimeout(() => {
+          document.addEventListener('click', _wpOutsideClick, { once: true, capture: true });
+        }, 0);
+      }
     }
     function closeWeekPicker() {
-      _wpPendingKey = null;
       el('wpPickerOverlay').classList.remove('open');
-    }
-    function _wpConfirm() {
-      if (_wpPendingKey) _wpSelectWeek(_wpPendingKey);
-      else closeWeekPicker();
     }
     function _wpPrevMonth() {
       _wpMonth--; if (_wpMonth < 0) { _wpMonth = 11; _wpYear--; }
@@ -4382,6 +4382,9 @@
 
     function _wpRenderCal() {
       el('wpPickerMonth').textContent = `${MONTHS[_wpMonth]} ${_wpYear}`;
+      // Disable Jump to Today when today is already the selected day
+      const _jtBtn = el('wpJumpTodayBtn');
+      if (_jtBtn) _jtBtn.disabled = (!selectedDayKey || selectedDayKey === todayKey() || selectedDayKey === '__wknd__');
       const grid = el('wpPickerGrid');
       if (!grid) return;
       grid.innerHTML = '';
@@ -4404,34 +4407,39 @@
         const friDate = new Date(monDate); friDate.setDate(monDate.getDate() + 4);
         if (w > 0 && monDate.getMonth() !== _wpMonth && friDate.getMonth() !== _wpMonth) break;
 
-        const monKey = `${monDate.getFullYear()}-${p2(monDate.getMonth()+1)}-${p2(monDate.getDate())}`;
-        const isSel    = monKey === selMonKey;
-        const isPending = monKey === _wpPendingKey && monKey !== selMonKey;
-
         const row = document.createElement('div');
-        row.className = 'wp-picker-week' + (isSel ? ' wp-cur' : isPending ? ' wp-pending' : '');
-        row.onclick = () => { _wpPendingKey = monKey; _wpRenderCal(); };
+        row.className = 'wp-picker-week';
 
         for (let d = 0; d < 5; d++) {
           const cellDate = new Date(monDate); cellDate.setDate(monDate.getDate() + d);
           const cellKey  = `${cellDate.getFullYear()}-${p2(cellDate.getMonth()+1)}-${p2(cellDate.getDate())}`;
           const inMonth  = cellDate.getMonth() === _wpMonth;
           const isToday  = cellKey === today;
+          const isSel = cellKey === (selectedDayKey || todayKey());
+
           const cell = document.createElement('div');
           cell.className = 'wp-picker-day'
-            + (inMonth  ? '' : ' wp-out')
-            + (isToday  ? ' wp-today' : '');
+            + (inMonth ? '' : ' wp-out')
+            + (isSel   ? ' wp-sel'   : '');
           cell.textContent = cellDate.getDate();
+          cell.onclick = (e) => { e.stopPropagation(); _wpSelectDay(cellKey); };
           row.appendChild(cell);
         }
         grid.appendChild(row);
       }
     }
 
-    function _wpSelectWeek(mondayKey) {
+    function _wpJumpToday() {
+      _wpSelectDay(todayKey());
+    }
+
+    function _wpSelectDay(dayKey) {
+      if (!dayKey) return;
       _dsUserNav = true;
-      selectDay(mondayKey);
-      _syncOffsetFromKey(mondayKey);
+      const isFuture = new Date(dayKey + 'T12:00') > new Date() && dayKey !== todayKey();
+      if (isFuture) selectFutureDay(dayKey);
+      else selectDay(dayKey);
+      _syncOffsetFromKey(dayKey);
       closeWeekPicker();
     }
     // ─────────────────────────────────────────────────────────────────────────
@@ -5069,14 +5077,6 @@
       const d = nowTz();
       const chip = el('leaveAt');
       if (chip) chip.textContent = FULL_DAYS_EN[d.getDay()].slice(0,3) + ', ' + MONTHS[d.getMonth()] + ' ' + d.getDate();
-      // Update day picker button to reflect selected day
-      const clkTxt = el('selDayClockText');
-      if (clkTxt) {
-        const selDate = selectedDayKey && selectedDayKey !== '__wknd__'
-          ? new Date(selectedDayKey + 'T12:00')
-          : d;
-        clkTxt.textContent = `${FULL_DAYS_EN[selDate.getDay()]}, ${_ordinal(selDate.getDate())} ${MONTHS[selDate.getMonth()]}`;
-      }
     }
 
     // Dismisses the skeleton shimmer the first time real content is available.
@@ -5803,10 +5803,13 @@
     let _dsUserNav = false; // true when a click/nav triggered the render (forces re-centre)
 
     function _dsScrollTo(container, btn, behavior) {
-      if (!container.clientWidth) return; // layout not ready
-      const left = Math.max(0, btn.offsetLeft - container.clientWidth / 2 + btn.offsetWidth / 2);
-      if (behavior === 'smooth') container.scrollTo({ left, behavior: 'smooth' });
-      else container.scrollLeft = left;
+      const cw = container.getBoundingClientRect().width;
+      if (!cw) return; // layout not ready
+      // Absolute position of button centre within the scroll content
+      const btnAbs = btn.getBoundingClientRect().left - container.getBoundingClientRect().left + container.scrollLeft + btn.offsetWidth / 2;
+      const target  = Math.max(0, btnAbs - cw / 2);
+      if (behavior === 'smooth') container.scrollTo({ left: target, behavior: 'smooth' });
+      else container.scrollLeft = target;
     }
 
     // Returns the week label for any date key — O(1) date math, no loop.
@@ -5846,16 +5849,15 @@
       daySelectorWeekOffset = Math.round((mon - thisMon) / (7 * 86400000));
     }
 
-    // Scroll the strip so today's card is centred. Retries until layout is ready
-    // (on desktop, offsetLeft can be 0 in the first rAF if CSS hasn't been applied yet).
+    // Scroll the strip so today's card is centred (Filmstrip view).
+    // Retries via rAF until the container has a real width (layout settled).
     function _dsResetScroll() {
       const container = el('daySelectorRow');
       if (!container) return;
       const tk = todayKey();
       const todayBtn = container.querySelector(`.day-sel-btn[data-key="${tk}"]`);
       if (!todayBtn) return;
-      if (!container.clientWidth || todayBtn.offsetLeft === 0) {
-        // Layout not settled — retry after next paint
+      if (!container.getBoundingClientRect().width) {
         requestAnimationFrame(() => _dsResetScroll());
         return;
       }

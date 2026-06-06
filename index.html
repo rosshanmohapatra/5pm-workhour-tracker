@@ -6532,9 +6532,11 @@
         // Confirmed override → dashed info card, clicking opens Update Entry
         const _ovLabel = { holiday: 'Holiday', leave: 'Full Day Leave', halfday: 'Half Day' }[planKey];
         const _ovSub   = { holiday: 'Planned day off.', leave: 'Full day leave planned.', halfday: 'Half day planned.' }[planKey];
+        const _ovNote  = log?.futureReason ? `<div style="font-size:13px;color:var(--foreground);margin-top:8px;line-height:1.5;white-space:pre-wrap;text-align:left">${log.futureReason}</div>` : '';
         chipsEl.innerHTML = `<div class="override-info-editable" style="width:100%;box-sizing:border-box;text-align:center" onclick="openDayEditModal('${key}')">
           <div style="font-size:15px;font-weight:700;color:var(--foreground);margin-bottom:4px">${_ovLabel}</div>
           <div style="font-size:13px;color:var(--muted-fg)">${_ovSub}</div>
+          ${_ovNote}
         </div>`;
       } else {
         // Normal chip buttons
@@ -8208,16 +8210,19 @@ ${sig}`
       const sd = getShiftDefaults();
       el('deStart').placeholder = sd.start || 'Start time';
       el('deEnd').placeholder   = sd.end   || 'End time';
+      // For future plan days, futurePlan/futureReason are the source of truth
+      const _effectiveOverride = log?.override || log?.futurePlan || null;
+      const _effectiveNote     = log?.note || log?.futureReason || '';
       // Highlight active override; hide time row instantly (no transition on open)
       ['deHalfDay','deHoliday','deLeave'].forEach(id => el(id)?.classList.remove('active'));
       const _deTimeWrap = el('deTimeWrap');
       if (_deTimeWrap) { _deTimeWrap.style.transition = 'none'; _deTimeWrap.classList.remove('hidden'); }
-      if (log?.override === 'halfday') {
+      if (_effectiveOverride === 'halfday') {
         el('deHalfDay').classList.add('active');
-      } else if (log?.override === 'holiday') {
+      } else if (_effectiveOverride === 'holiday') {
         el('deHoliday').classList.add('active');
         if (_deTimeWrap) _deTimeWrap.classList.add('hidden');
-      } else if (log?.override === 'leave') {
+      } else if (_effectiveOverride === 'leave') {
         el('deLeave').classList.add('active');
         if (_deTimeWrap) _deTimeWrap.classList.add('hidden');
       }
@@ -8226,8 +8231,8 @@ ${sig}`
       // Note field — populate and show if there's an active override
       const _deNoteWrap = el('deNoteWrap');
       const _deNote     = el('deNote');
-      if (_deNote) _deNote.value = log?.note || '';
-      if (_deNoteWrap) _deNoteWrap.classList.toggle('visible', !!log?.override && log.override !== 'wfh');
+      if (_deNote) _deNote.value = _effectiveNote;
+      if (_deNoteWrap) _deNoteWrap.classList.toggle('visible', !!_effectiveOverride && _effectiveOverride !== 'wfh');
       // Shift-aware blur handlers (fresh each open)
       const startBlur = () => applyShiftAmPm(el('deStart'), 'start');
       const endBlur   = () => applyShiftAmPm(el('deEnd'),   'end');
@@ -9186,10 +9191,19 @@ ${sig}`
         : el('deLeave').classList.contains('active') ? 'leave' : null;
       const _deNoteVal = el('deNote')?.value.trim() || '';
 
+      const _isFutureDay = new Date(key + 'T12:00') > new Date() && key !== todayKey();
       if (activeOverride === 'halfday') {
-        saveDayLogAndSync(key, { ...ex, hoursWorked: c.dailyH / 2, override: 'halfday', sessionTag: 'edited', ...(_deNoteVal ? { note: _deNoteVal } : { note: null }) });
+        if (_isFutureDay) {
+          saveDayLogAndSync(key, { ...ex, futurePlan: 'halfday', ...(_deNoteVal ? { futureReason: _deNoteVal } : { futureReason: null }) });
+        } else {
+          saveDayLogAndSync(key, { ...ex, hoursWorked: c.dailyH / 2, override: 'halfday', sessionTag: 'edited', ...(_deNoteVal ? { note: _deNoteVal } : { note: null }) });
+        }
       } else if (activeOverride === 'holiday' || activeOverride === 'leave') {
-        saveDayLogAndSync(key, { ...ex, hoursWorked: 0, override: activeOverride, sessionTag: 'edited', ...(_deNoteVal ? { note: _deNoteVal } : { note: null }) });
+        if (_isFutureDay) {
+          saveDayLogAndSync(key, { ...ex, futurePlan: activeOverride, ...(_deNoteVal ? { futureReason: _deNoteVal } : { futureReason: null }) });
+        } else {
+          saveDayLogAndSync(key, { ...ex, hoursWorked: 0, override: activeOverride, sessionTag: 'edited', ...(_deNoteVal ? { note: _deNoteVal } : { note: null }) });
+        }
       } else if (!s && !e) {
         // Both empty → apply shift defaults
         const sd = getShiftDefaults();
@@ -9272,7 +9286,9 @@ ${sig}`
       if (key === todayKey()) {
         if (loginDate) render(); else renderEmptyState();
       } else if (key === selectedDayKey) {
-        selectDay(key); // re-route properly (holiday/leave/halfday → weekendView)
+        const _isFutureSave = new Date(key + 'T12:00') > new Date() && key !== todayKey();
+        if (_isFutureSave) selectFutureDay(key);
+        else selectDay(key);
       }
     }
 

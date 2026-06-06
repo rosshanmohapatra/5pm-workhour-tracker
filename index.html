@@ -490,6 +490,10 @@
     .rc-body.weekend-mode #autostopBanner { display: none !important; }
     #weekendView { display: none; }
     .rc-body.weekend-mode #weekendView { display: block; animation: wknd-fade-in .28s ease; }
+    /* Override mode (holiday/leave/halfday weekday): note fills remaining card height */
+    #weekendView.override-mode { display: flex; flex-direction: column; min-height: 200px; }
+    #weekendView.override-mode #wkndNoteWrap { flex: 1; display: flex; flex-direction: column; margin-bottom: 0; }
+    #weekendView.override-mode #wkndNote { flex: 1; min-height: 80px; overflow-y: auto; height: auto; }
     @keyframes wknd-fade-in {
       from { opacity: 0; transform: translateY(8px); }
       to   { opacity: 1; transform: translateY(0);   }
@@ -5459,8 +5463,16 @@
       if (el('wkndPageTitle'))    el('wkndPageTitle').textContent = ti.title;
       if (el('wkndPageSubtitle')) el('wkndPageSubtitle').textContent = ti.sub;
       if (el('wkndNoteTitle'))    el('wkndNoteTitle').textContent = _infoNoteTitle(type);
+      // Override mode: note textarea fills remaining card height — skip auto-grow
+      const _wkndView = el('weekendView');
+      if (_wkndView) _wkndView.classList.toggle('override-mode', type !== 'weekend');
       const noteEl = el('wkndNote');
-      if (noteEl) { noteEl.dataset.key = noteKey; noteEl.value = dayLog(noteKey)?.note || ''; _wkndNoteAutoGrow(noteEl); }
+      if (noteEl) {
+        noteEl.dataset.key = noteKey;
+        noteEl.value = dayLog(noteKey)?.note || '';
+        if (type === 'weekend') _wkndNoteAutoGrow(noteEl);
+        else noteEl.style.height = ''; // let flex handle height
+      }
 
       // ── Override info card: dashed + clickable for past override days ──
       const _infoCard = el('wkndOverrideInfoCard');

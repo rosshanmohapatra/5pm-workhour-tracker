@@ -1988,7 +1988,7 @@
           </div>
           <!-- CTA buttons — hidden until a chip is selected -->
           <div id="futurePlanBtnWrap" class="future-plan-cta">
-            <div class="future-plan-actions">
+            <div class="future-plan-actions" id="futurePlanActions">
               <button class="btn-secondary" id="futurePlanDiscardBtn" style="height:36px;padding:0 16px;border-radius:10px;font-size:13px">Discard</button>
               <button class="shift-start-btn" id="futurePlanBtn" style="font-size:13px;height:36px;border-radius:10px;padding:0 20px;width:auto">Looks Good</button>
             </div>
@@ -6514,41 +6514,66 @@
     }
 
     function _renderFutureDayInline(key, log, day) {
-      const c = cfg();
-      const hasPlan = !!(log?.futurePlan);
-      const planKey = log?.futurePlan;
+      const hasPlan   = !!(log?.futurePlan);
+      const planKey   = log?.futurePlan;
+      const isFresh   = _freshlySelectedPlanKeys.has(key); // picked this session, not yet confirmed
+      const isConfirmed = hasPlan && !isFresh;
+      const _OV_PLANS = new Set(['holiday', 'leave', 'halfday']);
 
-      // Plan type buttons
       const planTypes = [
         { key: 'halfday', label: 'Half Day' },
         { key: 'leave',   label: 'Full Day Leave' },
         { key: 'holiday', label: 'Holiday' },
       ];
-      el('futureDayChips').innerHTML = planTypes.map(p =>
-        `<button class="modal-override-btn${planKey === p.key ? ' active' : ''}"
-          onclick="_selectFuturePlanType('${key}','${p.key}',this)">${p.label}</button>`
-      ).join('');
 
-      // Reason field — appears after a chip is picked
+      // ── Chips area ──────────────────────────────────────────────────
+      const chipsEl = el('futureDayChips');
+      if (isConfirmed && _OV_PLANS.has(planKey)) {
+        // Confirmed override → dashed info card, clicking opens Update Entry
+        const _ovLabel = { holiday: 'Holiday', leave: 'Full Day Leave', halfday: 'Half Day' }[planKey];
+        const _ovSub   = { holiday: 'Planned day off.', leave: 'Full day leave planned.', halfday: 'Half day planned.' }[planKey];
+        chipsEl.innerHTML = `<div class="override-info-editable" style="width:100%;box-sizing:border-box;text-align:center" onclick="openDayEditModal('${key}')">
+          <div style="font-size:15px;font-weight:700;color:var(--foreground);margin-bottom:4px">${_ovLabel}</div>
+          <div style="font-size:13px;color:var(--muted-fg)">${_ovSub}</div>
+        </div>`;
+      } else {
+        // Normal chip buttons
+        chipsEl.innerHTML = planTypes.map(p =>
+          `<button class="modal-override-btn${planKey === p.key ? ' active' : ''}"
+            onclick="_selectFuturePlanType('${key}','${p.key}',this)">${p.label}</button>`
+        ).join('');
+      }
+
+      // ── Reason field ─────────────────────────────────────────────────
       const reasonWrap = el('futureDayReasonWrap');
       if (reasonWrap) {
-        reasonWrap.style.display = hasPlan ? '' : 'none';
+        // Hide reason for confirmed overrides (card replaces it), show for fresh picks
+        const showReason = hasPlan && !(isConfirmed && _OV_PLANS.has(planKey));
+        reasonWrap.style.display = showReason ? '' : 'none';
         const ta = el('futureDayReason');
         if (ta) ta.value = log?.futureReason || '';
       }
 
-      // CTA buttons — both visible when a chip is selected
-      const btnWrap = el('futurePlanBtnWrap');
+      // ── CTA buttons ──────────────────────────────────────────────────
+      const btnWrap    = el('futurePlanBtnWrap');
+      const actionsDiv = el('futurePlanActions');
       if (btnWrap) btnWrap.classList.toggle('visible', hasPlan);
 
-      const btn        = el('futurePlanBtn');
-      const discardBtn = el('futurePlanDiscardBtn');
-      if (btn && !btn.classList.contains('state-success')) {
-        btn.classList.remove('state-success');
-        btn.innerHTML = 'Looks Good';
-        btn.onclick = () => toggleFuturePlanMode(key);
+      if (hasPlan && actionsDiv) {
+        if (isConfirmed) {
+          // Single "Edit Plan" button
+          actionsDiv.innerHTML = `<button class="btn-secondary" style="height:36px;padding:0 16px;border-radius:10px;font-size:13px" onclick="openDayEditModal('${key}')">Edit Plan</button>`;
+        } else {
+          // Fresh pick → Discard + Looks Good
+          actionsDiv.innerHTML = `
+            <button class="btn-secondary" id="futurePlanDiscardBtn" style="height:36px;padding:0 16px;border-radius:10px;font-size:13px">Discard</button>
+            <button class="shift-start-btn" id="futurePlanBtn" style="font-size:13px;height:36px;border-radius:10px;padding:0 20px;width:auto">Looks Good</button>`;
+          const btn        = el('futurePlanBtn');
+          const discardBtn = el('futurePlanDiscardBtn');
+          if (btn)        btn.onclick        = () => toggleFuturePlanMode(key);
+          if (discardBtn) discardBtn.onclick = () => _openCancelPlanModal(key);
+        }
       }
-      if (discardBtn) discardBtn.onclick = () => _openCancelPlanModal(key);
     }
 
     function _selectFuturePlanType(key, planKey, btn) {
@@ -6573,20 +6598,24 @@
     function toggleFuturePlanMode(key) {
       const btn = el('futurePlanBtn');
       if (!btn) return;
-      // "Looks Good" clicked — show saved flash then reset
       _freshlySelectedPlanKeys.delete(key);
       btn.classList.add('state-success');
       btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#09090b" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><polyline points="20 6 9 17 4 12"/></svg>&nbsp;Saved';
       btn.onclick = null;
       setTimeout(() => {
-        btn.classList.remove('state-success');
-        btn.innerHTML = 'Looks Good';
-        btn.onclick = () => toggleFuturePlanMode(key);
+        _renderFutureDayInline(key, dayLog(key), week(daySelectorWeekOffset).find(d => d.key === key));
         _renderFutureDayBadge();
       }, 1400);
     }
 
     function _openCancelPlanModal(key) {
+      const log = dayLog(key) || {};
+      // No note written — discard directly without confirmation
+      if (!log.futureReason?.trim()) {
+        _futurePlanKey = key;
+        _confirmCancelPlan();
+        return;
+      }
       _futurePlanKey = key;
       const day = week(daySelectorWeekOffset).find(d => d.key === key);
       const desc = el('cancelPlanDesc');

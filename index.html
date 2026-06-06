@@ -984,6 +984,10 @@
 
     /* ── Day edit modal ── */
     .modal-override-row { display: flex; gap: 6px; flex-wrap: wrap; }
+    /* Future plan CTA — slides in when a chip is selected */
+    .future-plan-cta { overflow: hidden; max-height: 0; opacity: 0;
+      transition: max-height .25s ease, opacity .2s ease; pointer-events: none; }
+    .future-plan-cta.visible { max-height: 56px; opacity: 1; pointer-events: auto; }
     .modal-override-btn { height: 32px; padding: 0 12px; border-radius: var(--radius-md);
       border: 1px solid var(--border); background: var(--muted); color: var(--foreground);
       font-size: 12px; font-weight: 500; font-family: var(--font); cursor: pointer;
@@ -1038,7 +1042,7 @@
     .day-sel-btn.active .dsel-dot { background: var(--background); opacity: .6; }
     .day-sel-btn:disabled { opacity: .28; cursor: default; pointer-events: none; }
     /* WKD slot — narrower, dashed, faded so weekends read as off-days */
-    .day-sel-btn.wkd-btn { flex: 0.75 0 42px; border-style: dashed; }
+    .day-sel-btn.wkd-btn { flex: 0 0 60px; border-style: dashed; }
     .day-sel-btn.wkd-btn:not(.active) { opacity: .45; }
     .day-sel-btn.wkd-btn.active { border-style: solid; opacity: 1; }
     /* Weekend / holiday / leave hover — dashed gray, slightly lifted */
@@ -1063,7 +1067,7 @@
     .wp-picker-overlay { position:fixed; z-index:2000; display:none; }
     .wp-picker-overlay.open { display:block; }
     .wp-picker-dialog { background:var(--card); border:1px solid var(--border); border-radius:16px;
-      padding:16px; width:280px; box-shadow:0 16px 48px rgba(0,0,0,.22); }
+      padding:16px; width:320px; box-shadow:0 16px 48px rgba(0,0,0,.22); }
     /* Header: month/year LEFT, nav arrows RIGHT */
     .wp-picker-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
     .wp-picker-month { font-size:14px; font-weight:600; color:var(--foreground); flex:1; }
@@ -1072,17 +1076,20 @@
       background:var(--muted); color:var(--foreground); display:flex; align-items:center;
       justify-content:center; cursor:pointer; transition:background .1s; padding:0; flex-shrink:0; }
     .wp-picker-nav:hover { background:var(--border); }
-    .wp-picker-weekdays { display:grid; grid-template-columns:repeat(5,1fr); gap:2px; margin-bottom:4px; }
+    .wp-picker-weekdays { display:grid; grid-template-columns:repeat(7,1fr); gap:2px; margin-bottom:4px; }
     .wp-picker-weekdays span { text-align:center; font-size:10px; font-weight:600; color:var(--muted-fg);
       letter-spacing:.06em; text-transform:uppercase; padding:4px 0; }
+    .wp-picker-weekdays span.wp-wkd-hdr { color:var(--border); }
     .wp-picker-grid { display:flex; flex-direction:column; gap:2px; }
-    .wp-picker-week { display:grid; grid-template-columns:repeat(5,1fr); gap:2px; padding:2px; cursor:default; }
+    .wp-picker-week { display:grid; grid-template-columns:repeat(7,1fr); gap:2px; padding:2px; cursor:default; }
     .wp-picker-day { text-align:center; font-size:13px; font-weight:500; color:var(--foreground);
       padding:6px 2px; border-radius:6px; font-variant-numeric:tabular-nums; line-height:1; }
     .wp-picker-day.wp-out { color:var(--muted-fg); opacity:.35; pointer-events:none; }
-    /* Today: no special colour — just normal text */
+    /* Weekend / holiday / leave cells — gray text, dashed stroke */
+    .wp-picker-day.wp-wknd { color:var(--muted-fg); border:1px dashed var(--border); }
+    .wp-picker-day.wp-wknd.wp-out { opacity:.25; pointer-events:none; }
     /* Selected day: white container, dark text */
-    .wp-picker-day.wp-sel { background:#fff; color:#09090b !important; font-weight:700; border-radius:6px; }
+    .wp-picker-day.wp-sel { background:#fff; color:#09090b !important; font-weight:700; border-radius:6px; border:none; }
     .dark .wp-picker-day.wp-sel { background:#fff; color:#09090b !important; }
     .wp-picker-day:not(.wp-out) { cursor:pointer; transition:background .1s; }
     .wp-picker-day:not(.wp-out):not(.wp-sel):hover { background:var(--muted); border-radius:6px; }
@@ -1938,8 +1945,10 @@
               style="width:100%;resize:none;border:1px solid var(--border);border-radius:8px;background:var(--input-bg);color:var(--foreground);font-family:var(--font);font-size:13px;padding:10px 12px;outline:none;transition:border-color .15s"
               oninput="saveFutureDayReason(this.value)"></textarea>
           </div>
-          <!-- CTA button -->
-          <button class="shift-start-btn" id="futurePlanBtn" style="font-size:13px;height:40px;border-radius:10px" onclick="toggleFuturePlanMode()">New Plan</button>
+          <!-- CTA button — hidden until a chip is selected -->
+          <div id="futurePlanBtnWrap" class="future-plan-cta">
+            <button class="shift-start-btn" id="futurePlanBtn" style="font-size:13px;height:40px;border-radius:10px;width:100%">Looks Good</button>
+          </div>
         </div>
       </div>
 
@@ -2701,7 +2710,7 @@
         </div>
       </div>
       <div class="wp-picker-weekdays">
-        <span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span>
+        <span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span class="wp-wkd-hdr">Sa</span><span class="wp-wkd-hdr">Su</span>
       </div>
       <div class="wp-picker-grid" id="wpPickerGrid"></div>
       <button class="wp-jump-today" id="wpJumpTodayBtn" onclick="_wpJumpToday()" type="button">Today</button>
@@ -4440,24 +4449,28 @@
         const monDate = new Date(startMon);
         monDate.setDate(startMon.getDate() + w * 7);
 
-        // Skip rows entirely outside the month (only for last row)
-        const friDate = new Date(monDate); friDate.setDate(monDate.getDate() + 4);
-        if (w > 0 && monDate.getMonth() !== _wpMonth && friDate.getMonth() !== _wpMonth) break;
+        // Skip rows entirely outside the month (check full Mon–Sun span)
+        const sunDate = new Date(monDate); sunDate.setDate(monDate.getDate() + 6);
+        if (w > 0 && monDate.getMonth() !== _wpMonth && sunDate.getMonth() !== _wpMonth) break;
 
         const row = document.createElement('div');
         row.className = 'wp-picker-week';
 
-        for (let d = 0; d < 5; d++) {
+        for (let d = 0; d < 7; d++) {
           const cellDate = new Date(monDate); cellDate.setDate(monDate.getDate() + d);
           const cellKey  = `${cellDate.getFullYear()}-${p2(cellDate.getMonth()+1)}-${p2(cellDate.getDate())}`;
           const inMonth  = cellDate.getMonth() === _wpMonth;
-          const isToday  = cellKey === today;
-          const isSel = cellKey === (selectedDayKey || todayKey());
+          const isSel    = cellKey === (selectedDayKey || todayKey());
+          const log      = dayLog(cellKey);
+          const isOffDay = isWeekendKey(cellKey)
+                        || log?.override === 'holiday'
+                        || log?.override === 'leave';
 
           const cell = document.createElement('div');
           cell.className = 'wp-picker-day'
-            + (inMonth ? '' : ' wp-out')
-            + (isSel   ? ' wp-sel'   : '');
+            + (inMonth  ? '' : ' wp-out')
+            + (isOffDay ? ' wp-wknd' : '')
+            + (isSel    ? ' wp-sel'  : '');
           cell.textContent = cellDate.getDate();
           cell.onclick = (e) => { e.stopPropagation(); _wpSelectDay(cellKey); };
           row.appendChild(cell);
@@ -4474,7 +4487,11 @@
       if (!dayKey) return;
       _dsUserNav = true;
       const isFuture = new Date(dayKey + 'T12:00') > new Date() && dayKey !== todayKey();
-      if (isFuture) selectFutureDay(dayKey);
+      const log = dayLog(dayKey);
+      const isOff = isWeekendKey(dayKey) || log?.override === 'holiday' || log?.override === 'leave';
+      // Weekends and off-days always route through selectDay (handles weekend/holiday card);
+      // future work days go through selectFutureDay (shows planning UI).
+      if (isFuture && !isOff) selectFutureDay(dayKey);
       else selectDay(dayKey);
       _syncOffsetFromKey(dayKey);
       closeWeekPicker();
@@ -6402,7 +6419,7 @@
           onclick="_selectFuturePlanType('${key}','${p.key}',this)">${p.label}</button>`
       ).join('');
 
-      // Reason field
+      // Reason field — appears after a chip is picked
       const reasonWrap = el('futureDayReasonWrap');
       if (reasonWrap) {
         reasonWrap.style.display = hasPlan ? '' : 'none';
@@ -6410,18 +6427,11 @@
         if (ta) ta.value = log?.futureReason || '';
       }
 
-      // CTA button
+      // CTA button — slide in when chip is selected, hidden otherwise
+      const btnWrap = el('futurePlanBtnWrap');
+      if (btnWrap) btnWrap.classList.toggle('visible', hasPlan);
       const btn = el('futurePlanBtn');
-      if (btn) {
-        if (hasPlan) {
-          btn.textContent = 'Cancel Plan';
-          btn.style.cssText = 'font-size:13px;height:40px;border-radius:10px;background:transparent;color:var(--destructive);border:1.5px solid var(--destructive)';
-        } else {
-          btn.textContent = 'New Plan';
-          btn.style.cssText = 'font-size:13px;height:40px;border-radius:10px';
-        }
-        btn.onclick = () => toggleFuturePlanMode(key);
-      }
+      if (btn) btn.onclick = () => toggleFuturePlanMode(key);
     }
 
     function _selectFuturePlanType(key, planKey, btn) {
@@ -6429,7 +6439,7 @@
       const wasActive = btn.classList.contains('active');
 
       // Toggle selection
-      el('futureDayChips').querySelectorAll('.wp-override-btn').forEach(b => b.classList.remove('active'));
+      el('futureDayChips').querySelectorAll('.modal-override-btn').forEach(b => b.classList.remove('active'));
       if (wasActive) {
         // Deselect → remove plan
         const updated = { ...log }; delete updated.futurePlan; delete updated.futureReason;
@@ -6442,14 +6452,9 @@
     }
 
     function toggleFuturePlanMode(key) {
-      const log = dayLog(key) || {};
-      if (log.futurePlan) {
-        // Cancel plan
-        const updated = { ...log }; delete updated.futurePlan; delete updated.futureReason;
-        saveDayLog(key, updated);
-      }
-      // If no plan, just re-render (user picks type from chips)
+      // "Looks Good" — plan is already saved on chip click; just refresh the badge card
       _renderFutureDayInline(key, dayLog(key), week(daySelectorWeekOffset).find(d => d.key === key));
+      _renderFutureDayBadge();
     }
 
     function saveFutureDayReason(val) {

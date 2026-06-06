@@ -8226,7 +8226,16 @@ ${sig}`
       renderHistory();
       renderPenalties();
       renderSurplusCircles();
-      if (key === todayKey()) renderEmptyState();
+      if (key === todayKey()) {
+        renderEmptyState();
+      } else {
+        const _isFutureKey = new Date(key + 'T12:00') > new Date() && key !== todayKey();
+        if (_isFutureKey && key === selectedDayKey) {
+          const _day = week(daySelectorWeekOffset).find(d => d.key === key);
+          _renderFutureDayInline(key, dayLog(key), _day);
+          _renderFutureDayBadge();
+        }
+      }
       showUndoToast('Entry Deleted', () => {
         if (_deletedEntryKey && _deletedEntryData) {
           saveDayLogAndSync(_deletedEntryKey, _deletedEntryData);
@@ -8234,7 +8243,16 @@ ${sig}`
           renderHistory();
           renderPenalties();
           renderSurplusCircles();
-          if (_deletedEntryKey === todayKey()) renderEmptyState();
+          if (_deletedEntryKey === todayKey()) {
+            renderEmptyState();
+          } else {
+            const _isUndoFuture = new Date(_deletedEntryKey + 'T12:00') > new Date() && _deletedEntryKey !== todayKey();
+            if (_isUndoFuture && _deletedEntryKey === selectedDayKey) {
+              const _uDay = week(daySelectorWeekOffset).find(d => d.key === _deletedEntryKey);
+              _renderFutureDayInline(_deletedEntryKey, dayLog(_deletedEntryKey), _uDay);
+              _renderFutureDayBadge();
+            }
+          }
         }
         _deletedEntryKey = null; _deletedEntryData = null;
       });
@@ -8246,7 +8264,8 @@ ${sig}`
       const dayInfo = [...wk, ...allWk].find(d => d.key === (key || todayKey()));
       const log = dayLog(key);
       const d = new Date(key + 'T12:00');
-      el('dayEditTitle').textContent = 'Update Entry';
+      const _isFuturePlanModal = new Date(key + 'T12:00') > new Date() && key !== todayKey() && !!(log?.futurePlan);
+      el('dayEditTitle').textContent = _isFuturePlanModal ? 'Update Plan' : 'Update Entry';
       el('dayEditDesc').textContent = `${MONTHS[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
       el('deStart').value = log?.loginDisplay || '';
       el('deEnd').value   = log?.checkoutDisplay || '';

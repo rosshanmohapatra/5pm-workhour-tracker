@@ -3293,10 +3293,11 @@
         <div class="dialog-title" id="dayEditTitle">Edit Day</div>
         <div class="dialog-desc" id="dayEditDesc">Update times or mark a special day</div>
         <button id="dayEditDeleteBtn" title="Delete entry"
-          style="position:absolute;top:8px;right:8px;background:none;border:none;cursor:pointer;
-            padding:6px;border-radius:8px;color:var(--muted-fg);transition:color .15s,background .15s;display:flex;align-items:center;justify-content:center"
-          onmouseover="this.style.color='var(--destructive)';this.style.background='var(--destructive-bg)'" onmouseout="this.style.color='var(--muted-fg)';this.style.background='none'">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          style="position:absolute;top:10px;right:10px;width:32px;height:32px;padding:0;
+            border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;
+            font-size:14px;color:var(--destructive);background:var(--destructive-bg);
+            border:1px solid var(--destructive-border);transition:opacity .15s;">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
             <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
           </svg>
         </button>
@@ -3313,14 +3314,14 @@
         <div class="modal-time-row" id="deTimeRow">
           <div style="position:relative;flex:1" class="time-input-wrap">
             <input type="text" class="field-input" id="deStart" placeholder="Start time" autocomplete="off" style="padding-left:38px">
-            <button type="button" class="tp-icon-btn" onclick="openTpModal('deStart',event)" title="Pick time">
+            <button type="button" class="tp-icon-btn" onclick="openTpModal('deStart',event,'Login')" title="Pick time">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M16.5 13C17.0523 13 17.5 12.5523 17.5 12C17.5 11.4477 17.0523 11 16.5 11H13V5.5C13 4.94772 12.5523 4.5 12 4.5C11.4477 4.5 11 4.94772 11 5.5V12C11 12.5523 11.4477 13 12 13H16.5Z" fill="currentColor"/><path fill-rule="evenodd" clip-rule="evenodd" d="M12 1C5.92487 1 1 5.92487 1 12C1 18.0751 5.92487 23 12 23C18.0751 23 23 18.0751 23 12C23 5.92487 18.0751 1 12 1ZM3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12Z" fill="currentColor"/></svg>
             </button>
           </div>
           <span class="modal-time-sep">–</span>
           <div style="position:relative;flex:1" class="time-input-wrap">
             <input type="text" class="field-input" id="deEnd" placeholder="End time (optional)" autocomplete="off" style="padding-left:38px">
-            <button type="button" class="tp-icon-btn" onclick="openTpModal('deEnd',event)" title="Pick time">
+            <button type="button" class="tp-icon-btn" onclick="openTpModal('deEnd',event,'Logout')" title="Pick time">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M16.5 13C17.0523 13 17.5 12.5523 17.5 12C17.5 11.4477 17.0523 11 16.5 11H13V5.5C13 4.94772 12.5523 4.5 12 4.5C11.4477 4.5 11 4.94772 11 5.5V12C11 12.5523 11.4477 13 12 13H16.5Z" fill="currentColor"/><path fill-rule="evenodd" clip-rule="evenodd" d="M12 1C5.92487 1 1 5.92487 1 12C1 18.0751 5.92487 23 12 23C18.0751 23 23 18.0751 23 12C23 5.92487 18.0751 1 12 1ZM3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12Z" fill="currentColor"/></svg>
             </button>
           </div>
@@ -3329,7 +3330,7 @@
       </div>
       <div class="dialog-foot-row">
         <button class="btn btn-cancel" id="dayEditCancel">Cancel</button>
-        <button class="btn btn-primary" id="dayEditSave">Save</button>
+        <button class="btn btn-primary" id="dayEditSave">Update</button>
       </div>
     </div>
   </div>
@@ -5396,7 +5397,7 @@
     function _infoTitles(type, when) {
       const sunday = (cfg().workDays || 5) >= 6; // 6-day week → only Sunday is off
       if (type === 'holiday') {
-        if (when === 'past')   return { title: 'It was a Holiday',  sub: 'A day away from work.' };
+        if (when === 'past')   return { title: 'Holiday',  sub: 'A day away from work.' };
         if (when === 'future') return { title: 'Upcoming Holiday',  sub: 'A day off to look forward to.' };
         return { title: "It's a Holiday", sub: 'No work on this day.' };
       }
@@ -7615,7 +7616,7 @@
       window.scrollTo(0, 0);
       if (name === 'settings') populateSettings();
       if (name === 'analytics') renderAnalytics();
-      if (name === 'home') { if (loginDate) render(); else renderEmptyState(); _dsResetScroll(); }
+      if (name === 'home') { if (loginDate) render(); else renderEmptyState(); }
     }
 
     // ── ANALYTICS ──────────────────────────────────────

@@ -2084,7 +2084,7 @@
               <div id="wkndPageTitle" style="font-size:17px;font-weight:700;color:var(--foreground);letter-spacing:-.02em;margin-bottom:4px">Enjoy Your Weekend</div>
               <div id="wkndPageSubtitle" style="font-size:13px;color:var(--muted-fg);line-height:1.5">You're done with the week.</div>
               <div id="wkndCardTiming" style="display:none;font-size:13px;color:var(--muted-fg);margin-top:6px"></div>
-              <div id="wkndCardNote" style="display:none;font-size:13px;color:var(--muted-fg);margin-top:6px;line-height:1.5;text-align:left;white-space:pre-wrap"></div>
+              <div id="wkndCardNote" style="display:none;font-size:13px;color:var(--muted-fg);margin-top:6px;line-height:1.5;white-space:pre-wrap"></div>
             </div>
             <!-- Optional note: a short reminder of what this day was -->
             <div id="wkndNoteWrap" style="margin-bottom:16px">
@@ -6578,7 +6578,7 @@
         }
         // Note below timing
         const _ovNote = log?.futureReason
-          ? `<div style="font-size:13px;color:var(--muted-fg);margin-top:6px;line-height:1.5;text-align:left;white-space:pre-wrap">${log.futureReason}</div>`
+          ? `<div style="font-size:13px;color:var(--muted-fg);margin-top:6px;line-height:1.5;white-space:pre-wrap">${log.futureReason}</div>`
           : '';
         chipsEl.innerHTML = `<div class="override-info-editable" style="width:100%;box-sizing:border-box;text-align:center" onclick="openDayEditModal('${key}')">
           <div style="font-size:15px;font-weight:700;color:var(--foreground);margin-bottom:4px">${_ovLabel}</div>

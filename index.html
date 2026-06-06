@@ -5096,8 +5096,8 @@
       const wknd = isWeekend() && !loginDate;
       el('rcBody')?.classList.toggle('weekend-mode', wknd);
       if (wknd) {
-        selectedDayKey = '__wknd__';
-        renderWeekendState();
+        selectedDayKey = todayKey();
+        renderWeekendState(todayKey(), 'weekend');
         _updateDayNavBtns();
         return;
       }
@@ -10540,9 +10540,9 @@ ${sig}`
 
       const tk = todayKey();
       if (isWeekend()) {
-        // Weekend (respects Include Saturday toggle): land on weekend summary card
+        // Weekend: land on today's date card (Sat or Sun) in the strip
         daySelectorWeekOffset = 0;
-        selectedDayKey = '__wknd__';
+        selectedDayKey = tk;
       } else {
         daySelectorWeekOffset = 0;
         selectedDayKey = tk;
@@ -10595,9 +10595,11 @@ ${sig}`
         renderEmptyState(); // show card in read mode
       } else { renderEmptyState(); }
 
-      // If selected day is not today, render appropriately
+      // If selected day is not today, render appropriately; on weekends route
+      // through selectDay so the strip card gets the active class.
       if (selectedDayKey === '__wknd__') selectWeekendView();
       else if (selectedDayKey !== tk) selectDay(selectedDayKey);
+      else if (isWeekend()) selectDay(tk);
       else renderDaySelector();
 
       restoreSession();

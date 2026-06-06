@@ -1049,15 +1049,7 @@
     .this-week-header { display: flex; align-items: center; justify-content: space-between;
       padding: 12px; border-bottom: 1px solid var(--border); }
     .this-week-wrap .day-selector { padding: 16px; }
-    /* Edge-fade wrapper — gradient on left/right matches card bg, adapts to theme */
     .ds-fade-wrap { position: relative; }
-    .ds-fade-wrap::before,
-    .ds-fade-wrap::after {
-      content: ''; position: absolute; top: 0; bottom: 0; width: 32px;
-      pointer-events: none; z-index: 2;
-    }
-    .ds-fade-wrap::before { left:  0; background: linear-gradient(to right, var(--card), transparent); }
-    .ds-fade-wrap::after  { right: 0; background: linear-gradient(to left,  var(--card), transparent); }
     .this-week-label { font-size: 11px; font-weight: 600; color: var(--muted-fg); letter-spacing: .06em; text-transform: uppercase; }
     .this-week-label-btn { height:28px; padding:0 10px; border-radius:6px; border:1px solid var(--border);
       background:transparent; color:var(--muted-fg); font-size:11px; font-weight:600;

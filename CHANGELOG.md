@@ -14,8 +14,6 @@ Improved
 - Column headers in the report renamed from Entry and Exit to Login and Logout.
 - PDF text is now a uniform dark colour with lighter weight throughout.
 - Empty penalty cells show a dash instead of the word None.
-- Soft edge fades on the day strip so partially visible cards fade out cleanly.
-
 Fixed
 - The day strip opened on the wrong week when today is a Saturday.
 - Future work days in the strip no longer appear faded.

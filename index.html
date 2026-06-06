@@ -490,9 +490,10 @@
     .rc-body.weekend-mode #autostopBanner { display: none !important; }
     #weekendView { display: none; }
     .rc-body.weekend-mode #weekendView { display: block; animation: wknd-fade-in .28s ease; }
-    /* Override mode (holiday/leave/halfday weekday): note fills remaining card height */
+    /* Override mode (holiday/leave/halfday weekday): card fills remaining card height */
     .rc-body.weekend-mode { flex: 1; }
     #weekendView.override-mode { flex: 1; display: flex; flex-direction: column; }
+    #weekendView.override-mode #wkndOverrideInfoCard { flex: 1; }
     #weekendView.override-mode #wkndNoteWrap { flex: 1; display: flex; flex-direction: column; margin-bottom: 0; }
     #weekendView.override-mode #wkndNote { flex: 1; min-height: 80px; overflow-y: auto; height: auto; }
     @keyframes wknd-fade-in {
@@ -2082,6 +2083,8 @@
             <div id="wkndOverrideInfoCard" style="text-align:center;padding:8px 0 18px">
               <div id="wkndPageTitle" style="font-size:17px;font-weight:700;color:var(--foreground);letter-spacing:-.02em;margin-bottom:4px">Enjoy Your Weekend</div>
               <div id="wkndPageSubtitle" style="font-size:13px;color:var(--muted-fg);line-height:1.5">You're done with the week.</div>
+              <div id="wkndCardTiming" style="display:none;font-size:13px;color:var(--muted-fg);margin-top:6px"></div>
+              <div id="wkndCardNote" style="display:none;font-size:13px;color:var(--muted-fg);margin-top:6px;line-height:1.5;text-align:left;white-space:pre-wrap"></div>
             </div>
             <!-- Optional note: a short reminder of what this day was -->
             <div id="wkndNoteWrap" style="margin-bottom:16px">
@@ -5475,15 +5478,48 @@
         else noteEl.style.height = ''; // let flex handle height
       }
 
-      // ── Override info card: dashed + clickable for past override days ──
-      const _infoCard = el('wkndOverrideInfoCard');
-      const _editPanel = el('wkndOverrideEditPanel');
-      const _isPastOverride = type !== 'weekend' && when === 'past';
-      if (_infoCard) {
-        _infoCard.classList.toggle('override-info-editable', _isPastOverride);
-        _infoCard.style.padding = _isPastOverride ? '' : '8px 0 18px';
-        _infoCard.onclick = _isPastOverride ? () => openDayEditModal(key) : null;
+      // ── Info card + note ────────────────────────────────────────────────
+      const _infoCard    = el('wkndOverrideInfoCard');
+      const _isOverride  = type !== 'weekend';
+
+      // Subtitle: only for weekends
+      const _subtitleEl = el('wkndPageSubtitle');
+      if (_subtitleEl) _subtitleEl.style.display = _isOverride ? 'none' : '';
+
+      // Timing line (halfday only)
+      const _timingEl = el('wkndCardTiming');
+      if (_timingEl) {
+        if (_isOverride && type === 'halfday') {
+          const _ld = dayLog(key);
+          const _sd = getShiftDefaults();
+          const _login  = _ld?.loginDisplay    || _sd.start || '';
+          const _logout = _ld?.checkoutDisplay || _sd.end   || '';
+          const _t = [_login, _logout].filter(Boolean).join(' → ');
+          _timingEl.textContent = _t;
+          _timingEl.style.display = _t ? '' : 'none';
+        } else {
+          _timingEl.style.display = 'none';
+        }
       }
+
+      // Note text inside card (for override types)
+      const _cardNoteEl = el('wkndCardNote');
+      if (_cardNoteEl) {
+        const _noteText = dayLog(key)?.note || '';
+        _cardNoteEl.textContent = _noteText;
+        _cardNoteEl.style.display = (_isOverride && _noteText) ? '' : 'none';
+      }
+
+      // Dashed + clickable for all override types (past, present, future)
+      if (_infoCard) {
+        _infoCard.classList.toggle('override-info-editable', _isOverride);
+        _infoCard.style.padding = _isOverride ? '' : '8px 0 18px';
+        _infoCard.onclick = _isOverride ? () => openDayEditModal(key) : null;
+      }
+
+      // Note textarea: only for weekends
+      const _noteWrap = el('wkndNoteWrap');
+      if (_noteWrap) _noteWrap.style.display = _isOverride ? 'none' : '';
 
       // Stats + badge only shown on actual weekend days, not on weekday overrides
       const _isWeekendType = type === 'weekend';
@@ -6531,24 +6567,22 @@
       if (isConfirmed && _OV_PLANS.has(planKey)) {
         // Confirmed override → dashed info card, clicking opens Update Entry
         const _ovLabel = { holiday: 'Holiday', leave: 'Full Day Leave', halfday: 'Half Day' }[planKey];
-        // Subtitle: actual note if present, otherwise nothing
-        const _ovSub = log?.futureReason
-          ? `<div style="font-size:13px;color:var(--muted-fg);line-height:1.5">${log.futureReason}</div>`
-          : '';
-        // Half day: show Login → Logout timing if available, else shift defaults
+        // Timing first (halfday only)
         let _timingLine = '';
         if (planKey === 'halfday') {
           const _sd = getShiftDefaults();
           const _login  = log?.loginDisplay    || _sd.start || '';
           const _logout = log?.checkoutDisplay || _sd.end   || '';
-          if (_login || _logout) {
-            const _t = [_login, _logout].filter(Boolean).join(' → ');
-            _timingLine = `<div style="font-size:13px;color:var(--muted-fg);margin-top:6px">${_t}</div>`;
-          }
+          const _t = [_login, _logout].filter(Boolean).join(' → ');
+          if (_t) _timingLine = `<div style="font-size:13px;color:var(--muted-fg);margin-top:6px">${_t}</div>`;
         }
+        // Note below timing
+        const _ovNote = log?.futureReason
+          ? `<div style="font-size:13px;color:var(--muted-fg);margin-top:6px;line-height:1.5;text-align:left;white-space:pre-wrap">${log.futureReason}</div>`
+          : '';
         chipsEl.innerHTML = `<div class="override-info-editable" style="width:100%;box-sizing:border-box;text-align:center" onclick="openDayEditModal('${key}')">
           <div style="font-size:15px;font-weight:700;color:var(--foreground);margin-bottom:4px">${_ovLabel}</div>
-          ${_ovSub}${_timingLine}
+          ${_timingLine}${_ovNote}
         </div>`;
       } else {
         // Normal chip buttons

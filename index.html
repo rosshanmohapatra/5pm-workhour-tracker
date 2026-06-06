@@ -500,6 +500,21 @@
       from { opacity: 0; transform: translateY(8px); }
       to   { opacity: 1; transform: translateY(0);   }
     }
+    /* Smooth swap between the weekend note input and its saved dashed card */
+    @keyframes wknd-swap-in {
+      from { opacity: 0; transform: translateY(6px); }
+      to   { opacity: 1; transform: translateY(0);   }
+    }
+    .wknd-swap-in { animation: wknd-swap-in .22s ease both; }
+    .wknd-swap-out { opacity: 0; transform: translateY(-4px); transition: opacity .16s ease, transform .16s ease; }
+    /* Weekend note send button — secondary CTA, vertically centered on the right */
+    #wkndNoteSend { position: absolute; top: 50%; right: 8px; transform: translateY(-50%);
+      width: 32px; height: 32px; padding: 0; border-radius: 8px;
+      border: 1px solid var(--border); background: var(--muted); color: var(--foreground);
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      transition: background .15s, border-color .15s; }
+    #wkndNoteSend:hover { background: var(--card); border-color: var(--muted-fg); }
+    #wkndNoteSend:active { background: var(--muted); }
     .rc-numbers { display: flex; align-items: baseline; gap: 12px; }
     .rc-left-col { display: flex; flex-direction: column; gap: 2px; }
     .rc-right-col { margin-left:auto;display:flex;flex-direction:column;gap:2px;align-items:flex-end; }
@@ -2091,12 +2106,10 @@
               <div class="form-label" id="wkndNoteTitle" style="margin-bottom:8px">What did you do?</div>
               <div style="position:relative">
                 <textarea id="wkndNote" placeholder="write a short note" rows="1" maxlength="240"
-                  style="width:100%;box-sizing:border-box;resize:none;overflow-y:hidden;border:1px solid var(--border);border-radius:8px;background:var(--input-bg);color:var(--foreground);font-family:var(--font);font-size:13px;line-height:1.4;padding:9px 38px 9px 12px;outline:none;transition:border-color .15s"
+                  style="width:100%;box-sizing:border-box;resize:none;overflow-y:hidden;border:1px solid var(--border);border-radius:8px;background:var(--input-bg);color:var(--foreground);font-family:var(--font);font-size:13px;line-height:1.4;padding:9px 50px 9px 12px;outline:none;transition:border-color .15s"
                   oninput="_wkndNoteAutoGrow(this)" onkeydown="_wkndNoteKey(event,this)"></textarea>
-                <button onclick="_submitWkndNote()" title="Save note"
-                  style="position:absolute;bottom:7px;right:7px;width:26px;height:26px;padding:0;border-radius:6px;border:none;background:var(--foreground);color:var(--bg);cursor:pointer;display:flex;align-items:center;justify-content:center;opacity:.85;transition:opacity .15s;flex-shrink:0"
-                  onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='.85'">
-                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <button id="wkndNoteSend" onclick="_submitWkndNote()" title="Save note">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                     <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
                   </svg>
                 </button>
@@ -5413,9 +5426,19 @@
       if (!noteEl) return;
       const val = noteEl.value.trim();
       if (!val) { noteEl.focus(); return; }
-      saveWkndNote(val);
       const key = noteEl.dataset.key;
-      renderWeekendState(key, 'weekend');
+      saveWkndNote(val);
+      // Fade the input out, then render the dashed card with a fade-in
+      const noteWrap = el('wkndNoteWrap');
+      const showCard = () => {
+        renderWeekendState(key, 'weekend');
+        const card = el('wkndOverrideInfoCard');
+        if (card) { card.classList.remove('wknd-swap-in'); void card.offsetWidth; card.classList.add('wknd-swap-in'); }
+      };
+      if (noteWrap) {
+        noteWrap.classList.add('wknd-swap-out');
+        setTimeout(() => { noteWrap.classList.remove('wknd-swap-out'); showCard(); }, 160);
+      } else { showCard(); }
     }
     function _editWkndNote(key) {
       const infoCard = el('wkndOverrideInfoCard');
@@ -5423,15 +5446,27 @@
       const noteWrap = el('wkndNoteWrap');
       const subtitleEl = el('wkndPageSubtitle');
       const titleEl = el('wkndPageTitle');
-      if (infoCard) { infoCard.classList.remove('override-info-editable'); infoCard.style.padding = '8px 0 18px'; infoCard.onclick = null; }
-      if (cardNote) cardNote.style.display = 'none';
-      if (noteWrap) noteWrap.style.display = '';
-      if (subtitleEl) subtitleEl.style.display = '';
-      const woff = _weekOffsetForKey(key);
-      const when = woff < 0 ? 'past' : woff > 0 ? 'future' : 'present';
-      if (titleEl) titleEl.textContent = _infoTitles('weekend', when).title;
-      const noteEl = el('wkndNote');
-      if (noteEl) { noteEl.dataset.key = key; noteEl.value = dayLog(key)?.note || ''; _wkndNoteAutoGrow(noteEl); requestAnimationFrame(() => noteEl.focus()); }
+      const swapToInput = () => {
+        if (infoCard) { infoCard.classList.remove('override-info-editable', 'wknd-swap-out'); infoCard.style.padding = '8px 0 18px'; infoCard.onclick = null; }
+        if (cardNote) cardNote.style.display = 'none';
+        if (subtitleEl) subtitleEl.style.display = '';
+        const woff = _weekOffsetForKey(key);
+        const when = woff < 0 ? 'past' : woff > 0 ? 'future' : 'present';
+        if (titleEl) titleEl.textContent = _infoTitles('weekend', when).title;
+        const noteEl = el('wkndNote');
+        if (noteEl) { noteEl.dataset.key = key; noteEl.value = dayLog(key)?.note || ''; _wkndNoteAutoGrow(noteEl); }
+        if (noteWrap) {
+          noteWrap.classList.remove('wknd-swap-out');
+          noteWrap.style.display = '';
+          noteWrap.classList.remove('wknd-swap-in'); void noteWrap.offsetWidth; noteWrap.classList.add('wknd-swap-in');
+        }
+        if (noteEl) requestAnimationFrame(() => noteEl.focus());
+      };
+      // Fade the card out first, then reveal the input
+      if (infoCard) {
+        infoCard.classList.add('wknd-swap-out');
+        setTimeout(swapToInput, 160);
+      } else { swapToInput(); }
     }
     // Week offset of a date key relative to the current week (0 = this week).
     function _weekOffsetForKey(key) {

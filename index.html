@@ -6460,15 +6460,18 @@
       if (btnWrap) btnWrap.classList.toggle('visible', hasPlan);
       if (btn) {
         if (!hasPlan) {
-          // No chip selected — reset entirely
           btn.classList.remove('state-success', 'state-cancel');
           btn.innerHTML = 'Looks Good';
-        } else if (btn.dataset.planKey !== planKey) {
-          // Different chip selected — reset to Looks Good for the new choice
+        } else if (_freshlySelectedPlanKeys.has(key)) {
+          // Chip just picked this session, not yet confirmed — show Looks Good
           btn.classList.remove('state-success', 'state-cancel');
           btn.innerHTML = 'Looks Good';
+        } else {
+          // Plan exists and was already confirmed (or from a previous session) — Cancel Plan
+          btn.classList.remove('state-success');
+          btn.classList.add('state-cancel');
+          btn.innerHTML = 'Cancel Plan';
         }
-        btn.dataset.planKey = planKey || '';
         btn.onclick = () => toggleFuturePlanMode(key);
       }
     }
@@ -6483,14 +6486,19 @@
         // Deselect → remove plan
         const updated = { ...log }; delete updated.futurePlan; delete updated.futureReason;
         saveDayLog(key, updated);
+        _freshlySelectedPlanKeys.delete(key);
       } else {
         btn.classList.add('active');
         saveDayLog(key, { ...log, futurePlan: planKey });
+        _freshlySelectedPlanKeys.add(key); // fresh pick — not yet confirmed
       }
       _renderFutureDayInline(key, dayLog(key), week(daySelectorWeekOffset).find(d => d.key === key));
     }
 
     let _futurePlanKey = null; // tracks which day the cancel modal targets
+    // Day keys where chip was just picked this session but "Looks Good" not yet clicked.
+    // Any key NOT in this set that already has a plan shows "Cancel Plan" on render.
+    const _freshlySelectedPlanKeys = new Set();
 
     function toggleFuturePlanMode(key) {
       const btn = el('futurePlanBtn');
@@ -6500,7 +6508,8 @@
         _openCancelPlanModal(key);
         return;
       }
-      // "Looks Good" clicked — plan already saved; show success then transition to Cancel Plan
+      // "Looks Good" clicked — plan already saved; mark confirmed, show success then Cancel Plan
+      _freshlySelectedPlanKeys.delete(key);
       btn.classList.add('state-success');
       btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#09090b" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><polyline points="20 6 9 17 4 12"/></svg>&nbsp;Saved';
       btn.onclick = null; // freeze during success flash
@@ -6530,6 +6539,7 @@
       const log = dayLog(key) || {};
       const updated = { ...log }; delete updated.futurePlan; delete updated.futureReason;
       saveDayLog(key, updated);
+      _freshlySelectedPlanKeys.delete(key);
       _futurePlanKey = null;
       _renderFutureDayInline(key, dayLog(key), week(daySelectorWeekOffset).find(d => d.key === key));
       _renderFutureDayBadge();

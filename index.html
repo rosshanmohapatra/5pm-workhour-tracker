@@ -2089,9 +2089,18 @@
             <!-- Optional note: a short reminder of what this day was -->
             <div id="wkndNoteWrap" style="margin-bottom:16px">
               <div class="form-label" id="wkndNoteTitle" style="margin-bottom:8px">What did you do?</div>
-              <textarea id="wkndNote" placeholder="write a short note" rows="1" maxlength="240"
-                style="width:100%;box-sizing:border-box;resize:none;overflow-y:hidden;border:1px solid var(--border);border-radius:8px;background:var(--input-bg);color:var(--foreground);font-family:var(--font);font-size:13px;line-height:1.4;padding:9px 12px;outline:none;transition:border-color .15s"
-                oninput="_wkndNoteAutoGrow(this)" onkeydown="_wkndNoteKey(event,this)" onchange="saveWkndNote(this.value)"></textarea>
+              <div style="position:relative">
+                <textarea id="wkndNote" placeholder="write a short note" rows="1" maxlength="240"
+                  style="width:100%;box-sizing:border-box;resize:none;overflow-y:hidden;border:1px solid var(--border);border-radius:8px;background:var(--input-bg);color:var(--foreground);font-family:var(--font);font-size:13px;line-height:1.4;padding:9px 38px 9px 12px;outline:none;transition:border-color .15s"
+                  oninput="_wkndNoteAutoGrow(this)" onkeydown="_wkndNoteKey(event,this)"></textarea>
+                <button onclick="_submitWkndNote()" title="Save note"
+                  style="position:absolute;bottom:7px;right:7px;width:26px;height:26px;padding:0;border-radius:6px;border:none;background:var(--foreground);color:var(--bg);cursor:pointer;display:flex;align-items:center;justify-content:center;opacity:.85;transition:opacity .15s;flex-shrink:0"
+                  onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='.85'">
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+                  </svg>
+                </button>
+              </div>
             </div>
             <div id="wkndStatsSection">
               <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
@@ -5392,13 +5401,37 @@
       ta.style.height = Math.min(needed, maxH) + 'px';
       ta.style.overflowY = needed > maxH ? 'auto' : 'hidden';
     }
-    // Enter saves and exits the field; Shift+Enter inserts a line break.
+    // Enter submits the note; Shift+Enter inserts a line break.
     function _wkndNoteKey(e, ta) {
       if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
-        saveWkndNote(ta.value);
-        ta.blur();
+        _submitWkndNote();
       }
+    }
+    function _submitWkndNote() {
+      const noteEl = el('wkndNote');
+      if (!noteEl) return;
+      const val = noteEl.value.trim();
+      if (!val) { noteEl.focus(); return; }
+      saveWkndNote(val);
+      const key = noteEl.dataset.key;
+      renderWeekendState(key, 'weekend');
+    }
+    function _editWkndNote(key) {
+      const infoCard = el('wkndOverrideInfoCard');
+      const cardNote = el('wkndCardNote');
+      const noteWrap = el('wkndNoteWrap');
+      const subtitleEl = el('wkndPageSubtitle');
+      const titleEl = el('wkndPageTitle');
+      if (infoCard) { infoCard.classList.remove('override-info-editable'); infoCard.style.padding = '8px 0 18px'; infoCard.onclick = null; }
+      if (cardNote) cardNote.style.display = 'none';
+      if (noteWrap) noteWrap.style.display = '';
+      if (subtitleEl) subtitleEl.style.display = '';
+      const woff = _weekOffsetForKey(key);
+      const when = woff < 0 ? 'past' : woff > 0 ? 'future' : 'present';
+      if (titleEl) titleEl.textContent = _infoTitles('weekend', when).title;
+      const noteEl = el('wkndNote');
+      if (noteEl) { noteEl.dataset.key = key; noteEl.value = dayLog(key)?.note || ''; _wkndNoteAutoGrow(noteEl); requestAnimationFrame(() => noteEl.focus()); }
     }
     // Week offset of a date key relative to the current week (0 = this week).
     function _weekOffsetForKey(key) {
@@ -5470,10 +5503,12 @@
       // ── Info card + note ────────────────────────────────────────────────
       const _infoCard    = el('wkndOverrideInfoCard');
       const _isOverride  = type !== 'weekend';
+      // Weekend with a saved note shows a dashed card like holiday/leave
+      const _hasWkndNote = !_isOverride && !!(dayLog(noteKey)?.note?.trim());
 
-      // Note textarea: only for weekends — show/hide BEFORE auto-grow so scrollHeight is correct
+      // Note textarea: hidden for overrides or when weekend note already saved
       const _noteWrap = el('wkndNoteWrap');
-      if (_noteWrap) _noteWrap.style.display = _isOverride ? 'none' : '';
+      if (_noteWrap) _noteWrap.style.display = (_isOverride || _hasWkndNote) ? 'none' : '';
 
       // Override mode: note textarea fills remaining card height — skip auto-grow
       const _wkndView = el('weekendView');
@@ -5486,9 +5521,12 @@
         else noteEl.style.height = ''; // let flex handle height
       }
 
-      // Subtitle: only for weekends
+      // Subtitle: hidden for overrides and for weekends with a saved note
       const _subtitleEl = el('wkndPageSubtitle');
-      if (_subtitleEl) _subtitleEl.style.display = _isOverride ? 'none' : '';
+      if (_subtitleEl) _subtitleEl.style.display = (_isOverride || _hasWkndNote) ? 'none' : '';
+
+      // Title: "Weekend" when note card is showing, otherwise normal greeting
+      if (el('wkndPageTitle')) el('wkndPageTitle').textContent = _hasWkndNote ? 'Weekend' : ti.title;
 
       // Timing line (halfday only)
       const _timingEl = el('wkndCardTiming');
@@ -5506,11 +5544,14 @@
         }
       }
 
-      // Note text inside card (for override types)
+      // Note text inside card (for override types and weekends with a saved note)
       const _cardNoteEl = el('wkndCardNote');
       if (_cardNoteEl) {
-        const _noteText = dayLog(key)?.note || '';
-        if (_isOverride && _noteText) {
+        const _noteText = _isOverride ? (dayLog(key)?.note || '') : (dayLog(noteKey)?.note?.trim() || '');
+        if (_hasWkndNote) {
+          _cardNoteEl.textContent = _noteText;
+          _cardNoteEl.style.display = '';
+        } else if (_isOverride && _noteText) {
           _cardNoteEl.textContent = _noteText;
           _cardNoteEl.style.color = '';
           _cardNoteEl.style.opacity = '';
@@ -5527,11 +5568,12 @@
         }
       }
 
-      // Dashed + clickable for all override types (past, present, future)
+      // Dashed + clickable for overrides and weekends with a saved note
+      const _showDashedCard = _isOverride || _hasWkndNote;
       if (_infoCard) {
-        _infoCard.classList.toggle('override-info-editable', _isOverride);
-        _infoCard.style.padding = _isOverride ? '' : '8px 0 18px';
-        _infoCard.onclick = _isOverride ? () => openDayEditModal(key) : null;
+        _infoCard.classList.toggle('override-info-editable', _showDashedCard);
+        _infoCard.style.padding = _showDashedCard ? '' : '8px 0 18px';
+        _infoCard.onclick = _isOverride ? () => openDayEditModal(key) : (_hasWkndNote ? () => _editWkndNote(noteKey) : null);
       }
 
       // Stats + badge only shown on actual weekend days, not on weekday overrides

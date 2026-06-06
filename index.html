@@ -988,14 +988,16 @@
     /* Future plan CTA — slides in when a chip is selected */
     .future-plan-cta { overflow: hidden; max-height: 0; opacity: 0;
       transition: max-height .25s ease, opacity .2s ease; pointer-events: none; }
-    .future-plan-cta.visible { max-height: 56px; opacity: 1; pointer-events: auto; }
+    .future-plan-cta.visible { max-height: 64px; opacity: 1; pointer-events: auto; }
+    /* Two-button row: right-aligned on desktop, full-width side-by-side on mobile */
+    .future-plan-actions { display: flex; gap: 8px; justify-content: flex-end; }
+    @media (max-width: 640px) {
+      .future-plan-actions > button { flex: 1; }
+    }
     /* Button state variants */
     #futurePlanBtn.state-success { background: #fff; border-color: #fff;
       color: #09090b; pointer-events: none; transition: background .2s, color .2s; }
     .dark #futurePlanBtn.state-success { background: #fff; border-color: #fff; color: #09090b; }
-    #futurePlanBtn.state-cancel { background: transparent; color: var(--destructive);
-      border: 1.5px solid var(--destructive); transition: background .2s, color .2s; }
-    #futurePlanBtn.state-cancel:hover { background: var(--destructive-bg); }
     .modal-override-btn { height: 32px; padding: 0 12px; border-radius: var(--radius-md);
       border: 1px solid var(--border); background: var(--muted); color: var(--foreground);
       font-size: 12px; font-weight: 500; font-family: var(--font); cursor: pointer;
@@ -1954,9 +1956,12 @@
               style="width:100%;resize:none;border:1px solid var(--border);border-radius:8px;background:var(--input-bg);color:var(--foreground);font-family:var(--font);font-size:13px;padding:10px 12px;outline:none;transition:border-color .15s"
               oninput="saveFutureDayReason(this.value)"></textarea>
           </div>
-          <!-- CTA button — hidden until a chip is selected -->
+          <!-- CTA buttons — hidden until a chip is selected -->
           <div id="futurePlanBtnWrap" class="future-plan-cta">
-            <button class="shift-start-btn" id="futurePlanBtn" style="font-size:13px;height:40px;border-radius:10px;width:100%">Looks Good</button>
+            <div class="future-plan-actions">
+              <button class="btn-secondary" id="futurePlanDiscardBtn" style="height:36px;padding:0 16px;border-radius:10px;font-size:13px">Discard</button>
+              <button class="shift-start-btn" id="futurePlanBtn" style="font-size:13px;height:36px;border-radius:10px;padding:0 20px">Looks Good</button>
+            </div>
           </div>
         </div>
       </div>
@@ -6141,11 +6146,13 @@
       btn.dataset.key = day.key;
       if (day.isWeekend) btn.classList.add('wkd-btn');
       if (selKey && day.key === selKey) btn.classList.add('active');
-      if (log?.hoursWorked != null && log?.override !== 'leave' && log?.override !== 'holiday') {
+      // Penalty dot: only past/today with actual hours (> 0 guards realtime echo noise)
+      if (!isFuture && log?.hoursWorked > 0 && log?.override !== 'leave' && log?.override !== 'holiday') {
         const t = c.dailyH * 3600, dt = log?.override === 'halfday' ? t / 2 : t;
         if ((dt - log.hoursWorked * 3600) > 300) btn.classList.add('has-penalty');
       }
-      if (log?.futurePlan) btn.classList.add('has-plan');
+      // Plan dot: only future work days (not weekends)
+      if (isFuture && !day.isWeekend && log?.futurePlan) btn.classList.add('has-plan');
       if (isFuture) btn.classList.add('future');
       btn.innerHTML = `<span class="dsel-name">${day.name.slice(0,3)}</span>`
                     + `<span class="dsel-num">${day.date.getDate()}</span>`
@@ -6192,11 +6199,13 @@
           const log = dayLog(key);
           btn.classList.toggle('future', new Date(key + 'T12:00') > now && key !== tk);
           btn.classList.remove('has-penalty', 'has-plan');
-          if (log?.hoursWorked != null && log?.override !== 'leave' && log?.override !== 'holiday') {
+          const _isFutureKey = new Date(key + 'T12:00') > now && key !== tk;
+          const _isWkd = btn.classList.contains('wkd-btn');
+          if (!_isFutureKey && log?.hoursWorked > 0 && log?.override !== 'leave' && log?.override !== 'holiday') {
             const t = c.dailyH * 3600, dt = log?.override === 'halfday' ? t / 2 : t;
             if ((dt - log.hoursWorked * 3600) > 300) btn.classList.add('has-penalty');
           }
-          if (log?.futurePlan) btn.classList.add('has-plan');
+          if (_isFutureKey && !_isWkd && log?.futurePlan) btn.classList.add('has-plan');
         });
         if (!selKey || selFound) {
           if (selKey && (selKey !== _dsSel || _dsUserNav)) {
@@ -6459,27 +6468,18 @@
         if (ta) ta.value = log?.futureReason || '';
       }
 
-      // CTA button — hidden when no chip, default "Looks Good" when chip just selected,
-      // or "Cancel Plan" state if plan was already previously confirmed.
+      // CTA buttons — both visible when a chip is selected
       const btnWrap = el('futurePlanBtnWrap');
-      const btn     = el('futurePlanBtn');
       if (btnWrap) btnWrap.classList.toggle('visible', hasPlan);
-      if (btn) {
-        if (!hasPlan) {
-          btn.classList.remove('state-success', 'state-cancel');
-          btn.innerHTML = 'Looks Good';
-        } else if (_freshlySelectedPlanKeys.has(key)) {
-          // Chip just picked this session, not yet confirmed — show Looks Good
-          btn.classList.remove('state-success', 'state-cancel');
-          btn.innerHTML = 'Looks Good';
-        } else {
-          // Plan exists and was already confirmed (or from a previous session) — Cancel Plan
-          btn.classList.remove('state-success');
-          btn.classList.add('state-cancel');
-          btn.innerHTML = 'Cancel Plan';
-        }
+
+      const btn        = el('futurePlanBtn');
+      const discardBtn = el('futurePlanDiscardBtn');
+      if (btn && !btn.classList.contains('state-success')) {
+        btn.classList.remove('state-success');
+        btn.innerHTML = 'Looks Good';
         btn.onclick = () => toggleFuturePlanMode(key);
       }
+      if (discardBtn) discardBtn.onclick = () => _openCancelPlanModal(key);
     }
 
     function _selectFuturePlanType(key, planKey, btn) {
@@ -6493,6 +6493,7 @@
       saveDayLogAndSync(key, { ...log, futurePlan: planKey });
       _freshlySelectedPlanKeys.add(key); // fresh pick — not yet confirmed
       _renderFutureDayInline(key, dayLog(key), week(daySelectorWeekOffset).find(d => d.key === key));
+      _renderFutureDayBadge();
     }
 
     let _futurePlanKey = null; // tracks which day the cancel modal targets
@@ -6503,21 +6504,15 @@
     function toggleFuturePlanMode(key) {
       const btn = el('futurePlanBtn');
       if (!btn) return;
-      if (btn.classList.contains('state-cancel')) {
-        // Already in cancel state → open confirmation modal
-        _openCancelPlanModal(key);
-        return;
-      }
-      // "Looks Good" clicked — plan already saved; mark confirmed, show success then Cancel Plan
+      // "Looks Good" clicked — show saved flash then reset
       _freshlySelectedPlanKeys.delete(key);
       btn.classList.add('state-success');
       btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#09090b" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><polyline points="20 6 9 17 4 12"/></svg>&nbsp;Saved';
-      btn.onclick = null; // freeze during success flash
+      btn.onclick = null;
       setTimeout(() => {
         btn.classList.remove('state-success');
-        btn.classList.add('state-cancel');
-        btn.innerHTML = 'Cancel Plan';
-        btn.onclick = () => _openCancelPlanModal(key);
+        btn.innerHTML = 'Looks Good';
+        btn.onclick = () => toggleFuturePlanMode(key);
         _renderFutureDayBadge();
       }, 1400);
     }
@@ -8905,6 +8900,8 @@ ${sig}`
               new Date(local.lastUpdated) >= new Date(newRow.updated_at)) return;
           const loginDt  = newRow.login_time  ? new Date(newRow.login_time)  : null;
           const logoutDt = newRow.logout_time ? new Date(newRow.logout_time) : null;
+          // Preserve local-only fields (futurePlan, futureReason) not stored in DB columns
+          const _existing = Store.getDay(dk) || {};
           Store.setDay(dk, {
             ...(loginDt  ? { loginTime: `${loginDt.getHours()}:${loginDt.getMinutes()}:${loginDt.getSeconds()}`,
                              loginDisplay: short(loginDt) } : {}),
@@ -8912,12 +8909,25 @@ ${sig}`
             hoursWorked: parseFloat(newRow.hours_worked) || 0,
             sessionTag:  newRow.status === 'auto_stopped' ? 'autostopped' : 'realtime',
             override:    SbSync._OVERRIDES.has(newRow.override_type) ? newRow.override_type : null,
+            ...(newRow.notes ? { note: newRow.notes } : {}),
+            // Preserve plan fields — they live only in localStorage
+            ...(_existing.futurePlan  ? { futurePlan:   _existing.futurePlan  } : {}),
+            ...(_existing.futureReason? { futureReason:  _existing.futureReason } : {}),
             lastUpdated: newRow.updated_at,
           });
         }
         renderDaySelector();
         renderHistory();
-        if (!loginDate) renderEmptyState();
+        // Don't collapse future-day plan view on realtime echo
+        const _onFuturePlanView = el('futureDayPlan')?.style.display !== 'none';
+        if (_onFuturePlanView) {
+          const _log = Store.getDay(selectedDayKey);
+          const _day = week(daySelectorWeekOffset).find(d => d.key === selectedDayKey);
+          _renderFutureDayInline(selectedDayKey, _log, _day);
+          _renderFutureDayBadge();
+        } else if (!loginDate) {
+          renderEmptyState();
+        }
       } finally { _applyingRemote = false; }
     }
 

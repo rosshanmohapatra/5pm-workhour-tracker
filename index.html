@@ -6484,7 +6484,7 @@
       el('futureDayChips').querySelectorAll('.modal-override-btn').forEach(b => b.classList.remove('active'));
       if (wasActive) return; // already selected — only Cancel Plan button can remove it
       btn.classList.add('active');
-      saveDayLog(key, { ...log, futurePlan: planKey });
+      saveDayLogAndSync(key, { ...log, futurePlan: planKey });
       _freshlySelectedPlanKeys.add(key); // fresh pick — not yet confirmed
       _renderFutureDayInline(key, dayLog(key), week(daySelectorWeekOffset).find(d => d.key === key));
     }
@@ -6532,7 +6532,7 @@
       el('cancelPlanOverlay').classList.remove('open');
       const log = dayLog(key) || {};
       const updated = { ...log }; delete updated.futurePlan; delete updated.futureReason;
-      saveDayLog(key, updated);
+      saveDayLogAndSync(key, updated);
       _freshlySelectedPlanKeys.delete(key);
       _futurePlanKey = null;
       _renderFutureDayInline(key, dayLog(key), week(daySelectorWeekOffset).find(d => d.key === key));
@@ -6542,7 +6542,7 @@
     function saveFutureDayReason(val) {
       const log = dayLog(selectedDayKey) || {};
       if (!log.futurePlan) return;
-      saveDayLog(selectedDayKey, { ...log, futureReason: val });
+      saveDayLogAndSync(selectedDayKey, { ...log, futureReason: val });
     }
 
 
@@ -8735,9 +8735,8 @@ ${sig}`
       let failed = false;
       const failedDays = [];
 
-      // Batch day pushes — never push future dates (futurePlan flags stay local)
+      // Batch day pushes — includes future dates (plans and notes on upcoming days)
       for (const dk of days) {
-        if (dk > todayKey()) continue;
         const entry = Store.getDay(dk);
         if (entry) {
           const ok = await SbSync.pushDay(dk, entry);

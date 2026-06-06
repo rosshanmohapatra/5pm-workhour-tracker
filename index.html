@@ -2735,7 +2735,7 @@
 
   <!-- ── Weekly Report Modal ── -->
   <div class="overlay" id="weekReportOverlay" onclick="if(event.target===this)closeWeekReport()">
-    <div class="dialog" style="width:fit-content;max-width:min(92vw,800px);max-height:90vh;display:flex;flex-direction:column">
+    <div class="dialog" style="width:fit-content;max-width:min(92vw,900px);max-height:90vh;display:flex;flex-direction:column">
       <div class="dialog-head" style="flex-shrink:0;display:flex;align-items:flex-start;justify-content:space-between;padding:16px">
         <div>
           <div class="st-tabs" id="reportTabs" style="display:inline-flex;margin-bottom:8px">
@@ -11121,6 +11121,10 @@ ${sig}`
     }
 
     document.addEventListener('touchstart', function (e) {
+      // Disable PTR when any modal/overlay is open — prevents scroll-lock inside modals
+      if (document.querySelector('.overlay.open, .wp-picker-overlay.open')) {
+        atTop = false; startY = 0; return;
+      }
       atTop      = getScrollTop() <= 5; // 5px tolerance for iOS rubber-band
       startY     = atTop ? e.touches[0].pageY : 0;
       pulling    = false;

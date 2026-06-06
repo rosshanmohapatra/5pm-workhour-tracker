@@ -6482,16 +6482,10 @@
 
       // Toggle selection
       el('futureDayChips').querySelectorAll('.modal-override-btn').forEach(b => b.classList.remove('active'));
-      if (wasActive) {
-        // Deselect → remove plan
-        const updated = { ...log }; delete updated.futurePlan; delete updated.futureReason;
-        saveDayLog(key, updated);
-        _freshlySelectedPlanKeys.delete(key);
-      } else {
-        btn.classList.add('active');
-        saveDayLog(key, { ...log, futurePlan: planKey });
-        _freshlySelectedPlanKeys.add(key); // fresh pick — not yet confirmed
-      }
+      if (wasActive) return; // already selected — only Cancel Plan button can remove it
+      btn.classList.add('active');
+      saveDayLog(key, { ...log, futurePlan: planKey });
+      _freshlySelectedPlanKeys.add(key); // fresh pick — not yet confirmed
       _renderFutureDayInline(key, dayLog(key), week(daySelectorWeekOffset).find(d => d.key === key));
     }
 

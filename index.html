@@ -1042,7 +1042,8 @@
     .day-sel-btn .dsel-num  { font-size: 18px; font-weight: 700; line-height: 1; }
     .day-sel-btn .dsel-dot  { width: 4px; height: 4px; border-radius: 50%;
       background: var(--warning); opacity: 0; transition: opacity .15s; }
-    .day-sel-btn.has-penalty .dsel-dot { opacity: 1; }
+    .day-sel-btn.has-penalty .dsel-dot,
+    .day-sel-btn.has-plan .dsel-dot { opacity: 1; }
     /* Weekday hover — past or future, bright highlight */
     .day-sel-btn:hover:not(:disabled):not(.active):not(.wkd-btn) { border-color: var(--foreground); color: var(--foreground); background: var(--muted); cursor: pointer; }
     .day-sel-btn.active { background: var(--btn-primary-bg); color: var(--card); border-color: var(--btn-primary-bg); }
@@ -6143,6 +6144,7 @@
         const t = c.dailyH * 3600, dt = log?.override === 'halfday' ? t / 2 : t;
         if ((dt - log.hoursWorked * 3600) > 300) btn.classList.add('has-penalty');
       }
+      if (log?.futurePlan) btn.classList.add('has-plan');
       if (isFuture) btn.classList.add('future');
       btn.innerHTML = `<span class="dsel-name">${day.name.slice(0,3)}</span>`
                     + `<span class="dsel-num">${day.date.getDate()}</span>`
@@ -6188,11 +6190,12 @@
           if (isActive) selFound = true;
           const log = dayLog(key);
           btn.classList.toggle('future', new Date(key + 'T12:00') > now && key !== tk);
-          btn.classList.remove('has-penalty');
+          btn.classList.remove('has-penalty', 'has-plan');
           if (log?.hoursWorked != null && log?.override !== 'leave' && log?.override !== 'holiday') {
             const t = c.dailyH * 3600, dt = log?.override === 'halfday' ? t / 2 : t;
             if ((dt - log.hoursWorked * 3600) > 300) btn.classList.add('has-penalty');
           }
+          if (log?.futurePlan) btn.classList.add('has-plan');
         });
         if (!selKey || selFound) {
           if (selKey && (selKey !== _dsSel || _dsUserNav)) {
@@ -6291,6 +6294,7 @@
     function selectDay(key) {
       const tk = todayKey();
       selectedDayKey = key;
+      localStorage.setItem('wh_sel_day', key);
       el('rcBody')?.classList.remove('weekend-mode');
       renderDaySelector();
       updateSelDayHeader(key);
@@ -6395,6 +6399,7 @@
 
     function selectFutureDay(key) {
       selectedDayKey = key;
+      localStorage.setItem('wh_sel_day', key);
       el('rcBody')?.classList.remove('weekend-mode');
       renderDaySelector();
 
@@ -10625,14 +10630,10 @@ ${sig}`
       tickHeader();
 
       const tk = todayKey();
-      if (isWeekend()) {
-        // Weekend: land on today's date card (Sat or Sun) in the strip
-        daySelectorWeekOffset = 0;
-        selectedDayKey = tk;
-      } else {
-        daySelectorWeekOffset = 0;
-        selectedDayKey = tk;
-      }
+      const _savedDay = localStorage.getItem('wh_sel_day');
+      // Restore last-viewed day if it looks like a valid date key; else fall back to today
+      selectedDayKey = (_savedDay && /^\d{4}-\d{2}-\d{2}$/.test(_savedDay)) ? _savedDay : tk;
+      daySelectorWeekOffset = 0;
       updateSelDayHeader(selectedDayKey);
 
       // Notification permission warning

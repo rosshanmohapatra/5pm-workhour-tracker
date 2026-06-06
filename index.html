@@ -985,6 +985,15 @@
 
     /* ── Day edit modal ── */
     .modal-override-row { display: flex; gap: 6px; flex-wrap: wrap; }
+    .de-note-wrap { overflow: hidden; max-height: 0; opacity: 0;
+      transition: max-height .25s ease, opacity .2s ease; }
+    .de-note-wrap.visible { max-height: 120px; opacity: 1; }
+    .de-note-wrap textarea { width: 100%; resize: none; box-sizing: border-box;
+      margin-top: 10px; background: var(--input-bg, var(--muted));
+      border: 1px solid var(--border); border-radius: 10px; padding: 9px 12px;
+      font-size: 13px; color: var(--fg); font-family: inherit; line-height: 1.4;
+      outline: none; }
+    .de-note-wrap textarea:focus { border-color: var(--accent); }
     /* Future plan CTA — slides in when a chip is selected */
     .future-plan-cta { overflow: hidden; max-height: 0; opacity: 0;
       transition: max-height .25s ease, opacity .2s ease; pointer-events: none; }
@@ -2060,14 +2069,6 @@
             <div id="wkndOverrideInfoCard" style="text-align:center;padding:8px 0 18px">
               <div id="wkndPageTitle" style="font-size:17px;font-weight:700;color:var(--foreground);letter-spacing:-.02em;margin-bottom:4px">Enjoy Your Weekend</div>
               <div id="wkndPageSubtitle" style="font-size:13px;color:var(--muted-fg);line-height:1.5">You're done with the week.</div>
-            </div>
-            <!-- Edit panel: shown when user clicks the info card -->
-            <div id="wkndOverrideEditPanel" class="override-edit-panel">
-              <div style="display:flex;gap:8px;flex-wrap:wrap" id="wkndOverrideChips"></div>
-              <div class="future-plan-actions">
-                <button class="btn-secondary" id="wkndOverrideDiscardBtn" style="height:36px;padding:0 16px;border-radius:10px;font-size:13px">Discard</button>
-                <button class="shift-start-btn" id="wkndOverrideSaveBtn" style="font-size:13px;height:36px;border-radius:10px;padding:0 20px">Looks Good</button>
-              </div>
             </div>
             <!-- Optional note: a short reminder of what this day was -->
             <div id="wkndNoteWrap" style="margin-bottom:16px">
@@ -3305,6 +3306,9 @@
           <button class="modal-override-btn" id="deHalfDay" onclick="setDeOverride('halfday')">Half Day</button>
           <button class="modal-override-btn" id="deHoliday" onclick="setDeOverride('holiday')">Holiday</button>
           <button class="modal-override-btn" id="deLeave" onclick="setDeOverride('leave')">Full Day Leave</button>
+        </div>
+        <div class="de-note-wrap" id="deNoteWrap">
+          <textarea id="deNote" placeholder="Add a note (optional)" rows="2" maxlength="500"></textarea>
         </div>
         <div class="modal-time-row" id="deTimeRow">
           <div style="position:relative;flex:1" class="time-input-wrap">
@@ -5421,89 +5425,6 @@
       else if (log.note != null) { const u = { ...log }; delete u.note; saveDayLogAndSync(k, u); }
     }
 
-    // ── Override edit (past holiday / leave / halfday) ─────────────────────
-    let _overrideEditKey  = null;  // day key currently being edited
-    let _overrideEditPick = null;  // currently selected chip in edit mode
-
-    function _openOverrideEdit(key, currentType) {
-      _overrideEditKey  = key;
-      _overrideEditPick = currentType; // pre-select the current override
-
-      const infoCard  = el('wkndOverrideInfoCard');
-      const editPanel = el('wkndOverrideEditPanel');
-      if (infoCard)  infoCard.style.display  = 'none';
-      if (editPanel) editPanel.classList.add('open');
-
-      // Render chips
-      const chips = el('wkndOverrideChips');
-      if (chips) {
-        const types = [
-          { key: 'halfday', label: 'Half Day' },
-          { key: 'leave',   label: 'Full Day Leave' },
-          { key: 'holiday', label: 'Holiday' },
-        ];
-        chips.innerHTML = types.map(t =>
-          `<button class="modal-override-btn${t.key === currentType ? ' active' : ''}"
-            onclick="_pickOverrideChip('${t.key}',this)">${t.label}</button>`
-        ).join('');
-      }
-
-      // Wire CTAs
-      const saveBtn    = el('wkndOverrideSaveBtn');
-      const discardBtn = el('wkndOverrideDiscardBtn');
-      if (saveBtn)    saveBtn.onclick    = () => _saveOverrideEdit();
-      if (discardBtn) discardBtn.onclick = () => _discardOverride(key);
-    }
-
-    function _closeOverrideEdit() {
-      const infoCard  = el('wkndOverrideInfoCard');
-      const editPanel = el('wkndOverrideEditPanel');
-      if (infoCard)  infoCard.style.display  = '';
-      if (editPanel) editPanel.classList.remove('open');
-      _overrideEditKey  = null;
-      _overrideEditPick = null;
-    }
-
-    function _pickOverrideChip(ov, btn) {
-      el('wkndOverrideChips').querySelectorAll('.modal-override-btn')
-        .forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      _overrideEditPick = ov;
-    }
-
-    function _saveOverrideEdit() {
-      const key = _overrideEditKey;
-      const ov  = _overrideEditPick;
-      if (!key || !ov) return;
-      const log = dayLog(key) || {};
-      saveDayLogAndSync(key, { ...log, override: ov });
-      _closeOverrideEdit();
-      // Re-render the info card with the new override
-      const type = ov; // type matches override key (holiday/leave/halfday)
-      renderWeekendState(key, type);
-    }
-
-    function _discardOverride(key) {
-      // Opens the shared confirmation modal to remove the override entirely
-      _futurePlanKey = key; // reuse the same cancel modal slot
-      const day = week(daySelectorWeekOffset).find(d => d.key === key);
-      const desc = el('cancelPlanDesc');
-      if (desc) desc.textContent = `Remove the override for ${day?.name || 'this day'}?`;
-      const confirmBtn = el('cancelPlanConfirmBtn');
-      if (confirmBtn) {
-        confirmBtn.textContent = 'Remove';
-        confirmBtn.onclick = () => {
-          el('cancelPlanOverlay').classList.remove('open');
-          const log = dayLog(key) || {};
-          const updated = { ...log };
-          delete updated.override;
-          saveDayLogAndSync(key, updated);
-          _closeOverrideEdit();
-          selectDay(key); // re-route now that override is gone
-        };
-      }
-      el('cancelPlanOverlay').classList.add('open');
-    }
 
     function renderWeekendState(key, type) {
       type = type || 'weekend';
@@ -5538,9 +5459,8 @@
       if (_infoCard) {
         _infoCard.classList.toggle('override-info-editable', _isPastOverride);
         _infoCard.style.padding = _isPastOverride ? '' : '8px 0 18px';
-        _infoCard.onclick = _isPastOverride ? () => _openOverrideEdit(key, type) : null;
+        _infoCard.onclick = _isPastOverride ? () => openDayEditModal(key) : null;
       }
-      if (_editPanel) _editPanel.classList.remove('open'); // always reset on re-render
 
       const wk = week(daySelectorWeekOffset);
       const mon = wk[0].date, fri = wk[wk.length - 1].date;
@@ -6732,26 +6652,7 @@
         el('doneBanner').classList.remove('show');
         el('autostopBanner')?.classList.remove('show');
       }
-      // Full Day Leave: show a clean status, no hours, no session data
-      if (log?.override === 'leave') {
-        el('rcWorked').textContent = 'Full Day Leave';
-        el('rcWorked').style.color = '#3b82f6';
-        if (el('rcTarget')) { el('rcTarget').textContent = dur(target); el('rcTarget').style.color = 'var(--muted-fg)'; }
-        _clearCardState();
-        el('progLabel').textContent = 'Day marked as Full Day Leave';
-        el('rcToday').innerHTML = '';
-        return;
-      }
-      // Holiday: similar clean state
-      if (log?.override === 'holiday') {
-        el('rcWorked').textContent = 'Holiday';
-        el('rcWorked').style.color = '#22c55e';
-        if (el('rcTarget')) { el('rcTarget').textContent = dur(target); el('rcTarget').style.color = 'var(--muted-fg)'; }
-        _clearCardState();
-        el('progLabel').textContent = 'Day marked as Holiday';
-        el('rcToday').innerHTML = '';
-        return;
-      }
+      // holiday / leave / halfday are routed through weekendView by selectDay — dead path
 
       const isFutureDay = key > todayKey();
       const targetRow = isFutureDay
@@ -8258,6 +8159,11 @@ ${sig}`
         el('deLeave').classList.add('active');
         el('deTimeRow')?.classList.add('inputs-disabled');
       }
+      // Note field — populate and show if there's an active override
+      const _deNoteWrap = el('deNoteWrap');
+      const _deNote     = el('deNote');
+      if (_deNote) _deNote.value = log?.note || '';
+      if (_deNoteWrap) _deNoteWrap.classList.toggle('visible', !!log?.override && log.override !== 'wfh');
       // Shift-aware blur handlers (fresh each open)
       const startBlur = () => applyShiftAmPm(el('deStart'), 'start');
       const endBlur   = () => applyShiftAmPm(el('deEnd'),   'end');
@@ -8421,6 +8327,8 @@ ${sig}`
       const activeNow = wasActive ? null : type;
       const disableInputs = activeNow === 'holiday' || activeNow === 'leave';
       el('deTimeRow')?.classList.toggle('inputs-disabled', disableInputs);
+      // Show/hide optional note field
+      el('deNoteWrap')?.classList.toggle('visible', !!activeNow);
     }
 
     // ── Export all logs as a local JSON file ───────────
@@ -9212,11 +9120,12 @@ ${sig}`
       const activeOverride = el('deHalfDay').classList.contains('active') ? 'halfday'
         : el('deHoliday').classList.contains('active') ? 'holiday'
         : el('deLeave').classList.contains('active') ? 'leave' : null;
+      const _deNoteVal = el('deNote')?.value.trim() || '';
 
       if (activeOverride === 'halfday') {
-        saveDayLogAndSync(key, { ...ex, hoursWorked: c.dailyH / 2, override: 'halfday', sessionTag: 'edited' });
+        saveDayLogAndSync(key, { ...ex, hoursWorked: c.dailyH / 2, override: 'halfday', sessionTag: 'edited', ...(_deNoteVal ? { note: _deNoteVal } : { note: null }) });
       } else if (activeOverride === 'holiday' || activeOverride === 'leave') {
-        saveDayLogAndSync(key, { ...ex, hoursWorked: 0, override: activeOverride, sessionTag: 'edited' });
+        saveDayLogAndSync(key, { ...ex, hoursWorked: 0, override: activeOverride, sessionTag: 'edited', ...(_deNoteVal ? { note: _deNoteVal } : { note: null }) });
       } else if (!s && !e) {
         // Both empty → apply shift defaults
         const sd = getShiftDefaults();
@@ -9299,7 +9208,7 @@ ${sig}`
       if (key === todayKey()) {
         if (loginDate) render(); else renderEmptyState();
       } else if (key === selectedDayKey) {
-        renderPastDay(key);
+        selectDay(key); // re-route properly (holiday/leave/halfday → weekendView)
       }
     }
 

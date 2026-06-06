@@ -988,6 +988,12 @@
     .future-plan-cta { overflow: hidden; max-height: 0; opacity: 0;
       transition: max-height .25s ease, opacity .2s ease; pointer-events: none; }
     .future-plan-cta.visible { max-height: 56px; opacity: 1; pointer-events: auto; }
+    /* Button state variants */
+    #futurePlanBtn.state-success { background: var(--success); border-color: var(--success);
+      color: #fff; pointer-events: none; transition: background .2s, color .2s; }
+    #futurePlanBtn.state-cancel { background: transparent; color: var(--destructive);
+      border: 1.5px solid var(--destructive); transition: background .2s, color .2s; }
+    #futurePlanBtn.state-cancel:hover { background: var(--destructive-bg); }
     .modal-override-btn { height: 32px; padding: 0 12px; border-radius: var(--radius-md);
       border: 1px solid var(--border); background: var(--muted); color: var(--foreground);
       font-size: 12px; font-weight: 500; font-family: var(--font); cursor: pointer;
@@ -2795,6 +2801,25 @@
       <div style="padding:0 20px 20px;display:flex;justify-content:flex-end;gap:8px">
         <button class="btn-secondary" id="dailyTargetCancelBtn">Keep Going</button>
         <button class="btn btn-primary" id="dailyTargetEndBtn" style="height:38px;padding:0 16px;font-size:13px">End Session</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Cancel Plan Confirmation Modal ── -->
+  <div class="overlay" id="cancelPlanOverlay">
+    <div class="dialog" style="max-width:340px">
+      <div class="dialog-head" style="display:flex;align-items:flex-start;justify-content:space-between">
+        <div>
+          <div class="dialog-title">Are you sure?</div>
+          <div class="dialog-desc" id="cancelPlanDesc">You want to cancel your plan.</div>
+        </div>
+        <button class="btn-icon" onclick="el('cancelPlanOverlay').classList.remove('open')" title="Close" style="margin:-4px -4px -4px 8px;flex-shrink:0">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div style="padding:0 20px 20px;display:flex;justify-content:flex-end;gap:8px">
+        <button class="btn-secondary" onclick="el('cancelPlanOverlay').classList.remove('open')">Keep</button>
+        <button class="btn-ghost-destructive" id="cancelPlanConfirmBtn" style="height:38px;padding:0 16px;font-size:13px">Cancel Plan</button>
       </div>
     </div>
   </div>
@@ -6427,11 +6452,24 @@
         if (ta) ta.value = log?.futureReason || '';
       }
 
-      // CTA button — slide in when chip is selected, hidden otherwise
+      // CTA button — hidden when no chip, default "Looks Good" when chip just selected,
+      // or "Cancel Plan" state if plan was already previously confirmed.
       const btnWrap = el('futurePlanBtnWrap');
+      const btn     = el('futurePlanBtn');
       if (btnWrap) btnWrap.classList.toggle('visible', hasPlan);
-      const btn = el('futurePlanBtn');
-      if (btn) btn.onclick = () => toggleFuturePlanMode(key);
+      if (btn) {
+        if (!hasPlan) {
+          // No chip selected — reset entirely
+          btn.classList.remove('state-success', 'state-cancel');
+          btn.innerHTML = 'Looks Good';
+        } else if (btn.dataset.planKey !== planKey) {
+          // Different chip selected — reset to Looks Good for the new choice
+          btn.classList.remove('state-success', 'state-cancel');
+          btn.innerHTML = 'Looks Good';
+        }
+        btn.dataset.planKey = planKey || '';
+        btn.onclick = () => toggleFuturePlanMode(key);
+      }
     }
 
     function _selectFuturePlanType(key, planKey, btn) {
@@ -6451,8 +6489,47 @@
       _renderFutureDayInline(key, dayLog(key), week(daySelectorWeekOffset).find(d => d.key === key));
     }
 
+    let _futurePlanKey = null; // tracks which day the cancel modal targets
+
     function toggleFuturePlanMode(key) {
-      // "Looks Good" — plan is already saved on chip click; just refresh the badge card
+      const btn = el('futurePlanBtn');
+      if (!btn) return;
+      if (btn.classList.contains('state-cancel')) {
+        // Already in cancel state → open confirmation modal
+        _openCancelPlanModal(key);
+        return;
+      }
+      // "Looks Good" clicked — plan already saved; show success then transition to Cancel Plan
+      btn.classList.add('state-success');
+      btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><polyline points="20 6 9 17 4 12"/></svg>&nbsp;Saved';
+      btn.onclick = null; // freeze during success flash
+      setTimeout(() => {
+        btn.classList.remove('state-success');
+        btn.classList.add('state-cancel');
+        btn.innerHTML = 'Cancel Plan';
+        btn.onclick = () => _openCancelPlanModal(key);
+        _renderFutureDayBadge();
+      }, 1400);
+    }
+
+    function _openCancelPlanModal(key) {
+      _futurePlanKey = key;
+      const day = week(daySelectorWeekOffset).find(d => d.key === key);
+      const desc = el('cancelPlanDesc');
+      if (desc) desc.textContent = `You want to cancel your plan for ${day?.name || 'this day'}.`;
+      const confirmBtn = el('cancelPlanConfirmBtn');
+      if (confirmBtn) confirmBtn.onclick = () => _confirmCancelPlan();
+      el('cancelPlanOverlay').classList.add('open');
+    }
+
+    function _confirmCancelPlan() {
+      const key = _futurePlanKey;
+      if (!key) return;
+      el('cancelPlanOverlay').classList.remove('open');
+      const log = dayLog(key) || {};
+      const updated = { ...log }; delete updated.futurePlan; delete updated.futureReason;
+      saveDayLog(key, updated);
+      _futurePlanKey = null;
       _renderFutureDayInline(key, dayLog(key), week(daySelectorWeekOffset).find(d => d.key === key));
       _renderFutureDayBadge();
     }

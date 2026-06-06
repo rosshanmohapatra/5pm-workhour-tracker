@@ -1030,6 +1030,10 @@
     .modal-time-row { display: flex; align-items: center; gap: 8px; }
     .modal-time-row .field-input { flex: 1; }
     .modal-time-sep { color: var(--muted-fg); font-size: 14px; flex-shrink: 0; }
+    /* Time row collapsible wrapper */
+    #deTimeWrap { overflow: hidden; max-height: 120px; opacity: 1;
+      transition: max-height .25s ease, opacity .18s ease, margin-top .25s ease; }
+    #deTimeWrap.hidden { max-height: 0; opacity: 0; margin-top: -16px; }
 
     /* ── Week plan modal ── */
     .wp-day-row { display: flex; align-items: center; justify-content: space-between;
@@ -1658,8 +1662,6 @@
     .dialog-foot-row .btn { flex: 1; }
 
     /* ── Disabled time inputs in modal ── */
-    .modal-time-row.inputs-disabled .field-input { opacity: .4; pointer-events: none; }
-    .modal-time-row.inputs-disabled .tp-icon-btn { opacity: .4; pointer-events: none; }
 
     /* ══════════════════════════════════════════════════════
        transitions.dev — animation token system
@@ -2083,7 +2085,7 @@
                 style="width:100%;box-sizing:border-box;resize:none;overflow-y:hidden;border:1px solid var(--border);border-radius:8px;background:var(--input-bg);color:var(--foreground);font-family:var(--font);font-size:13px;line-height:1.4;padding:9px 12px;outline:none;transition:border-color .15s"
                 oninput="_wkndNoteAutoGrow(this)" onkeydown="_wkndNoteKey(event,this)" onchange="saveWkndNote(this.value)"></textarea>
             </div>
-            <div>
+            <div id="wkndStatsSection">
               <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
                 <span style="font-size:13px;font-weight:600;color:var(--foreground)" id="wkndSectionLabel">Last Week</span>
                 <span style="font-size:12px;color:var(--muted-fg)" id="wkndWeekRange">—</span>
@@ -3316,22 +3318,24 @@
         <div class="de-note-wrap" id="deNoteWrap">
           <textarea id="deNote" placeholder="Add a note (optional)" rows="2" maxlength="500"></textarea>
         </div>
-        <div class="modal-time-row" id="deTimeRow">
-          <div style="position:relative;flex:1" class="time-input-wrap">
-            <input type="text" class="field-input" id="deStart" placeholder="Start time" autocomplete="off" style="padding-left:38px">
-            <button type="button" class="tp-icon-btn" onclick="openTpModal('deStart',event,'Login')" title="Pick time">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M16.5 13C17.0523 13 17.5 12.5523 17.5 12C17.5 11.4477 17.0523 11 16.5 11H13V5.5C13 4.94772 12.5523 4.5 12 4.5C11.4477 4.5 11 4.94772 11 5.5V12C11 12.5523 11.4477 13 12 13H16.5Z" fill="currentColor"/><path fill-rule="evenodd" clip-rule="evenodd" d="M12 1C5.92487 1 1 5.92487 1 12C1 18.0751 5.92487 23 12 23C18.0751 23 23 18.0751 23 12C23 5.92487 18.0751 1 12 1ZM3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12Z" fill="currentColor"/></svg>
-            </button>
+        <div id="deTimeWrap">
+          <div class="modal-time-row" id="deTimeRow">
+            <div style="position:relative;flex:1" class="time-input-wrap">
+              <input type="text" class="field-input" id="deStart" placeholder="Start time" autocomplete="off" style="padding-left:38px">
+              <button type="button" class="tp-icon-btn" onclick="openTpModal('deStart',event,'Login')" title="Pick time">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M16.5 13C17.0523 13 17.5 12.5523 17.5 12C17.5 11.4477 17.0523 11 16.5 11H13V5.5C13 4.94772 12.5523 4.5 12 4.5C11.4477 4.5 11 4.94772 11 5.5V12C11 12.5523 11.4477 13 12 13H16.5Z" fill="currentColor"/><path fill-rule="evenodd" clip-rule="evenodd" d="M12 1C5.92487 1 1 5.92487 1 12C1 18.0751 5.92487 23 12 23C18.0751 23 23 18.0751 23 12C23 5.92487 18.0751 1 12 1ZM3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12Z" fill="currentColor"/></svg>
+              </button>
+            </div>
+            <span class="modal-time-sep">–</span>
+            <div style="position:relative;flex:1" class="time-input-wrap">
+              <input type="text" class="field-input" id="deEnd" placeholder="End time (optional)" autocomplete="off" style="padding-left:38px">
+              <button type="button" class="tp-icon-btn" onclick="openTpModal('deEnd',event,'Logout')" title="Pick time">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M16.5 13C17.0523 13 17.5 12.5523 17.5 12C17.5 11.4477 17.0523 11 16.5 11H13V5.5C13 4.94772 12.5523 4.5 12 4.5C11.4477 4.5 11 4.94772 11 5.5V12C11 12.5523 11.4477 13 12 13H16.5Z" fill="currentColor"/><path fill-rule="evenodd" clip-rule="evenodd" d="M12 1C5.92487 1 1 5.92487 1 12C1 18.0751 5.92487 23 12 23C18.0751 23 23 18.0751 23 12C23 5.92487 18.0751 1 12 1ZM3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12Z" fill="currentColor"/></svg>
+              </button>
+            </div>
           </div>
-          <span class="modal-time-sep">–</span>
-          <div style="position:relative;flex:1" class="time-input-wrap">
-            <input type="text" class="field-input" id="deEnd" placeholder="End time (optional)" autocomplete="off" style="padding-left:38px">
-            <button type="button" class="tp-icon-btn" onclick="openTpModal('deEnd',event,'Logout')" title="Pick time">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M16.5 13C17.0523 13 17.5 12.5523 17.5 12C17.5 11.4477 17.0523 11 16.5 11H13V5.5C13 4.94772 12.5523 4.5 12 4.5C11.4477 4.5 11 4.94772 11 5.5V12C11 12.5523 11.4477 13 12 13H16.5Z" fill="currentColor"/><path fill-rule="evenodd" clip-rule="evenodd" d="M12 1C5.92487 1 1 5.92487 1 12C1 18.0751 5.92487 23 12 23C18.0751 23 23 18.0751 23 12C23 5.92487 18.0751 1 12 1ZM3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12Z" fill="currentColor"/></svg>
-            </button>
-          </div>
+          <div class="err-msg" id="deErr">Invalid times — end must be after start.</div>
         </div>
-        <div class="err-msg" id="deErr">Invalid times — end must be after start.</div>
       </div>
       <div class="dialog-foot-row">
         <button class="btn btn-cancel" id="dayEditCancel">Cancel</button>
@@ -5468,40 +5472,48 @@
         _infoCard.onclick = _isPastOverride ? () => openDayEditModal(key) : null;
       }
 
-      const wk = week(daySelectorWeekOffset);
-      const mon = wk[0].date, fri = wk[wk.length - 1].date;
-      const rangeLabel = mon.getMonth() === fri.getMonth()
-        ? `${MONTHS[mon.getMonth()].slice(0,3)} ${mon.getDate()}–${fri.getDate()}`
-        : `${MONTHS[mon.getMonth()].slice(0,3)} ${mon.getDate()} – ${MONTHS[fri.getMonth()].slice(0,3)} ${fri.getDate()}`;
-      el('wkndWeekRange').textContent = rangeLabel;
+      // Stats + badge only shown on actual weekend days, not on weekday overrides
+      const _isWeekendType = type === 'weekend';
+      const statsSection = el('wkndStatsSection');
+      if (statsSection) statsSection.style.display = _isWeekendType ? '' : 'none';
 
-      // Dynamic section label: "Last Week" on actual current weekend, else the range
-      const isCurrentWknd = isWeekend() && daySelectorWeekOffset === 0;
-      const sectionLbl = el('wkndSectionLabel');
-      if (sectionLbl) sectionLbl.textContent = isCurrentWknd ? 'Last Week' : rangeLabel;
-
-      const rows = _wkndDayData(wk);
-      const penaltyDays  = rows.filter(r => r.isPenalty).length;
-      const totalSurplus = rows.reduce((s, r) => s + r.surplusSecs, 0);
-
-      el('wkndPenalties').textContent = penaltyDays;
-      el('wkndPenalties').style.color = penaltyDays > 0 ? 'var(--destructive)' : 'var(--foreground)';
-      el('wkndOvertime').textContent  = totalSurplus > 60 ? '+' + dur(totalSurplus) : '—';
-      el('wkndOvertime').style.color  = totalSurplus > 60 ? 'var(--destructive)' : 'var(--muted-fg)';
-
-      // ── Badge card ──
       const badgeCard = el('wkndBadgeCard');
-      const badge = _computeWeekBadge(rows, totalSurplus);
-      if (badge && badgeCard) {
-        el('wkndBadgeIcon').innerHTML      = badge.icon;
-        el('wkndBadgeTitle').textContent   = badge.title;
-        el('wkndBadgeSubtitle').textContent= badge.subtitle;
-        const c = cfg(), dailySecs = c.dailyH * 3600;
-        const daysEl = el('wkndBadgeDays');
-        if (daysEl) daysEl.innerHTML = rows.map(r => _badgeDayCircle(r, dailySecs)).join('');
-        badgeCard.style.display = '';
-      } else if (badgeCard) {
-        badgeCard.style.display = 'none';
+      if (!_isWeekendType) {
+        if (badgeCard) badgeCard.style.display = 'none';
+      } else {
+        const wk = week(daySelectorWeekOffset);
+        const mon = wk[0].date, fri = wk[wk.length - 1].date;
+        const rangeLabel = mon.getMonth() === fri.getMonth()
+          ? `${MONTHS[mon.getMonth()].slice(0,3)} ${mon.getDate()}–${fri.getDate()}`
+          : `${MONTHS[mon.getMonth()].slice(0,3)} ${mon.getDate()} – ${MONTHS[fri.getMonth()].slice(0,3)} ${fri.getDate()}`;
+        el('wkndWeekRange').textContent = rangeLabel;
+
+        // Dynamic section label: "Last Week" on actual current weekend, else the range
+        const isCurrentWknd = isWeekend() && daySelectorWeekOffset === 0;
+        const sectionLbl = el('wkndSectionLabel');
+        if (sectionLbl) sectionLbl.textContent = isCurrentWknd ? 'Last Week' : rangeLabel;
+
+        const rows = _wkndDayData(wk);
+        const penaltyDays  = rows.filter(r => r.isPenalty).length;
+        const totalSurplus = rows.reduce((s, r) => s + r.surplusSecs, 0);
+
+        el('wkndPenalties').textContent = penaltyDays;
+        el('wkndPenalties').style.color = penaltyDays > 0 ? 'var(--destructive)' : 'var(--foreground)';
+        el('wkndOvertime').textContent  = totalSurplus > 60 ? '+' + dur(totalSurplus) : '—';
+        el('wkndOvertime').style.color  = totalSurplus > 60 ? 'var(--destructive)' : 'var(--muted-fg)';
+
+        const badge = _computeWeekBadge(rows, totalSurplus);
+        if (badge && badgeCard) {
+          el('wkndBadgeIcon').innerHTML      = badge.icon;
+          el('wkndBadgeTitle').textContent   = badge.title;
+          el('wkndBadgeSubtitle').textContent= badge.subtitle;
+          const c = cfg(), dailySecs = c.dailyH * 3600;
+          const daysEl = el('wkndBadgeDays');
+          if (daysEl) daysEl.innerHTML = rows.map(r => _badgeDayCircle(r, dailySecs)).join('');
+          badgeCard.style.display = '';
+        } else if (badgeCard) {
+          badgeCard.style.display = 'none';
+        }
       }
     }
 
@@ -8154,17 +8166,21 @@ ${sig}`
       const sd = getShiftDefaults();
       el('deStart').placeholder = sd.start || 'Start time';
       el('deEnd').placeholder   = sd.end   || 'End time';
-      // Highlight active override
+      // Highlight active override; hide time row instantly (no transition on open)
       ['deHalfDay','deHoliday','deLeave'].forEach(id => el(id)?.classList.remove('active'));
-      el('deTimeRow')?.classList.remove('inputs-disabled');
-      if (log?.override === 'halfday') el('deHalfDay').classList.add('active');
-      else if (log?.override === 'holiday') {
+      const _deTimeWrap = el('deTimeWrap');
+      if (_deTimeWrap) { _deTimeWrap.style.transition = 'none'; _deTimeWrap.classList.remove('hidden'); }
+      if (log?.override === 'halfday') {
+        el('deHalfDay').classList.add('active');
+      } else if (log?.override === 'holiday') {
         el('deHoliday').classList.add('active');
-        el('deTimeRow')?.classList.add('inputs-disabled');
+        if (_deTimeWrap) _deTimeWrap.classList.add('hidden');
       } else if (log?.override === 'leave') {
         el('deLeave').classList.add('active');
-        el('deTimeRow')?.classList.add('inputs-disabled');
+        if (_deTimeWrap) _deTimeWrap.classList.add('hidden');
       }
+      // Re-enable transition after the instant open state is set
+      requestAnimationFrame(() => { if (_deTimeWrap) _deTimeWrap.style.transition = ''; });
       // Note field — populate and show if there's an active override
       const _deNoteWrap = el('deNoteWrap');
       const _deNote     = el('deNote');
@@ -8329,10 +8345,10 @@ ${sig}`
       const wasActive = btn.classList.contains('active');
       ['deHalfDay','deHoliday','deLeave'].forEach(id => el(id)?.classList.remove('active'));
       if (!wasActive) btn.classList.add('active'); // toggle off if same clicked
-      // Disable time inputs for full-disable overrides
+      // Hide time row entirely for full-day overrides; show for halfday/none
       const activeNow = wasActive ? null : type;
-      const disableInputs = activeNow === 'holiday' || activeNow === 'leave';
-      el('deTimeRow')?.classList.toggle('inputs-disabled', disableInputs);
+      const hideTime = activeNow === 'holiday' || activeNow === 'leave';
+      el('deTimeWrap')?.classList.toggle('hidden', hideTime);
       // Show/hide optional note field
       el('deNoteWrap')?.classList.toggle('visible', !!activeNow);
     }

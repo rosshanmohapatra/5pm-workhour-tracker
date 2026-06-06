@@ -6556,25 +6556,23 @@
         if (ta) ta.value = log?.futureReason || '';
       }
 
-      // ── CTA buttons ──────────────────────────────────────────────────
+      // ── Question heading — hide once confirmed ───────────────────────
+      const questionEl = el('futureDayQuestion');
+      if (questionEl) questionEl.style.display = isConfirmed ? 'none' : '';
+
+      // ── CTA buttons — hidden when confirmed, shown only for fresh picks ──
       const btnWrap    = el('futurePlanBtnWrap');
       const actionsDiv = el('futurePlanActions');
-      if (btnWrap) btnWrap.classList.toggle('visible', hasPlan);
+      if (btnWrap) btnWrap.classList.toggle('visible', hasPlan && !isConfirmed);
 
-      if (hasPlan && actionsDiv) {
-        if (isConfirmed) {
-          // Single "Edit Plan" button
-          actionsDiv.innerHTML = `<button class="btn-secondary" style="height:36px;padding:0 16px;border-radius:10px;font-size:13px" onclick="openDayEditModal('${key}')">Edit Plan</button>`;
-        } else {
-          // Fresh pick → Discard + Looks Good
-          actionsDiv.innerHTML = `
-            <button class="btn-secondary" id="futurePlanDiscardBtn" style="height:36px;padding:0 16px;border-radius:10px;font-size:13px">Discard</button>
-            <button class="shift-start-btn" id="futurePlanBtn" style="font-size:13px;height:36px;border-radius:10px;padding:0 20px;width:auto">Looks Good</button>`;
-          const btn        = el('futurePlanBtn');
-          const discardBtn = el('futurePlanDiscardBtn');
-          if (btn)        btn.onclick        = () => toggleFuturePlanMode(key);
-          if (discardBtn) discardBtn.onclick = () => _openCancelPlanModal(key);
-        }
+      if (hasPlan && !isConfirmed && actionsDiv) {
+        actionsDiv.innerHTML = `
+          <button class="btn-secondary" id="futurePlanDiscardBtn" style="height:36px;padding:0 16px;border-radius:10px;font-size:13px">Discard</button>
+          <button class="shift-start-btn" id="futurePlanBtn" style="font-size:13px;height:36px;border-radius:10px;padding:0 20px;width:auto">Looks Good</button>`;
+        const btn        = el('futurePlanBtn');
+        const discardBtn = el('futurePlanDiscardBtn');
+        if (btn)        btn.onclick        = () => toggleFuturePlanMode(key);
+        if (discardBtn) discardBtn.onclick = () => _openCancelPlanModal(key);
       }
     }
 

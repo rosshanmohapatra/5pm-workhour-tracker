@@ -2753,7 +2753,7 @@
         <table id="weekReportTable" style="width:100%;border-collapse:collapse;font-size:12px"></table>
       </div>
       <div class="dialog-foot" style="flex-shrink:0;padding-top:12px;display:flex;flex-direction:row;justify-content:flex-end">
-        <button class="btn btn-primary" style="height:40px;font-size:13px;padding:0 20px;display:inline-flex;align-items:center;gap:7px;width:auto" onclick="downloadWeekReport()">
+        <button class="btn btn-primary" style="height:36px;font-size:13px;padding:0 16px;border-radius:10px;display:inline-flex;align-items:center;gap:7px;width:auto" onclick="downloadWeekReport()">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
           Export
         </button>
@@ -5460,10 +5460,10 @@
     // Renders an inline attendance chip for the weekly report table
     function _attChip(att) {
       const MAP = {
-        'Full Day': { bg: 'var(--muted)',        fg: 'var(--muted-fg)', label: 'Full Day'  },
-        'Half Day': { bg: 'var(--warning-bg)',   fg: 'var(--warning)',  label: 'Half Day'  },
-        'Leave':    { bg: 'var(--blue-bg)',       fg: 'var(--blue)',     label: 'On Leave'  },
-        'Holiday':  { bg: 'var(--success-bg)',    fg: 'var(--success)',  label: 'Holiday'   },
+        'Full Day': { bg: 'var(--muted)',              fg: 'var(--muted-fg)', label: 'Full Day'  },
+        'Half Day': { bg: 'rgba(14,165,233,.12)',       fg: '#0ea5e9',         label: 'Half Day'  },
+        'Leave':    { bg: 'rgba(59,130,246,.12)',       fg: '#3b82f6',         label: 'On Leave'  },
+        'Holiday':  { bg: 'rgba(168,85,247,.12)',       fg: '#a855f7',         label: 'Holiday'   },
       };
       const c = MAP[att];
       if (!c) return `<span style="color:var(--muted-fg)">—</span>`;
@@ -6554,9 +6554,9 @@
 
     // Override label helper used in past-day view
     function overrideLabel(ov) {
-      if (ov === 'holiday') return '<span style="font-size:12px;font-weight:600;color:var(--muted-fg);background:var(--muted);padding:2px 8px;border-radius:6px">Holiday</span>';
-      if (ov === 'leave')   return '<span style="font-size:12px;font-weight:600;color:#3b82f6;background:rgba(59,130,246,.1);padding:2px 8px;border-radius:6px;border:1px solid rgba(59,130,246,.2)">Full Day Leave</span>';
-      if (ov === 'halfday') return '<span style="font-size:12px;font-weight:600;color:var(--muted-fg);background:var(--muted);padding:2px 8px;border-radius:6px">Half Day</span>';
+      if (ov === 'holiday') return '<span style="font-size:12px;font-weight:600;color:#a855f7;background:rgba(168,85,247,.12);padding:2px 8px;border-radius:6px;border:1px solid rgba(168,85,247,.3)">Holiday</span>';
+      if (ov === 'leave')   return '<span style="font-size:12px;font-weight:600;color:#3b82f6;background:rgba(59,130,246,.12);padding:2px 8px;border-radius:6px;border:1px solid rgba(59,130,246,.3)">Full Day Leave</span>';
+      if (ov === 'halfday') return '<span style="font-size:12px;font-weight:600;color:#0ea5e9;background:rgba(14,165,233,.12);padding:2px 8px;border-radius:6px;border:1px solid rgba(14,165,233,.3)">Half Day</span>';
       return '';
     }
 

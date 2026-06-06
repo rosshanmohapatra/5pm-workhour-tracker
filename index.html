@@ -491,7 +491,8 @@
     #weekendView { display: none; }
     .rc-body.weekend-mode #weekendView { display: block; animation: wknd-fade-in .28s ease; }
     /* Override mode (holiday/leave/halfday weekday): note fills remaining card height */
-    #weekendView.override-mode { display: flex; flex-direction: column; min-height: 200px; }
+    .rc-body.weekend-mode { flex: 1; }
+    #weekendView.override-mode { flex: 1; display: flex; flex-direction: column; }
     #weekendView.override-mode #wkndNoteWrap { flex: 1; display: flex; flex-direction: column; margin-bottom: 0; }
     #weekendView.override-mode #wkndNote { flex: 1; min-height: 80px; overflow-y: auto; height: auto; }
     @keyframes wknd-fade-in {

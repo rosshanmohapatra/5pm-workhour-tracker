@@ -1068,14 +1068,12 @@
     .day-sel-btn .dsel-dot  { width: 4px; height: 4px; border-radius: 50%;
       background: var(--warning); opacity: 0; transition: opacity .15s; }
     .day-sel-btn.has-penalty .dsel-dot,
-    .day-sel-btn.has-plan    .dsel-dot,
-    .day-sel-btn.has-info    .dsel-dot { opacity: 1; }
+    .day-sel-btn.has-plan    .dsel-dot { opacity: 1; }
     /* Weekday hover — past or future, bright highlight */
     .day-sel-btn:hover:not(:disabled):not(.active):not(.wkd-btn) { border-color: var(--foreground); color: var(--foreground); background: var(--muted); cursor: pointer; }
     .day-sel-btn.active { background: var(--btn-primary-bg); color: var(--card); border-color: var(--btn-primary-bg); }
     .day-sel-btn.active.has-penalty .dsel-dot,
-    .day-sel-btn.active.has-plan    .dsel-dot,
-    .day-sel-btn.active.has-info    .dsel-dot { background: var(--background); opacity: .6; }
+    .day-sel-btn.active.has-plan    .dsel-dot { background: var(--background); opacity: .6; }
     .day-sel-btn:disabled { opacity: .28; cursor: default; pointer-events: none; }
     /* WKD slot — narrower, dashed, faded so weekends read as off-days */
     .day-sel-btn.wkd-btn { flex: 0 0 60px; border-style: dashed; }
@@ -6196,11 +6194,8 @@
         const t = c.dailyH * 3600, dt = log?.override === 'halfday' ? t / 2 : t;
         if ((dt - log.hoursWorked * 3600) > 300) btn.classList.add('has-penalty');
       }
-      // Plan dot: only future work days (not weekends)
-      if (isFuture && !day.isWeekend && log?.futurePlan) btn.classList.add('has-plan');
-      // Info dot: past/today with an override (holiday/leave/halfday) or a note
-      const _ovSet = new Set(['holiday','leave','halfday']);
-      if (!isFuture && (_ovSet.has(log?.override) || log?.note)) btn.classList.add('has-info');
+      // Plan dot: future plans AND past days where a plan was set (futurePlan persists in log)
+      if (!day.isWeekend && log?.futurePlan) btn.classList.add('has-plan');
       if (isFuture) btn.classList.add('future');
       btn.innerHTML = `<span class="dsel-name">${day.name.slice(0,3)}</span>`
                     + `<span class="dsel-num">${day.date.getDate()}</span>`
@@ -6246,16 +6241,14 @@
           if (isActive) selFound = true;
           const log = dayLog(key);
           btn.classList.toggle('future', new Date(key + 'T12:00') > now && key !== tk);
-          btn.classList.remove('has-penalty', 'has-plan', 'has-info');
+          btn.classList.remove('has-penalty', 'has-plan');
           const _isFutureKey = new Date(key + 'T12:00') > now && key !== tk;
           const _isWkd = btn.classList.contains('wkd-btn');
           if (!_isFutureKey && log?.hoursWorked > 0 && log?.override !== 'leave' && log?.override !== 'holiday') {
             const t = c.dailyH * 3600, dt = log?.override === 'halfday' ? t / 2 : t;
             if ((dt - log.hoursWorked * 3600) > 300) btn.classList.add('has-penalty');
           }
-          if (_isFutureKey && !_isWkd && log?.futurePlan) btn.classList.add('has-plan');
-          const _ovSetS = new Set(['holiday','leave','halfday']);
-          if (!_isFutureKey && (_ovSetS.has(log?.override) || log?.note)) btn.classList.add('has-info');
+          if (!_isWkd && log?.futurePlan) btn.classList.add('has-plan');
         });
         if (!selKey || selFound) {
           if (selKey && (selKey !== _dsSel || _dsUserNav)) {

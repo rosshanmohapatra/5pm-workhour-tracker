@@ -8241,12 +8241,11 @@ ${sig}`
       renderSurplusCircles();
       if (key === todayKey()) {
         renderEmptyState();
-      } else {
-        const _isFutureKey = new Date(key + 'T12:00') > new Date() && key !== todayKey();
-        if (_isFutureKey && key === selectedDayKey) {
-          const _day = week(daySelectorWeekOffset).find(d => d.key === key);
-          _renderFutureDayInline(key, dayLog(key), _day);
-          _renderFutureDayBadge();
+      } else if (key === selectedDayKey) {
+        if (new Date(key + 'T12:00') > new Date()) {
+          selectFutureDay(key);
+        } else {
+          selectDay(key);
         }
       }
       showUndoToast('Entry Deleted', () => {
@@ -8258,12 +8257,11 @@ ${sig}`
           renderSurplusCircles();
           if (_deletedEntryKey === todayKey()) {
             renderEmptyState();
-          } else {
-            const _isUndoFuture = new Date(_deletedEntryKey + 'T12:00') > new Date() && _deletedEntryKey !== todayKey();
-            if (_isUndoFuture && _deletedEntryKey === selectedDayKey) {
-              const _uDay = week(daySelectorWeekOffset).find(d => d.key === _deletedEntryKey);
-              _renderFutureDayInline(_deletedEntryKey, dayLog(_deletedEntryKey), _uDay);
-              _renderFutureDayBadge();
+          } else if (_deletedEntryKey === selectedDayKey) {
+            if (new Date(_deletedEntryKey + 'T12:00') > new Date()) {
+              selectFutureDay(_deletedEntryKey);
+            } else {
+              selectDay(_deletedEntryKey);
             }
           }
         }

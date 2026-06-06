@@ -6656,16 +6656,9 @@
     const _freshlySelectedPlanKeys = new Set();
 
     function toggleFuturePlanMode(key) {
-      const btn = el('futurePlanBtn');
-      if (!btn) return;
       _freshlySelectedPlanKeys.delete(key);
-      btn.classList.add('state-success');
-      btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#09090b" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><polyline points="20 6 9 17 4 12"/></svg>&nbsp;Saved';
-      btn.onclick = null;
-      setTimeout(() => {
-        _renderFutureDayInline(key, dayLog(key), week(daySelectorWeekOffset).find(d => d.key === key));
-        _renderFutureDayBadge();
-      }, 1400);
+      _renderFutureDayInline(key, dayLog(key), week(daySelectorWeekOffset).find(d => d.key === key));
+      _renderFutureDayBadge();
     }
 
     function _openCancelPlanModal(key) {
@@ -8234,6 +8227,13 @@ ${sig}`
       // Remove from localStorage + queue Supabase sync
       Store.remove(KEY.day + key);
       _markDirty(key); _syncNow();
+      // For future plan days: clear the inline view immediately before closing the modal
+      // so the empty state is visible the moment the overlay animates out
+      if (new Date(key + 'T12:00') > new Date() && key !== todayKey()) {
+        _freshlySelectedPlanKeys.delete(key);
+        _renderFutureDayInline(key, null, week(daySelectorWeekOffset).find(d => d.key === key));
+        _renderFutureDayBadge();
+      }
       closeDayEditModal();
       renderDaySelector();
       renderHistory();
@@ -8241,12 +8241,10 @@ ${sig}`
       renderSurplusCircles();
       if (key === todayKey()) {
         renderEmptyState();
+      } else if (new Date(key + 'T12:00') > new Date()) {
+        selectFutureDay(key);
       } else if (key === selectedDayKey) {
-        if (new Date(key + 'T12:00') > new Date()) {
-          selectFutureDay(key);
-        } else {
-          selectDay(key);
-        }
+        selectDay(key);
       }
       showUndoToast('Entry Deleted', () => {
         if (_deletedEntryKey && _deletedEntryData) {

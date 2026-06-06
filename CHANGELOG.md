@@ -2,6 +2,26 @@
 Changelog
 
 
+v1.0.2
+
+Added
+- Saturday and Sunday now appear in the day strip. Tap either to leave a note
+  about how you spent the day.
+- A 30 Days tab in the report. Switch between 7 and 30 days anytime.
+
+Improved
+- The report PDF splits into one table per month when the range crosses two months.
+- Column headers in the report renamed from Entry and Exit to Login and Logout.
+- PDF text is now a uniform dark colour with lighter weight throughout.
+- Empty penalty cells show a dash instead of the word None.
+- Soft edge fades on the day strip so partially visible cards fade out cleanly.
+
+Fixed
+- The day strip opened on the wrong week when today is a Saturday.
+- Future work days in the strip no longer appear faded.
+- Tomorrow's Sunday now shows as the current weekend, not an upcoming one.
+
+
 v1.0.1
 
 Added

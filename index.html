@@ -1030,15 +1030,17 @@
     .day-sel-btn .dsel-dot  { width: 4px; height: 4px; border-radius: 50%;
       background: var(--warning); opacity: 0; transition: opacity .15s; }
     .day-sel-btn.has-penalty .dsel-dot { opacity: 1; }
-    .day-sel-btn:hover:not(:disabled):not(.future):not(.active) { border-color: var(--foreground); color: var(--foreground); background: var(--muted); }
+    /* Weekday hover — past or future, bright highlight */
+    .day-sel-btn:hover:not(:disabled):not(.active):not(.wkd-btn) { border-color: var(--foreground); color: var(--foreground); background: var(--muted); cursor: pointer; }
     .day-sel-btn.active { background: var(--btn-primary-bg); color: var(--card); border-color: var(--btn-primary-bg); }
     .day-sel-btn.active .dsel-dot { background: var(--background); opacity: .6; }
     .day-sel-btn:disabled { opacity: .28; cursor: default; pointer-events: none; }
-    .day-sel-btn.future { opacity: .5; }
-    .day-sel-btn.future:hover { border-color: var(--border); background: var(--muted); color: var(--muted-fg); cursor: pointer; }
-    /* WKD slot — slightly narrower, uses palm-tree icon */
+    /* WKD slot — narrower, dashed, faded so weekends read as off-days */
     .day-sel-btn.wkd-btn { flex: 0.75 0 42px; border-style: dashed; }
-    .day-sel-btn.wkd-btn.active { border-style: solid; }
+    .day-sel-btn.wkd-btn:not(.active) { opacity: .45; }
+    .day-sel-btn.wkd-btn.active { border-style: solid; opacity: 1; }
+    /* Weekend / holiday / leave hover — dashed gray, slightly lifted */
+    .day-sel-btn.wkd-btn:hover:not(:disabled):not(.active) { opacity: .8; background: var(--muted); border-color: var(--muted-fg); color: var(--foreground); cursor: pointer; }
 
     /* ── This Week wrapper — card with rc-head-style bordered header ── */
     .this-week-wrap { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-lg);
@@ -1047,6 +1049,15 @@
     .this-week-header { display: flex; align-items: center; justify-content: space-between;
       padding: 12px; border-bottom: 1px solid var(--border); }
     .this-week-wrap .day-selector { padding: 16px; }
+    /* Edge-fade wrapper — gradient on left/right matches card bg, adapts to theme */
+    .ds-fade-wrap { position: relative; }
+    .ds-fade-wrap::before,
+    .ds-fade-wrap::after {
+      content: ''; position: absolute; top: 0; bottom: 0; width: 32px;
+      pointer-events: none; z-index: 2;
+    }
+    .ds-fade-wrap::before { left:  0; background: linear-gradient(to right, var(--card), transparent); }
+    .ds-fade-wrap::after  { right: 0; background: linear-gradient(to left,  var(--card), transparent); }
     .this-week-label { font-size: 11px; font-weight: 600; color: var(--muted-fg); letter-spacing: .06em; text-transform: uppercase; }
     .this-week-label-btn { height:28px; padding:0 10px; border-radius:6px; border:1px solid var(--border);
       background:transparent; color:var(--muted-fg); font-size:11px; font-weight:600;
@@ -1308,9 +1319,9 @@
 
       .day-sel-btn { transition: none; }
       /* Reset hover to no-op — on touch, hover sticks after tap */
-      .day-sel-btn:hover:not(:disabled):not(.future):not(.active) { background: var(--background); border-color: var(--border); color: var(--muted-fg); }
+      .day-sel-btn:hover:not(:disabled):not(.active):not(.wkd-btn) { background: var(--background); border-color: var(--border); color: var(--muted-fg); }
       /* Only show feedback while finger is actually down */
-      .day-sel-btn:active:not(:disabled):not(.future):not(.active) { background: var(--muted); border-color: var(--foreground); color: var(--foreground); }
+      .day-sel-btn:active:not(:disabled):not(.active):not(.wkd-btn) { background: var(--muted); border-color: var(--foreground); color: var(--foreground); }
       .this-week-btn:hover { background: var(--muted); }
       .this-week-btn:active { background: var(--border); }
 
@@ -1915,7 +1926,9 @@
             </button>
           </div>
         </div>
-        <div class="day-selector" id="daySelectorRow"><button class="day-sel-btn has-data"><span class="dsel-name">Mon</span><span class="dsel-num">13</span><span class="dsel-dot"></span></button><button class="day-sel-btn has-data"><span class="dsel-name">Tue</span><span class="dsel-num">14</span><span class="dsel-dot"></span></button><button class="day-sel-btn active"><span class="dsel-name">Wed</span><span class="dsel-num">15</span><span class="dsel-dot"></span></button><button class="day-sel-btn future"><span class="dsel-name">Thu</span><span class="dsel-num">16</span><span class="dsel-dot"></span></button><button class="day-sel-btn future"><span class="dsel-name">Fri</span><span class="dsel-num">17</span><span class="dsel-dot"></span></button></div>
+        <div class="ds-fade-wrap">
+          <div class="day-selector" id="daySelectorRow"><button class="day-sel-btn has-data"><span class="dsel-name">Mon</span><span class="dsel-num">13</span><span class="dsel-dot"></span></button><button class="day-sel-btn has-data"><span class="dsel-name">Tue</span><span class="dsel-num">14</span><span class="dsel-dot"></span></button><button class="day-sel-btn active"><span class="dsel-name">Wed</span><span class="dsel-num">15</span><span class="dsel-dot"></span></button><button class="day-sel-btn future"><span class="dsel-name">Fri</span><span class="dsel-num">16</span><span class="dsel-dot"></span></button><button class="day-sel-btn future"><span class="dsel-name">Fri</span><span class="dsel-num">17</span><span class="dsel-dot"></span></button></div>
+        </div>
       </div>
 
       <!-- Future day plan section -->
@@ -2016,11 +2029,18 @@
             </div>
           </div>
 
-          <!-- ── Weekend empty state ── -->
+          <!-- ── Weekend / Holiday / Leave info state ── -->
           <div id="weekendView">
             <div style="text-align:center;padding:8px 0 18px">
               <div id="wkndPageTitle" style="font-size:17px;font-weight:700;color:var(--foreground);letter-spacing:-.02em;margin-bottom:4px">Enjoy Your Weekend</div>
-              <div style="font-size:13px;color:var(--muted-fg);line-height:1.5">You're done with the week.</div>
+              <div id="wkndPageSubtitle" style="font-size:13px;color:var(--muted-fg);line-height:1.5">You're done with the week.</div>
+            </div>
+            <!-- Optional note: a short reminder of what this day was -->
+            <div id="wkndNoteWrap" style="margin-bottom:16px">
+              <div class="form-label" id="wkndNoteTitle" style="margin-bottom:8px">What did you do?</div>
+              <textarea id="wkndNote" placeholder="write a short note" rows="1" maxlength="240"
+                style="width:100%;box-sizing:border-box;resize:none;overflow-y:hidden;border:1px solid var(--border);border-radius:8px;background:var(--input-bg);color:var(--foreground);font-family:var(--font);font-size:13px;line-height:1.4;padding:9px 12px;outline:none;transition:border-color .15s"
+                oninput="_wkndNoteAutoGrow(this)" onkeydown="_wkndNoteKey(event,this)" onchange="saveWkndNote(this.value)"></textarea>
             </div>
             <div>
               <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
@@ -2707,7 +2727,10 @@
     <div class="dialog" style="width:fit-content;max-width:min(92vw,800px);max-height:90vh;display:flex;flex-direction:column">
       <div class="dialog-head" style="flex-shrink:0;display:flex;align-items:flex-start;justify-content:space-between;padding:16px">
         <div>
-          <div class="dialog-title">Weekly Report</div>
+          <div class="st-tabs" id="reportTabs" style="display:inline-flex;margin-bottom:8px">
+            <button type="button" class="st-tab active" id="reportTabWeek" onclick="_reportSetMode('week')">7 Days</button>
+            <button type="button" class="st-tab" id="reportTabMonth" onclick="_reportSetMode('month')">30 Days</button>
+          </div>
           <div class="dialog-desc" id="weekReportRange">—</div>
         </div>
         <button class="btn-icon" onclick="closeWeekReport()" title="Close" style="margin:0;flex-shrink:0">
@@ -3490,6 +3513,31 @@
       return mon.getMonth() === last.getMonth()
         ? `${MONTHS[mon.getMonth()]} ${mon.getDate()} – ${last.getDate()}`
         : `${MONTHS[mon.getMonth()]} ${mon.getDate()} – ${MONTHS[last.getMonth()]} ${last.getDate()}`;
+    }
+    // True if a given date key falls on a non-working day (weekend).
+    function isWeekendKey(key) {
+      const dow = new Date(key + 'T12:00').getDay(); // 0=Sun … 6=Sat
+      if (dow === 0) return true;                       // Sunday is always off
+      if (dow === 6 && (cfg().workDays || 5) < 6) return true; // Saturday off unless 6-day week
+      return false;
+    }
+    // Full Monday–Sunday strip (7 days) with an isWeekend flag on each day.
+    // Used only by the day selector strip — week() stays work-days-only so all
+    // the weekly target / report math is unaffected.
+    const ALL7_DAY_NAMES = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+    function weekStrip(offset) {
+      offset = offset || 0;
+      const t = new Date();
+      t.setDate(t.getDate() + offset * 7);
+      const dow = t.getDay();
+      const mon = new Date(t);
+      mon.setDate(t.getDate() + (dow === 0 ? -6 : 1 - dow));
+      mon.setHours(0,0,0,0);
+      const workCount = cfg().workDays === 6 ? 6 : 5; // index >= workCount is a weekend day
+      return ALL7_DAY_NAMES.map((n, i) => {
+        const d = new Date(mon); d.setDate(mon.getDate() + i);
+        return { key: dateKey(d), name: n, date: d, isWeekend: i >= workCount };
+      });
     }
 
     // ── EFFECTIVE TARGET (carry-over) ──────────────────
@@ -5137,7 +5185,7 @@
 
         const skipPenalty = ov === 'holiday' || ov === 'leave';
         let penalty = '—';
-        if (!skipPenalty && hasLog) penalty = diff < -300 ? '−' + dur(Math.abs(diff)) : 'None';
+        if (!skipPenalty && hasLog) penalty = diff < -300 ? '−' + dur(Math.abs(diff)) : '—';
 
         let surplus = '—';
         if (!skipPenalty && hasLog && diff > 60) surplus = '+' + dur(diff);
@@ -5241,7 +5289,98 @@
     }
     // ─────────────────────────────────────────────────────────────────────────
 
-    function renderWeekendState() {
+    // Note-field title per info type (Weekend / Holiday / Leave).
+    function _infoNoteTitle(type) {
+      if (type === 'holiday') return 'What was it?';
+      if (type === 'leave')   return 'What made you take a leave?';
+      return 'What did you do?'; // weekend
+    }
+    // Auto-grow the note field: one line by default, up to 5 lines, then scroll.
+    function _wkndNoteAutoGrow(ta) {
+      if (!ta) return;
+      const cs = getComputedStyle(ta);
+      const lh = parseFloat(cs.lineHeight) || (parseFloat(cs.fontSize) * 1.4);
+      const padV  = parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom);
+      const bordV = parseFloat(cs.borderTopWidth) + parseFloat(cs.borderBottomWidth);
+      const maxH  = Math.round(lh * 5 + padV + bordV); // cap at ~5 lines
+      ta.style.height = 'auto';
+      const needed = ta.scrollHeight + bordV; // scrollHeight is content+padding; add border (border-box)
+      ta.style.height = Math.min(needed, maxH) + 'px';
+      ta.style.overflowY = needed > maxH ? 'auto' : 'hidden';
+    }
+    // Enter saves and exits the field; Shift+Enter inserts a line break.
+    function _wkndNoteKey(e, ta) {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        saveWkndNote(ta.value);
+        ta.blur();
+      }
+    }
+    // Week offset of a date key relative to the current week (0 = this week).
+    function _weekOffsetForKey(key) {
+      const d = new Date(key + 'T12:00');
+      const dow = d.getDay();
+      const mon = new Date(d); mon.setDate(d.getDate() + (dow === 0 ? -6 : 1 - dow)); mon.setHours(0,0,0,0);
+      const today = new Date(); today.setHours(0,0,0,0);
+      const todayDow = today.getDay();
+      const thisMon = new Date(today); thisMon.setDate(today.getDate() + (todayDow === 0 ? -6 : 1 - todayDow));
+      return Math.round((mon - thisMon) / (7 * 86400000));
+    }
+    // Title + subtitle per info type and tense (past / present / future).
+    function _infoTitles(type, when) {
+      const sunday = (cfg().workDays || 5) >= 6; // 6-day week → only Sunday is off
+      if (type === 'holiday') {
+        if (when === 'past')   return { title: 'It was a Holiday',  sub: 'A day away from work.' };
+        if (when === 'future') return { title: 'Upcoming Holiday',  sub: 'A day off to look forward to.' };
+        return { title: "It's a Holiday", sub: 'No work on this day.' };
+      }
+      if (type === 'leave') {
+        if (when === 'past')   return { title: 'You were on Leave', sub: 'A full day of leave.' };
+        if (when === 'future') return { title: 'Scheduled Leave',   sub: 'A full day of leave ahead.' };
+        return { title: "You're on Leave", sub: 'A full day off.' };
+      }
+      // weekend
+      if (when === 'past')   return { title: sunday ? 'It was Sunday'      : 'It was the Weekend', sub: 'A day away from work.' };
+      if (when === 'future') return { title: sunday ? 'Upcoming Sunday'    : 'Upcoming Weekend',   sub: 'A break to look forward to.' };
+      return { title: sunday ? 'Enjoy Your Sunday' : 'Enjoy Your Weekend', sub: "You're done with the week." };
+    }
+    function saveWkndNote(val) {
+      const k = el('wkndNote')?.dataset.key;
+      if (!k) return;
+      const log = dayLog(k) || {};
+      const v = (val || '').trim();
+      if (v === (log.note || '')) return; // no change → skip write/sync
+      // saveDayLogAndSync pushes the note straight to Supabase
+      if (v) { saveDayLogAndSync(k, { ...log, note: v }); }
+      else if (log.note != null) { const u = { ...log }; delete u.note; saveDayLogAndSync(k, u); }
+    }
+
+    function renderWeekendState(key, type) {
+      type = type || 'weekend';
+      const tk = todayKey();
+      const isWkndSlot = !key || key === '__wknd__';
+      const noteKey = isWkndSlot ? tk : key;
+      // Tense: a whole weekend (both Sat & Sun) shares the current week's tense, so
+      // "tomorrow's Sunday" reads as the current weekend, not an upcoming one. Holiday
+      // and Leave stay day-based (each is a single specific day).
+      let when;
+      if (isWkndSlot) {
+        when = 'present';
+      } else if (type === 'weekend') {
+        const woff = _weekOffsetForKey(key);
+        when = woff < 0 ? 'past' : woff > 0 ? 'future' : 'present';
+      } else {
+        when = key < tk ? 'past' : key > tk ? 'future' : 'present';
+      }
+
+      // ── Title / subtitle / note (varies by Weekend vs Holiday vs Leave) ──
+      const ti = _infoTitles(type, when);
+      if (el('wkndPageTitle'))    el('wkndPageTitle').textContent = ti.title;
+      if (el('wkndPageSubtitle')) el('wkndPageSubtitle').textContent = ti.sub;
+      if (el('wkndNoteTitle'))    el('wkndNoteTitle').textContent = _infoNoteTitle(type);
+      const noteEl = el('wkndNote');
+      if (noteEl) { noteEl.dataset.key = noteKey; noteEl.value = dayLog(noteKey)?.note || ''; _wkndNoteAutoGrow(noteEl); }
+
       const wk = week(daySelectorWeekOffset);
       const mon = wk[0].date, fri = wk[wk.length - 1].date;
       const rangeLabel = mon.getMonth() === fri.getMonth()
@@ -5294,48 +5433,125 @@
              `background:${c.bg};color:${c.fg};white-space:nowrap">${c.label}</span>`;
     }
 
-    function openWeekReport(weekOffset) {
-      const _off = typeof weekOffset === 'number' ? weekOffset : daySelectorWeekOffset;
-      const wk = week(_off);
-      const mon = wk[0].date, fri = wk[wk.length - 1].date;
-      el('weekReportRange').textContent =
-        `${MONTHS[mon.getMonth()]} ${mon.getDate()} to ${MONTHS[fri.getMonth()]} ${fri.getDate()}, ${fri.getFullYear()}`;
+    // ── REPORT (Weekly / Monthly) ────────────────────────────────────────────
+    let _reportMode = 'week';        // 'week' | 'month'
+    let _reportWeekOffset = 0;
+    let _reportMonthOffset = 0;
 
+    const _DAY_ABBR = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+
+    // Working days in the last 30 calendar days, ending today (inclusive).
+    // Date numbers are zero-padded so they line up in the same column.
+    function last30WorkDays() {
+      const now = new Date();
+      const end = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const start = new Date(end); start.setDate(end.getDate() - 29); // 30 days inclusive
+      const workCount = cfg().workDays === 6 ? 6 : 5;
+      const out = [];
+      for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+        const dow = d.getDay();
+        if (dow < 1 || dow > workCount) continue; // skip weekends / off-days
+        const date = new Date(d);
+        // Number first + zero-padded → dates line up in one column when scanning
+        out.push({ key: dateKey(date), name: `${String(date.getDate()).padStart(2,'0')} ${_DAY_ABBR[dow]}`, date });
+      }
+      return out;
+    }
+
+    // Split a chronological day list into per-calendar-month groups (order preserved).
+    function _groupByMonth(daysArr) {
+      const groups = [];
+      let cur = null;
+      for (const d of daysArr) {
+        const y = d.date.getFullYear(), m = d.date.getMonth();
+        if (!cur || cur.year !== y || cur.month !== m) {
+          cur = { year: y, month: m, label: `${MONTHS[m]} ${y}`, days: [] };
+          groups.push(cur);
+        }
+        cur.days.push(d);
+      }
+      return groups;
+    }
+
+    // Build report rows for any list of days; future days are blanked out.
+    function _buildReportRows(daysArr) {
       const tk = todayKey();
-      const rawRows = _wkndDayData(wk);
-      // Extra guard: always blank out future days regardless of cached data
-      const rows = rawRows.map((r, i) => {
-        if (wk[i] && wk[i].key > tk) {
-          return { ...r, entry:'—', exit:'—', attendance:'—', penalty:'—', totalHours:'—', surplus:'—',
-                   worked:0, surplusSecs:0, isPenalty:false };
+      const raw = _wkndDayData(daysArr);
+      return raw.map((r, i) => {
+        if (daysArr[i] && daysArr[i].key > tk) {
+          return { ...r, entry:'—', exit:'—', attendance:'—', penalty:'—',
+                   totalHours:'—', surplus:'—', worked:0, surplusSecs:0, isPenalty:false };
         }
         return r;
       });
+    }
+
+    // Resolve the current report context (days, labels, file name) for the active mode.
+    function _reportContext() {
+      if (_reportMode === 'month') {
+        const daysArr = last30WorkDays();
+        const now = new Date();
+        const start = daysArr.length ? daysArr[0].date : now;
+        const end   = daysArr.length ? daysArr[daysArr.length - 1].date : now;
+        const sameMonth = start.getMonth() === end.getMonth() && start.getFullYear() === end.getFullYear();
+        const label = sameMonth
+          ? `${MONTHS[start.getMonth()]} ${start.getDate()} – ${end.getDate()}, ${end.getFullYear()}`
+          : `${MONTHS[start.getMonth()]} ${start.getDate()} – ${MONTHS[end.getMonth()]} ${end.getDate()}, ${end.getFullYear()}`;
+        return { daysArr, grouped: true, label, pdfRange: label, pdfPeriod: '30 DAYS',
+                 totalLabel: 'Total Work Hours',
+                 fileBase: `30day-report-${dateKey(end)}` };
+      }
+      const wk = week(_reportWeekOffset);
+      const mon = wk[0].date, fri = wk[wk.length - 1].date;
+      return { daysArr: wk, grouped: false,
+               label: `${MONTHS[mon.getMonth()]} ${mon.getDate()} to ${MONTHS[fri.getMonth()]} ${fri.getDate()}, ${fri.getFullYear()}`,
+               pdfRange: `${MONTHS[mon.getMonth()]} ${mon.getDate()} – ${MONTHS[fri.getMonth()]} ${fri.getDate()}, ${fri.getFullYear()}`,
+               pdfPeriod: '7 DAYS', totalLabel: 'Weekly Work Hours',
+               fileBase: `week-report-${mon.getFullYear()}-${String(mon.getMonth()+1).padStart(2,'0')}-${String(mon.getDate()).padStart(2,'0')}` };
+    }
+
+    function _renderReport() {
+      const ctx = _reportContext();
+      const daysArr = ctx.daysArr, tk = todayKey();
+      el('weekReportRange').textContent = ctx.label;
+
+      const rows = _buildReportRows(daysArr);
       const totalWorked  = rows.reduce((s, r) => s + r.worked, 0);
       const totalSurplus = rows.reduce((s, r) => s + r.surplusSecs, 0);
 
       const TH = 'padding:8px 10px;text-align:left;font-size:10px;font-weight:600;color:var(--muted-fg);text-transform:uppercase;letter-spacing:.07em;border-bottom:1px solid var(--border);white-space:nowrap';
       const TD = (extra='') => `padding:10px 10px;font-size:12px;color:var(--foreground);border-bottom:1px solid var(--border);${extra}`;
-
       const surpHdr = _surplusLabel();
+
       let html = `<thead><tr>
         <th style="${TH}">Day</th>
-        <th style="${TH}">Entry</th>
-        <th style="${TH}">Exit</th>
+        <th style="${TH}">Login</th>
+        <th style="${TH}">Logout</th>
         <th style="${TH}">Attendance</th>
         <th style="${TH}">Penalty</th>
         <th style="${TH}">Total Hours</th>
         <th style="${TH}">${surpHdr}</th>
       </tr></thead><tbody>`;
 
+      const SUBHEAD = 'padding:8px 10px;font-size:10px;font-weight:700;color:var(--muted-fg);text-transform:uppercase;letter-spacing:.07em;background:var(--muted);border-bottom:1px solid var(--border)';
+      let curMonthKey = null;
       for (let i = 0; i < rows.length; i++) {
         const r = rows[i];
-        const isFutureRow = wk[i] && wk[i].key > tk;
-        const penColor = r.isPenalty ? 'color:var(--destructive)' : r.penalty === 'None' ? 'color:var(--muted-fg)' : '';
+        const dDate = daysArr[i]?.date;
+        // Month sub-header row (only in the grouped 30-day view, when the month changes)
+        if (ctx.grouped && dDate) {
+          const mk = `${dDate.getFullYear()}-${dDate.getMonth()}`;
+          if (mk !== curMonthKey) {
+            curMonthKey = mk;
+            html += `<tr><td colspan="7" style="${SUBHEAD}">${MONTHS[dDate.getMonth()]} ${dDate.getFullYear()}</td></tr>`;
+          }
+        }
+        const isFutureRow = daysArr[i] && daysArr[i].key > tk;
+        const penColor = r.isPenalty ? 'color:var(--destructive)' : '';
         const surColor = r.surplusSecs > 0 ? 'color:var(--success)' : 'color:var(--muted-fg)';
         const rowStyle = isFutureRow ? 'opacity:.45' : '';
         html += `<tr style="${rowStyle}">
-          <td style="${TD('font-weight:500')}">${r.day}</td>
+          <td style="${TD('font-weight:500;font-variant-numeric:tabular-nums')}">${r.day}</td>
           <td style="${TD('color:var(--muted-fg)')}">${r.entry}</td>
           <td style="${TD('color:var(--muted-fg)')}">${r.exit}</td>
           <td style="${TD('vertical-align:middle')}">${isFutureRow ? '<span style="color:var(--muted-fg)">—</span>' : _attChip(r.attendance)}</td>
@@ -5345,12 +5561,44 @@
         </tr>`;
       }
       html += `<tr style="background:var(--muted)">
-        <td colspan="5" style="${TD('font-weight:600;border-bottom:none')}">Weekly Work Hours</td>
+        <td colspan="5" style="${TD('font-weight:600;border-bottom:none')}">${ctx.totalLabel}</td>
         <td style="${TD('font-weight:700;border-bottom:none')}">${totalWorked > 0 ? dur(totalWorked) : '—'}</td>
         <td style="${TD('font-weight:700;color:var(--success);border-bottom:none')}">${totalSurplus > 0 ? '+' + dur(totalSurplus) : '—'}</td>
       </tr></tbody>`;
 
       el('weekReportTable').innerHTML = html;
+    }
+
+    // Animate the report dialog's height between the old and new content sizes.
+    function _animateReportResize(renderFn) {
+      const dialog = el('weekReportOverlay')?.querySelector('.dialog');
+      if (!dialog || !dialog.offsetHeight) { renderFn(); return; } // hidden → no animation
+      const startH = dialog.offsetHeight;
+      renderFn();
+      const endH = dialog.offsetHeight;
+      if (startH === endH) return;
+      dialog.style.height = startH + 'px';
+      dialog.getBoundingClientRect();              // force reflow before transition
+      dialog.style.transition = 'height .3s cubic-bezier(.4,0,.2,1)';
+      dialog.style.height = endH + 'px';
+      const done = () => { dialog.style.height = ''; dialog.style.transition = ''; dialog.removeEventListener('transitionend', done); };
+      dialog.addEventListener('transitionend', done);
+      setTimeout(done, 360);                       // fallback if transitionend doesn't fire
+    }
+
+    function _reportSetMode(mode) {
+      _reportMode = mode;
+      el('reportTabWeek')?.classList.toggle('active', mode === 'week');
+      el('reportTabMonth')?.classList.toggle('active', mode === 'month');
+      _animateReportResize(_renderReport);
+    }
+
+    function openWeekReport(weekOffset) {
+      _reportWeekOffset = typeof weekOffset === 'number' ? weekOffset : daySelectorWeekOffset;
+      // Default the Monthly tab to the month containing this week's Monday.
+      const wkMon = week(_reportWeekOffset)[0].date, now = new Date();
+      _reportMonthOffset = (wkMon.getFullYear() - now.getFullYear()) * 12 + (wkMon.getMonth() - now.getMonth());
+      _reportSetMode('week');
       el('weekReportOverlay').classList.add('open');
     }
 
@@ -5378,121 +5626,131 @@
       } catch(e) { cb(null); }
     }
 
-    function downloadWeekReport(weekOffset) {
+    function downloadWeekReport() {
       if (!window.jspdf) { showToast('Creating your Document', 'info', '', { label: 'Okay' }); return; }
-      const _offset = (typeof weekOffset === 'number') ? weekOffset : daySelectorWeekOffset;
-
-      const wk  = week(_offset);
-      const mon = wk[0].date, fri = wk[wk.length - 1].date;
-      const rangeStr   = `${MONTHS[mon.getMonth()]} ${mon.getDate()} – ${MONTHS[fri.getMonth()]} ${fri.getDate()}, ${fri.getFullYear()}`;
-      const rows       = _wkndDayData(wk);
-      const totalWorked  = rows.reduce((s, r) => s + r.worked, 0);
-      const totalSurplus = rows.reduce((s, r) => s + r.surplusSecs, 0);
+      const ctx = _reportContext();
       const c = cfg();
-      const userName = (c.name || '').trim();
-      const company  = (c.position || '').trim();
+      const showSurplus = c.recommendTimings !== false;   // Surplus column only when Recommend Timings on
+      const surplusColIdx = showSurplus ? 6 : -1;
+      const pdfSurpHdr = c.weeklyOn ? 'Surplus' : 'Over Time';
+
+      const head = ['Day', 'Login', 'Logout', 'Attendance', 'Penalty', 'Total Hours'];
+      if (showSurplus) head.push(pdfSurpHdr);
+
+      // One consistent dash for every empty cell; also swap the U+2212 minus
+      // (which the PDF's Helvetica can't render) for a plain hyphen.
+      const DASH = '–';
+      const norm = v => {
+        if (v == null || v === '' || v === '—' || v === '–' || v === '-' || v === '−' || v === 'None') return DASH;
+        return String(v).replace(/−/g, '-');
+      };
+
+      // Tables: 30-day → one per month (title = month, no year); week → single table.
+      const tables = ctx.grouped
+        ? _groupByMonth(ctx.daysArr).map(g => ({ title: MONTHS[g.month], count: g.days.length, rows: _buildReportRows(g.days) }))
+        : (() => {
+            const d0 = ctx.daysArr[0]?.date, dN = ctx.daysArr[ctx.daysArr.length - 1]?.date;
+            let title = d0 ? MONTHS[d0.getMonth()] : '';
+            if (d0 && dN && d0.getMonth() !== dN.getMonth()) title = `${MONTHS[d0.getMonth()]} – ${MONTHS[dN.getMonth()]}`;
+            return [{ title, count: ctx.daysArr.length, rows: _buildReportRows(ctx.daysArr) }];
+          })();
 
       _loadLogoDataUrl((logoDataUrl) => {
         const { jsPDF } = window.jspdf;
-        const doc     = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-        const pageW   = doc.internal.pageSize.getWidth(); // 210 mm
-        const margin  = 18;
+        const doc    = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+        const pageW  = doc.internal.pageSize.getWidth();  // 210 mm
+        const pageH  = doc.internal.pageSize.getHeight(); // 297 mm
+        const margin = 18;
 
-        // ── Logo — 48×48 px ≈ 12.7 mm; we use 13 mm square ──
-        const LOGO_SIZE = 13; // mm
-        const logoX = margin, logoY = 15;
+        // ════ PAGE HEADER — Logo (left) · Duration (right) ════
+        const LOGO_SIZE = 13, logoY = 15;
         if (logoDataUrl) {
-          doc.addImage(logoDataUrl, 'PNG', logoX, logoY, LOGO_SIZE, LOGO_SIZE);
+          doc.addImage(logoDataUrl, 'PNG', margin, logoY, LOGO_SIZE, LOGO_SIZE);
         } else {
-          // Fallback: bold wordmark
-          doc.setFontSize(18); doc.setFont('helvetica', 'bold');
-          doc.setTextColor(17, 24, 39);
+          doc.setFontSize(18); doc.setFont('helvetica', 'bold'); doc.setTextColor(17, 24, 39);
           doc.text('5pm', margin, logoY + 10);
         }
-
-        // ── User details — left aligned, below logo ──
-        let leftY = logoY + LOGO_SIZE + 4;
-        if (userName) {
-          doc.setFontSize(13); doc.setFont('helvetica', 'bold'); doc.setTextColor(17, 24, 39);
-          doc.text(userName, margin, leftY);
-          leftY += 6;
-        }
-        if (company) {
-          doc.setFontSize(9.5); doc.setFont('helvetica', 'normal'); doc.setTextColor(107, 114, 128);
-          doc.text(company, margin, leftY);
-          leftY += 5;
-        }
-
-        // ── Week details — right aligned, top of header ──
         doc.setFontSize(7.5); doc.setFont('helvetica', 'bold'); doc.setTextColor(156, 163, 175);
-        doc.text('WEEK', pageW - margin, logoY + 4, { align: 'right' });
+        doc.text('DURATION', pageW - margin, logoY + 4, { align: 'right' });
         doc.setFontSize(11); doc.setFont('helvetica', 'bold'); doc.setTextColor(17, 24, 39);
-        doc.text(rangeStr, pageW - margin, logoY + 11, { align: 'right' });
+        doc.text(ctx.pdfRange, pageW - margin, logoY + 11, { align: 'right' });
 
-        // ── Divider ──
-        const divY = Math.max(leftY, logoY + 20) + 3;
-        doc.setDrawColor(229, 231, 235);
-        doc.setLineWidth(0.4);
+        // Divider under the page header
+        const divY = logoY + LOGO_SIZE + 4;
+        doc.setDrawColor(229, 231, 235); doc.setLineWidth(0.4);
         doc.line(margin, divY, pageW - margin, divY);
 
-        // ── Table ──
-        const pdfSurpHdr = c.weeklyOn ? 'Surplus' : 'Over Time';
-        const tableBody = rows.map(r => [r.day, r.entry, r.exit, r.attendance, r.penalty, r.totalHours, r.surplus]);
-        tableBody.push(['Weekly Work Hours', '', '', '', '',
-          totalWorked  > 0 ? dur(totalWorked)              : '—',
-          totalSurplus > 0 ? '+' + dur(totalSurplus)       : '—']);
-        const totalRowIdx = tableBody.length - 1;
+        let cursorY = divY + 9;
 
-        doc.autoTable({
-          startY: divY + 5,
-          margin: { left: margin, right: margin },
-          head: [['Day', 'Entry', 'Exit', 'Attendance', 'Penalty', 'Total Hours', pdfSurpHdr]],
-          body: tableBody,
-          styles: {
-            fontSize: 10,
-            cellPadding: { top: 4, bottom: 4, left: 5, right: 5 },
-            valign: 'middle',
-            textColor: [55, 65, 81],
-          },
-          headStyles: {
-            fillColor: [249, 250, 251],
-            textColor: [107, 114, 128],
-            fontStyle: 'bold',
-            fontSize: 8,
-            lineColor: [229, 231, 235],
-            lineWidth: { bottom: 0.5 },
-          },
-          alternateRowStyles: { fillColor: [255, 255, 255] },
-          tableLineColor: [243, 244, 246],
-          tableLineWidth: 0.3,
-          didParseCell(data) {
-            if (data.section !== 'body') return;
-            const isTotal = data.row.index === totalRowIdx;
-            if (isTotal) {
-              data.cell.styles.fontStyle = 'bold';
-              data.cell.styles.fontSize = 11;
-              data.cell.styles.fillColor = [249, 250, 251];
-              data.cell.styles.textColor = [17, 24, 39];
-              if (data.column.index === 6 && totalSurplus > 0)
-                data.cell.styles.textColor = [22, 163, 74];
-            } else {
-              const r = rows[data.row.index];
-              if (data.column.index === 0) {
+        tables.forEach((t, ti) => {
+          if (ti > 0) cursorY += 5;
+          // Keep the table header with its table — start a new page if it would
+          // be orphaned near the bottom (heading + column row + a couple rows).
+          if (cursorY + 34 > pageH - margin) { doc.addPage(); cursorY = margin + 2; }
+
+          // ════ TABLE HEADER — Month/Week (left) · Days Count (right) ════
+          doc.setFontSize(11); doc.setFont('helvetica', 'bold'); doc.setTextColor(17, 24, 39);
+          doc.text(t.title, margin, cursorY);
+          doc.setFontSize(9); doc.setFont('helvetica', 'normal'); doc.setTextColor(107, 114, 128);
+          doc.text(`${t.count} ${t.count === 1 ? 'Day' : 'Days'}`, pageW - margin, cursorY, { align: 'right' });
+          cursorY += 3;
+
+          // ════ TABLE — all dates data ════
+          const gRows = t.rows;
+          const gWorked  = gRows.reduce((s, r) => s + r.worked, 0);
+          const gSurplus = gRows.reduce((s, r) => s + r.surplusSecs, 0);
+
+          const body = gRows.map(r => {
+            const row = [norm(r.day), norm(r.entry), norm(r.exit), norm(r.attendance), norm(r.penalty), norm(r.totalHours)];
+            if (showSurplus) row.push(norm(r.surplus));
+            return row;
+          });
+          const totRow = ['Total', '', '', '', '', gWorked > 0 ? dur(gWorked) : DASH];
+          if (showSurplus) totRow.push(gSurplus > 0 ? '+' + dur(gSurplus) : DASH);
+          body.push(totRow);
+          const tIdx = body.length - 1;
+
+          doc.autoTable({
+            startY: cursorY,
+            margin: { left: margin, right: margin },
+            theme: 'grid',
+            head: [head],
+            body,
+            styles: {
+              font: 'helvetica', fontSize: 10,
+              cellPadding: { top: 4, bottom: 4, left: 5, right: 5 },
+              valign: 'middle', textColor: [17, 24, 39],
+              lineColor: [226, 232, 240], lineWidth: 0.2,
+            },
+            headStyles: {
+              fillColor: [249, 250, 251], textColor: [107, 114, 128],
+              fontStyle: 'normal', fontSize: 8, lineColor: [226, 232, 240], lineWidth: 0.2,
+            },
+            alternateRowStyles: { fillColor: [252, 252, 253] },
+            didParseCell(data) {
+              if (data.section !== 'body') return;
+              if (data.row.index === tIdx) {
                 data.cell.styles.fontStyle = 'bold';
+                data.cell.styles.fontSize = 10;
+                data.cell.styles.fillColor = [249, 250, 251];
                 data.cell.styles.textColor = [17, 24, 39];
+                if (data.column.index === surplusColIdx && gSurplus > 0)
+                  data.cell.styles.textColor = [22, 163, 74];
+              } else {
+                const r = gRows[data.row.index];
+                if (data.column.index === 0)
+                  data.cell.styles.textColor = [17, 24, 39];
+                if (data.column.index === 4 && r?.isPenalty)
+                  data.cell.styles.textColor = [220, 38, 38];
+                if (data.column.index === surplusColIdx && r?.surplusSecs > 0)
+                  data.cell.styles.textColor = [22, 163, 74];
               }
-              if (data.column.index === 1 || data.column.index === 2)
-                data.cell.styles.textColor = [156, 163, 175];
-              if (data.column.index === 4 && r?.isPenalty)
-                data.cell.styles.textColor = [220, 38, 38];
-              if (data.column.index === 6 && r?.surplusSecs > 0)
-                data.cell.styles.textColor = [22, 163, 74];
-            }
-          },
+            },
+          });
+          cursorY = doc.lastAutoTable.finalY + 6;
         });
 
-        const fname = `week-report-${mon.getFullYear()}-${String(mon.getMonth()+1).padStart(2,'0')}-${String(mon.getDate()).padStart(2,'0')}.pdf`;
-        doc.save(fname);
+        doc.save(`${ctx.fileBase}.pdf`);
       });
     }
 
@@ -5815,13 +6073,22 @@
       const container = el('daySelectorRow');
       if (!container) return;
       const tk = todayKey();
-      const todayBtn = container.querySelector(`.day-sel-btn[data-key="${tk}"]`);
-      if (!todayBtn) return;
+      let targetBtn = container.querySelector(`.day-sel-btn[data-key="${tk}"]`);
+      // On weekends today's card isn't in a Mon–Fri strip — fall back to the
+      // nearest work day of the current week so the strip still lands there
+      // (otherwise it stays scrolled all the way back to the earliest week).
+      if (!targetBtn) {
+        const wk = week(0);
+        for (let i = wk.length - 1; i >= 0 && !targetBtn; i--) {
+          targetBtn = container.querySelector(`.day-sel-btn[data-key="${wk[i].key}"]`);
+        }
+      }
+      if (!targetBtn) return;
       if (!container.getBoundingClientRect().width) {
         requestAnimationFrame(() => _dsResetScroll());
         return;
       }
-      _dsScrollTo(container, todayBtn);
+      _dsScrollTo(container, targetBtn);
     }
 
     // ── Lazy-load helpers ──
@@ -5833,6 +6100,7 @@
       const isFuture = day.date > now && day.key !== tk;
       btn.className = 'day-sel-btn';
       btn.dataset.key = day.key;
+      if (day.isWeekend) btn.classList.add('wkd-btn');
       if (selKey && day.key === selKey) btn.classList.add('active');
       if (log?.hoursWorked != null && log?.override !== 'leave' && log?.override !== 'holiday') {
         const t = c.dailyH * 3600, dt = log?.override === 'halfday' ? t / 2 : t;
@@ -5858,7 +6126,7 @@
       const now = new Date(), tk = todayKey(), c = cfg();
       const selKey = selectedDayKey === '__wknd__' ? null : (selectedDayKey || tk);
       const days = [];
-      for (let off = newEarliest; off < _dsEarliestOffset; off++) week(off).forEach(d => days.push(d));
+      for (let off = newEarliest; off < _dsEarliestOffset; off++) weekStrip(off).forEach(d => days.push(d));
       const frag = document.createDocumentFragment();
       days.forEach(day => frag.appendChild(_dsMakeBtn(day, now, tk, selKey, c)));
       const scrollBefore = container.scrollLeft;
@@ -5904,7 +6172,7 @@
       // ── Full render: 2 past weeks + current week + next week (lazy: more loaded on demand) ──
       _dsEarliestOffset = -2;
       const days = [];
-      for (let off = -2; off <= 1; off++) week(off).forEach(d => days.push(d));
+      for (let off = -2; off <= 1; off++) weekStrip(off).forEach(d => days.push(d));
 
       container.innerHTML = '';
       _dsSel = null;
@@ -5993,6 +6261,26 @@
       el('wkndBadgeCard').style.display = 'none';
       el('resultCard').style.display = '';
 
+      // Weekend day, or a day marked Holiday / Full Day Leave → unified info card
+      const _ovSel = dayLog(key)?.override;
+      const _infoType = isWeekendKey(key) ? 'weekend'
+        : _ovSel === 'holiday' ? 'holiday'
+        : _ovSel === 'leave'   ? 'leave' : null;
+      if (_infoType) {
+        _syncOffsetFromKey(key);
+        el('todayLoginSection').style.display = 'none';
+        el('rcUpdateEntryBtn')?.classList.remove('visible');
+        el('leaveChip').style.display = 'none';
+        const _hd = el('rcHeadDate');
+        if (_hd) {
+          if (key === tk) { _hd.classList.remove('visible'); }
+          else { _hd.textContent = _fmtDayHeading(new Date(key + 'T12:00')); _hd.classList.add('visible'); }
+        }
+        el('rcBody')?.classList.add('weekend-mode');
+        renderWeekendState(key, _infoType);
+        return;
+      }
+
       const headDateEl = el('rcHeadDate');
       if (key === tk) {
         // Today
@@ -6072,6 +6360,22 @@
       selectedDayKey = key;
       el('rcBody')?.classList.remove('weekend-mode');
       renderDaySelector();
+
+      // Future weekend day → weekend info card (not the work-day planner)
+      if (isWeekendKey(key)) {
+        _syncOffsetFromKey(key);
+        el('todayLoginSection').style.display = 'none';
+        el('rcUpdateEntryBtn')?.classList.remove('visible');
+        el('leaveChip').style.display = 'none';
+        el('futureDayPlan').style.display = 'none';
+        el('resultCard').style.display = '';
+        const _hd = el('rcHeadDate');
+        if (_hd) { _hd.textContent = _fmtDayHeading(new Date(key + 'T12:00')); _hd.classList.add('visible'); }
+        el('rcBody')?.classList.add('weekend-mode');
+        renderWeekendState(key, 'weekend');
+        return;
+      }
+
       const wk = week(daySelectorWeekOffset), day = wk.find(d => d.key === key);
       const log = dayLog(key);
 

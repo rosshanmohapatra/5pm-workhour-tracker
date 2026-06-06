@@ -2735,7 +2735,7 @@
 
   <!-- ── Weekly Report Modal ── -->
   <div class="overlay" id="weekReportOverlay" onclick="if(event.target===this)closeWeekReport()">
-    <div class="dialog" style="width:fit-content;max-width:min(92vw,900px);max-height:90vh;display:flex;flex-direction:column">
+    <div class="dialog" style="width:min(92vw,900px);max-height:90vh;display:flex;flex-direction:column">
       <div class="dialog-head" style="flex-shrink:0;display:flex;align-items:flex-start;justify-content:space-between;padding:16px">
         <div>
           <div class="st-tabs" id="reportTabs" style="display:inline-flex;margin-bottom:8px">
@@ -10765,6 +10765,20 @@ ${sig}`
         const recoveryOpen = el('autoStopRecoveryOverlay')?.classList.contains('open');
         if (!recoveryOpen) openWeekPlanModal();
       }, 1200);
+
+      // ── Scroll lock when any modal is open (prevents body scroll behind overlays) ──
+      const _scrollLockObserver = new MutationObserver(() => {
+        const anyOpen = !!(
+          document.querySelector('.overlay.open') ||
+          document.querySelector('.wp-picker-overlay.open') ||
+          document.querySelector('.ob-overlay[style*="block"]')
+        );
+        document.body.style.overflow = anyOpen ? 'hidden' : '';
+        document.documentElement.style.overflow = anyOpen ? 'hidden' : '';
+      });
+      document.querySelectorAll('.overlay, .wp-picker-overlay').forEach(o =>
+        _scrollLockObserver.observe(o, { attributes: true, attributeFilter: ['class', 'style'] })
+      );
     })();
   </script>
 

@@ -5510,8 +5510,19 @@
       const _cardNoteEl = el('wkndCardNote');
       if (_cardNoteEl) {
         const _noteText = dayLog(key)?.note || '';
-        _cardNoteEl.textContent = _noteText;
-        _cardNoteEl.style.display = (_isOverride && _noteText) ? '' : 'none';
+        if (_isOverride && _noteText) {
+          _cardNoteEl.textContent = _noteText;
+          _cardNoteEl.style.color = '';
+          _cardNoteEl.style.opacity = '';
+          _cardNoteEl.style.display = '';
+        } else if (_isOverride) {
+          _cardNoteEl.textContent = 'tap to add description';
+          _cardNoteEl.style.color = 'var(--muted-fg)';
+          _cardNoteEl.style.opacity = '.45';
+          _cardNoteEl.style.display = '';
+        } else {
+          _cardNoteEl.style.display = 'none';
+        }
       }
 
       // Dashed + clickable for all override types (past, present, future)
@@ -6580,7 +6591,7 @@
         // Note below timing
         const _ovNote = log?.futureReason
           ? `<div style="font-size:13px;color:var(--muted-fg);margin-top:6px;line-height:1.5;white-space:pre-wrap">${log.futureReason}</div>`
-          : '';
+          : `<div style="font-size:13px;color:var(--muted-fg);opacity:.45;margin-top:6px">tap to add description</div>`;
         chipsEl.innerHTML = `<div class="override-info-editable" style="width:100%;box-sizing:border-box;text-align:center" onclick="openDayEditModal('${key}')">
           <div style="font-size:15px;font-weight:700;color:var(--foreground);margin-bottom:4px">${_ovLabel}</div>
           ${_timingLine}${_ovNote}

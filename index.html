@@ -5517,6 +5517,8 @@
           _cardNoteEl.style.display = '';
         } else if (_isOverride) {
           _cardNoteEl.innerHTML = `<span style="display:inline-flex;align-items:center;gap:5px;font-size:12px;color:var(--muted-fg);opacity:.55;cursor:pointer" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>add description</span>`;
+          const _ph = _cardNoteEl.querySelector('span');
+          if (_ph) _ph.onclick = (e) => { e.stopPropagation(); openDayEditModal(key, true); };
           _cardNoteEl.style.color = '';
           _cardNoteEl.style.opacity = '';
           _cardNoteEl.style.display = '';
@@ -6591,7 +6593,7 @@
         // Note below timing
         const _ovNote = log?.futureReason
           ? `<div style="font-size:13px;color:var(--muted-fg);margin-top:6px;line-height:1.5;white-space:pre-wrap">${log.futureReason}</div>`
-          : `<div style="margin-top:8px"><span style="display:inline-flex;align-items:center;gap:5px;font-size:12px;color:var(--muted-fg);opacity:.55;cursor:pointer;text-decoration:none" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>add description</span></div>`;
+          : `<div style="margin-top:8px"><span onclick="event.stopPropagation();openDayEditModal('${key}',true)" style="display:inline-flex;align-items:center;gap:5px;font-size:12px;color:var(--muted-fg);opacity:.55;cursor:pointer;text-decoration:none" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>add description</span></div>`;
         chipsEl.innerHTML = `<div class="override-info-editable" style="width:100%;box-sizing:border-box;text-align:center" onclick="openDayEditModal('${key}')">
           <div style="font-size:15px;font-weight:700;color:var(--foreground);margin-bottom:4px">${_ovLabel}</div>
           ${_timingLine}${_ovNote}
@@ -8269,7 +8271,7 @@ ${sig}`
       });
     }
 
-    function openDayEditModal(key) {
+    function openDayEditModal(key, focusNote = false) {
       _dayEditKey = key || todayKey(); // null means today throughout the app
       const wk = week(0), allWk = week(analyticsWeekOffset);
       const dayInfo = [...wk, ...allWk].find(d => d.key === (key || todayKey()));
@@ -8316,6 +8318,7 @@ ${sig}`
       el('deStart')._blurFn = startBlur; el('deStart').addEventListener('blur', startBlur);
       el('deEnd')._blurFn   = endBlur;   el('deEnd').addEventListener('blur', endBlur);
       el('dayEditOverlay').classList.add('open');
+      if (focusNote) requestAnimationFrame(() => el('deNote')?.focus());
     }
 
     // ── NEW PLAN MODAL ─────────────────────────────────

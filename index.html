@@ -5467,6 +5467,14 @@
       if (el('wkndPageTitle'))    el('wkndPageTitle').textContent = ti.title;
       if (el('wkndPageSubtitle')) el('wkndPageSubtitle').textContent = ti.sub;
       if (el('wkndNoteTitle'))    el('wkndNoteTitle').textContent = _infoNoteTitle(type);
+      // ── Info card + note ────────────────────────────────────────────────
+      const _infoCard    = el('wkndOverrideInfoCard');
+      const _isOverride  = type !== 'weekend';
+
+      // Note textarea: only for weekends — show/hide BEFORE auto-grow so scrollHeight is correct
+      const _noteWrap = el('wkndNoteWrap');
+      if (_noteWrap) _noteWrap.style.display = _isOverride ? 'none' : '';
+
       // Override mode: note textarea fills remaining card height — skip auto-grow
       const _wkndView = el('weekendView');
       if (_wkndView) _wkndView.classList.toggle('override-mode', type !== 'weekend');
@@ -5477,10 +5485,6 @@
         if (type === 'weekend') _wkndNoteAutoGrow(noteEl);
         else noteEl.style.height = ''; // let flex handle height
       }
-
-      // ── Info card + note ────────────────────────────────────────────────
-      const _infoCard    = el('wkndOverrideInfoCard');
-      const _isOverride  = type !== 'weekend';
 
       // Subtitle: only for weekends
       const _subtitleEl = el('wkndPageSubtitle');
@@ -5516,10 +5520,6 @@
         _infoCard.style.padding = _isOverride ? '' : '8px 0 18px';
         _infoCard.onclick = _isOverride ? () => openDayEditModal(key) : null;
       }
-
-      // Note textarea: only for weekends
-      const _noteWrap = el('wkndNoteWrap');
-      if (_noteWrap) _noteWrap.style.display = _isOverride ? 'none' : '';
 
       // Stats + badge only shown on actual weekend days, not on weekday overrides
       const _isWeekendType = type === 'weekend';
@@ -6410,6 +6410,7 @@
       selectedDayKey = key;
       localStorage.setItem('wh_sel_day', key);
       el('rcBody')?.classList.remove('weekend-mode');
+      el('weekendView')?.classList.remove('override-mode');
       renderDaySelector();
       updateSelDayHeader(key);
       el('futureDayPlan').style.display = 'none';

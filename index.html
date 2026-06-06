@@ -1001,7 +1001,12 @@
     /* Two-button row: right-aligned on desktop, full-width side-by-side on mobile */
     .future-plan-actions { display: flex; gap: 8px; justify-content: flex-end; }
     @media (max-width: 640px) {
-      .future-plan-actions > button { flex: 1; }
+      .future-plan-actions > button { flex: 1; width: 100%; }
+    }
+    /* Delete entry button — neutral default, destructive on hover (pointer devices only) */
+    #dayEditDeleteBtn { color: var(--muted-fg); background: var(--muted); border-color: var(--border); }
+    @media (hover: hover) {
+      #dayEditDeleteBtn:hover { color: var(--destructive); background: var(--destructive-bg); border-color: var(--destructive-border); }
     }
     /* Override info card — dashed, clickable, for past holiday/leave/halfday */
     .override-info-editable { cursor: pointer; border: 1.5px dashed var(--border);
@@ -1977,7 +1982,7 @@
           <div id="futurePlanBtnWrap" class="future-plan-cta">
             <div class="future-plan-actions">
               <button class="btn-secondary" id="futurePlanDiscardBtn" style="height:36px;padding:0 16px;border-radius:10px;font-size:13px">Discard</button>
-              <button class="shift-start-btn" id="futurePlanBtn" style="font-size:13px;height:36px;border-radius:10px;padding:0 20px">Looks Good</button>
+              <button class="shift-start-btn" id="futurePlanBtn" style="font-size:13px;height:36px;border-radius:10px;padding:0 20px;width:auto">Looks Good</button>
             </div>
           </div>
         </div>
@@ -3295,8 +3300,7 @@
         <button id="dayEditDeleteBtn" title="Delete entry"
           style="position:absolute;top:10px;right:10px;width:32px;height:32px;padding:0;
             border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;
-            font-size:14px;color:var(--destructive);background:var(--destructive-bg);
-            border:1px solid var(--destructive-border);transition:opacity .15s;">
+            font-size:14px;border:1px solid;transition:color .15s,background .15s,border-color .15s;">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
             <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
           </svg>

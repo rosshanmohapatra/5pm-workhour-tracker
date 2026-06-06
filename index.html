@@ -8443,7 +8443,7 @@ ${sig}`
     // they never block the UI. Silently no-ops when the user is not signed in.
     const SbSync = {
       // Valid override values in the DB CHECK constraint
-      _OVERRIDES: new Set(['leave', 'holiday', 'wfh']),
+      _OVERRIDES: new Set(['leave', 'holiday', 'wfh', 'halfday']),
 
       // Map a localStorage day entry → work_logs row
       _toRow(userId, dk, entry) {
@@ -8475,6 +8475,7 @@ ${sig}`
           accumulated_secs: Math.min(Math.round((parseFloat(entry.hoursWorked) || 0) * 3600), 86400),
           status:           statusMap[entry.sessionTag] || 'completed',
           override_type:    this._OVERRIDES.has(entry.override) ? entry.override : null,
+          notes:            entry.note ? String(entry.note).slice(0, 1000) : null,
           // NOTE: updated_at is intentionally OMITTED.
           // The DB trigger (private.set_updated_at) auto-stamps it on every UPDATE.
           // Sending it from the client causes a 42501 because updated_at has no
@@ -8560,6 +8561,7 @@ ${sig}`
               hoursWorked: parseFloat(row.hours_worked) || 0,
               sessionTag:  row.status === 'auto_stopped' ? 'autostopped' : 'realtime',
               override:    this._OVERRIDES.has(row.override_type) ? row.override_type : null,
+              ...(row.notes ? { note: row.notes } : {}),
               lastUpdated: row.updated_at,
             });
           });

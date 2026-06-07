@@ -5495,8 +5495,9 @@
       const v = (val || '').trim();
       if (v === (log.note || '')) return; // no change → skip write/sync
       const ts = new Date().toISOString();
+      _setNoteDirty(k); // guard against pullAll race before push lands
       if (v) { saveDayLogAndSync(k, { ...log, note: v, lastUpdated: ts }); }
-      else if (log.note != null) { const u = { ...log }; delete u.note; u.lastUpdated = ts; saveDayLogAndSync(k, u); }
+      else { const u = { ...log }; delete u.note; u.lastUpdated = ts; saveDayLogAndSync(k, u); }
     }
 
 
@@ -8716,6 +8717,7 @@ ${sig}`
             const local = Store.getDay(dk);
             if (local) Store.setDay(dk, { ...local, lastUpdated: data.updated_at });
           }
+          _clearNoteDirty(dk); // push confirmed — local-write guard no longer needed
           return true;
         } catch (e) { this._lastErr = e.message || 'Network error'; console.warn('[SbSync] pushDay failed:', e); return false; }
       },
@@ -8753,6 +8755,12 @@ ${sig}`
           (data || []).forEach(row => {
             inCloud.add(row.log_date);
             const local = Store.getDay(row.log_date);
+            // Local-write guard: if this day has an unsent save/delete, never let
+            // stale remote data overwrite it — push local up instead.
+            if (_isNoteDirty(row.log_date)) {
+              if (local) toPush.push([row.log_date, local]);
+              return;
+            }
             if (local?.lastUpdated && row.updated_at) {
               const localTs  = new Date(local.lastUpdated).getTime();
               const remoteTs = new Date(row.updated_at).getTime();
@@ -8903,6 +8911,35 @@ ${sig}`
     // for the active device.
 
     let _applyingRemote = false;
+
+    // ── Local-write guard (survives reloads) ──────────────
+    // Marks a day key as having an unsent local write so pullAll never
+    // overwrites it with stale remote data. Cleared only after a
+    // successful Supabase push.
+    const _ND_KEY = 'wh_note_dirty'; // { dateKey: timestamp }
+    function _setNoteDirty(dk) {
+      try {
+        const d = JSON.parse(localStorage.getItem(_ND_KEY) || '{}');
+        d[dk] = Date.now();
+        localStorage.setItem(_ND_KEY, JSON.stringify(d));
+      } catch {}
+    }
+    function _clearNoteDirty(dk) {
+      try {
+        const d = JSON.parse(localStorage.getItem(_ND_KEY) || '{}');
+        if (!(dk in d)) return;
+        delete d[dk];
+        if (Object.keys(d).length) localStorage.setItem(_ND_KEY, JSON.stringify(d));
+        else localStorage.removeItem(_ND_KEY);
+      } catch {}
+    }
+    function _isNoteDirty(dk) {
+      try {
+        const d = JSON.parse(localStorage.getItem(_ND_KEY) || '{}');
+        const ts = d[dk];
+        return !!ts && (Date.now() - ts < 300000); // 5-min guard window
+      } catch { return false; }
+    }
 
     // ── Dirty-state tracking ──────────────────────────────
     const _dirtyDays = new Set();   // date keys with unsynced changes
@@ -9302,8 +9339,9 @@ ${sig}`
         const ex = dayLog(key) || {};
         const noteVal = el('deNote')?.value.trim() || '';
         const ts = new Date().toISOString();
+        _setNoteDirty(key); // guard against pullAll race before push lands
         if (noteVal) { saveDayLogAndSync(key, { ...ex, note: noteVal, lastUpdated: ts }); }
-        else if (ex.note != null) { const u = { ...ex }; delete u.note; u.lastUpdated = ts; saveDayLogAndSync(key, u); }
+        else { const u = { ...ex }; delete u.note; u.lastUpdated = ts; saveDayLogAndSync(key, u); }
         closeDayEditModal();
         renderWeekendState(key, 'weekend');
         renderDaySelector();

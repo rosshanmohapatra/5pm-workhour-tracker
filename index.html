@@ -5494,8 +5494,9 @@
       const log = dayLog(k) || {};
       const v = (val || '').trim();
       if (v === (log.note || '')) return; // no change → skip write/sync
-      if (v) { saveDayLogAndSync(k, { ...log, note: v }); }
-      else if (log.note != null) { const u = { ...log }; delete u.note; saveDayLogAndSync(k, u); }
+      const ts = new Date().toISOString();
+      if (v) { saveDayLog(k, { ...log, note: v, lastUpdated: ts }); }
+      else if (log.note != null) { const u = { ...log }; delete u.note; u.lastUpdated = ts; saveDayLog(k, u); }
     }
 
 
@@ -9300,8 +9301,9 @@ ${sig}`
       if (_isWkndNoteModal) {
         const ex = dayLog(key) || {};
         const noteVal = el('deNote')?.value.trim() || '';
-        if (noteVal) { saveDayLogAndSync(key, { ...ex, note: noteVal }); }
-        else if (ex.note != null) { const u = { ...ex }; delete u.note; saveDayLogAndSync(key, u); }
+        const ts = new Date().toISOString();
+        if (noteVal) { saveDayLog(key, { ...ex, note: noteVal, lastUpdated: ts }); }
+        else if (ex.note != null) { const u = { ...ex }; delete u.note; u.lastUpdated = ts; saveDayLog(key, u); }
         closeDayEditModal();
         renderWeekendState(key, 'weekend');
         renderDaySelector();

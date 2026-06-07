@@ -5453,7 +5453,7 @@
       } else { showCard(); }
     }
     function _editWkndNote(key) {
-      openDayEditModal(key, true);
+      openDayEditModal(key, true, true);
     }
     // Week offset of a date key relative to the current week (0 = this week).
     function _weekOffsetForKey(key) {
@@ -8292,9 +8292,9 @@ ${sig}`
       });
     }
 
-    function openDayEditModal(key, focusNote = false) {
+    function openDayEditModal(key, focusNote = false, wkndNote = false) {
       _dayEditKey = key || todayKey(); // null means today throughout the app
-      _isWkndNoteModal = isWeekendKey(_dayEditKey);
+      _isWkndNoteModal = wkndNote;
       const wk = week(0), allWk = week(analyticsWeekOffset);
       const dayInfo = [...wk, ...allWk].find(d => d.key === (key || todayKey()));
       const log = dayLog(key);

@@ -5495,8 +5495,8 @@
       const v = (val || '').trim();
       if (v === (log.note || '')) return; // no change → skip write/sync
       const ts = new Date().toISOString();
-      if (v) { saveDayLog(k, { ...log, note: v, lastUpdated: ts }); }
-      else if (log.note != null) { const u = { ...log }; delete u.note; u.lastUpdated = ts; saveDayLog(k, u); }
+      if (v) { saveDayLogAndSync(k, { ...log, note: v, lastUpdated: ts }); }
+      else if (log.note != null) { const u = { ...log }; delete u.note; u.lastUpdated = ts; saveDayLogAndSync(k, u); }
     }
 
 
@@ -9302,8 +9302,8 @@ ${sig}`
         const ex = dayLog(key) || {};
         const noteVal = el('deNote')?.value.trim() || '';
         const ts = new Date().toISOString();
-        if (noteVal) { saveDayLog(key, { ...ex, note: noteVal, lastUpdated: ts }); }
-        else if (ex.note != null) { const u = { ...ex }; delete u.note; u.lastUpdated = ts; saveDayLog(key, u); }
+        if (noteVal) { saveDayLogAndSync(key, { ...ex, note: noteVal, lastUpdated: ts }); }
+        else if (ex.note != null) { const u = { ...ex }; delete u.note; u.lastUpdated = ts; saveDayLogAndSync(key, u); }
         closeDayEditModal();
         renderWeekendState(key, 'weekend');
         renderDaySelector();
@@ -11329,15 +11329,18 @@ ${sig}`
     var atTop      = false;
     var activeView = null; // .view.active, cached at touchstart
 
-    // Rate limiter: max 5 reloads per 60-second sliding window
-    var _reloadTimes = [];
-    var RATE_LIMIT   = 5;
-    var RATE_WINDOW  = 60000;
+    // Rate limiter: max 5 reloads per 60-second sliding window (persisted across reloads)
+    var RATE_LIMIT  = 5;
+    var RATE_WINDOW = 60000;
+    var RATE_KEY    = 'wh_ptr_reload_times';
     function _reloadAllowed() {
       var now = Date.now();
-      _reloadTimes = _reloadTimes.filter(function (t) { return now - t < RATE_WINDOW; });
-      if (_reloadTimes.length >= RATE_LIMIT) return false;
-      _reloadTimes.push(now);
+      var times = [];
+      try { times = JSON.parse(localStorage.getItem(RATE_KEY) || '[]'); } catch {}
+      times = times.filter(function (t) { return now - t < RATE_WINDOW; });
+      if (times.length >= RATE_LIMIT) return false;
+      times.push(now);
+      try { localStorage.setItem(RATE_KEY, JSON.stringify(times)); } catch {}
       return true;
     }
 

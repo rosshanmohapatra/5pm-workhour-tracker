@@ -8229,6 +8229,19 @@ ${sig}`
     let _deletedEntryKey = null, _deletedEntryData = null;
     function deleteDayEntry() {
       if (!_dayEditKey) return;
+      // Weekend note modal: clearing just the note — don't nuke the full entry
+      if (_isWkndNoteModal) {
+        const key = _dayEditKey;
+        const ex = dayLog(key) || {};
+        const ts = new Date().toISOString();
+        _setNoteDirty(key);
+        const u = { ...ex }; delete u.note; u.lastUpdated = ts;
+        saveDayLogAndSync(key, u);
+        closeDayEditModal();
+        renderWeekendState(key, 'weekend');
+        renderDaySelector();
+        return;
+      }
       const key = _dayEditKey;
       const backup = dayLog(key);
       _deletedEntryKey = key; _deletedEntryData = backup || null;
@@ -8252,6 +8265,7 @@ ${sig}`
       }
 
       // Remove from localStorage + queue Supabase sync
+      _setNoteDirty(key); // guard: prevents pullAll restoring stale remote on reload
       Store.remove(KEY.day + key);
       _markDirty(key); _syncNow();
       // For future plan days: clear the inline view immediately before closing the modal
@@ -8757,8 +8771,10 @@ ${sig}`
             const local = Store.getDay(row.log_date);
             // Local-write guard: if this day has an unsent save/delete, never let
             // stale remote data overwrite it — push local up instead.
+            // If local was fully removed (Store.remove), push a blank record so
+            // Supabase is also cleared rather than restoring the old note.
             if (_isNoteDirty(row.log_date)) {
-              if (local) toPush.push([row.log_date, local]);
+              toPush.push([row.log_date, local || { lastUpdated: new Date().toISOString() }]);
               return;
             }
             if (local?.lastUpdated && row.updated_at) {

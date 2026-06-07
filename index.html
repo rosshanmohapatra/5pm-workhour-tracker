@@ -507,14 +507,20 @@
     }
     .wknd-swap-in { animation: wknd-swap-in .22s ease both; }
     .wknd-swap-out { opacity: 0; transform: translateY(-4px); transition: opacity .16s ease, transform .16s ease; }
-    /* Weekend note send button — secondary CTA, vertically centered on the right */
-    #wkndNoteSend { position: absolute; top: 50%; right: 8px; transform: translateY(-50%);
-      width: 32px; height: 32px; padding: 0; border-radius: 8px;
+    /* Weekend note input — min height keeps the field a comfortable tap target */
+    #wkndNote { min-height: 38px; }
+    /* Weekend note send button — secondary CTA, equal spacing top/right/bottom */
+    #wkndNoteSend { position: absolute; bottom: 5px; right: 5px;
+      width: 28px; height: 28px; padding: 0; border-radius: 7px;
       border: 1px solid var(--border); background: var(--muted); color: var(--foreground);
       cursor: pointer; display: flex; align-items: center; justify-content: center;
       transition: background .15s, border-color .15s; }
     #wkndNoteSend:hover { background: var(--card); border-color: var(--muted-fg); }
     #wkndNoteSend:active { background: var(--muted); }
+    @media (max-width: 640px) {
+      #wkndNote { min-height: 42px; }
+      #wkndNoteSend { width: 32px; height: 32px; bottom: 5px; right: 5px; }
+    }
     .rc-numbers { display: flex; align-items: baseline; gap: 12px; }
     .rc-left-col { display: flex; flex-direction: column; gap: 2px; }
     .rc-right-col { margin-left:auto;display:flex;flex-direction:column;gap:2px;align-items:flex-end; }
@@ -6558,49 +6564,10 @@
     }
 
     function _renderFutureDayBadge() {
+      // The week-progress card belongs only to the Weekend view (a recap of the
+      // last 7 days). Weekday future-day plan views never show it.
       const badgeCard = el('wkndBadgeCard');
-      if (!badgeCard) return;
-      const wk = week(daySelectorWeekOffset), tk = todayKey();
-      const c = cfg(), dailySecs = c.dailyH * 3600;
-      const rows = _wkndDayData(wk);
-      const now = new Date();
-      const dow = now.getDay();
-      const daysUntilFri = Math.max(0, 5 - dow);
-      const until = `${daysUntilFri} Day${daysUntilFri !== 1 ? 's' : ''} Until Friday`;
-
-      const pastRows = rows.filter((_, i) => wk[i] && wk[i].key <= tk);
-      const daysWorked  = pastRows.filter(r => r.worked > 0).length;
-      const penaltyDays = pastRows.filter(r => r.isPenalty).length;
-
-      let icon, title;
-      if (daysWorked === 0) {
-        icon = _BADGE_ICONS.trending; title = 'New Week';
-      } else if (penaltyDays === 0 && daysWorked >= 2) {
-        icon = _BADGE_ICONS.lock; title = 'Going Strong';
-      } else if (penaltyDays === 0 && daysWorked === 1) {
-        icon = _BADGE_ICONS.sparkle; title = 'Good Start';
-      } else if (penaltyDays <= 1) {
-        icon = _BADGE_ICONS.scale; title = 'On Track';
-      } else {
-        icon = _BADGE_ICONS.target; title = 'Keep Going';
-      }
-
-      el('wkndBadgeIcon').innerHTML = icon;
-      el('wkndBadgeTitle').textContent = title;
-      el('wkndBadgeSubtitle').textContent = until;
-      const daysEl = el('wkndBadgeDays');
-      if (daysEl) {
-        const emptyRow = day => ({ day, worked: 0, isPenalty: false, attendance: '—', totalHours: '—', surplusSecs: 0 });
-        const circleRows = rows.map((r, i) => {
-          const dk = wk[i]?.key;
-          if (!dk) return r;
-          if (dk > tk) return emptyRow(r.day); // future day — always empty
-          if (dk === tk && !loginDate && !Store.getDay(dk)?.checkoutDisplay) return emptyRow(r.day); // today not yet worked
-          return r;
-        });
-        daysEl.innerHTML = circleRows.map(r => _badgeDayCircle(r, dailySecs)).join('');
-      }
-      badgeCard.style.display = '';
+      if (badgeCard) badgeCard.style.display = 'none';
     }
 
     function selectFutureDay(key) {

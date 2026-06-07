@@ -520,11 +520,11 @@
       resize: none; overflow-y: hidden; padding: 5px 0; min-height: 28px;
       color: var(--foreground); font-family: var(--font); font-size: 13px; line-height: 1.4; }
     #wkndNoteSend { flex-shrink: 0; width: 28px; height: 28px; padding: 0; border-radius: 7px;
-      border: 1px solid var(--border); background: var(--muted); color: var(--foreground);
+      border: 1px solid var(--border); background: var(--muted); color: var(--muted-fg);
       cursor: pointer; display: flex; align-items: center; justify-content: center;
-      transition: background .15s, border-color .15s; }
-    #wkndNoteSend:hover { background: var(--card); border-color: var(--muted-fg); }
-    #wkndNoteSend:active { background: var(--muted); }
+      transition: background .15s, border-color .15s, color .15s; }
+    #wkndNoteSend:hover { background: var(--card); border-color: var(--border); color: #fff; }
+    #wkndNoteSend:active { background: var(--muted); color: var(--muted-fg); }
     @media (max-width: 640px) {
       #wkndNote { min-height: 32px; padding: 6px 0; }
       #wkndNoteSend { width: 32px; height: 32px; }

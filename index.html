@@ -5,7 +5,9 @@
   <!-- Single source of truth for Supabase credentials (sets window.__SB_URL / __SB_ANON_KEY) -->
   <script src="/lib/config.js"></script>
   <!-- Supabase JS SDK — must load before the auth gate script that follows -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"
+          integrity="sha384-o+Hkm/usHFhCEWo1Ae1cLsOLiQQNrD2UfI424QDAaiZR7URnC8v35ey7s2sbGZHB"
+          crossorigin="anonymous"></script>
   <script>
     // Initialise the Supabase client right away (SDK is already available above).
     // We store it on window so the rest of the page script can reuse it.
@@ -26,11 +28,6 @@
           history.replaceState(null, '', location.pathname); // clean up URL bar
         }
       } else if (event === 'INITIAL_SESSION' && !location.search.includes('code=')) {
-        // Localhost dev bypass — skip auth gate so the app is directly accessible
-        if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
-          document.documentElement.style.visibility = '';
-          return;
-        }
         // No session and no OAuth code being processed — send to login
         window.location.replace('/login.html');
       }
@@ -51,9 +48,15 @@
   <link id="favicon" rel="icon" type="image/svg+xml" href="/favicon-light.svg">
 
   <!-- jsPDF + AutoTable for direct PDF export (no print dialog) -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" defer></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js" defer></script>
-  <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"
+          integrity="sha384-JcnsjUPPylna1s1fvi1u12X5qjY5OL56iySh75FdtrwhO/SWXgMjoVqcKyIIWOLk"
+          crossorigin="anonymous" defer></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"
+          integrity="sha384-fCAW/rDWORTbQXSiB7mOg0QtQ5c+r0f544y6XoKjuVva0nMBlCpNUjiFeG5iMdS3"
+          crossorigin="anonymous" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"
+          integrity="sha384-3zSEDfvllQohrq0PHL1fOXJuC/jSOO34H46t6UQfobFOmxE5BpjjaIJY5F2/bMnU"
+          crossorigin="anonymous"></script>
 
   <!-- PWA / home-screen -->
   <meta name="application-name" content="5pm">
@@ -3510,6 +3513,18 @@
     // ── HELPERS ─────────────────────────────────────────
     const el = id => document.getElementById(id);
 
+    // ── SECURITY HELPERS ───────────────────────────────────
+    // Escape user-supplied text before inserting into innerHTML contexts.
+    function _escHtml(s) {
+      if (!s && s !== 0) return '';
+      return String(s)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
     // ── STORAGE KEYS ───────────────────────────────────
     const KEY = {
       cfg:       'wh_cfg',
@@ -4306,15 +4321,18 @@
 
       list.innerHTML = notifs.map(n => {
         const icon = n.type === 'warn' ? warnSvg : n.type === 'ok' ? okSvg : infoSvg;
+        // n.id and n.ctaWeekKey are internal keys (no user input), but escape defensively
+        const safeId  = _escHtml(n.id || '');
+        const safeCta = _escHtml(n.ctaWeekKey || '');
         const actions = n.cta
-          ? `<div class="notif-actions"><button class="notif-cta" onclick="handleNotifCta('${n.id}','${n.ctaWeekKey||''}')">Check</button></div>`
+          ? `<div class="notif-actions"><button class="notif-cta" onclick="handleNotifCta('${safeId}','${safeCta}')">Check</button></div>`
           : n.surplus
-          ? `<div class="notif-actions"><span class="notif-surplus">${n.surplus} saved</span></div>`
+          ? `<div class="notif-actions"><span class="notif-surplus">${_escHtml(n.surplus)} saved</span></div>`
           : '';
-        return `<div class="notif-item" id="ni-${n.id}">
+        return `<div class="notif-item" id="ni-${safeId}">
           <div class="notif-icon ${n.type}">${icon}</div>
-          <div class="notif-body"><div class="notif-text">${n.text}</div>${actions}</div>
-          <button class="notif-dismiss" onclick="dismissNotif('${n.id}')" title="Dismiss">
+          <div class="notif-body"><div class="notif-text">${_escHtml(n.text)}</div>${actions}</div>
+          <button class="notif-dismiss" onclick="dismissNotif('${safeId}')" title="Dismiss">
             <svg width="9" height="9" viewBox="0 0 24 24" fill="none"><path d="M4.70711 3.29289C4.31658 2.90237 3.68342 2.90237 3.29289 3.29289C2.90237 3.68342 2.90237 4.31658 3.29289 4.70711L10.5858 12L3.29289 19.2929C2.90237 19.6834 2.90237 20.3166 3.29289 20.7071C3.68342 21.0976 4.31658 21.0976 4.70711 20.7071L12 13.4142L19.2929 20.7071C19.6834 21.0976 20.3166 21.0976 20.7071 20.7071C21.0976 20.3166 21.0976 19.6834 20.7071 19.2929L13.4142 12L20.7071 4.70711C21.0976 4.31658 21.0976 3.68342 20.7071 3.29289C20.3166 2.90237 19.6834 2.90237 19.2929 3.29289L12 10.5858L4.70711 3.29289Z" fill="currentColor"/></svg>
           </button>
         </div>`;
@@ -6615,11 +6633,11 @@
           const _login  = log?.loginDisplay    || _sd.start || '';
           const _logout = log?.checkoutDisplay || _sd.end   || '';
           const _t = [_login, _logout].filter(Boolean).join(' → ');
-          if (_t) _timingLine = `<div style="font-size:13px;color:var(--muted-fg);margin-top:6px">${_t}</div>`;
+          if (_t) _timingLine = `<div style="font-size:13px;color:var(--muted-fg);margin-top:6px">${_escHtml(_t)}</div>`;
         }
         // Note below timing
         const _ovNote = log?.futureReason
-          ? `<div style="font-size:13px;color:var(--muted-fg);margin-top:6px;line-height:1.5;white-space:pre-wrap">${log.futureReason}</div>`
+          ? `<div style="font-size:13px;color:var(--muted-fg);margin-top:6px;line-height:1.5;white-space:pre-wrap">${_escHtml(log.futureReason)}</div>`
           : `<div style="margin-top:8px"><span onclick="event.stopPropagation();openDayEditModal('${key}',true)" style="display:inline-flex;align-items:center;gap:5px;font-size:12px;color:var(--muted-fg);opacity:.55;cursor:pointer;text-decoration:none" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>add description</span></div>`;
         chipsEl.innerHTML = `<div class="override-info-editable" style="width:100%;box-sizing:border-box;text-align:center" onclick="openDayEditModal('${key}')">
           <div style="font-size:15px;font-weight:700;color:var(--foreground);margin-bottom:4px">${_ovLabel}</div>
@@ -7331,7 +7349,12 @@
       const avatarEl  = el('profileAvatar');
       if (avatarEl) {
         if (avatarUrl) {
-          avatarEl.innerHTML = `<img src="${avatarUrl}" alt="" referrerpolicy="no-referrer">`;
+          const avatarImg = document.createElement('img');
+          avatarImg.alt = '';
+          avatarImg.referrerPolicy = 'no-referrer';
+          avatarImg.src = avatarUrl; // setAttribute handles encoding; avoids innerHTML injection
+          avatarEl.textContent = '';
+          avatarEl.appendChild(avatarImg);
         } else {
           avatarEl.textContent = (email[0] || '?').toUpperCase();
         }
@@ -7339,9 +7362,17 @@
 
       // Name + email on one line
       const displayName = c.name?.trim() || meta.full_name || meta.name || '';
-      el('profileName').innerHTML = displayName
-        ? `${displayName} <span class="profile-position">(${email})</span>`
-        : email;
+      const profileNameEl = el('profileName');
+      profileNameEl.textContent = '';
+      if (displayName) {
+        profileNameEl.appendChild(document.createTextNode(displayName + ' '));
+        const posSpan = document.createElement('span');
+        posSpan.className = 'profile-position';
+        posSpan.textContent = '(' + email + ')';
+        profileNameEl.appendChild(posSpan);
+      } else {
+        profileNameEl.textContent = email;
+      }
 
       // Position — shown below name line
       const position = c.position?.trim() || '';
@@ -11383,7 +11414,9 @@ ${sig}`
     var atTop      = false;
     var activeView = null; // .view.active, cached at touchstart
 
-    // Rate limiter: max 5 reloads per 60-second sliding window (persisted across reloads)
+    // Rate limiter: max 5 reloads per 60-second sliding window (persisted across reloads).
+    // NOTE: This is a UX-only guard — it can be bypassed by clearing localStorage in DevTools.
+    // Supabase read-quota protection must be enforced server-side if needed.
     var RATE_LIMIT  = 5;
     var RATE_WINDOW = 60000;
     var RATE_KEY    = 'wh_ptr_reload_times';

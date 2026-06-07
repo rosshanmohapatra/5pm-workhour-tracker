@@ -3356,6 +3356,7 @@
           <button class="modal-override-btn" id="deLeave" onclick="setDeOverride('leave')">Full Day Leave</button>
         </div>
         <div class="de-note-wrap" id="deNoteWrap">
+          <div class="form-label" id="deNoteLabel" style="display:none;margin-bottom:6px"></div>
           <textarea id="deNote" placeholder="Add a note (optional)" rows="2" maxlength="500"></textarea>
         </div>
         <div id="deTimeWrap">
@@ -3528,6 +3529,7 @@
     let daySelectorWeekOffset = 0; // 0 = current week, -1 = last week, …
     let autoStopped = false;        // true after auto-stop fires
     let _dayEditKey = null;         // key being edited in day-edit modal
+    let _isWkndNoteModal = false;   // true when day-edit modal is open in weekend-note variant
     let _sessionAccSecs = 0;        // accumulated seconds from previous sessions today (for resume)
     let _sessionCheckoutTime = null;// timestamp of last End Session (for resume label)
 
@@ -5451,32 +5453,7 @@
       } else { showCard(); }
     }
     function _editWkndNote(key) {
-      const infoCard = el('wkndOverrideInfoCard');
-      const cardNote = el('wkndCardNote');
-      const noteWrap = el('wkndNoteWrap');
-      const subtitleEl = el('wkndPageSubtitle');
-      const titleEl = el('wkndPageTitle');
-      const swapToInput = () => {
-        if (infoCard) { infoCard.classList.remove('override-info-editable', 'wknd-swap-out'); infoCard.style.padding = '8px 0 18px'; infoCard.onclick = null; }
-        if (cardNote) cardNote.style.display = 'none';
-        if (subtitleEl) subtitleEl.style.display = '';
-        const woff = _weekOffsetForKey(key);
-        const when = woff < 0 ? 'past' : woff > 0 ? 'future' : 'present';
-        if (titleEl) titleEl.textContent = _infoTitles('weekend', when).title;
-        const noteEl = el('wkndNote');
-        if (noteEl) { noteEl.dataset.key = key; noteEl.value = dayLog(key)?.note || ''; _wkndNoteAutoGrow(noteEl); }
-        if (noteWrap) {
-          noteWrap.classList.remove('wknd-swap-out');
-          noteWrap.style.display = '';
-          noteWrap.classList.remove('wknd-swap-in'); void noteWrap.offsetWidth; noteWrap.classList.add('wknd-swap-in');
-        }
-        if (noteEl) requestAnimationFrame(() => noteEl.focus());
-      };
-      // Fade the card out first, then reveal the input
-      if (infoCard) {
-        infoCard.classList.add('wknd-swap-out');
-        setTimeout(swapToInput, 160);
-      } else { swapToInput(); }
+      openDayEditModal(key, true);
     }
     // Week offset of a date key relative to the current week (0 = this week).
     function _weekOffsetForKey(key) {
@@ -8317,6 +8294,7 @@ ${sig}`
 
     function openDayEditModal(key, focusNote = false) {
       _dayEditKey = key || todayKey(); // null means today throughout the app
+      _isWkndNoteModal = isWeekendKey(_dayEditKey);
       const wk = week(0), allWk = week(analyticsWeekOffset);
       const dayInfo = [...wk, ...allWk].find(d => d.key === (key || todayKey()));
       const log = dayLog(key);
@@ -8361,6 +8339,22 @@ ${sig}`
       el('deEnd').removeEventListener('blur',   el('deEnd')._blurFn   || (()=>{}));
       el('deStart')._blurFn = startBlur; el('deStart').addEventListener('blur', startBlur);
       el('deEnd')._blurFn   = endBlur;   el('deEnd').addEventListener('blur', endBlur);
+      // Weekend-note variant: hide chips + time, show note-only layout
+      const _overrideRow = el('dayEditOverlay')?.querySelector('.modal-override-row');
+      const _deNoteLabel = el('deNoteLabel');
+      if (_isWkndNoteModal) {
+        el('dayEditTitle').textContent = 'Update Note';
+        if (_overrideRow) _overrideRow.style.display = 'none';
+        if (_deTimeWrap) { _deTimeWrap.style.transition = 'none'; _deTimeWrap.style.display = 'none'; }
+        if (_deNote) { _deNote.placeholder = 'write a short note'; _deNote.value = log?.note || ''; }
+        if (_deNoteWrap) _deNoteWrap.classList.add('visible');
+        if (_deNoteLabel) { _deNoteLabel.textContent = 'What did you do?'; _deNoteLabel.style.display = ''; }
+      } else {
+        if (_overrideRow) _overrideRow.style.display = '';
+        if (_deTimeWrap) _deTimeWrap.style.display = '';
+        if (_deNote) _deNote.placeholder = 'Add a note (optional)';
+        if (_deNoteLabel) _deNoteLabel.style.display = 'none';
+      }
       el('dayEditOverlay').classList.add('open');
       if (focusNote) requestAnimationFrame(() => el('deNote')?.focus());
     }
@@ -8503,6 +8497,7 @@ ${sig}`
         function closeDayEditModal() {
       el('dayEditOverlay').classList.remove('open');
       _dayEditKey = null;
+      _isWkndNoteModal = false;
     }
 
     function setDeOverride(type) {
@@ -9302,6 +9297,16 @@ ${sig}`
 
     function saveDayEditModal() {
       const key = _dayEditKey; if (!key) return;
+      if (_isWkndNoteModal) {
+        const ex = dayLog(key) || {};
+        const noteVal = el('deNote')?.value.trim() || '';
+        if (noteVal) { saveDayLogAndSync(key, { ...ex, note: noteVal }); }
+        else if (ex.note != null) { const u = { ...ex }; delete u.note; saveDayLogAndSync(key, u); }
+        closeDayEditModal();
+        renderWeekendState(key, 'weekend');
+        renderDaySelector();
+        return;
+      }
       const s = parse(el('deStart').value), e = parse(el('deEnd').value);
       const c = cfg();
       const ex = dayLog(key) || {};

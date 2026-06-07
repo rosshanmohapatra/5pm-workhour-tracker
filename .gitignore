@@ -13,7 +13,7 @@ Thumbs.db
 # To stop tracking: set VITE_SUPABASE_URL + VITE_SUPABASE_ANON_KEY in Vercel env vars,
 # generate lib/config.js at build time, then uncomment the line below and run:
 #   git rm --cached lib/config.js
-# lib/config.js
+lib/config.js
 
 # node_modules
 node_modules/

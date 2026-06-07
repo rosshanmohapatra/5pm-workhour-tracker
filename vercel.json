@@ -1,4 +1,5 @@
 {
+  "buildCommand": "node scripts/generate-config.js",
   "functions": {
     "api/*.js": {
       "memory": 256,

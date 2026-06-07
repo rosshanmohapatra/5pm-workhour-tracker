@@ -507,19 +507,24 @@
     }
     .wknd-swap-in { animation: wknd-swap-in .22s ease both; }
     .wknd-swap-out { opacity: 0; transform: translateY(-4px); transition: opacity .16s ease, transform .16s ease; }
-    /* Weekend note input — min height keeps the field a comfortable tap target */
-    #wkndNote { min-height: 38px; }
-    /* Weekend note send button — secondary CTA, equal spacing top/right/bottom */
-    #wkndNoteSend { position: absolute; bottom: 5px; right: 5px;
-      width: 28px; height: 28px; padding: 0; border-radius: 7px;
+    /* Weekend note field — wrapper is the visual input; button is a flex child so
+       it always sits inside the field's padding (equal spacing, robust on mobile). */
+    .wknd-note-field { display: flex; align-items: flex-end; gap: 6px; box-sizing: border-box;
+      border: 1px solid var(--border); border-radius: 8px; background: var(--input-bg);
+      padding: 5px 5px 5px 12px; transition: border-color .15s; }
+    .wknd-note-field:focus-within { border-color: var(--ring); }
+    #wkndNote { flex: 1; min-width: 0; border: none; background: transparent; outline: none;
+      resize: none; overflow-y: hidden; padding: 5px 0; min-height: 28px;
+      color: var(--foreground); font-family: var(--font); font-size: 13px; line-height: 1.4; }
+    #wkndNoteSend { flex-shrink: 0; width: 28px; height: 28px; padding: 0; border-radius: 7px;
       border: 1px solid var(--border); background: var(--muted); color: var(--foreground);
       cursor: pointer; display: flex; align-items: center; justify-content: center;
       transition: background .15s, border-color .15s; }
     #wkndNoteSend:hover { background: var(--card); border-color: var(--muted-fg); }
     #wkndNoteSend:active { background: var(--muted); }
     @media (max-width: 640px) {
-      #wkndNote { min-height: 42px; }
-      #wkndNoteSend { width: 32px; height: 32px; bottom: 5px; right: 5px; }
+      #wkndNote { min-height: 32px; padding: 6px 0; }
+      #wkndNoteSend { width: 32px; height: 32px; }
     }
     .rc-numbers { display: flex; align-items: baseline; gap: 12px; }
     .rc-left-col { display: flex; flex-direction: column; gap: 2px; }
@@ -2110,9 +2115,8 @@
             <!-- Optional note: a short reminder of what this day was -->
             <div id="wkndNoteWrap" style="margin-bottom:16px">
               <div class="form-label" id="wkndNoteTitle" style="margin-bottom:8px">What did you do?</div>
-              <div style="position:relative">
+              <div class="wknd-note-field">
                 <textarea id="wkndNote" placeholder="write a short note" rows="1" maxlength="240"
-                  style="width:100%;box-sizing:border-box;resize:none;overflow-y:hidden;border:1px solid var(--border);border-radius:8px;background:var(--input-bg);color:var(--foreground);font-family:var(--font);font-size:13px;line-height:1.4;padding:9px 50px 9px 12px;outline:none;transition:border-color .15s"
                   oninput="_wkndNoteAutoGrow(this)" onkeydown="_wkndNoteKey(event,this)"></textarea>
                 <button id="wkndNoteSend" onclick="_submitWkndNote()" title="Save note">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">

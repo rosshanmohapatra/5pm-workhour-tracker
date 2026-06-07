@@ -11327,6 +11327,18 @@ ${sig}`
     var atTop      = false;
     var activeView = null; // .view.active, cached at touchstart
 
+    // Rate limiter: max 5 reloads per 60-second sliding window
+    var _reloadTimes = [];
+    var RATE_LIMIT   = 5;
+    var RATE_WINDOW  = 60000;
+    function _reloadAllowed() {
+      var now = Date.now();
+      _reloadTimes = _reloadTimes.filter(function (t) { return now - t < RATE_WINDOW; });
+      if (_reloadTimes.length >= RATE_LIMIT) return false;
+      _reloadTimes.push(now);
+      return true;
+    }
+
     function getScrollTop() {
       return (document.scrollingElement || document.documentElement || document.body).scrollTop
         || window.pageYOffset || 0;
@@ -11427,7 +11439,16 @@ ${sig}`
         reloadIcon.classList.add('ptr-spinning');
         pill.classList.add('ptr-ready');
         label.textContent = 'Refreshing…';
-        setTimeout(function () { location.reload(); }, 600);
+        setTimeout(function () {
+          if (_reloadAllowed()) {
+            location.reload();
+          } else {
+            snapBack();
+            if (typeof showToast === 'function') {
+              showToast('Too many refreshes', 'info', 'You\'ve hit the limit. Showing the current version.');
+            }
+          }
+        }, 600);
       } else {
         snapBack();
       }

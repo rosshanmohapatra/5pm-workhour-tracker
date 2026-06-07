@@ -11415,20 +11415,28 @@ ${sig}`
     var atTop      = false;
     var activeView = null; // .view.active, cached at touchstart
 
-    // Rate limiter: max 5 reloads per 60-second sliding window (persisted across reloads).
-    // NOTE: This is a UX-only guard — it can be bypassed by clearing localStorage in DevTools.
-    // Supabase read-quota protection must be enforced server-side if needed.
+    // Rate limiter: max 5 PTR reloads per 5-minute fixed window (persisted across reloads).
+    // Uses a fixed-window counter (not sliding) so the count can't drain away between pulls.
+    // NOTE: UX-only guard — clearable via DevTools. Not a quota-enforcement mechanism.
     var RATE_LIMIT  = 5;
-    var RATE_WINDOW = 60000;
+    var RATE_WINDOW = 5 * 60 * 1000; // 5-minute fixed window
     var RATE_KEY    = 'wh_ptr_reload_times';
     function _reloadAllowed() {
       var now = Date.now();
-      var times = [];
-      try { times = JSON.parse(localStorage.getItem(RATE_KEY) || '[]'); } catch {}
-      times = times.filter(function (t) { return now - t < RATE_WINDOW; });
-      if (times.length >= RATE_LIMIT) return false;
-      times.push(now);
-      try { localStorage.setItem(RATE_KEY, JSON.stringify(times)); } catch {}
+      var data = { count: 0, windowStart: now };
+      try {
+        var stored = JSON.parse(localStorage.getItem(RATE_KEY) || 'null');
+        if (stored && typeof stored.count === 'number') data = stored;
+      } catch {}
+      // Reset counter if the current window has expired
+      if (now - data.windowStart > RATE_WINDOW) {
+        data = { count: 0, windowStart: now };
+      }
+      // Already at or over the limit — stay blocked until the window expires
+      if (data.count >= RATE_LIMIT) return false;
+      // Allow and record this reload
+      data.count++;
+      try { localStorage.setItem(RATE_KEY, JSON.stringify(data)); } catch {}
       return true;
     }
 

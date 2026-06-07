@@ -520,13 +520,13 @@
       resize: none; overflow-y: hidden; padding: 5px 0; min-height: 28px;
       color: var(--foreground); font-family: var(--font); font-size: 13px; line-height: 1.4; }
     #wkndNoteSend { flex-shrink: 0; width: 28px; height: 28px; padding: 0; border-radius: 7px;
-      border: 1px solid var(--border); background: var(--muted); color: var(--muted-fg);
+      border: 1px solid var(--btn-primary-bg); background: var(--btn-primary-bg); color: var(--card);
       cursor: pointer; display: flex; align-items: center; justify-content: center;
       opacity: 0; pointer-events: none; transform: scale(0.85);
       transition: background .15s, border-color .15s, color .15s, opacity .15s, transform .15s; }
     .wknd-note-field:focus-within #wkndNoteSend { opacity: 1; pointer-events: auto; transform: scale(1); }
-    #wkndNoteSend:hover { background: var(--card); border-color: var(--border); color: #fff; }
-    #wkndNoteSend:active { background: var(--muted); color: var(--muted-fg); }
+    #wkndNoteSend:hover { filter: brightness(.88); }
+    #wkndNoteSend:active { filter: brightness(.75); }
     @media (max-width: 640px) {
       #wkndNote { min-height: 32px; padding: 6px 0; }
       #wkndNoteSend { width: 32px; height: 32px; }
@@ -3363,7 +3363,7 @@
         </div>
         <div class="de-note-wrap" id="deNoteWrap">
           <div class="form-label" id="deNoteLabel" style="display:none;margin-bottom:6px"></div>
-          <textarea id="deNote" placeholder="Add a note (optional)" rows="2" maxlength="500"></textarea>
+          <textarea id="deNote" placeholder="Add a note (optional)" rows="1" maxlength="500"></textarea>
         </div>
         <div id="deTimeWrap">
           <div class="modal-time-row" id="deTimeRow">

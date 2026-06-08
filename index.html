@@ -150,7 +150,10 @@
 
     /* ── Navbar ── */
     .navbar { background: var(--muted); border: 1px solid var(--border); border-radius: var(--radius-lg);
-      box-shadow: var(--shadow-sm); position: sticky; top: 16px; z-index: 50; }
+      box-shadow: var(--shadow-sm); position: sticky; top: 24px; z-index: 50;
+      transition: box-shadow .25s ease, background .25s ease, backdrop-filter .25s ease; }
+    .navbar.stuck { box-shadow: 0 4px 20px rgba(0,0,0,.10); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
+    .dark .navbar.stuck { box-shadow: 0 4px 20px rgba(0,0,0,.35); }
     .nav-inner { height: 52px; padding: 0 8px; display: flex; align-items: center; justify-content: space-between; }
     .nav-tabs { display: flex; align-items: center; gap: 4px; }
     .nav-tab { height: 34px; padding: 0 14px; border-radius: var(--radius-md); border: 1px solid transparent;
@@ -1886,6 +1889,8 @@
 
   <!-- ── App ── -->
   <div id="appWrap" style="max-width:600px;margin:0 auto;padding:24px 24px 0;">
+    <!-- Sentinel: 0-height element watched by IntersectionObserver to detect sticky state -->
+    <div id="navSentinel" style="height:0;pointer-events:none"></div>
     <!-- Navbar -->
     <nav class="navbar">
       <div class="nav-inner">
@@ -10962,6 +10967,19 @@ ${sig}`
     // ── INIT ───────────────────────────────────────────
     (function init() {
       _migrateLegacyDismissed(); // one-time migration from legacy wh_dismissed key
+
+      // ── Sticky navbar: toggle .stuck when sentinel scrolls out of view ──
+      (function() {
+        const sentinel = el('navSentinel');
+        const navbar   = sentinel?.nextElementSibling;
+        if (sentinel && navbar && 'IntersectionObserver' in window) {
+          new IntersectionObserver(
+            ([entry]) => navbar.classList.toggle('stuck', !entry.isIntersecting),
+            { threshold: 0, rootMargin: '-24px 0px 0px 0px' }
+          ).observe(sentinel);
+        }
+      })();
+
       _tpInitWheels();
       _tpSegInit();
       _setTodayDateChip();

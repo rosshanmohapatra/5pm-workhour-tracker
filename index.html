@@ -6694,7 +6694,7 @@
       el('futureDayChips').querySelectorAll('.modal-override-btn').forEach(b => b.classList.remove('active'));
       if (wasActive) return; // already selected — only Cancel Plan button can remove it
       btn.classList.add('active');
-      saveDayLogAndSync(key, { ...log, futurePlan: planKey });
+      saveDayLog(key, { ...log, futurePlan: planKey });
       _freshlySelectedPlanKeys.add(key); // fresh pick — not yet confirmed
       _renderFutureDayInline(key, dayLog(key), week(daySelectorWeekOffset).find(d => d.key === key));
       _renderFutureDayBadge();
@@ -6707,6 +6707,7 @@
 
     function toggleFuturePlanMode(key) {
       _freshlySelectedPlanKeys.delete(key);
+      saveDayLogAndSync(key, dayLog(key)); // commit chip + reason together as one push
       _renderFutureDayInline(key, dayLog(key), week(daySelectorWeekOffset).find(d => d.key === key));
       _renderFutureDayBadge();
     }
@@ -6744,7 +6745,7 @@
     function saveFutureDayReason(val) {
       const log = dayLog(selectedDayKey) || {};
       if (!log.futurePlan) return;
-      saveDayLogAndSync(selectedDayKey, { ...log, futureReason: val });
+      saveDayLog(selectedDayKey, { ...log, futureReason: val });
     }
 
 

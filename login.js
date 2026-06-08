@@ -200,7 +200,6 @@ function showSuccess(msg) {
   showView('authSuccess');
   $('successTitle').textContent = isSignup ? "You're all set!" : 'Signed in!';
   $('successSub').textContent   = msg || 'Taking you to your workspace…';
-  localStorage.setItem('wh_auth', '1'); // keep the fast-path gate in sync
   setTimeout(() => { window.location.href = 'index.html'; }, 1400);
 }
 

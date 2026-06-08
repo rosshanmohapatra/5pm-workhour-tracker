@@ -25,7 +25,6 @@
     window._sbClient.auth.onAuthStateChange(function(event, session) {
       if (session) {
         document.documentElement.style.visibility = '';   // reveal page
-        localStorage.setItem('wh_auth', '1');             // keep fast-path in sync
         if (location.search.includes('code=')) {
           history.replaceState(null, '', location.pathname); // clean up URL bar
         }

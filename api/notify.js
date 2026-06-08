@@ -31,10 +31,12 @@ const MESSAGES = {
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end();
 
-  const { userId, type, _secret } = req.body || {};
+  const { userId, type } = req.body || {};
 
-  // Authenticate the QStash callback with a shared secret
-  if (!_secret || _secret !== process.env.NOTIFY_SECRET) {
+  // Authenticate via Authorization header — secret never travels in the logged request body
+  const authHeader = req.headers['authorization'] || '';
+  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+  if (!token || token !== process.env.NOTIFY_SECRET) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
 

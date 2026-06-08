@@ -2041,8 +2041,8 @@
               Update Entry
             </button>
             <span class="rc-head-date" id="rcHeadDate"></span>
-            <div id="leaveChip" style="font-size:15px;color:var(--muted-fg);font-weight:500">
-              <strong id="leaveAt" style="color:var(--foreground);font-weight:500">—</strong>
+            <div id="leaveChip" style="font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted-fg)">
+              <span id="leaveAt">—</span>
             </div>
           </div>
         </div>
@@ -5223,9 +5223,8 @@
 
     // ── TODAY DATE CHIP ───────────────────────────────
     function _setTodayDateChip() {
-      const d = nowTz();
       const chip = el('leaveAt');
-      if (chip) chip.textContent = FULL_DAYS_EN[d.getDay()].slice(0,3) + ', ' + MONTHS[d.getMonth()] + ' ' + d.getDate();
+      if (chip) chip.textContent = _fmtDayHeading(nowTz()); // "Tuesday, 9th June" → uppercased by CSS
     }
 
     // Dismisses the skeleton shimmer the first time real content is available.

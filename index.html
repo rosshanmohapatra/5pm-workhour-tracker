@@ -6527,13 +6527,11 @@
       if (_infoType) {
         _syncOffsetFromKey(key);
         el('todayLoginSection').style.display = 'none';
-        el('rcUpdateEntryBtn')?.classList.remove('visible');
+        // Past _infoType days get Update Entry; today doesn't need it (editable inline)
+        if (key < tk) { el('rcUpdateEntryBtn')?.classList.add('visible'); }
+        else           { el('rcUpdateEntryBtn')?.classList.remove('visible'); }
         el('leaveChip').style.display = 'none';
-        const _hd = el('rcHeadDate');
-        if (_hd) {
-          if (key === tk) { _hd.classList.remove('visible'); }
-          else { _hd.textContent = _fmtDayHeading(new Date(key + 'T12:00')); _hd.classList.add('visible'); }
-        }
+        el('rcHeadDate')?.classList.remove('visible'); // date already on left — never duplicate on right
         el('rcBody')?.classList.add('weekend-mode');
         renderWeekendState(key, _infoType);
         return;
@@ -6555,15 +6553,11 @@
         if (headDateEl) { headDateEl.classList.remove('visible'); }
         renderPastDay(key);
       } else {
-        // Future day: show date in header
-        const wkF = week(daySelectorWeekOffset), dayF = wkF.find(d => d.key === key);
+        // Future day: day selector already shows the date — nothing needed on right
         el('todayLoginSection').style.display = 'none';
         el('rcUpdateEntryBtn')?.classList.remove('visible');
         el('leaveChip').style.display = 'none';
-        if (headDateEl && dayF) {
-          headDateEl.textContent = _fmtDayHeading(dayF.date);
-          headDateEl.classList.add('visible');
-        }
+        if (headDateEl) headDateEl.classList.remove('visible');
         renderPastDay(key);
       }
     }

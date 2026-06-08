@@ -10975,7 +10975,7 @@ ${sig}`
         if (sentinel && navbar && 'IntersectionObserver' in window) {
           new IntersectionObserver(
             ([entry]) => navbar.classList.toggle('stuck', !entry.isIntersecting),
-            { threshold: 0, rootMargin: '-24px 0px 0px 0px' }
+            { threshold: 0 }
           ).observe(sentinel);
         }
       })();

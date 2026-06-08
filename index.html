@@ -5,8 +5,10 @@
   <!-- Single source of truth for Supabase credentials (sets window.__SB_URL / __SB_ANON_KEY) -->
   <script src="/lib/config.js"></script>
   <!-- Supabase JS SDK — must load before the auth gate script that follows -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"
-          integrity="sha384-o+Hkm/usHFhCEWo1Ae1cLsOLiQQNrD2UfI424QDAaiZR7URnC8v35ey7s2sbGZHB"
+  <!-- supabase-js: no SRI — @2 is a floating tag; hash becomes stale on patch releases
+       causing browser script-block → auth gate never fires → black screen.
+       jsdelivr flagged as tracker by Safari ITP (Prospect One list) — switched to unpkg. -->
+  <script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.min.js"
           crossorigin="anonymous"></script>
   <script>
     // Initialise the Supabase client right away (SDK is already available above).
@@ -262,7 +264,7 @@
     .btn-ghost-danger:disabled { opacity: .4; cursor: not-allowed; }
     .btn-ghost-danger:disabled:hover { background: transparent; color: var(--foreground); border-color: var(--border); }
     .btn-secondary { height: 36px; padding: 0 16px; font-size: 13px; font-weight: 500;
-      border-radius: var(--radius-md); font-family: var(--font); display: inline-flex; align-items: center;
+      border-radius: var(--radius-md); font-family: var(--font); display: inline-flex; align-items: center; justify-content: center;
       background: transparent; color: var(--foreground); border: 1px solid var(--border);
       cursor: pointer; transition: background .14s, border-color .14s; white-space: nowrap; flex-shrink: 0; }
     .btn-secondary:hover { background: var(--muted); border-color: var(--input); }
@@ -1078,8 +1080,8 @@
     .wp-day-row:last-child { border-bottom: none; }
     .wp-day-name { font-size: 13px; font-weight: 500; color: var(--foreground); }
     .wp-day-name.today { color: var(--success); }
-    .wp-override-btns { display: flex; gap: 0; background: var(--background); border-radius: 6px; padding: 2px; }
-    .wp-override-btn { height: 24px; padding: 0 8px; border-radius: 4px; font-size: 11px;
+    .wp-override-btns { display: flex; gap: 0; background: var(--background); border-radius: 8px; padding: 3px; }
+    .wp-override-btn { height: 28px; padding: 0 11px; border-radius: 6px; font-size: 12px;
       font-weight: 500; border: none; background: transparent;
       color: var(--muted-fg); cursor: pointer; transition: all .12s; flex: 1; white-space: nowrap; font-family: var(--font); }
     .wp-override-btn:hover { color: var(--foreground); }
@@ -5505,7 +5507,7 @@
         return { title: 'Half Day Today', sub: 'Working a partial day.' };
       }
       // weekend
-      if (when === 'past')   return { title: sunday ? 'It was Sunday'      : 'It was the Weekend', sub: 'A day away from work.' };
+      if (when === 'past')   return { title: sunday ? 'It was Sunday'      : 'Last Weekend', sub: 'A day away from work.' };
       if (when === 'future') return { title: sunday ? 'Upcoming Sunday'    : 'Upcoming Weekend',   sub: 'A break to look forward to.' };
       return { title: sunday ? 'Enjoy Your Sunday' : 'Enjoy Your Weekend', sub: "You're done with the week." };
     }
@@ -9531,7 +9533,8 @@ ${sig}`
       const rows = el('wpDayRows');
       rows.innerHTML = wk.map(day => {
         const log = dayLog(day.key);
-        const ov = log?.override;
+        // futurePlan is set by Future Days page; override by confirmed entries — read both
+        const ov = log?.futurePlan || log?.override;
         const isToday = day.key === tk;
         return `<div class="wp-day-row">
           <span class="wp-day-name${isToday?' today':''}">${day.name}${isToday?' (Today)':''}</span>

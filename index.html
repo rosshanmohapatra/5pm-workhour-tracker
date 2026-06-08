@@ -8733,8 +8733,12 @@ ${sig}`
           hours_worked:     Math.min(Math.max(parseFloat(entry.hoursWorked) || 0, 0), 24),
           accumulated_secs: Math.min(Math.round((parseFloat(entry.hoursWorked) || 0) * 3600), 86400),
           status:           statusMap[entry.sessionTag] || 'completed',
-          override_type:    this._OVERRIDES.has(entry.override) ? entry.override : null,
-          notes:            entry.note ? String(entry.note).slice(0, 1000) : null,
+          // override (past/today confirmed) takes priority; futurePlan (intent) is the fallback
+          override_type:    this._OVERRIDES.has(entry.override)     ? entry.override     :
+                            (this._OVERRIDES.has(entry.futurePlan)  ? entry.futurePlan   : null),
+          // note (weekend/past note) takes priority; futureReason (plan description) is the fallback
+          notes:            entry.note        ? String(entry.note).slice(0, 1000)        :
+                            (entry.futureReason ? String(entry.futureReason).slice(0, 1000) : null),
           // NOTE: updated_at is intentionally OMITTED.
           // The DB trigger (private.set_updated_at) auto-stamps it on every UPDATE.
           // Sending it from the client causes a 42501 because updated_at has no
@@ -8822,14 +8826,20 @@ ${sig}`
             // Remote is newer (or local has no timestamp) — apply it
             const loginDt  = row.login_time  ? new Date(row.login_time)  : null;
             const logoutDt = row.logout_time ? new Date(row.logout_time) : null;
+            // Future days carry futurePlan/futureReason; past/today carry override/note
+            const _isFutureDay = new Date(dk + 'T12:00') > new Date() && dk !== todayKey();
             Store.setDay(row.log_date, {
               ...(loginDt  ? { loginTime: `${loginDt.getHours()}:${loginDt.getMinutes()}:${loginDt.getSeconds()}`,
                                loginDisplay: short(loginDt) } : {}),
               ...(logoutDt ? { checkoutDisplay: short(logoutDt) } : {}),
               hoursWorked: parseFloat(row.hours_worked) || 0,
               sessionTag:  row.status === 'auto_stopped' ? 'autostopped' : 'realtime',
-              override:    this._OVERRIDES.has(row.override_type) ? row.override_type : null,
-              ...(row.notes ? { note: row.notes } : {}),
+              ...(_isFutureDay
+                ? (this._OVERRIDES.has(row.override_type) ? { futurePlan: row.override_type } : {})
+                : { override: this._OVERRIDES.has(row.override_type) ? row.override_type : null }),
+              ...(row.notes
+                ? (_isFutureDay ? { futureReason: row.notes } : { note: row.notes })
+                : {}),
               lastUpdated: row.updated_at,
             });
           });
@@ -9202,19 +9212,20 @@ ${sig}`
               new Date(local.lastUpdated) >= new Date(newRow.updated_at)) return;
           const loginDt  = newRow.login_time  ? new Date(newRow.login_time)  : null;
           const logoutDt = newRow.logout_time ? new Date(newRow.logout_time) : null;
-          // Preserve local-only fields (futurePlan, futureReason) not stored in DB columns
-          const _existing = Store.getDay(dk) || {};
+          // Future days carry futurePlan/futureReason; past/today carry override/note
+          const _isFutureDay = new Date(dk + 'T12:00') > new Date() && dk !== todayKey();
           Store.setDay(dk, {
             ...(loginDt  ? { loginTime: `${loginDt.getHours()}:${loginDt.getMinutes()}:${loginDt.getSeconds()}`,
                              loginDisplay: short(loginDt) } : {}),
             ...(logoutDt ? { checkoutDisplay: short(logoutDt) } : {}),
             hoursWorked: parseFloat(newRow.hours_worked) || 0,
             sessionTag:  newRow.status === 'auto_stopped' ? 'autostopped' : 'realtime',
-            override:    SbSync._OVERRIDES.has(newRow.override_type) ? newRow.override_type : null,
-            ...(newRow.notes ? { note: newRow.notes } : {}),
-            // Preserve plan fields — they live only in localStorage
-            ...(_existing.futurePlan  ? { futurePlan:   _existing.futurePlan  } : {}),
-            ...(_existing.futureReason? { futureReason:  _existing.futureReason } : {}),
+            ...(_isFutureDay
+              ? (SbSync._OVERRIDES.has(newRow.override_type) ? { futurePlan: newRow.override_type } : {})
+              : { override: SbSync._OVERRIDES.has(newRow.override_type) ? newRow.override_type : null }),
+            ...(newRow.notes
+              ? (_isFutureDay ? { futureReason: newRow.notes } : { note: newRow.notes })
+              : {}),
             lastUpdated: newRow.updated_at,
           });
         }

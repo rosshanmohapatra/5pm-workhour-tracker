@@ -6496,14 +6496,15 @@
       const greeting = h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
       const name = (cfg().name || '').trim();
       el('selDayRel').textContent = name ? `${greeting}, ${name.split(' ')[0]}` : greeting;
-      // rcDayLabel: today → "Today", past → "Friday, 15th May", future → day name
-      if (key === tk) {
-        el('rcDayLabel').textContent = 'Today';
-      } else if (key < tk) {
-        el('rcDayLabel').textContent = _fmtDayHeading(dayDate);
-      } else {
-        el('rcDayLabel').textContent = day?.name || 'Day';
-      }
+      // rcDayLabel: relative label for adjacent days, formatted date for everything else
+      const _yd = new Date(nowTz()); _yd.setDate(_yd.getDate() - 1);
+      const _tm = new Date(nowTz()); _tm.setDate(_tm.getDate() + 1);
+      const ydKey = dateKey(_yd), tmKey = dateKey(_tm);
+      const _labelDate = day ? day.date : new Date(key + 'T12:00');
+      if      (key === tk)    el('rcDayLabel').textContent = 'Today';
+      else if (key === ydKey) el('rcDayLabel').textContent = 'Yesterday';
+      else if (key === tmKey) el('rcDayLabel').textContent = 'Tomorrow';
+      else                    el('rcDayLabel').textContent = _fmtDayHeading(_labelDate);
     }
 
     function selectDay(key) {
@@ -6578,13 +6579,13 @@
       // Future weekend day → weekend info card (not the work-day planner)
       if (isWeekendKey(key)) {
         _syncOffsetFromKey(key);
+        updateSelDayHeader(key); // sets rcDayLabel to day name ("Saturday") — not "Today"
         el('todayLoginSection').style.display = 'none';
         el('rcUpdateEntryBtn')?.classList.remove('visible');
         el('leaveChip').style.display = 'none';
         el('futureDayPlan').style.display = 'none';
         el('resultCard').style.display = '';
-        const _hd = el('rcHeadDate');
-        if (_hd) { _hd.textContent = _fmtDayHeading(new Date(key + 'T12:00')); _hd.classList.add('visible'); }
+        el('rcHeadDate')?.classList.remove('visible'); // date already on left
         el('rcBody')?.classList.add('weekend-mode');
         renderWeekendState(key, 'weekend');
         return;
@@ -6596,8 +6597,7 @@
       el('todayLoginSection').style.display = 'none';
       el('rcUpdateEntryBtn')?.classList.remove('visible');
       el('leaveChip').style.display = 'none';
-      const _fhd = el('rcHeadDate');
-      if (_fhd && day) { _fhd.textContent = _fmtDayHeading(day.date); _fhd.classList.add('visible'); }
+      el('rcHeadDate')?.classList.remove('visible'); // date already in day selector
       el('resultCard').style.display = 'none';
       el('futureDayPlan').style.display = '';
       el('futureDayQuestion').textContent = `Any plans for ${day?.name || 'this day'}?`;

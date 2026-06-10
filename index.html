@@ -5,11 +5,9 @@
   <!-- Single source of truth for Supabase credentials (sets window.__SB_URL / __SB_ANON_KEY) -->
   <script src="/lib/config.js"></script>
   <!-- Supabase JS SDK — must load before the auth gate script that follows -->
-  <!-- supabase-js: no SRI — @2 is a floating tag; hash becomes stale on patch releases
-       causing browser script-block → auth gate never fires → black screen.
-       jsdelivr flagged as tracker by Safari ITP (Prospect One list) — switched to unpkg. -->
-  <script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js"
-          crossorigin="anonymous"></script>
+  <!-- supabase-js: self-hosted UMD bundle — eliminates CDN dependency on the auth-critical
+       path and avoids iOS WKWebView "Not Secure" warnings from unpkg redirect chains. -->
+  <script src="/lib/supabase.umd.js"></script>
   <script>
     // Initialise the Supabase client right away (SDK is already available above).
     // We store it on window so the rest of the page script can reuse it.

@@ -22,8 +22,8 @@
   <script>(function(){var s=localStorage.getItem('wh_theme');var p=window.matchMedia('(prefers-color-scheme:dark)').matches;if(s?s==='dark':p)document.documentElement.classList.add('dark');})()</script>
   <!-- Single source of truth for Supabase credentials (sets window.__SB_URL / __SB_ANON_KEY) -->
   <script src="/lib/config.js"></script>
-  <!-- Supabase JS SDK — unpkg avoids stale SRI and Safari ITP tracker flag (see index.html) -->
-  <script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js" crossorigin="anonymous"></script>
+  <!-- Supabase JS SDK — self-hosted, eliminates CDN SSL issues on iOS (see lib/supabase.umd.js) -->
+  <script src="/lib/supabase.umd.js"></script>
   <style>
     :root {
       --bg:        #f5f5f7;

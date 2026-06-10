@@ -1076,7 +1076,9 @@
     .modal-override-row { display: flex; gap: 6px; flex-wrap: wrap; }
     .de-note-wrap { overflow: hidden; max-height: 0; opacity: 0;
       transition: max-height .25s ease, opacity .2s ease; }
-    .de-note-wrap.visible { max-height: 120px; opacity: 1; margin-top: 8px; }
+    /* Padding gives the focus ring room inside overflow:hidden; negative horizontal
+       margin pulls the wrap back out so the field still spans full width. */
+    .de-note-wrap.visible { max-height: 132px; opacity: 1; padding: 4px; margin: 4px -4px 0; }
     /* Note / reason textareas match the login & logout field-input states:
        no border, soft shadow at rest, 2.5px ring on focus. */
     .de-note-wrap textarea, #futureDayReason { width: 100%; resize: none; box-sizing: border-box;

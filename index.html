@@ -4613,7 +4613,8 @@
     }
     function _wpOutsideClick(e) {
       const overlay = el('wpPickerOverlay');
-      if (overlay && !overlay.contains(e.target) && e.target !== el('thisWeekLabel')) {
+      const isTrigger = el('thisWeekLabel')?.contains(e.target) || el('wkNavLabelBtn')?.contains(e.target);
+      if (overlay && !overlay.contains(e.target) && !isTrigger) {
         closeWeekPicker();
       } else if (overlay && overlay.classList.contains('open')) {
         // Re-register for next click outside

@@ -188,16 +188,15 @@
     .dark .navbar.stuck { box-shadow: 0 4px 20px rgba(0,0,0,.35); }
     .nav-inner { height: 52px; padding: 0 8px; display: flex; align-items: center; justify-content: space-between; }
     .nav-tabs { display: flex; align-items: center; gap: 4px; }
-    .nav-tab { height: 34px; padding: 0 14px; border-radius: var(--radius-md); border: 1px solid transparent;
+    .nav-tab { height: 34px; padding: 0 14px; border-radius: var(--radius-md); border: none;
       background: transparent; color: var(--muted-fg); font-size: 13px; font-weight: 500;
-      font-family: var(--font); transition: background .14s, color .14s, border-color .14s;
+      font-family: var(--font); transition: background .14s, color .14s;
       display: flex; align-items: center; gap: 5px; }
-    /* Hover = stroke only; active = filled card. Keeps the two states distinct. */
-    .nav-tab:hover { background: transparent; border-color: var(--border); color: var(--foreground); }
-    .nav-tab.active { background: var(--card); border-color: transparent; color: var(--foreground); box-shadow: var(--shadow-xs); }
+    .nav-tab:hover { background: var(--muted); color: var(--foreground); }
+    .nav-tab.active { background: var(--card); color: var(--foreground); box-shadow: var(--shadow-xs); }
     .dark .navbar { background: var(--background); }
-    .dark .nav-tab:hover { background: transparent; border-color: var(--border); color: var(--foreground); }
-    .dark .nav-tab.active { background: var(--muted); border-color: transparent; color: var(--foreground); box-shadow: none; }
+    .dark .nav-tab:hover { background: var(--muted); color: var(--foreground); }
+    .dark .nav-tab.active { background: var(--muted); color: var(--foreground); box-shadow: none; }
     .nav-tab.active .tab-icon { display: inline-flex !important; }
     .nav-actions { display: flex; align-items: center; gap: 8px; }
 
@@ -246,11 +245,10 @@
     /* ── Icon button ── */
     .btn-icon { display: inline-flex; align-items: center; justify-content: center;
       width: 36px; height: 36px; flex-shrink: 0; background: transparent;
-      border: 1px solid transparent; border-radius: var(--radius-md); color: var(--muted-fg);
-      transition: background .14s, color .14s, border-color .14s; position: relative; }
-    /* Hover = stroke only, no fill */
-    .btn-icon:hover  { background: transparent; border-color: var(--border); color: var(--foreground); }
-    .dark .btn-icon:hover { background: transparent; border-color: var(--border); }
+      border: none; border-radius: var(--radius-md); color: var(--muted-fg);
+      transition: background .14s, color .14s; position: relative; }
+    .btn-icon:hover  { background: var(--muted); color: var(--foreground); }
+    .dark .btn-icon:hover { background: var(--muted); }
     .btn-icon:active { opacity: .82; transform: scale(.97); }
     /* Active state mirrors the active nav tab — subtle card bg, not flashy black */
     .btn-icon.notif-active { background: var(--card); color: var(--foreground); box-shadow: var(--shadow-xs); }
@@ -271,7 +269,7 @@
 
     /* ── Buttons ── */
     .btn { display: inline-flex; align-items: center; justify-content: center;
-      border-radius: var(--radius-md); border: 1px solid transparent;
+      border-radius: var(--radius-md); border: none;
       font-size: 14px; font-weight: 500; font-family: var(--font);
       white-space: nowrap; user-select: none; outline: none;
       transition: background .14s, filter .14s, opacity .14s; }
@@ -280,15 +278,15 @@
       height: 40px; padding: 0 24px; width: 100%; justify-content: center; }
     .btn-primary:hover { filter: brightness(.88); }
     .btn-primary:disabled { opacity: .4; cursor: not-allowed; filter: none; }
-    .btn-cancel { background: var(--muted); color: var(--foreground);
+    .btn-cancel { background: #1c1c20; color: #fafafa;
       height: 40px; padding: 0 16px; width: 100%;
-      border: 1px solid var(--border); border-radius: var(--radius-md);
+      border: none; border-radius: var(--radius-md);
       font-size: 14px; font-weight: 500; font-family: var(--font);
       display: flex; align-items: center; justify-content: center;
-      transition: background .14s, border-color .14s; }
-    .btn-cancel:hover { background: var(--border); border-color: var(--input); }
+      cursor: pointer; transition: background .14s; }
+    .btn-cancel:hover { background: #27272a; }
     .btn-sm { height: 30px; padding: 0 12px; font-size: 12px; font-weight: 500;
-      border-radius: var(--radius-md); border: 1px solid var(--border); background: var(--muted);
+      border-radius: var(--radius-md); border: none; background: var(--muted);
       color: var(--foreground); transition: background .14s; display: inline-flex;
       align-items: center; gap: 5px; }
     .btn-sm:hover { background: var(--border); }
@@ -300,12 +298,12 @@
     .btn-danger:hover { filter: brightness(.9); }
     .btn-ghost-danger { height: 36px; padding: 0 16px; font-size: 13px; font-weight: 600;
       border-radius: var(--radius-md); font-family: var(--font); display: inline-flex; align-items: center;
-      background: transparent; color: var(--foreground); border: 1px solid var(--border);
-      cursor: pointer; transition: background .14s, color .14s, border-color .14s;
+      background: var(--destructive-bg); color: var(--destructive); border: none;
+      cursor: pointer; transition: background .14s, color .14s;
       white-space: nowrap; flex-shrink: 0; }
-    .btn-ghost-danger:hover { background: var(--destructive-bg); color: var(--destructive); border-color: var(--destructive-border); }
+    .btn-ghost-danger:hover { background: var(--destructive-bg); color: var(--destructive); filter: brightness(.92); }
     .btn-ghost-danger:disabled { opacity: .4; cursor: not-allowed; }
-    .btn-ghost-danger:disabled:hover { background: transparent; color: var(--foreground); border-color: var(--border); }
+    .btn-ghost-danger:disabled:hover { filter: none; }
     .btn-secondary { height: 36px; padding: 0 16px; font-size: 13px; font-weight: 500;
       border-radius: var(--radius-md); font-family: var(--font); display: inline-flex; align-items: center; justify-content: center;
       background: #1c1c20; color: #fafafa; border: none;
@@ -313,9 +311,9 @@
     .btn-secondary:hover { background: #27272a; }
     .btn-ghost-destructive { height: 36px; padding: 0 16px; font-size: 13px; font-weight: 600;
       border-radius: var(--radius-md); font-family: var(--font); display: inline-flex; align-items: center;
-      background: transparent; color: var(--destructive); border: 1px solid var(--destructive-border);
-      cursor: pointer; transition: background .14s, opacity .14s; white-space: nowrap; flex-shrink: 0; }
-    .btn-ghost-destructive:hover { background: var(--destructive-bg); opacity: .9; }
+      background: var(--destructive-bg); color: var(--destructive); border: none;
+      cursor: pointer; transition: background .14s, filter .14s; white-space: nowrap; flex-shrink: 0; }
+    .btn-ghost-destructive:hover { filter: brightness(.92); }
     .btn-ghost-destructive:disabled { opacity: .4; cursor: not-allowed; }
     .theme-icon-wrap { position: relative; display: inline-flex; width: 16px; height: 16px; }
     .theme-icon-wrap .theme-icon-solid { position: absolute; top: 0; left: 0; opacity: 0; transition: opacity .18s ease; }
@@ -324,10 +322,10 @@
     .fp-divider { display:flex;align-items:center;gap:10px;margin:2px 0;color:var(--muted-fg);font-size:11px; }
     .fp-divider::before,.fp-divider::after { content:'';flex:1;height:1px;background:var(--border); }
     .fp-oauth-btn { height:40px;display:flex;align-items:center;justify-content:center;gap:10px;
-      width:100%;border:1px solid var(--border);border-radius:var(--radius-md);background:transparent;
+      width:100%;border:none;border-radius:var(--radius-md);background:var(--muted);
       color:var(--foreground);font-size:13px;font-weight:500;font-family:var(--font);
-      cursor:pointer;transition:background .12s,border-color .12s; }
-    .fp-oauth-btn:hover { background:var(--muted); }
+      cursor:pointer;transition:background .12s; }
+    .fp-oauth-btn:hover { background:var(--border); }
     .fp-code-input { height:52px;font-size:24px;font-weight:600;letter-spacing:.25em;text-align:center; }
     .fp-timer { font-size:12px;color:var(--muted-fg);text-align:center;margin-top:10px; }
     .fp-timer span { font-weight:600;color:var(--foreground); }
@@ -385,10 +383,10 @@
     /* ── Day picker ── */
     .day-picker { display: flex; gap: 6px; }
     .day-btn { width: 36px; height: 36px; border-radius: var(--radius-md);
-      border: 1px solid var(--border); font-size: 12px; font-weight: 600;
-      color: var(--muted-fg); background: var(--background); transition: all .14s; }
-    .day-btn:hover { border-color: var(--foreground); color: var(--foreground); }
-    .day-btn.selected { background: var(--foreground); color: var(--background); border-color: var(--foreground); }
+      border: none; font-size: 12px; font-weight: 600;
+      color: var(--muted-fg); background: var(--muted); transition: background .14s, color .14s; }
+    .day-btn:hover { background: var(--border); color: var(--foreground); }
+    .day-btn.selected { background: var(--foreground); color: var(--background); }
 
     /* ── Live dot ── */
     .dot-live { width: 6px; height: 6px; border-radius: 50%; background: var(--success);
@@ -427,7 +425,7 @@
     .notif-text { font-size: 13px; color: var(--foreground); line-height: 1.45; }
     .notif-actions { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
     .notif-cta { font-size: 12px; font-weight: 500; color: var(--foreground);
-      background: var(--muted); border: 1px solid var(--border); border-radius: var(--radius);
+      background: var(--muted); border: none; border-radius: var(--radius);
       padding: 4px 10px; transition: background .14s; }
     .notif-cta:hover { background: var(--border); }
     .notif-surplus { font-size: 13px; font-weight: 600; color: var(--success); }
@@ -450,9 +448,9 @@
     /* ── Shift combo (input + button inside) ── */
     .shift-cta { display: flex; flex-direction: column; gap: 10px; }
     .shift-combo { display: flex; align-items: center; background: var(--card);
-      border: 1.5px solid var(--border); border-radius: var(--radius-lg); height: 52px;
-      padding: 6px; gap: 6px; transition: background .15s, border-color .15s; box-shadow: var(--shadow-xs); }
-    .shift-combo:focus-within { background: color-mix(in srgb, var(--card) 60%, var(--muted) 40%); border-color: var(--border); }
+      border: none; border-radius: var(--radius-lg); height: 52px;
+      padding: 6px; gap: 6px; transition: background .15s; box-shadow: var(--shadow-xs); }
+    .shift-combo:focus-within { background: color-mix(in srgb, var(--card) 60%, var(--muted) 40%); }
     .shift-combo-input.err { color: var(--destructive); }
     /* Placeholder div that replaces the input at rest — invisible to Safari autofill scanner */
     .tc-ph { cursor:text; color:var(--muted-fg) !important; display:flex; align-items:center; height:100%; }
@@ -466,10 +464,10 @@
       font-weight: 600; font-family: var(--font); white-space: nowrap; cursor: pointer;
       flex-shrink: 0; transition: filter .14s; }
     .shift-combo-btn:hover { filter: brightness(.88); }
-    .shift-combo-btn.end-shift { background: transparent; color: var(--destructive);
-      border: 1.5px solid var(--destructive); }
-    .shift-combo-btn.end-shift:hover { background: var(--destructive-bg); opacity: 1; }
-    .shift-combo-btn.pause-shift { background: var(--muted); color: var(--foreground); border: 1.5px solid var(--border); }
+    .shift-combo-btn.end-shift { background: var(--destructive-bg); color: var(--destructive);
+      border: none; }
+    .shift-combo-btn.end-shift:hover { filter: brightness(.92); }
+    .shift-combo-btn.pause-shift { background: var(--muted); color: var(--foreground); border: none; }
     .shift-combo-btn.pause-shift:hover { opacity: .85; }
     .shift-combo-btn.resume-shift { background: var(--btn-primary-bg); color: var(--card); border: none; }
     .shift-combo-btn.resume-shift:hover { opacity: .85; }
@@ -482,7 +480,7 @@
       transition: opacity .12s; }
     .split-chevron-btn:hover { opacity: .85; }
     .split-chevron-btn.pause-shift-chev { background: var(--muted); color: var(--foreground);
-      border: 1.5px solid var(--border); border-left: none; }
+      border: none; }
     .split-chevron-btn.resume-shift-chev { background: var(--btn-primary-bg); color: var(--card);
       border-left: 1px solid rgba(255,255,255,.15); }
     .split-dropdown { position: absolute; right: 0; top: calc(100% + 6px);
@@ -505,7 +503,7 @@
     .login-ap-hint { font-size: 11px; font-weight: 500; color: var(--warning, #f59e0b);
       padding: 2px 4px; display: none; }
     .shift-resume-row { display: flex; gap: 8px; }
-    .shift-resume-btn { flex: 1; height: 40px; border-radius: 10px; border: 1.5px solid var(--success-border);
+    .shift-resume-btn { flex: 1; height: 40px; border-radius: 10px; border: none;
       background: var(--success-bg); color: var(--success); font-size: 13px; font-weight: 600;
       font-family: var(--font); cursor: pointer; transition: background .12s; }
     .shift-resume-btn:hover { background: var(--success-border); }
@@ -649,7 +647,7 @@
     /* Day edit dropdown (analytics row expand) */
     .wk-dropdown { display: none; }
     .wk-row-actions { display: flex; align-items: center; gap: 8px; justify-self: end; }
-    .wk-edit-icon-btn { width: 28px; height: 28px; border-radius: 6px; border: 1px solid var(--border);
+    .wk-edit-icon-btn { width: 28px; height: 28px; border-radius: 6px; border: none;
       background: var(--muted); color: var(--muted-fg); display: flex; align-items: center;
       justify-content: center; cursor: pointer; transition: background .12s, color .12s, opacity .12s;
       opacity: 0; }
@@ -671,7 +669,7 @@
       padding:10px 0 2px;overflow:hidden; }
     .rec-ack-q { font-size:12px;color:var(--muted-fg);font-weight:500; }
     .rec-ack-btns { display:flex;gap:6px;flex-shrink:0; }
-    .rec-ack-btn { height:26px;padding:0 14px;border-radius:6px;border:1px solid var(--border);
+    .rec-ack-btn { height:26px;padding:0 14px;border-radius:6px;border:none;
       background:var(--muted);color:var(--foreground);font-size:12px;font-weight:600;
       font-family:var(--font);cursor:pointer;transition:background .12s; }
     .rec-ack-btn:hover { background:var(--border); }
@@ -732,13 +730,12 @@
     .target-day-head { display: flex; flex-direction: column; gap: 2px; }
     .target-day-picker { display: flex; gap: 6px; flex-wrap: wrap; }
     /* Plan pill button (shared) */
-    .plan-btn { height: 34px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--border);
+    .plan-btn { height: 34px; padding: 0 12px; border-radius: 8px; border: none;
       font-size: 12px; font-weight: 600; color: var(--muted-fg); background: var(--muted);
-      transition: background .15s, color .15s, border-color .15s, box-shadow .15s;
-      white-space: nowrap; font-family: var(--font); }
-    .plan-btn:hover { background: var(--muted); color: var(--foreground); }
-    .plan-btn.selected { background: var(--foreground); color: var(--background);
-      border-color: var(--foreground); box-shadow: none; }
+      transition: background .15s, color .15s;
+      white-space: nowrap; font-family: var(--font); cursor: pointer; }
+    .plan-btn:hover { background: var(--border); color: var(--foreground); }
+    .plan-btn.selected { background: var(--foreground); color: var(--background); }
     /* Settings groups */
     .settings-group { display: flex; flex-direction: column; gap: 14px; }
     .settings-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-lg);
@@ -843,15 +840,15 @@
        doesn't highlight the name/role text. */
     #devAboutCard { user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
     .about-social-btn { display:inline-flex;align-items:center;justify-content:center;
-      width:34px;height:34px;border-radius:8px;border:1px solid var(--border);
+      width:34px;height:34px;border-radius:8px;border:none;
       background:transparent;color:var(--muted-fg);text-decoration:none;
       transition:background .15s,color .15s;cursor:pointer; }
     .about-social-btn:hover { background:var(--muted);color:var(--foreground); }
     .sponsor-btn { display:inline-flex;align-items:center;gap:7px;padding:7px 14px;
-      border-radius:8px;border:1.5px solid var(--border);background:transparent;
+      border-radius:8px;border:none;background:var(--muted);
       color:var(--foreground);font-size:13px;font-weight:500;font-family:var(--font);
-      cursor:pointer;text-decoration:none;transition:background .12s,border-color .12s; }
-    .sponsor-btn:hover { background:var(--muted); }
+      cursor:pointer;text-decoration:none;transition:background .12s; }
+    .sponsor-btn:hover { background:var(--border); }
     .about-version-badge { font-size:11px;font-weight:600;letter-spacing:.06em;
       background:var(--muted);color:var(--muted-fg);padding:2px 8px;border-radius:6px; }
     .page-brand { position:fixed;top:12px;left:12px;z-index:10;display:inline-flex;
@@ -994,10 +991,10 @@
     .email-modal-sep { height: 1px; background: var(--border); margin: 12px -20px 14px; }
     .email-modal-title { font-size: 15px; font-weight: 700; color: var(--foreground); }
     .email-modal-close { width: 30px; height: 30px; border-radius: var(--radius-md); background: transparent;
-      border: 1px solid transparent; color: var(--muted-fg); font-size: 14px; display: flex; align-items: center;
-      justify-content: center; cursor: pointer; transition: background .14s, border-color .14s, color .14s;
+      border: none; color: var(--muted-fg); font-size: 14px; display: flex; align-items: center;
+      justify-content: center; cursor: pointer; transition: background .14s, color .14s;
       position: absolute; top: 12px; right: 12px; }
-    .email-modal-close:hover { border-color: var(--border); color: var(--foreground); }
+    .email-modal-close:hover { background: var(--muted); color: var(--foreground); }
     .email-modal-date { font-size: 12px; color: var(--muted-fg); margin-top: 2px; }
     .email-textarea { width: 100%; min-height: unset; font-size: 12px; font-family: var(--font);
       padding: 10px 12px; background: var(--muted); color: var(--foreground);
@@ -1006,7 +1003,7 @@
       field-sizing: content; }
     .email-textarea:focus { border-color: var(--ring); background: var(--background); }
     .email-modal-actions { display: flex; gap: 8px; margin-top: 12px; }
-    .email-copy-btn { height: 26px; padding: 0 8px; border-radius: var(--radius); border: 1px solid var(--border);
+    .email-copy-btn { height: 26px; padding: 0 8px; border-radius: var(--radius); border: none;
       background: var(--muted); color: var(--foreground); font-size: 11px; font-weight: 600;
       font-family: var(--font); cursor: pointer; transition: background .14s; display: inline-flex; align-items: center; gap: 4px; }
     .email-copy-btn:hover { background: var(--border); }
@@ -1062,11 +1059,13 @@
     /* ── wk-time-input fix ── */
     .wk-time-input { height: 28px; width: 80px; font-size: 12px; font-family: var(--font);
       padding: 0 8px; background: var(--input-bg); color: var(--foreground);
-      border: 1px solid var(--input); border-radius: 6px; outline: none; }
-    .wk-time-input:focus { border-color: var(--ring); }
+      border: none; border-radius: 6px; outline: none;
+      box-shadow: var(--shadow-xs); transition: box-shadow .15s; }
+    .wk-time-input:focus { box-shadow: 0 0 0 2.5px rgba(9,9,11,.10); }
+    .dark .wk-time-input:focus { box-shadow: 0 0 0 2.5px rgba(250,250,250,.10); }
     .wk-edit-btn { font-size: 12px; font-weight: 500; padding: 4px 10px;
-      border-radius: 6px; border: 1px solid var(--border); background: var(--input-bg);
-      color: var(--foreground); transition: background .12s; }
+      border-radius: 6px; border: none; background: var(--muted);
+      color: var(--foreground); transition: background .12s; cursor: pointer; }
     .wk-edit-btn:hover { background: var(--border); }
 
     /* ── Day edit modal ── */
@@ -1090,9 +1089,9 @@
       .future-plan-actions > button { flex: 1; width: 100%; }
     }
     /* Delete entry button — neutral default, destructive on hover (pointer devices only) */
-    #dayEditDeleteBtn { color: var(--muted-fg); background: var(--muted); border: 1px solid var(--border); }
+    #dayEditDeleteBtn { color: var(--muted-fg); background: var(--muted); border: none; }
     @media (hover: hover) {
-      #dayEditDeleteBtn:hover { color: var(--destructive); background: var(--destructive-bg); border-color: var(--destructive-border); }
+      #dayEditDeleteBtn:hover { color: var(--destructive); background: var(--destructive-bg); }
     }
     /* Override info card — dashed, clickable, for past holiday/leave/halfday */
     .override-info-editable { cursor: pointer; border: 1.5px dashed var(--border);
@@ -1107,12 +1106,11 @@
       color: #09090b; pointer-events: none; transition: background .2s, color .2s; }
     .dark #futurePlanBtn.state-success { background: #fff; border-color: #fff; color: #09090b; }
     .modal-override-btn { height: 32px; padding: 0 12px; border-radius: var(--radius-md);
-      border: 1px solid var(--border); background: var(--muted); color: var(--foreground);
+      border: none; background: var(--muted); color: var(--foreground);
       font-size: 12px; font-weight: 500; font-family: var(--font); cursor: pointer;
       transition: background .14s; }
     .modal-override-btn:hover { background: var(--border); }
-    .modal-override-btn.active { background: var(--btn-primary-bg); color: var(--card);
-      border-color: var(--btn-primary-bg); }
+    .modal-override-btn.active { background: var(--btn-primary-bg); color: var(--card); }
     .modal-time-row { display: flex; align-items: center; gap: 8px; }
     .modal-time-row .field-input { flex: 1; }
     .modal-time-sep { color: var(--muted-fg); font-size: 14px; flex-shrink: 0; }
@@ -1196,7 +1194,7 @@
     .wp-picker-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
     .wp-picker-month { font-size:14px; font-weight:600; color:var(--foreground); flex:1; }
     .wp-picker-navs { display:flex; gap:4px; }
-    .wp-picker-nav { width:28px; height:28px; border-radius:6px; border:1px solid var(--border);
+    .wp-picker-nav { width:28px; height:28px; border-radius:6px; border:none;
       background:var(--muted); color:var(--foreground); display:flex; align-items:center;
       justify-content:center; cursor:pointer; transition:background .1s; padding:0; flex-shrink:0; }
     .wp-picker-nav:hover { background:var(--border); }
@@ -1238,10 +1236,10 @@
     .an-week-nav-label { flex: 1; text-align: center; font-size: 14px; font-weight: 600;
       color: var(--foreground); }
     .an-nav-btn { width: 34px; height: 34px; display: flex; align-items: center;
-      justify-content: center; border: 1px solid var(--border); border-radius: 8px;
-      background: var(--background); color: var(--foreground); flex-shrink: 0;
-      transition: background .12s; }
-    .an-nav-btn:hover { background: var(--muted); }
+      justify-content: center; border: none; border-radius: 8px;
+      background: #1c1c20; color: #fafafa; flex-shrink: 0;
+      cursor: pointer; transition: background .12s; }
+    .an-nav-btn:hover { background: #27272a; }
     .an-nav-btn:disabled { opacity: .3; cursor: default; pointer-events: none; }
 
     /* ── In/Out time boxes (P4 card resize) ── */
@@ -1407,9 +1405,9 @@
 
       /* btn-icon: no hover on touch — only :active gives press feedback */
       .btn-icon { transition: none; }
-      .btn-icon:hover { background: transparent; border-color: transparent; color: var(--muted-fg); }
-      .dark .btn-icon:hover { background: transparent; border-color: transparent; color: var(--muted-fg); }
-      .btn-icon:active { background: var(--card); border-color: transparent; color: var(--foreground); }
+      .btn-icon:hover { background: transparent; color: var(--muted-fg); }
+      .dark .btn-icon:hover { background: transparent; color: var(--muted-fg); }
+      .btn-icon:active { background: var(--card); color: var(--foreground); }
       .dark .btn-icon:active { background: var(--muted); }
 
       .mob-tab { transition: none; }
@@ -1611,7 +1609,7 @@
     }
     .tp-footer { display: flex; gap: 8px; padding: 10px 12px; border-top: 1px solid var(--border); }
     .tp-cancel-btn {
-      flex: 1; height: 34px; border-radius: 8px; border: 1px solid var(--border);
+      flex: 1; height: 34px; border-radius: 8px; border: none;
       background: var(--muted); color: var(--foreground); font-size: 13px; font-weight: 500;
       font-family: var(--font); cursor: pointer; transition: background .12s;
     }
@@ -1671,14 +1669,14 @@
       background: var(--btn-primary-bg); color: var(--card); font-size: 12px; font-weight: 600;
       font-family: var(--font); cursor: pointer; transition: filter .14s; }
     .ob-btn-primary:hover { filter: brightness(.88); }
-    .ob-btn-ghost { height: 34px; padding: 0 12px; border-radius: var(--radius-md); border: 1px solid var(--border);
-      background: transparent; color: var(--muted-fg); font-size: 12px; font-weight: 500;
+    .ob-btn-ghost { height: 34px; padding: 0 12px; border-radius: var(--radius-md); border: none;
+      background: var(--muted); color: var(--muted-fg); font-size: 12px; font-weight: 500;
       font-family: var(--font); cursor: pointer; transition: background .14s; }
-    .ob-btn-ghost:hover { background: var(--muted); color: var(--foreground); }
-    .ob-btn-link { height: 34px; padding: 0 12px; border-radius: var(--radius-md); border: 1px solid var(--border);
-      background: transparent; color: var(--muted-fg); font-size: 12px; font-weight: 500;
+    .ob-btn-ghost:hover { background: var(--border); color: var(--foreground); }
+    .ob-btn-link { height: 34px; padding: 0 12px; border-radius: var(--radius-md); border: none;
+      background: var(--muted); color: var(--muted-fg); font-size: 12px; font-weight: 500;
       font-family: var(--font); cursor: pointer; transition: background .14s; }
-    .ob-btn-link:hover { background: var(--muted); color: var(--foreground); }
+    .ob-btn-link:hover { background: var(--border); color: var(--foreground); }
     .ob-panel input[type="text"] { outline: none; }
     .ob-panel input[type="text"]:focus { border-color: var(--ring) !important; box-shadow: 0 0 0 3px rgba(9,9,11,.08); }
     .dark .ob-panel input[type="text"]:focus { box-shadow: 0 0 0 3px rgba(250,250,250,.08); }
@@ -2037,7 +2035,7 @@
           <span style="font-weight:600">Notifications are disabled.</span>
           <span style="opacity:.75">You may miss work hour alerts.</span>
         </div>
-        <button onclick="Notification.requestPermission().then(function(p){if(p==='granted')document.getElementById('notifPermBar').classList.remove('show')})" style="flex-shrink:0;height:26px;padding:0 10px;font-size:11px;font-weight:600;border-radius:6px;border:1px solid var(--warning-border);background:transparent;color:var(--warning);cursor:pointer;white-space:nowrap;font-family:var(--font)">Turn On</button>
+        <button onclick="Notification.requestPermission().then(function(p){if(p==='granted')document.getElementById('notifPermBar').classList.remove('show')})" style="flex-shrink:0;height:26px;padding:0 10px;font-size:11px;font-weight:600;border-radius:6px;border:none;background:var(--warning-bg);color:var(--warning);cursor:pointer;white-space:nowrap;font-family:var(--font)">Turn On</button>
       </div>
 
       <!-- Selected day context (greeting left, live clock right) -->
@@ -3539,7 +3537,7 @@
         Your regular shift hours are <strong style="color:var(--foreground)" id="outsideShiftRange"></strong>.
       </p>
       <div style="display:flex;gap:10px">
-        <button class="shift-combo-btn" style="flex:1;background:var(--muted);color:var(--foreground);border:1.5px solid var(--border)" onclick="closeOutsideShiftModal()">Cancel</button>
+        <button class="shift-combo-btn" style="flex:1;background:var(--muted);color:var(--foreground);border:none" onclick="closeOutsideShiftModal()">Cancel</button>
         <button class="shift-combo-btn" style="flex:1" onclick="overrideOutsideShift()">Override</button>
       </div>
     </div>

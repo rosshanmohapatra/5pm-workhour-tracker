@@ -576,10 +576,9 @@
       #wkndNote { min-height: 32px; padding: 6px 0; }
       #wkndNoteSend { width: 32px; height: 32px; }
     }
-    .rc-numbers { display: flex; align-items: center; gap: 12px; }
+    .rc-numbers { display: flex; align-items: flex-start; gap: 12px; }
     .rc-left-col { display: flex; flex-direction: column; gap: 4px; }
-    .rc-right-col { display:flex;flex-direction:column;gap:4px;align-items:flex-end; }
-    .rc-progress-center { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; min-width: 0; }
+    .rc-right-col { margin-left:auto;display:flex;flex-direction:column;gap:4px;align-items:flex-end; }
     .rc-target-val { font-size:32px;font-weight:600;letter-spacing:-1px;line-height:32px;color:var(--foreground); }
     .rc-target-label { font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted-fg);text-align:right; }
     .rc-elapsed-row { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; margin-top: 2px; }
@@ -589,7 +588,7 @@
     .rc-worked { font-size: 32px; font-weight: 600; letter-spacing: -1px; line-height: 32px; color: var(--foreground); }
     .rc-elapsed-label { font-size: 11px; font-weight: 600; letter-spacing: .08em;
       text-transform: uppercase; color: var(--muted-fg); margin-top: 2px; }
-    .progress-wrap { display: flex; flex-direction: column; gap: 6px; width: 100%; }
+    .progress-wrap { display: flex; flex-direction: column; gap: 6px; margin: 6px 0 4px; }
     .progress-bar-row { display: flex; align-items: center; gap: 10px; }
     .progress-track { flex: 1; height: 4px; background: var(--muted); border-radius: 99px; overflow: hidden;
       transition: height .45s ease, background .45s ease; }
@@ -2165,20 +2164,18 @@
               </div>
               <div class="rc-worked" id="rcWorked" style="color:var(--muted-fg)">—</div>
             </div>
-            <div class="rc-progress-center">
-              <div id="whStatusChip" class="wh-status-chip" style="display:none">Working</div>
-              <div class="progress-wrap" id="progWrap">
-                <div class="progress-bar-row">
-                  <div class="progress-track" id="progTrack">
-                    <div class="progress-fill" id="progFill" style="width:0%"></div>
-                  </div>
-                  <div class="progress-label" id="progLabel"></div>
-                </div>
-              </div>
-            </div>
             <div class="rc-right-col">
               <div class="rc-target-label" id="rcTargetLabel">Remaining</div>
               <div class="rc-target-val" id="rcTarget" style="color:var(--muted-fg)">—</div>
+            </div>
+          </div>
+          <div id="whStatusChip" class="wh-status-chip" style="display:none">Working</div>
+          <div class="progress-wrap" id="progWrap">
+            <div class="progress-bar-row">
+              <div class="progress-track" id="progTrack">
+                <div class="progress-fill" id="progFill" style="width:0%"></div>
+              </div>
+              <div class="progress-label" id="progLabel"></div>
             </div>
           </div>
           <div id="rcToday"></div>
@@ -4482,7 +4479,7 @@
         const logoutDate = new Date(loginDate.getTime() + eff * 1000);
         const outVal = short(logoutDate);
         leftCardHtml = `
-        <div class="rc-io-box" id="inTimeBox">
+        <div class="rc-io-box editable" id="inTimeBox" onclick="openLoginLogoutPicker(event)">
           <div class="rc-io-label">Duration</div>
           <div class="rc-io-val-row">
             <div class="rc-io-duration">
@@ -4517,10 +4514,12 @@
       const ioHtml = `<div class="rc-kpi-merged">
         ${leftCardHtml}
         <div class="rc-kpi-divider"></div>
-        <div class="rc-io-box rc-kpi-right" id="outTimeBox">
+        <div class="rc-io-box rc-kpi-right editable" id="outTimeBox" onclick="openDailyTargetPicker(event)">
           <div class="rc-io-label">${isDone ? 'Target Reached' : 'Target'}</div>
           <div class="rc-io-val-row">
             <span class="rc-io-val" id="metaTarget">${dur(eff)}</span>
+            ${!isDone && !hasCustomTarget && cfg().recommendTimings !== false ? `<span class="custom-target-chip">Recommended</span>` : ''}
+            ${!isDone && hasCustomTarget ? `<button class="rc-io-edit-btn" title="Reset to recommended" onclick="event.stopPropagation();clearTodayTarget()" style="color:var(--muted-fg)">✕</button>` : ''}
           </div>
         </div>
       </div>`;

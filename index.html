@@ -575,7 +575,23 @@
       #wkndNote { min-height: 32px; padding: 6px 0; }
       #wkndNoteSend { width: 32px; height: 32px; }
     }
-    .rc-numbers { display: flex; align-items: baseline; gap: 12px; }
+    .rc-numbers { display: flex; align-items: flex-end; gap: 8px; }
+    .rc-left-kpi { display: flex; flex-direction: column; gap: 3px; flex-shrink: 0; }
+    .rc-right-kpi { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; flex-shrink: 0; }
+    .rc-arc-mid { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 0; }
+    .rc-arc-svg { width: 100%; height: auto; overflow: visible; display: block; }
+    .rc-arc-track { stroke: var(--border); stroke-width: 1.5; fill: none; }
+    .rc-arc-fill  { stroke: var(--foreground); stroke-width: 1.5; fill: none; stroke-dasharray: 0 9999; transition: stroke-dashoffset .6s ease, stroke-dasharray .6s ease; }
+    .rc-arc-fill.arc-done { stroke: var(--success); }
+    .rc-arc-dot { fill: var(--foreground); transition: cx .6s ease, cy .6s ease; }
+    .rc-arc-dot.arc-done { fill: var(--success); }
+    .rc-rem-below { font-size: 13px; font-weight: 600; color: var(--muted-fg); text-align: center; letter-spacing: .02em; }
+    /* ── Duration row (bottom of today card) ── */
+    .rc-duration-row { display: flex; align-items: center; justify-content: center; gap: 8px;
+      font-size: 13px; font-weight: 500; color: var(--muted-fg);
+      padding-top: 12px; border-top: 1px solid var(--border); margin-top: 4px; }
+    .rc-dur-sep { opacity: .5; }
+    /* legacy cols kept for past-day KPI cards */
     .rc-left-col { display: flex; flex-direction: column; gap: 2px; }
     .rc-right-col { margin-left:auto;display:flex;flex-direction:column;gap:2px;align-items:flex-end; }
     .rc-target-val { font-size:32px;font-weight:600;letter-spacing:-1px;line-height:32px;color:var(--foreground); }
@@ -2135,15 +2151,21 @@
             </div>
           </div>
           <div class="rc-numbers">
-            <div class="rc-left-col">
+            <div class="rc-left-kpi">
+              <div class="rc-elapsed-label" id="rcElapsedLabel">Not Started</div>
               <div class="rc-worked" id="rcWorked" style="color:var(--muted-fg)">—</div>
-              <div class="rc-elapsed-row">
-                <div class="rc-elapsed-label" id="rcElapsedLabel">Not Started</div>
-              </div>
             </div>
-            <div class="rc-right-col">
+            <div class="rc-arc-mid">
+              <svg id="rcArcSvg" class="rc-arc-svg" viewBox="0 0 200 85" preserveAspectRatio="none">
+                <path id="rcArcTrack" class="rc-arc-track" d="M 10 80 A 90 78 0 0 1 190 80"/>
+                <path id="rcArcFill"  class="rc-arc-fill"  d="M 10 80 A 90 78 0 0 1 190 80"/>
+                <circle id="rcArcDot" class="rc-arc-dot" cx="10" cy="80" r="5"/>
+              </svg>
+              <div class="rc-rem-below" id="rcRemBelow" style="display:none">—</div>
+            </div>
+            <div class="rc-right-kpi">
+              <div class="rc-target-label" id="rcTargetLabel">Total</div>
               <div class="rc-target-val" id="rcTarget" style="color:var(--muted-fg)">—</div>
-              <div class="rc-target-label" id="rcTargetLabel">Remaining</div>
             </div>
           </div>
           <div id="rcToday"></div>
@@ -4437,60 +4459,16 @@
     function buildTargetHtml(eff, isDone) {
       const tk = todayKey();
       const log = dayLog(tk) || {};
-      const hasCustomTarget = log.todayTargetH != null;
-      // Use stored login time when session is ended (loginDate is null after checkout).
       const inVal = loginDate ? short(loginDate) : _loginDisplayFromLog(log);
-
-      // Duration card (active session) — shows "LoginTime → LogoutTime", opens tab picker
-      let leftCardHtml;
-      if (loginDate) {
-        const logoutDate = new Date(loginDate.getTime() + eff * 1000);
-        const outVal = short(logoutDate);
-        leftCardHtml = `
-        <div class="rc-io-box editable" id="inTimeBox" onclick="openLoginLogoutPicker(event)">
-          <div class="rc-io-label">Duration</div>
-          <div class="rc-io-val-row">
-            <div class="rc-io-duration">
-              <span class="rc-io-val" id="metaLogin">${inVal}</span>
-              <span class="rc-io-duration-arrow">
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none"><path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-              </span>
-              <span class="rc-io-val" id="metaLogout">${outVal}</span>
-            </div>
-          </div>
-          <input type="hidden" id="inTimeEditInput" value="${inVal}">
-        </div>`;
-      } else {
-        // Session ended — show Duration card with actual login → logout times
-        const outVal = log.checkoutDisplay || '—';
-        leftCardHtml = `
-        <div class="rc-io-box" id="inTimeBox">
-          <div class="rc-io-label">Duration</div>
-          <div class="rc-io-val-row">
-            <div class="rc-io-duration">
-              <span class="rc-io-val" id="metaLogin">${inVal}</span>
-              <span class="rc-io-duration-arrow">
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none"><path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-              </span>
-              <span class="rc-io-val" id="metaLogout">${outVal}</span>
-            </div>
-          </div>
-          <input type="hidden" id="inTimeEditInput" value="${inVal}">
-        </div>`;
-      }
-
-      const ioHtml = `<div class="rc-io-row">
-        ${leftCardHtml}
-        <div class="rc-io-box editable" id="outTimeBox" onclick="openDailyTargetPicker(event)">
-          <div class="rc-io-label">${isDone ? 'Target Reached' : 'Target'}</div>
-          <div class="rc-io-val-row">
-            <span class="rc-io-val" id="metaTarget">${dur(eff)}</span>
-            ${!isDone && !hasCustomTarget && cfg().recommendTimings !== false ? `<span class="custom-target-chip">Recommended</span>` : ''}
-            ${!isDone && hasCustomTarget ? `<button class="rc-io-edit-btn" title="Reset to recommended" onclick="event.stopPropagation();clearTodayTarget()" style="color:var(--muted-fg)">✕</button>` : ''}
-          </div>
-        </div>
+      if (!inVal || inVal === '—') return '';
+      const outVal = loginDate
+        ? short(new Date(loginDate.getTime() + eff * 1000))
+        : (log.checkoutDisplay || '—');
+      return `<div class="rc-duration-row">
+        <span id="metaLogin">${inVal}</span>
+        <span class="rc-dur-sep">→</span>
+        <span id="metaLogout">${outVal}</span>
       </div>`;
-      return ioHtml;
     }
 
     function ackRec(answer) {
@@ -5332,6 +5310,20 @@
       if (skel && !skel.classList.contains('hidden')) skel.classList.add('hidden');
     }
 
+    // ── ARC PROGRESS ───────────────────────────────────
+    function _updateArc(pct, isDone) {
+      const track = el('rcArcTrack'), fill = el('rcArcFill'), dot = el('rcArcDot');
+      if (!track || !fill || !dot) return;
+      const total = track.getTotalLength();
+      const p = Math.min(1, Math.max(0, pct));
+      fill.style.strokeDasharray = `${total * p} ${total}`;
+      const pt = track.getPointAtLength(total * p);
+      dot.setAttribute('cx', pt.x);
+      dot.setAttribute('cy', pt.y);
+      fill.classList.toggle('arc-done', isDone);
+      dot.classList.toggle('arc-done', isDone);
+    }
+
     // ── EMPTY STATE ────────────────────────────────────
     function renderEmptyState() {
       // Async sync callbacks (pullAll / pullSettings) fire regardless of which day is
@@ -5371,9 +5363,17 @@
         const isDoneE = eff > 0 && endedSecs >= eff;
         el('rcWorked').textContent = durWorked(endedSecs);
         el('rcWorked').style.color = isDoneE ? 'var(--muted-fg)' : '';
-        el('rcTarget').textContent = isDoneE ? '+' + dur(Math.max(0, endedSecs - eff)) : dur(Math.max(0, eff - endedSecs));
-        el('rcTarget').style.color = 'var(--muted-fg)';
-        if (el('rcTargetLabel')) swapText('rcTargetLabel', isDoneE ? 'Extra Time' : 'Remaining');
+        if (el('rcTarget')) { el('rcTarget').textContent = eff > 0 ? dur(eff) : '—'; el('rcTarget').style.color = 'var(--muted-fg)'; }
+        if (el('rcTargetLabel')) swapText('rcTargetLabel', 'Total');
+        const _remBelowE = el('rcRemBelow');
+        if (_remBelowE) {
+          if (eff > 0) {
+            const _diff = endedSecs - eff;
+            _remBelowE.textContent = isDoneE ? '+' + dur(Math.abs(_diff)) : '−' + dur(Math.abs(_diff));
+            _remBelowE.style.display = '';
+          } else { _remBelowE.style.display = 'none'; }
+        }
+        _updateArc(eff > 0 ? endedSecs / eff : 0, isDoneE);
         // "Paused" = mid-day pause with Resume available; "Ended" = full checkout
         const _endedLabel = _sessionAccSecs > 0 ? 'Paused' : 'Ended';
         swapText('rcElapsedLabel', isDoneE ? '' : _endedLabel, { color: 'var(--muted-fg)' });
@@ -5387,8 +5387,11 @@
 
       el('rcWorked').textContent = '0m';
       el('rcWorked').style.color = 'var(--muted-fg)';
-      el('rcTarget').textContent = dur(eff); el('rcTarget').style.color = 'var(--muted-fg)';
-      if (el('rcTargetLabel')) swapText('rcTargetLabel', 'Remaining');
+      if (el('rcTarget')) { el('rcTarget').textContent = eff > 0 ? dur(eff) : '—'; el('rcTarget').style.color = 'var(--muted-fg)'; }
+      if (el('rcTargetLabel')) swapText('rcTargetLabel', 'Total');
+      const _remBelowNS = el('rcRemBelow');
+      if (_remBelowNS) { _remBelowNS.textContent = eff > 0 ? dur(eff) : '—'; _remBelowNS.style.display = ''; }
+      _updateArc(0, false);
       swapText('rcElapsedLabel', 'Not Started', { color: 'var(--muted-fg)' });
       _setTodayDateChip();
       el('rcToday').innerHTML = buildTargetHtml(eff, false);
@@ -6294,23 +6297,26 @@
       _setTodayDateChip();
 
       el('otBanner').classList.remove('show'); // never show — overtime shown inline
-      if (!isDone && eff > 0) {
-        const rem = eff - worked;
-        const remText = rem < 60 ? `${Math.max(0, rem)}s` : dur(rem);
-        animateDuration('rcTarget', remText);
-        el('rcTarget').style.color = '';
-        if (el('rcTargetLabel')) swapText('rcTargetLabel', 'Remaining');
-      } else if (isDone) {
-        const ot = worked - eff;
-        const otText = ot < 60 ? '+0m' : `+${dur(ot)}`;
-        const otColor = ot < 60 ? 'var(--muted-fg)' : 'var(--foreground)';
-        animateDuration('rcTarget', otText);
-        el('rcTarget').style.color = otColor;
-        if (el('rcTargetLabel')) swapText('rcTargetLabel', 'Extra Time');
-      } else {
-        el('rcTarget').textContent = '—'; el('rcTarget').style.color = 'var(--muted-fg)';
-        if (el('rcTargetLabel')) swapText('rcTargetLabel', 'Remaining');
+
+      // Right KPI always shows total target; remaining/overtime lives below the arc
+      if (el('rcTarget')) { animateDuration('rcTarget', eff > 0 ? dur(eff) : '—'); el('rcTarget').style.color = 'var(--muted-fg)'; }
+      if (el('rcTargetLabel')) swapText('rcTargetLabel', 'Total');
+      const _remBelowEl = el('rcRemBelow');
+      if (_remBelowEl) {
+        if (!isDone && eff > 0) {
+          const rem = eff - worked;
+          _remBelowEl.textContent = rem < 60 ? `${Math.max(0, rem)}s` : dur(rem);
+          _remBelowEl.style.display = '';
+        } else if (isDone) {
+          const ot = worked - eff;
+          _remBelowEl.textContent = ot < 60 ? '+0m' : `+${dur(ot)}`;
+          _remBelowEl.style.display = '';
+        } else {
+          _remBelowEl.textContent = '—';
+          _remBelowEl.style.display = '';
+        }
       }
+      _updateArc(eff > 0 ? Math.min(1, worked / eff) : 0, isDone);
 
       el('rcToday').innerHTML = buildTargetHtml(eff, false);
 
@@ -6923,13 +6929,15 @@
         ? `<div class="wk-target-row"><span class="section-label">Recommended</span><div class="wk-target-right"><span class="wk-target-val">${dur(target)}</span></div></div>`
         : '';
 
-      // Clear the big-number right column — surplus shown in KPI box below
-      if (el('rcTarget')) { el('rcTarget').textContent = ''; el('rcTarget').style.color = ''; }
-      if (el('rcTargetLabel')) el('rcTargetLabel').textContent = '';
+      // Right KPI shows total target; surplus/deficit below the arc
+      if (el('rcTarget')) { el('rcTarget').textContent = dur(target); el('rcTarget').style.color = 'var(--muted-fg)'; }
+      if (el('rcTargetLabel')) swapText('rcTargetLabel', 'Total');
 
       if (!log || log.hoursWorked == null) {
         const _rcNumEl = document.querySelector('.rc-numbers');
         if (_rcNumEl) _rcNumEl.style.display = 'none';
+        const _remBelowEmpty = el('rcRemBelow');
+        if (_remBelowEmpty) _remBelowEmpty.style.display = 'none';
         _setTodayDateChip();
         el('stayHint').style.display = 'none';
         el('otBanner').classList.remove('show'); el('doneBanner').classList.remove('show');
@@ -6948,6 +6956,13 @@
       el('doneBanner').classList.remove('show');
       _setTodayDateChip();
       el('stayHint').style.display = 'none';
+      const _remBelowPast = el('rcRemBelow');
+      if (_remBelowPast) {
+        const _diff = worked - target;
+        _remBelowPast.textContent = isDone ? '+' + dur(_diff) : '−' + dur(Math.abs(_diff));
+        _remBelowPast.style.display = '';
+      }
+      _updateArc(Math.min(1, worked / target), isDone);
       const loginDisp = log.loginDisplay || _loginDisplayFromLog(log);
       const outDisp   = log.checkoutDisplay || '—';
       el('rcToday').innerHTML = targetRow + _pastDayKpiHtml(loginDisp, outDisp, worked, target);

@@ -308,7 +308,7 @@
     .btn-ghost-danger:disabled:hover { background: transparent; color: var(--foreground); border-color: var(--border); }
     .btn-secondary { height: 36px; padding: 0 16px; font-size: 13px; font-weight: 500;
       border-radius: var(--radius-md); font-family: var(--font); display: inline-flex; align-items: center; justify-content: center;
-      background: #18181b; color: #fafafa; border: none;
+      background: #1c1c20; color: #fafafa; border: none;
       cursor: pointer; transition: background .14s; white-space: nowrap; flex-shrink: 0; }
     .btn-secondary:hover { background: #27272a; }
     .btn-ghost-destructive { height: 36px; padding: 0 16px; font-size: 13px; font-weight: 600;
@@ -1284,6 +1284,14 @@
       border:1px solid var(--input); border-radius:8px; outline:none;
       cursor:pointer; transition:border-color .15s; }
     .time-input-native:focus { border-color:var(--ring); }
+    /* Shift Type text inputs — match field-input standard (no border, box-shadow ring) */
+    .time-input-wrap input[type="text"] {
+      border: none; outline: none;
+      box-shadow: var(--shadow-xs); transition: box-shadow .15s; }
+    .time-input-wrap input[type="text"]:focus {
+      box-shadow: 0 0 0 2.5px rgba(9,9,11,.10); }
+    .dark .time-input-wrap input[type="text"]:focus {
+      box-shadow: 0 0 0 2.5px rgba(250,250,250,.10); }
     input[type=time]::-webkit-calendar-picker-indicator { opacity:.5; cursor:pointer; }
     .dark input[type=time]::-webkit-calendar-picker-indicator { filter:invert(1); opacity:.4; }
 
@@ -2487,7 +2495,7 @@
               <div style="display:flex;align-items:center;gap:8px">
                 <div class="time-input-wrap" style="flex:1">
                   <input type="text" id="inpShiftStart" placeholder="From  09:00 AM" autocomplete="off"
-                    style="flex:1;height:38px;padding:0 12px 0 38px;font-size:13px;border-radius:8px;border:1px solid var(--border);background:var(--input-bg);color:var(--foreground);width:100%">
+                    style="flex:1;height:38px;padding:0 12px 0 38px;font-size:13px;border-radius:8px;background:var(--input-bg);color:var(--foreground);width:100%">
                   <input type="time" id="inpShiftStartPicker" tabindex="-1"
                     style="position:absolute;opacity:0;pointer-events:none;width:1px;height:1px">
                   <button type="button" class="tp-icon-btn" onclick="openTpModal('inpShiftStart',event)" title="Pick time">
@@ -2497,7 +2505,7 @@
                 <span style="color:var(--muted-fg);font-size:13px;flex-shrink:0">to</span>
                 <div class="time-input-wrap" style="flex:1">
                   <input type="text" id="inpShiftEnd" placeholder="To  06:00 PM" autocomplete="off"
-                    style="flex:1;height:38px;padding:0 12px 0 38px;font-size:13px;border-radius:8px;border:1px solid var(--border);background:var(--input-bg);color:var(--foreground);width:100%">
+                    style="flex:1;height:38px;padding:0 12px 0 38px;font-size:13px;border-radius:8px;background:var(--input-bg);color:var(--foreground);width:100%">
                   <input type="time" id="inpShiftEndPicker" tabindex="-1"
                     style="position:absolute;opacity:0;pointer-events:none;width:1px;height:1px">
                   <button type="button" class="tp-icon-btn" onclick="openTpModal('inpShiftEnd',event)" title="Pick time">

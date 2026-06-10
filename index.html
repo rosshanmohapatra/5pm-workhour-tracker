@@ -1,7 +1,7 @@
 ﻿<!DOCTYPE html>
 <html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
   <!-- Auth gate — hide the page immediately; onAuthStateChange below reveals it -->
-  <script>document.documentElement.style.visibility='hidden';</script>
+  <script>document.documentElement.style.visibility='hidden'; window._loaderStart=Date.now();</script>
   <!-- Single source of truth for Supabase credentials (sets window.__SB_URL / __SB_ANON_KEY) -->
   <script src="/lib/config.js"></script>
   <!-- Supabase JS SDK — must load before the auth gate script that follows -->
@@ -20,12 +20,25 @@
     // onAuthStateChange fires immediately on load with the INITIAL_SESSION event.
     // Guard against the OAuth PKCE race: if ?code= is present in the URL, Supabase
     // is still exchanging it — don't redirect yet; wait for the SIGNED_IN event.
+    // Tell credential managers: do NOT proactively offer to fill credentials on this page.
+    // Suppresses the "Sign in to vercel.app" bottom sheet on iOS for already-authenticated users.
+    if (navigator.credentials && navigator.credentials.preventSilentAccess) {
+      navigator.credentials.preventSilentAccess();
+    }
+
     window._sbClient.auth.onAuthStateChange(function(event, session) {
       if (session) {
         document.documentElement.style.visibility = '';   // reveal page
         if (location.search.includes('code=')) {
           history.replaceState(null, '', location.pathname); // clean up URL bar
         }
+        // Dismiss loader after at least 1 s from page load (smooth, no flash)
+        var _elapsed = Date.now() - (window._loaderStart || Date.now());
+        var _wait = Math.max(0, 1000 - _elapsed);
+        setTimeout(function() {
+          var _l = document.getElementById('appLoader');
+          if (_l) { _l.classList.add('app-loader-out'); setTimeout(function(){ _l.remove(); }, 320); }
+        }, _wait);
       } else if (event === 'INITIAL_SESSION' && !location.search.includes('code=')) {
         // No session and no OAuth code being processed — send to login
         window.location.replace('/login.html');
@@ -55,7 +68,6 @@
           integrity="sha384-fCAW/rDWORTbQXSiB7mOg0QtQ5c+r0f544y6XoKjuVva0nMBlCpNUjiFeG5iMdS3"
           crossorigin="anonymous" defer></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"
-          integrity="sha512-CNgIRecGo7nphbeZ04Sc13ka07paqdeTu0WR1IM4kNcpmBAUSHSr9FzhIdYRnFDQWou07vAMGIJX2VrhkGi9g=="
           crossorigin="anonymous"></script>
 
   <!-- PWA / home-screen -->
@@ -84,6 +96,27 @@
   <link rel="preconnect" href="https://fonts.googleapis.com/">
   <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
+    /* ── PWA App Loader ── */
+    #appLoader {
+      position: fixed; inset: 0; z-index: 9999;
+      background: var(--background);
+      visibility: visible; /* overrides html[visibility:hidden] from auth gate */
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 28px;
+      transition: opacity .3s ease; }
+    #appLoader.app-loader-out { opacity: 0; pointer-events: none; }
+    #appLoaderLogoLight { display: block; }
+    #appLoaderLogoDark  { display: none;  }
+    .dark #appLoaderLogoLight { display: none;  }
+    .dark #appLoaderLogoDark  { display: block; }
+    .app-loader-track { width: 96px; height: 2px; background: var(--border); border-radius: 1px; overflow: hidden; }
+    .app-loader-bar   { height: 100%; width: 0; background: var(--foreground); border-radius: 1px;
+      animation: appLoaderFill 1.1s cubic-bezier(.4,0,.6,1) forwards; }
+    @keyframes appLoaderFill {
+      0%  { width:  0%; }
+      55% { width: 72%; }
+      85% { width: 90%; }
+      100%{ width: 95%; } }
+
     /* ── Design tokens ── */
     :root {
       --background: #f5f5f7; --foreground: #09090b; --card: #ffffff;
@@ -149,7 +182,7 @@
 
     /* ── Navbar ── */
     .navbar { background: var(--muted); border: 1px solid var(--border); border-radius: var(--radius-lg);
-      box-shadow: var(--shadow-sm); position: sticky; top: 24px; z-index: 50;
+      box-shadow: var(--shadow-sm); position: sticky; top: 16px; z-index: 50;
       transition: box-shadow .25s ease, background .25s ease, backdrop-filter .25s ease; }
     .navbar.stuck { box-shadow: 0 4px 20px rgba(0,0,0,.10); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
     .dark .navbar.stuck { box-shadow: 0 4px 20px rgba(0,0,0,.35); }
@@ -178,20 +211,29 @@
       z-index:200; }
     .mob-brand { font-size:15px;font-weight:700;color:var(--foreground);letter-spacing:-.02em; }
     .mob-actions { display:flex;align-items:center;gap:4px; }
-    /* ── Mobile bottom nav ── */
-    .mob-bottomnav { display:none;position:fixed;bottom:0;left:0;right:0;
-      /* bar: 49px interactive zone + home indicator safe area */
-      height:calc(49px + env(safe-area-inset-bottom));
-      background:var(--background);border-top:1px solid var(--border);
-      align-items:flex-start;justify-content:space-around;z-index:9100;
-      /* background stretches to absolute bottom; content sits above home indicator */
-      padding-bottom:env(safe-area-inset-bottom); }
-    .mob-tab { flex:1;height:49px;display:flex;flex-direction:column;align-items:center;
-      justify-content:center;gap:3px;border:none;background:none;cursor:pointer;
+    /* ── Mobile bottom nav — floating pill ── */
+    .mob-bottomnav { display:none;position:fixed;bottom:max(4px, calc(env(safe-area-inset-bottom) * 0.5));
+      left:50%;transform:translateX(-50%);
+      background:color-mix(in srgb,var(--card) 80%,transparent);
+      -webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);
+      border:1px solid var(--border);border-radius:100px;
+      box-shadow:0 4px 24px rgba(0,0,0,.13),0 1px 4px rgba(0,0,0,.07);
+      padding:4px;gap:2px;align-items:center;z-index:150; }
+    .dark .mob-bottomnav { background:color-mix(in srgb,var(--background) 80%,transparent); }
+    .mob-pill-indicator { position:absolute;top:4px;height:calc(100% - 8px);left:0;width:0;
+      background:var(--muted);border-radius:100px;
+      transition:left .22s cubic-bezier(.4,0,.6,1),width .22s cubic-bezier(.4,0,.6,1);
+      pointer-events:none;z-index:0; }
+    .mob-tab { display:flex;flex-direction:column;align-items:center;justify-content:center;
+      gap:3px;padding:8px 20px;border:none;background:transparent;cursor:pointer;
       color:var(--muted-fg);font-family:var(--font);font-size:10px;font-weight:600;
-      letter-spacing:.04em;transition:color .12s;min-height:44px; }
+      letter-spacing:.04em;transition:color .12s;
+      border-radius:100px;min-width:72px;position:relative;z-index:1; }
     .mob-tab.active { color:var(--foreground); }
     .mob-tab svg { flex-shrink:0; }
+    .mob-tab .icon-fill { display:none; }
+    .mob-tab.active .icon-stroke { display:none; }
+    .mob-tab.active .icon-fill { display:block; }
 
     /* ── View system ── */
     .view { display: none; }
@@ -642,6 +684,10 @@
       background: var(--blue-bg); border: 1px solid var(--blue-border);
       border-radius: 8px; padding: 10px 12px; }
     .stay-hint svg { flex-shrink: 0; margin-top: 1px; }
+
+    /* ── Delete-account password field (type=text + visual masking, avoids iOS autofill) ── */
+    #deleteConfirmInput        { -webkit-text-security: disc; }
+    #deleteConfirmInput.unmasked { -webkit-text-security: none; }
 
     /* ── Settings Panel (inline) ── */
     .settings-panel { display: flex; flex-direction: column; gap: 16px; }
@@ -1321,7 +1367,7 @@
 
     /* ── Mobile ── */
     @media (max-width: 640px) {
-      .page { padding: 0 16px calc(80px + 24px); gap: 16px; }
+      .page { padding: 0 16px calc(80px + env(safe-area-inset-bottom)); gap: 16px; }
       .day-clock { font-size: 28px; }
       .day-date { font-size: 14px; }
       .login-row { flex-wrap: wrap; }
@@ -1351,16 +1397,14 @@
       /* Kill all hover visuals on touch; show only on :active (finger down) */
       button { -webkit-tap-highlight-color: transparent; }
 
-      /* btn-icon: hover = pressed state */
+      /* btn-icon: no hover on touch — only :active gives press feedback */
       .btn-icon { transition: none; }
-      .btn-icon:hover { background: var(--card); color: var(--foreground); }
-      .dark .btn-icon:hover { background: var(--muted); }
-      .btn-icon:active { background: var(--card); color: var(--foreground); }
+      .btn-icon:hover { background: transparent; border-color: transparent; color: var(--muted-fg); }
+      .dark .btn-icon:hover { background: transparent; border-color: transparent; color: var(--muted-fg); }
+      .btn-icon:active { background: var(--card); border-color: transparent; color: var(--foreground); }
       .dark .btn-icon:active { background: var(--muted); }
 
-      .mob-tab { transition: none; padding-bottom: 6px; }
-      .mob-tab:hover { color: var(--foreground); }
-      .mob-tab.active:hover { color: var(--foreground); }
+      .mob-tab { transition: none; }
       .mob-tab:active { color: var(--foreground); }
 
       /* All hover states mirror :active (pressed) — no lingering hover on touch */
@@ -1468,8 +1512,8 @@
     #ptrLabel { display: none; } /* icon-only on mobile */
     #ptrPill.ptr-ready {
       background: var(--card);
-      color: var(--foreground);
-      border-color: var(--foreground);
+      color: var(--muted-fg);
+      border-color: var(--border);
     }
     #ptrReloadIcon.ptr-spinning {
       animation: ptr-spin .65s linear infinite;
@@ -1833,6 +1877,13 @@
 </head>
 <body>
 
+  <!-- ── PWA App Loader ── -->
+  <div id="appLoader">
+    <img id="appLoaderLogoLight" src="/brand-light.svg" alt="5pm" width="64" height="64" style="border-radius:16px;border:1px solid var(--border)">
+    <img id="appLoaderLogoDark"  src="/brand-dark.svg"  alt="5pm" width="64" height="64" style="border-radius:16px;border:1px solid var(--border)">
+    <div class="app-loader-track"><div class="app-loader-bar"></div></div>
+  </div>
+
   <!-- ── Daily Report modal ── -->
   <div class="overlay" id="checkoutOverlay">
     <div class="dialog">
@@ -1934,16 +1985,20 @@
 
     <!-- Mobile bottom nav -->
     <nav class="mob-bottomnav" id="mobBottomNav">
+      <div id="mobPillIndicator" class="mob-pill-indicator"></div>
       <button class="mob-tab active" data-view="home" id="mobTabHome">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        <svg class="icon-stroke" width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M3 10.5651C3 9.9907 3 9.70352 3.07403 9.43905C3.1396 9.20478 3.24737 8.98444 3.39203 8.78886C3.55534 8.56806 3.78202 8.39175 4.23539 8.03912L11.0177 2.764C11.369 2.49075 11.5447 2.35412 11.7387 2.3016C11.9098 2.25526 12.0902 2.25526 12.2613 2.3016C12.4553 2.35412 12.631 2.49075 12.9823 2.764L19.7646 8.03913C20.218 8.39175 20.4447 8.56806 20.608 8.78886C20.7526 8.98444 20.8604 9.20478 20.926 9.43905C21 9.70352 21 9.9907 21 10.5651V17.8C21 18.9201 21 19.4801 20.782 19.908C20.5903 20.2843 20.2843 20.5903 19.908 20.782C19.4802 21 18.9201 21 17.8 21H6.2C5.07989 21 4.51984 21 4.09202 20.782C3.71569 20.5903 3.40973 20.2843 3.21799 19.908C3 19.4801 3 18.9201 3 17.8V10.5651Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <svg class="icon-fill" width="18" height="18" viewBox="0 0 24 24"><path d="M3 10.5651C3 9.9907 3 9.70352 3.07403 9.43905C3.1396 9.20478 3.24737 8.98444 3.39203 8.78886C3.55534 8.56806 3.78202 8.39175 4.23539 8.03912L11.0177 2.764C11.369 2.49075 11.5447 2.35412 11.7387 2.3016C11.9098 2.25526 12.0902 2.25526 12.2613 2.3016C12.4553 2.35412 12.631 2.49075 12.9823 2.764L19.7646 8.03913C20.218 8.39175 20.4447 8.56806 20.608 8.78886C20.7526 8.98444 20.8604 9.20478 20.926 9.43905C21 9.70352 21 9.9907 21 10.5651V17.8C21 18.9201 21 19.4801 20.782 19.908C20.5903 20.2843 20.2843 20.5903 19.908 20.782C19.4802 21 18.9201 21 17.8 21H6.2C5.07989 21 4.51984 21 4.09202 20.782C3.71569 20.5903 3.40973 20.2843 3.21799 19.908C3 19.4801 3 18.9201 3 17.8V10.5651Z" fill="currentColor"/></svg>
         Overview
       </button>
       <button class="mob-tab" data-view="analytics" id="mobTabAnalytics">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+        <svg class="icon-stroke" width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M22 12H18L15 21L9 3L6 12H2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <svg class="icon-fill" width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M22 12H18L15 21L9 3L6 12H2" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
         Dashboard
       </button>
       <button class="mob-tab" data-view="settings" id="mobTabSettings">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        <svg class="icon-stroke" width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12.0005 15C13.6573 15 15.0005 13.6569 15.0005 12C15.0005 10.3431 13.6573 9 12.0005 9C10.3436 9 9.00049 10.3431 9.00049 12C9.00049 13.6569 10.3436 15 12.0005 15Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M9.28957 19.3711L9.87402 20.6856C10.0478 21.0768 10.3313 21.4093 10.6902 21.6426C11.0492 21.8759 11.4681 22.0001 11.8962 22C12.3244 22.0001 12.7433 21.8759 13.1022 21.6426C13.4612 21.4093 13.7447 21.0768 13.9185 20.6856L14.5029 19.3711C14.711 18.9047 15.0609 18.5159 15.5029 18.26C15.9477 18.0034 16.4622 17.8941 16.9729 17.9478L18.4029 18.1C18.8286 18.145 19.2582 18.0656 19.6396 17.8713C20.021 17.6771 20.3379 17.3763 20.5518 17.0056C20.766 16.635 20.868 16.2103 20.8455 15.7829C20.823 15.3555 20.677 14.9438 20.4251 14.5978L19.5785 13.4344C19.277 13.0171 19.1159 12.5148 19.1185 12C19.1184 11.4866 19.281 10.9864 19.5829 10.5711L20.4296 9.40778C20.6814 9.06175 20.8275 8.65007 20.85 8.22267C20.8725 7.79528 20.7704 7.37054 20.5562 7C20.3423 6.62923 20.0255 6.32849 19.644 6.13423C19.2626 5.93997 18.833 5.86053 18.4074 5.90556L16.9774 6.05778C16.4667 6.11141 15.9521 6.00212 15.5074 5.74556C15.0645 5.48825 14.7144 5.09736 14.5074 4.62889L13.9185 3.31444C13.7447 2.92317 13.4612 2.59072 13.1022 2.3574C12.7433 2.12408 12.3244 1.99993 11.8962 2C11.4681 1.99993 11.0492 2.12408 10.6902 2.3574C10.3313 2.59072 10.0478 2.92317 9.87402 3.31444L9.28957 4.62889C9.0825 5.09736 8.73245 5.48825 8.28957 5.74556C7.84479 6.00212 7.33024 6.11141 6.81957 6.05778L5.38513 5.90556C4.95946 5.86053 4.52987 5.93997 4.14844 6.13423C3.76702 6.32849 3.45014 6.62923 3.23624 7C3.02206 7.37054 2.92002 7.79528 2.94251 8.22267C2.96499 8.65007 3.11103 9.06175 3.36291 9.40778L4.20957 10.5711C4.51151 10.9864 4.67411 11.4866 4.67402 12C4.67411 12.5134 4.51151 13.0137 4.20957 13.4289L3.36291 14.5922C3.11103 14.9382 2.96499 15.3499 2.94251 15.7773C2.92002 16.2047 3.02206 16.6295 3.23624 17C3.45036 17.3706 3.76727 17.6712 4.14864 17.8654C4.53001 18.0596 4.95949 18.1392 5.38513 18.0944L6.81513 17.9422C7.3258 17.8886 7.84034 17.9979 8.28513 18.2544C8.72966 18.511 9.08134 18.902 9.28957 19.3711Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <svg class="icon-fill" width="18" height="18" viewBox="0 0 24 24"><path fill="currentColor" fill-rule="evenodd" d="M9.28957 19.3711L9.87402 20.6856C10.0478 21.0768 10.3313 21.4093 10.6902 21.6426C11.0492 21.8759 11.4681 22.0001 11.8962 22C12.3244 22.0001 12.7433 21.8759 13.1022 21.6426C13.4612 21.4093 13.7447 21.0768 13.9185 20.6856L14.5029 19.3711C14.711 18.9047 15.0609 18.5159 15.5029 18.26C15.9477 18.0034 16.4622 17.8941 16.9729 17.9478L18.4029 18.1C18.8286 18.145 19.2582 18.0656 19.6396 17.8713C20.021 17.6771 20.3379 17.3763 20.5518 17.0056C20.766 16.635 20.868 16.2103 20.8455 15.7829C20.823 15.3555 20.677 14.9438 20.4251 14.5978L19.5785 13.4344C19.277 13.0171 19.1159 12.5148 19.1185 12C19.1184 11.4866 19.281 10.9864 19.5829 10.5711L20.4296 9.40778C20.6814 9.06175 20.8275 8.65007 20.85 8.22267C20.8725 7.79528 20.7704 7.37054 20.5562 7C20.3423 6.62923 20.0255 6.32849 19.644 6.13423C19.2626 5.93997 18.833 5.86053 18.4074 5.90556L16.9774 6.05778C16.4667 6.11141 15.9521 6.00212 15.5074 5.74556C15.0645 5.48825 14.7144 5.09736 14.5074 4.62889L13.9185 3.31444C13.7447 2.92317 13.4612 2.59072 13.1022 2.3574C12.7433 2.12408 12.3244 1.99993 11.8962 2C11.4681 1.99993 11.0492 2.12408 10.6902 2.3574C10.3313 2.59072 10.0478 2.92317 9.87402 3.31444L9.28957 4.62889C9.0825 5.09736 8.73245 5.48825 8.28957 5.74556C7.84479 6.00212 7.33024 6.11141 6.81957 6.05778L5.38513 5.90556C4.95946 5.86053 4.52987 5.93997 4.14844 6.13423C3.76702 6.32849 3.45014 6.62923 3.23624 7C3.02206 7.37054 2.92002 7.79528 2.94251 8.22267C2.96499 8.65007 3.11103 9.06175 3.36291 9.40778L4.20957 10.5711C4.51151 10.9864 4.67411 11.4866 4.67402 12C4.67411 12.5134 4.51151 13.0137 4.20957 13.4289L3.36291 14.5922C3.11103 14.9382 2.96499 15.3499 2.94251 15.7773C2.92002 16.2047 3.02206 16.6295 3.23624 17C3.45036 17.3706 3.76727 17.6712 4.14864 17.8654C4.53001 18.0596 4.95949 18.1392 5.38513 18.0944L6.81513 17.9422C7.3258 17.8886 7.84034 17.9979 8.28513 18.2544C8.72966 18.511 9.08134 18.902 9.28957 19.3711Z M12.0005 15C13.6573 15 15.0005 13.6569 15.0005 12C15.0005 10.3431 13.6573 9 12.0005 9C10.3436 9 9.00049 10.3431 9.00049 12C9.00049 13.6569 10.3436 15 12.0005 15Z"/></svg>
         Settings
       </button>
     </nav>
@@ -2116,7 +2171,7 @@
           <div id="weekendView">
             <!-- Info card: dashed + clickable on past override days, plain on weekends -->
             <div id="wkndOverrideInfoCard" style="text-align:center;padding:8px 0 18px">
-              <div id="wkndPageTitle" style="font-size:17px;font-weight:700;color:var(--foreground);letter-spacing:-.02em;margin-bottom:4px">Enjoy Your Weekend</div>
+              <div id="wkndPageTitle" style="font-size:17px;font-weight:700;color:var(--foreground);letter-spacing:-.02em;margin-bottom:4px">Weekend</div>
               <div id="wkndPageSubtitle" style="font-size:13px;color:var(--muted-fg);line-height:1.5">You're done with the week.</div>
               <div id="wkndCardTiming" style="display:none;font-size:13px;color:var(--muted-fg);margin-top:6px"></div>
               <div id="wkndCardNote" style="display:none;font-size:13px;color:var(--muted-fg);margin-top:6px;line-height:1.5;white-space:pre-wrap"></div>
@@ -2179,8 +2234,9 @@
       <div class="shift-cta" id="todayLoginSection">
         <!-- Single combo: input + button inside -->
         <div class="shift-combo" id="shiftInputRow">
-          <!-- Decoy absorber for Safari autofill — must stay in DOM -->
-          <input type="email" name="q7z3x" autocomplete="email" tabindex="-1"
+          <!-- Zero-size absorber — no name/type signals that credential managers key off -->
+          <input type="text" autocomplete="off" autocorrect="off" autocapitalize="off"
+            tabindex="-1" aria-hidden="true"
             style="position:absolute;opacity:0;height:0;width:0;pointer-events:none;border:none;padding:0">
           <!-- Hidden sync target — all existing parse/modal/keydown logic reads/writes here -->
           <input id="tc-r7m2" type="text" autocomplete="off" spellcheck="false"
@@ -2378,7 +2434,7 @@
           <div style="padding:16px;display:flex;gap:12px">
             <div style="flex:1;display:flex;flex-direction:column;gap:6px">
               <div class="form-label">Your Name</div>
-              <input type="text" class="field-input" id="inpName" placeholder="Full Name" autocomplete="off" maxlength="40">
+              <input type="text" class="field-input" id="inpDisplay" placeholder="Full Name" autocomplete="off" maxlength="40">
             </div>
             <div style="flex:1;display:flex;flex-direction:column;gap:6px">
               <div class="form-label">Position</div>
@@ -2813,7 +2869,7 @@
     <span style="font-size:11px;font-weight:600;color:var(--muted-fg);letter-spacing:.01em">Version</span>
     <span class="vp-tagline">- Work Hour Tracker</span>
     <span style="font-size:10px;font-weight:600;letter-spacing:.05em;
-      background:var(--muted);color:var(--muted-fg);padding:4px 7px;border-radius:100px">v1.0.2</span>
+      background:var(--muted);color:var(--muted-fg);padding:4px 7px;border-radius:100px">v1.0.3</span>
   </a>
 
   <!-- ── Weekly Report Modal ── -->
@@ -3011,10 +3067,12 @@
           </button>
         </div>
         <div class="dialog-body" style="padding-top:0">
-          <form onsubmit="return false" autocomplete="off">
+          <div role="presentation">
             <div class="form-label" style="margin-bottom:6px">Password</div>
             <div style="position:relative">
-              <input class="field-input" id="deleteConfirmInput" type="password" placeholder="••••••••" autocomplete="current-password"
+              <input class="field-input" id="deleteConfirmInput" type="text" placeholder="••••••••"
+                autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+                data-lpignore="true" data-1p-ignore="true" data-form-type="other"
                 style="width:100%;padding-right:44px"
                 oninput="el('delPwdContinueBtn').disabled = this.value.length < 1">
               <button type="button" onclick="toggleDeletePwd()" title="Show / hide"
@@ -3023,7 +3081,7 @@
                 <svg id="delEyeClose" width="15" height="15" viewBox="0 0 24 24" fill="none" style="display:none"><path fill-rule="evenodd" clip-rule="evenodd" d="M23.7071 0.292893C24.0976 0.683417 24.0976 1.31658 23.7071 1.70711L1.70711 23.7071C1.31658 24.0976 0.683417 24.0976 0.292893 23.7071C-0.0976311 23.3166 -0.0976311 22.6834 0.292893 22.2929L4.23434 18.3514C2.9164 17.1406 1.94176 15.7855 1.2732 14.6799C0.867646 14.0092 0.5691 13.421 0.370612 12.9971C0.271255 12.785 0.196646 12.6133 0.145961 12.4922C0.12061 12.4317 0.101217 12.3838 0.0876805 12.3497L0.0717465 12.3091L0.067044 12.2969L0.0655043 12.2928L0.0649367 12.2913C0.0645038 12.2902 1.00008 11.9371 0.074198 11.5593C0.0746014 11.5583 0.0756485 11.5557 0.0787059 11.5483L0.0886819 11.5245C0.0970512 11.5046 0.108867 11.4769 0.124153 11.4419C0.154718 11.372 0.199199 11.2727 0.257786 11.1484C0.374887 10.8998 0.548788 10.55 0.781098 10.1325C1.24449 9.29981 1.94679 8.18638 2.90303 7.0685C4.80651 4.84327 7.80941 2.5 12.0001 2.5C14.4526 2.5 16.5053 3.30553 18.165 4.42081L22.2929 0.292893C22.6834 -0.0976311 23.3166 -0.0976311 23.7071 0.292893Z" fill="currentColor"/></svg>
               </button>
             </div>
-          </form>
+          </div>
         </div>
         <div style="padding:0 20px 20px;display:flex;justify-content:flex-end;gap:8px">
           <button type="button" class="btn-secondary" onclick="backToDeleteFeedback()">Back</button>
@@ -3059,7 +3117,9 @@
           </button>
         </div>
         <div class="dialog-body">
-          <input class="field-input" id="fpEmailInput" type="email" placeholder="you@example.com" autocomplete="email">
+          <input class="field-input" id="fpEntry" type="text" placeholder="you@example.com"
+            autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+            data-lpignore="true" data-1p-ignore="true">
           <div class="err-msg" id="fpEmailErr" style="margin-top:6px">Enter a valid email address.</div>
         </div>
         <div style="padding:0 20px 12px;display:flex;flex-direction:column;gap:8px">
@@ -3515,7 +3575,7 @@
 
   <script>
 
-    const APP_VERSION = '1.0.2';
+    const APP_VERSION = '1.0.3';
     localStorage.setItem('wh_ver', APP_VERSION);
 
     // ── HELPERS ─────────────────────────────────────────
@@ -5242,10 +5302,21 @@
       _hideSkeleton();
       // Weekend override — show last-week summary card instead of the normal empty state
       const wknd = isWeekend() && !loginDate;
-      el('rcBody')?.classList.toggle('weekend-mode', wknd);
+      // Weekday Holiday / Leave / Half Day override — show planned-day UI instead of tracking UI
+      const _todayOv = !loginDate && !wknd ? (dayLog(todayKey())?.override || null) : null;
+      const _isPlannedDay = _todayOv === 'holiday' || _todayOv === 'leave' || _todayOv === 'halfday';
+      el('rcBody')?.classList.toggle('weekend-mode', wknd || _isPlannedDay);
       if (wknd) {
         selectedDayKey = todayKey();
         renderWeekendState(todayKey(), 'weekend');
+        _updateDayNavBtns();
+        return;
+      }
+      if (_isPlannedDay) {
+        selectedDayKey = todayKey();
+        el('todayLoginSection').style.display = _todayOv === 'halfday' ? '' : 'none';
+        el('resultCard').style.display = '';
+        renderWeekendState(todayKey(), _todayOv);
         _updateDayNavBtns();
         return;
       }
@@ -5494,24 +5565,16 @@
     function _infoTitles(type, when) {
       const sunday = (cfg().workDays || 5) >= 6; // 6-day week → only Sunday is off
       if (type === 'holiday') {
-        if (when === 'past')   return { title: 'Holiday',  sub: 'A day away from work.' };
-        if (when === 'future') return { title: 'Upcoming Holiday',  sub: 'A day off to look forward to.' };
-        return { title: "It's a Holiday", sub: 'No work on this day.' };
+        return { title: 'Holiday', sub: 'No work on this day.' };
       }
       if (type === 'leave') {
-        if (when === 'past')   return { title: 'You were on Leave', sub: 'A full day of leave.' };
-        if (when === 'future') return { title: 'Scheduled Leave',   sub: 'A full day of leave ahead.' };
-        return { title: "You're on Leave", sub: 'A full day off.' };
+        return { title: 'On Leave', sub: 'A full day off.' };
       }
       if (type === 'halfday') {
-        if (when === 'past')   return { title: 'It was a Half Day', sub: 'You worked a partial day.' };
-        if (when === 'future') return { title: 'Planned Half Day',  sub: 'Working a partial day.' };
-        return { title: 'Half Day Today', sub: 'Working a partial day.' };
+        return { title: 'Half Day', sub: 'Working a partial day.' };
       }
       // weekend
-      if (when === 'past')   return { title: sunday ? 'It was Sunday'      : 'Last Weekend', sub: 'A day away from work.' };
-      if (when === 'future') return { title: sunday ? 'Upcoming Sunday'    : 'Upcoming Weekend',   sub: 'A break to look forward to.' };
-      return { title: sunday ? 'Enjoy Your Sunday' : 'Enjoy Your Weekend', sub: "You're done with the week." };
+      return { title: sunday ? 'Sunday' : 'Weekend', sub: "You're done with the week." };
     }
     function saveWkndNote(val) {
       const k = el('wkndNote')?.dataset.key;
@@ -5629,6 +5692,17 @@
       const _isWeekendType = type === 'weekend';
       const statsSection = el('wkndStatsSection');
       if (statsSection) statsSection.style.display = _isWeekendType ? '' : 'none';
+
+      // For Holiday / Leave: hide WH stat rows (rc-numbers, progress bar, IO cards).
+      // Half Day keeps them visible — user may still work a partial day.
+      const _hideStats = type === 'holiday' || type === 'leave';
+      ['rcNumbers', 'progWrap', 'rcToday', 'stayHint', 'otBanner', 'doneBanner', 'autostopBanner'].forEach(id => {
+        const _e = el(id);
+        if (_e) _e.style.display = _hideStats ? 'none' : '';
+      });
+      // Also hide the rc-numbers wrapper (uses class, not id)
+      const _rcNum = document.querySelector('.rc-numbers');
+      if (_rcNum) _rcNum.style.display = _hideStats ? 'none' : '';
 
       const badgeCard = el('wkndBadgeCard');
       if (!_isWeekendType) {
@@ -6020,7 +6094,7 @@
       const _isSundayOnly = cfg().workDays >= 6;
       el('rcDayLabel').textContent = _isSundayOnly ? 'Sunday' : 'Weekend';
       const wkndTitle = el('wkndPageTitle');
-      if (wkndTitle) wkndTitle.textContent = _isSundayOnly ? 'Enjoy Your Sunday' : 'Enjoy Your Weekend';
+      if (wkndTitle) wkndTitle.textContent = _isSundayOnly ? 'Sunday' : 'Weekend';
       // Nudge user to check weekly report (once per week)
       const _nudgeKey = 'wh_report_nudge_' + currentWeekId();
       if (!localStorage.getItem(_nudgeKey)) {
@@ -7252,7 +7326,7 @@
     // ── SETTINGS ───────────────────────────────────────
     function populateSettings() {
       const c = cfg();
-      el('inpName').value       = c.name || '';
+      el('inpDisplay').value       = c.name || '';
       el('inpPosition').value   = c.position || '';
       const _dh = Math.floor(c.dailyH || 9);
       const _dm = Math.round(((c.dailyH || 9) - _dh) * 60);
@@ -7673,7 +7747,7 @@
       const notifTarget    = el('inpNotifTarget')?.checked ?? true;
       const notifKickstart = el('inpNotifKickstart')?.checked ?? true;
       const notifOvertime  = el('inpNotifOvertime')?.checked ?? true;
-      const name       = el('inpName').value.trim();
+      const name       = el('inpDisplay').value.trim();
       const position   = el('inpPosition')?.value.trim() || '';
       const weeklyH    = (_wHVal > 0 || _wMVal > 0) ? _wHVal + _wMVal / 60 : cfg().weeklyH;
       const shiftStart = el('inpShiftStart')?.value.trim() || '09:00 AM';
@@ -7762,6 +7836,15 @@
       renderShiftPresets(); autoSaveSettings();
     }
     // ── TAB SWITCHING ──────────────────────────────────
+    function _updatePillIndicator() {
+      var nav = document.getElementById('mobBottomNav');
+      var indicator = document.getElementById('mobPillIndicator');
+      if (!nav || !indicator || !nav.offsetWidth) return;
+      var activeTab = nav.querySelector('.mob-tab.active');
+      if (!activeTab) return;
+      indicator.style.left = activeTab.offsetLeft + 'px';
+      indicator.style.width = activeTab.offsetWidth + 'px';
+    }
     const VIEW_ORDER = ['home', 'analytics', 'settings'];
     function switchTab(name) {
       const oldIdx = VIEW_ORDER.indexOf(activeView);
@@ -7775,6 +7858,7 @@
         if (icon) icon.style.display = isActive ? 'inline-flex' : 'none';
       });
       document.querySelectorAll('.mob-tab').forEach(t => t.classList.toggle('active', t.dataset.view === name));
+      _updatePillIndicator();
       document.querySelectorAll('.view').forEach(v => {
         const isActive = v.id === `view${name.charAt(0).toUpperCase() + name.slice(1)}`;
         v.classList.remove('slide-from-right', 'slide-from-left');
@@ -9897,6 +9981,7 @@ ${sig}`
     document.querySelectorAll('.mob-tab').forEach(tab => {
       tab.addEventListener('click', () => switchTab(tab.dataset.view));
     });
+    requestAnimationFrame(_updatePillIndicator);
     // Mobile theme + notif
     el('mobThemeBtn')?.addEventListener('click', _toggleThemeAnimated);
     el('mobNotifBtn')?.addEventListener('click', toggleNotifPanel);
@@ -9921,7 +10006,7 @@ ${sig}`
       el(id)?.addEventListener('input', autoSaveSettings);
     });
     ['inpShiftStart','inpShiftEnd'].forEach(id => { el(id)?.addEventListener('change', autoSaveSettings); });
-    ['inpName', 'inpCompany', 'inpPosition'].forEach(id => {
+    ['inpDisplay', 'inpCompany', 'inpPosition'].forEach(id => {
       el(id)?.addEventListener('input', autoSaveSettings);
       el(id)?.addEventListener('change', autoSaveSettings);
     });
@@ -10472,7 +10557,7 @@ ${sig}`
     }
 
     function obSaveStep2() {
-      const name = (el('obName')?.value || '').trim();
+      const name = (el('obDisplay')?.value || '').trim();
       const position = (el('obPosition')?.value || '').trim();
       const shiftStart = (el('obShiftStart')?.value || '09:00 AM').trim();
       const shiftEnd = (el('obShiftEnd')?.value || '06:00 PM').trim();
@@ -10572,7 +10657,8 @@ ${sig}`
       el('fpOverlay').classList.add('open');
       el('fpViewEmail').style.display = '';
       el('fpViewOTP').style.display = 'none';
-      el('fpEmailInput').value = '';
+      el('fpEntry').value = '';
+      el('fpEntry').setAttribute('inputmode', 'email'); // set only when modal opens — not on page load
       el('fpEmailErr').classList.remove('show');
     }
     function closeFpModal() {
@@ -10580,7 +10666,7 @@ ${sig}`
       if (_fpTimer) { clearInterval(_fpTimer); _fpTimer = null; }
     }
     function fpSendEmail() {
-      const email = el('fpEmailInput').value.trim();
+      const email = el('fpEntry').value.trim();
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
         el('fpEmailErr').classList.add('show'); return;
       }
@@ -10810,7 +10896,7 @@ ${sig}`
       el('delViewFeedback').style.display = 'none';
       el('delViewPassword').style.display = '';
       const inp = el('deleteConfirmInput');
-      if (inp) { inp.value = ''; inp.type = 'password'; }
+      if (inp) { inp.value = ''; inp.classList.remove('unmasked'); }
       el('delEyeOpen') && (el('delEyeOpen').style.display = '');
       el('delEyeClose') && (el('delEyeClose').style.display = 'none');
       el('delPwdContinueBtn').disabled = true;
@@ -10822,10 +10908,9 @@ ${sig}`
     }
     function toggleDeletePwd() {
       const inp = el('deleteConfirmInput');
-      const isText = inp.type === 'text';
-      inp.type = isText ? 'password' : 'text';
-      el('delEyeOpen').style.display  = isText ? '' : 'none';
-      el('delEyeClose').style.display = isText ? 'none' : '';
+      const isUnmasked = inp.classList.toggle('unmasked');
+      el('delEyeOpen').style.display  = isUnmasked ? 'none' : '';
+      el('delEyeClose').style.display = isUnmasked ? '' : 'none';
     }
     function confirmDeleteProfile() {
       closeDeleteModal();
@@ -10897,7 +10982,7 @@ ${sig}`
         }
 
         // Auto-fill onboarding form fields from imported data
-        if (userName) { const f = el('obName'); if (f) f.value = userName; }
+        if (userName) { const f = el('obDisplay'); if (f) f.value = userName; }
         if (position) { const f = el('obPosition'); if (f) f.value = position; }
         if (c.shiftStart) { const f = el('obShiftStart'); if (f) f.value = c.shiftStart; }
         if (c.shiftEnd)   { const f = el('obShiftEnd');   if (f) f.value = c.shiftEnd;   }
@@ -11002,7 +11087,19 @@ ${sig}`
         el('notifPermBar').classList.add('show');
       }
 
-      const tl = dayLog(tk);
+      let tl = dayLog(tk);
+
+      // ── Feature: Future Day Plans Auto-Activate ──────────────────────────────
+      // If today has a futurePlan (Holiday / Leave / Half Day) set ahead of time
+      // but no confirmed override yet, promote it to override so the planned-day
+      // UI shows immediately without prompting the user to start tracking.
+      if (tl?.futurePlan && !tl?.override) {
+        const _promoted = { ...tl, override: tl.futurePlan };
+        if (tl.futureReason) _promoted.note = _promoted.note || tl.futureReason;
+        saveDayLog(tk, _promoted);
+        tl = dayLog(tk); // re-read after promotion
+      }
+
       if (tl?.loginTime && !tl?.autostopped && !tl?.checkoutDisplay) {
         // Active session: has a start time, no exit time, not auto-stopped — resume timer
         const pts = tl.loginTime.split(':').map(Number);
@@ -11047,7 +11144,7 @@ ${sig}`
       // through selectDay so the strip card gets the active class.
       if (selectedDayKey === '__wknd__') selectWeekendView();
       else if (selectedDayKey !== tk) selectDay(selectedDayKey);
-      else if (isWeekend()) selectDay(tk);
+      else if (isWeekend() || tl?.override) selectDay(tk);
       else renderDaySelector();
 
       restoreSession();
@@ -11175,7 +11272,7 @@ ${sig}`
         <div class="ob-desc">These help personalise your experience. Both fields are optional.</div>
         <div class="form-field">
           <div class="ob-section-label">Your Name</div>
-          <input type="text" class="field-input" id="obName" placeholder="Full Name" maxlength="40" autocomplete="off">
+          <input type="text" class="field-input" id="obDisplay" placeholder="Full Name" maxlength="40" autocomplete="off">
         </div>
         <div class="form-field">
           <div class="ob-section-label">Position</div>

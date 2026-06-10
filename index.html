@@ -527,7 +527,7 @@
       display: flex; align-items: center; justify-content: space-between; }
     .rc-head-left { display: flex; align-items: center; gap: 8px; }
     .rc-body { padding: 16px; display: flex; flex-direction: column; gap: 12px; }
-    .rc-body .rc-numbers { margin-bottom: 2px; }
+    .rc-body .rc-numbers { margin-bottom: -4px; }
     /* ── Weekend empty state ── */
     .rc-body.weekend-mode .rc-numbers,
     .rc-body.weekend-mode .progress-wrap,
@@ -576,9 +576,9 @@
       #wkndNote { min-height: 32px; padding: 6px 0; }
       #wkndNoteSend { width: 32px; height: 32px; }
     }
-    .rc-numbers { display: flex; align-items: flex-start; gap: 12px; }
-    .rc-left-col { display: flex; flex-direction: column; gap: 4px; }
-    .rc-right-col { margin-left:auto;display:flex;flex-direction:column;gap:4px;align-items:flex-end; }
+    .rc-numbers { display: flex; align-items: baseline; gap: 12px; }
+    .rc-left-col { display: flex; flex-direction: column; gap: 2px; }
+    .rc-right-col { margin-left:auto;display:flex;flex-direction:column;gap:2px;align-items:flex-end; }
     .rc-target-val { font-size:32px;font-weight:600;letter-spacing:-1px;line-height:32px;color:var(--foreground); }
     .rc-target-label { font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted-fg);text-align:right; }
     .rc-elapsed-row { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; margin-top: 2px; }
@@ -588,7 +588,7 @@
     .rc-worked { font-size: 32px; font-weight: 600; letter-spacing: -1px; line-height: 32px; color: var(--foreground); }
     .rc-elapsed-label { font-size: 11px; font-weight: 600; letter-spacing: .08em;
       text-transform: uppercase; color: var(--muted-fg); margin-top: 2px; }
-    .progress-wrap { display: flex; flex-direction: column; gap: 6px; margin: 6px 0 4px; }
+    .progress-wrap { display: flex; flex-direction: column; gap: 6px; }
     .progress-bar-row { display: flex; align-items: center; gap: 10px; }
     .progress-track { flex: 1; height: 4px; background: var(--muted); border-radius: 99px; overflow: hidden;
       transition: height .45s ease, background .45s ease; }
@@ -601,17 +601,6 @@
     .rc-meta { display: flex; gap: 16px; flex-wrap: wrap; }
     .rc-meta-item { font-size: 12px; color: var(--muted-fg); }
     .rc-meta-item b { color: var(--foreground); }
-
-    /* ── WH Status Chip ── */
-    .wh-status-chip { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; padding: 4px 10px; border-radius: 20px; align-self: flex-start; }
-    .wh-status-chip.chip-working { background: var(--success-bg); color: var(--success); border: 1px solid var(--success-border); }
-    .wh-status-chip.chip-break { background: var(--muted); color: var(--foreground); border: 1px solid var(--border); }
-    /* ── Merged KPI card ── */
-    .rc-kpi-merged { display: flex; align-items: stretch; background: var(--muted); border-radius: var(--radius-md); margin-top: 8px; }
-    .rc-kpi-merged .rc-io-box { background: transparent; border-radius: 0; flex: 1; }
-    .rc-kpi-divider { width: 1px; background: var(--border); flex-shrink: 0; align-self: stretch; margin: 10px 0; }
-    .rc-kpi-right { align-items: flex-end; }
-    .rc-body.weekend-mode #whStatusChip { display: none !important; }
 
     /* ── Banners ── */
     .banner { display: none; align-items: center; gap: 8px;
@@ -2159,17 +2148,16 @@
           </div>
           <div class="rc-numbers">
             <div class="rc-left-col">
+              <div class="rc-worked" id="rcWorked" style="color:var(--muted-fg)">—</div>
               <div class="rc-elapsed-row">
                 <div class="rc-elapsed-label" id="rcElapsedLabel">Not Started</div>
               </div>
-              <div class="rc-worked" id="rcWorked" style="color:var(--muted-fg)">—</div>
             </div>
             <div class="rc-right-col">
-              <div class="rc-target-label" id="rcTargetLabel">Remaining</div>
               <div class="rc-target-val" id="rcTarget" style="color:var(--muted-fg)">—</div>
+              <div class="rc-target-label" id="rcTargetLabel">Remaining</div>
             </div>
           </div>
-          <div id="whStatusChip" class="wh-status-chip" style="display:none">Working</div>
           <div class="progress-wrap" id="progWrap">
             <div class="progress-bar-row">
               <div class="progress-track" id="progTrack">
@@ -4511,10 +4499,9 @@
         </div>`;
       }
 
-      const ioHtml = `<div class="rc-kpi-merged">
+      const ioHtml = `<div class="rc-io-row">
         ${leftCardHtml}
-        <div class="rc-kpi-divider"></div>
-        <div class="rc-io-box rc-kpi-right editable" id="outTimeBox" onclick="openDailyTargetPicker(event)">
+        <div class="rc-io-box editable" id="outTimeBox" onclick="openDailyTargetPicker(event)">
           <div class="rc-io-label">${isDone ? 'Target Reached' : 'Target'}</div>
           <div class="rc-io-val-row">
             <span class="rc-io-val" id="metaTarget">${dur(eff)}</span>
@@ -5417,11 +5404,6 @@
         if (isDoneE) { el('progFill').classList.add('target-reached'); el('progLabel').textContent = ''; }
         else { el('progFill').classList.remove('target-reached'); el('progLabel').textContent = `${Math.floor(pct)}%`; }
         el('rcToday').innerHTML = buildTargetHtml(eff, isDoneE);
-        const _chipE = el('whStatusChip');
-        if (_chipE) {
-          if (_sessionAccSecs > 0 && !isDoneE) { _chipE.style.display = ''; _chipE.className = 'wh-status-chip chip-break'; _chipE.textContent = 'On a Break'; }
-          else { _chipE.style.display = 'none'; }
-        }
         el('stayHint').style.display = 'none';
         el('otBanner').classList.remove('show');
         el('doneBanner').classList.remove('show');
@@ -5440,8 +5422,6 @@
       el('progFill').classList.remove('done');
       el('progLabel').textContent = '';
       el('rcToday').innerHTML = buildTargetHtml(eff, false);
-      const _chipN = el('whStatusChip');
-      if (_chipN) _chipN.style.display = 'none';
       el('stayHint').style.display = 'none';
       el('otBanner').classList.remove('show');
       el('doneBanner').classList.remove('show');
@@ -6374,12 +6354,6 @@
       el('progLabel').textContent = isDone ? 'Target Reached' : `${Math.floor(pct)}%`;
       if (el('progWrap')) el('progWrap').style.display = '';
       el('rcToday').innerHTML = buildTargetHtml(eff, false);
-      // Status chip
-      const _chip = el('whStatusChip');
-      if (_chip) {
-        if (!isDone) { _chip.style.display = ''; _chip.className = 'wh-status-chip chip-working'; _chip.textContent = 'Working'; }
-        else { _chip.style.display = 'none'; }
-      }
 
       // Stay hint
       const hint = buildStayHint();
@@ -6956,13 +6930,13 @@
         }
       }
       const surplusCard = `
-        <div class="rc-io-box rc-kpi-right">
+        <div class="rc-io-box">
           <div class="rc-io-label">${surplusLabel}</div>
           <div class="rc-io-val-row">
             <div class="rc-io-val" style="color:${surplusColor}">${surplusText}</div>
           </div>
         </div>`;
-      return `<div class="rc-kpi-merged">${durationCard}<div class="rc-kpi-divider"></div>${surplusCard}</div>`;
+      return `<div class="rc-io-row">${durationCard}${surplusCard}</div>`;
     }
 
     function renderPastDay(key) {
@@ -6997,7 +6971,6 @@
       // Clear the big-number right column — surplus shown in KPI box below
       if (el('rcTarget')) { el('rcTarget').textContent = ''; el('rcTarget').style.color = ''; }
       if (el('rcTargetLabel')) el('rcTargetLabel').textContent = '';
-      const _chipP = el('whStatusChip'); if (_chipP) _chipP.style.display = 'none';
 
       if (!log || log.hoursWorked == null) {
         const _rcNumEl = document.querySelector('.rc-numbers');

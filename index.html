@@ -37,6 +37,7 @@
   </script>
   <!-- Apply theme before first paint to avoid flash -->
   <script>(function(){var s=localStorage.getItem('wh_theme');var p=window.matchMedia('(prefers-color-scheme:dark)').matches;if(s?s==='dark':p)document.documentElement.classList.add('dark');})()</script>
+  <link rel="manifest" href="/manifest.json">
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <meta name="format-detection" content="telephone=no,email=no,date=no,address=no">
@@ -55,8 +56,8 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"
           integrity="sha384-fCAW/rDWORTbQXSiB7mOg0QtQ5c+r0f544y6XoKjuVva0nMBlCpNUjiFeG5iMdS3"
           crossorigin="anonymous" defer></script>
-  <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"
-          integrity="sha384-3zSEDfvllQohrq0PHL1fOXJuC/jSOO34H46t6UQfobFOmxE5BpjjaIJY5F2/bMnU"
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"
+          integrity="sha512-CNgIRecGo7nphbeZ04Sc13ka07paqdeTu0WR1IM4kNcpmBAUSHSr9FzhIdYRnFDQWou07vAMGIJX2VrhkGi9g=="
           crossorigin="anonymous"></script>
 
   <!-- PWA / home-screen -->
@@ -8825,7 +8826,7 @@ ${sig}`
             const loginDt  = row.login_time  ? new Date(row.login_time)  : null;
             const logoutDt = row.logout_time ? new Date(row.logout_time) : null;
             // Future days carry futurePlan/futureReason; past/today carry override/note
-            const _isFutureDay = new Date(dk + 'T12:00') > new Date() && dk !== todayKey();
+            const _isFutureDay = new Date(row.log_date + 'T12:00') > new Date() && row.log_date !== todayKey();
             Store.setDay(row.log_date, {
               ...(loginDt  ? { loginTime: `${loginDt.getHours()}:${loginDt.getMinutes()}:${loginDt.getSeconds()}`,
                                loginDisplay: short(loginDt) } : {}),

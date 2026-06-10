@@ -14,7 +14,7 @@
         { "key": "Referrer-Policy",              "value": "strict-origin-when-cross-origin" },
         { "key": "Permissions-Policy",           "value": "camera=(), microphone=(), geolocation=()" },
         { "key": "Strict-Transport-Security",    "value": "max-age=31536000; includeSubDomains; preload" },
-        { "key": "Content-Security-Policy",      "value": "default-src 'self'; script-src 'self' 'unsafe-inline' unpkg.com cdn.jsdelivr.net cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' fonts.googleapis.com; font-src fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' *.supabase.co; frame-ancestors 'none'" }
+        { "key": "Content-Security-Policy",      "value": "default-src 'self'; script-src 'self' 'unsafe-inline' unpkg.com cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' fonts.googleapis.com; font-src fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' *.supabase.co; manifest-src 'self'; frame-ancestors 'none'" }
       ]
     },
     {
@@ -35,6 +35,13 @@
       "headers": [
         { "key": "Content-Type", "value": "image/svg+xml" },
         { "key": "Cache-Control", "value": "public, max-age=86400" }
+      ]
+    },
+    {
+      "source": "/manifest.json",
+      "headers": [
+        { "key": "Content-Type",  "value": "application/manifest+json" },
+        { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
       ]
     },
     {

@@ -1,0 +1,19 @@
+{
+  "name": "5pm – Work Hour Tracker",
+  "short_name": "5pm",
+  "description": "Track your work hours, targets, and schedule — right from your home screen.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f5f5f7",
+  "theme_color": "#f5f5f7",
+  "icons": [
+    {
+      "src": "/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

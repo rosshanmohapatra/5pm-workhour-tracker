@@ -5299,6 +5299,10 @@
 
     // ── EMPTY STATE ────────────────────────────────────
     function renderEmptyState() {
+      // Async sync callbacks (pullAll / pullSettings) fire regardless of which day is
+      // selected — bail out when the user is browsing a past or future day so we don't
+      // clobber their view or reset selectedDayKey back to today.
+      if (selectedDayKey && selectedDayKey !== todayKey()) return;
       _hideSkeleton();
       // Weekend override — show last-week summary card instead of the normal empty state
       const wknd = isWeekend() && !loginDate;
@@ -6590,6 +6594,13 @@
       localStorage.setItem('wh_sel_day', key);
       el('rcBody')?.classList.remove('weekend-mode');
       el('weekendView')?.classList.remove('override-mode');
+      // renderWeekendState sets inline display:none on these elements for holiday/leave;
+      // clear them here so renderPastDay (and render/renderEmptyState) start from clean state
+      const _rcNumEl = document.querySelector('.rc-numbers');
+      if (_rcNumEl) _rcNumEl.style.display = '';
+      ['progWrap', 'rcToday', 'stayHint', 'otBanner', 'doneBanner', 'autostopBanner'].forEach(id => {
+        const _e = el(id); if (_e) _e.style.display = '';
+      });
       renderDaySelector();
       updateSelDayHeader(key);
       el('futureDayPlan').style.display = 'none';
@@ -6651,6 +6662,11 @@
       selectedDayKey = key;
       localStorage.setItem('wh_sel_day', key);
       el('rcBody')?.classList.remove('weekend-mode');
+      const _rcNumElF = document.querySelector('.rc-numbers');
+      if (_rcNumElF) _rcNumElF.style.display = '';
+      ['progWrap', 'rcToday', 'stayHint', 'otBanner', 'doneBanner', 'autostopBanner'].forEach(id => {
+        const _e = el(id); if (_e) _e.style.display = '';
+      });
       renderDaySelector();
 
       // Future weekend day → weekend info card (not the work-day planner)

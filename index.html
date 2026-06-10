@@ -1205,6 +1205,8 @@
       font-family:var(--font); cursor:pointer; display:inline-flex; align-items:center; gap:5px;
       transition:background .12s; letter-spacing:.02em; white-space:nowrap; }
     .this-week-label-btn:hover { background:var(--btn-secondary-hover); }
+    .tw-chevron { flex-shrink:0; transition: transform .2s ease; }
+    .this-week-label-btn.picker-open .tw-chevron { transform: rotate(180deg); }
     /* ── Week picker calendar ── */
     /* Day picker dropdown — anchored below trigger button, no backdrop */
     .wp-picker-overlay { position:fixed; z-index:2000; display:none; }
@@ -2070,11 +2072,10 @@
       <div class="this-week-wrap">
         <div class="this-week-header">
           <button class="this-week-label-btn" id="thisWeekLabel" onclick="openWeekPicker(this)" type="button">
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" style="flex-shrink:0;opacity:.7">
-              <rect x="3" y="4" width="18" height="18" rx="2" stroke="currentColor" stroke-width="2"/>
-              <path d="M16 2v4M8 2v4M3 10h18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-            </svg>
             <span id="thisWeekLabelText">This Week</span>
+            <svg class="tw-chevron" width="10" height="10" viewBox="0 0 24 24" fill="none">
+              <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
           </button>
           <div class="this-week-nav">
             <button class="this-week-btn" id="weekPrevBtn" onclick="navDaySelectorDay(-1)" title="Previous day">
@@ -2314,11 +2315,10 @@
         <div class="rc-head">
           <div class="rc-head-left">
             <button class="this-week-label-btn" id="wkNavLabelBtn" onclick="openAnalyticsWeekPicker(this)" type="button">
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" style="flex-shrink:0;opacity:.7">
-                <rect x="3" y="4" width="18" height="18" rx="2" stroke="currentColor" stroke-width="2"/>
-                <path d="M16 2v4M8 2v4M3 10h18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-              </svg>
               <span id="wkNavLabel">April 13–17</span>
+              <svg class="tw-chevron" width="10" height="10" viewBox="0 0 24 24" fill="none">
+                <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
             </button>
           </div>
           <div class="this-week-nav">
@@ -4588,6 +4588,7 @@
     let _wpYear = 0, _wpMonth = 0, _wpContext = null; // null = overview, 'analytics' = dashboard
 
     function openWeekPicker(triggerEl) {
+      triggerEl?.classList.add('picker-open');
       // Open at the month of the currently selected day
       const refDate = selectedDayKey && selectedDayKey !== '__wknd__'
         ? new Date(selectedDayKey + 'T12:00')
@@ -4622,10 +4623,13 @@
     }
     function closeWeekPicker() {
       el('wpPickerOverlay').classList.remove('open');
+      el('thisWeekLabel')?.classList.remove('picker-open');
+      el('wkNavLabelBtn')?.classList.remove('picker-open');
       _wpContext = null;
     }
 
     function openAnalyticsWeekPicker(triggerEl) {
+      triggerEl?.classList.add('picker-open');
       _wpContext = 'analytics';
       const refKey = week(analyticsWeekOffset)[0]?.key;
       const refDate = refKey ? new Date(refKey + 'T12:00') : new Date();

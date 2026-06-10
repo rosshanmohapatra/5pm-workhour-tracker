@@ -1889,11 +1889,11 @@
   </a>
 
   <!-- ── App ── -->
-  <div id="appWrap" style="max-width:600px;margin:0 auto;padding:24px 24px 0;">
+  <div id="appWrap" style="max-width:600px;margin:0 auto;padding-top:24px;">
     <!-- Sentinel: 0-height element watched by IntersectionObserver to detect sticky state -->
     <div id="navSentinel" style="height:0;pointer-events:none"></div>
     <!-- Navbar -->
-    <nav class="navbar">
+    <nav class="navbar" style="margin:0 24px;">
       <div class="nav-inner">
         <div class="nav-tabs">
           <button class="nav-tab active" data-view="home" id="tabHome">Overview</button>
@@ -1949,7 +1949,6 @@
         Settings
       </button>
     </nav>
-  </div>
 
   <!-- Notification panel — inline, between nav and content -->
   <div class="notif-panel hidden" id="notifPanel" style="max-width:600px;margin:0 auto;padding:16px 24px 0;">
@@ -2787,6 +2786,7 @@
       </div>
     </main>
   </div>
+  </div><!-- /appWrap -->
 
   <!-- ── Week Picker ── -->
   <div id="wpPickerOverlay" class="wp-picker-overlay">

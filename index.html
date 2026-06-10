@@ -1182,10 +1182,10 @@
     .ds-fade-wrap { position: relative; }
     .this-week-label { font-size: 11px; font-weight: 600; color: var(--muted-fg); letter-spacing: .06em; text-transform: uppercase; }
     .this-week-label-btn { height:28px; padding:0 10px; border-radius:6px; border:none;
-      background:transparent; color:var(--muted-fg); font-size:11px; font-weight:600;
+      background:#09090b; color:#fafafa; font-size:11px; font-weight:600;
       font-family:var(--font); cursor:pointer; display:inline-flex; align-items:center; gap:5px;
-      transition:background .12s, color .12s; letter-spacing:.02em; white-space:nowrap; }
-    .this-week-label-btn:hover { background:var(--muted); color:var(--foreground); }
+      transition:background .12s; letter-spacing:.02em; white-space:nowrap; }
+    .this-week-label-btn:hover { background:#1c1c20; }
     /* ── Week picker calendar ── */
     /* Day picker dropdown — anchored below trigger button, no backdrop */
     .wp-picker-overlay { position:fixed; z-index:2000; display:none; }
@@ -1224,8 +1224,8 @@
     .wp-jump-today:hover:not(:disabled) { opacity:.88; }
     .wp-jump-today:disabled { opacity:.35; cursor:default; }
     .this-week-nav { display: flex; gap: 4px; }
-    .this-week-btn { width: 24px; height: 24px; border-radius: 6px; border: none; background: var(--muted); color: var(--foreground); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: background .12s; padding: 0; }
-    .this-week-btn:hover { background: var(--border); }
+    .this-week-btn { width: 24px; height: 24px; border-radius: 6px; border: none; background: #09090b; color: #fafafa; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: background .12s; padding: 0; }
+    .this-week-btn:hover { background: #1c1c20; }
     .this-week-btn:disabled { opacity: .3; cursor: default; }
 
     /* ── Past-day login section ── */
@@ -1453,12 +1453,12 @@
       .day-sel-btn:hover:not(:disabled):not(.active):not(.wkd-btn) { background: var(--background); border-color: var(--border); color: var(--muted-fg); }
       /* Only show feedback while finger is actually down */
       .day-sel-btn:active:not(:disabled):not(.active):not(.wkd-btn) { background: var(--muted); border-color: var(--foreground); color: var(--foreground); }
-      .this-week-btn:hover { background: var(--muted); }
-      .this-week-btn:active { background: var(--border); }
+      .this-week-btn:hover { background: #09090b; }
+      .this-week-btn:active { background: #1c1c20; }
 
       .rc-update-btn { transition: none; }
-      .rc-update-btn:hover { background: var(--muted); color: var(--foreground); }
-      .rc-update-btn:active { background: var(--muted); color: var(--foreground); }
+      .rc-update-btn:hover { background: #09090b; }
+      .rc-update-btn:active { background: #1c1c20; }
 
       .wk-minimize-btn { transition: none; }
       .wk-minimize-btn:hover { background: var(--muted); color: var(--foreground); }
@@ -1741,8 +1741,8 @@
 
     /* ── Update Entry inside Today card ── */
     .rc-update-btn { height: 28px; padding: 0 10px; border-radius: 6px; border: none;
-      background: transparent; color: var(--muted-fg); font-size: 11px; font-weight: 600;
-      font-family: var(--font); cursor: pointer; transition: background .12s, color .12s;
+      background: #09090b; color: #fafafa; font-size: 11px; font-weight: 600;
+      font-family: var(--font); cursor: pointer; transition: background .12s;
       white-space: nowrap; display: none; }
     .rc-update-btn.visible { display: inline-flex; align-items: center; gap: 5px; }
     .rc-update-btn:hover { background: var(--muted); color: var(--foreground); }

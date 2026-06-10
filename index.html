@@ -1181,8 +1181,19 @@
     .day-sel-btn.active.has-penalty .dsel-dot,
     .day-sel-btn.active.has-plan    .dsel-dot { background: var(--background); opacity: .6; }
     .day-sel-btn:disabled { opacity: .28; cursor: default; pointer-events: none; }
-    /* WKD slot — same width as weekdays, no fill, dashed border */
-    .day-sel-btn.wkd-btn { background: transparent; border: 2px dashed var(--border); }
+    /* WKD slot — same width as weekdays, no fill, 1px / 2px-dash border via gradient */
+    .day-sel-btn.wkd-btn {
+      background-color: transparent;
+      border: none;
+      background-image:
+        repeating-linear-gradient(90deg, var(--border) 0, var(--border) 2px, transparent 2px, transparent 4px),
+        repeating-linear-gradient(90deg, var(--border) 0, var(--border) 2px, transparent 2px, transparent 4px),
+        repeating-linear-gradient(0deg,  var(--border) 0, var(--border) 2px, transparent 2px, transparent 4px),
+        repeating-linear-gradient(0deg,  var(--border) 0, var(--border) 2px, transparent 2px, transparent 4px);
+      background-size: 4px 1px, 4px 1px, 1px 4px, 1px 4px;
+      background-position: 0 0, 0 100%, 0 0, 100% 0;
+      background-repeat: repeat-x, repeat-x, repeat-y, repeat-y;
+    }
     .day-sel-btn.wkd-btn:not(.active) { opacity: .5; }
     .day-sel-btn.wkd-btn.active { opacity: 1; }
     .day-sel-btn.wkd-btn:hover:not(:disabled):not(.active) { opacity: .75; background: transparent; cursor: pointer; }

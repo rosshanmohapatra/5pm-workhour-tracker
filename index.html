@@ -630,7 +630,7 @@
     .wk-collapsible.open     { max-height: 500px; opacity: 1; }
     .wk-collapsible.minimized { max-height: 0; opacity: 0; }
     .wk-rows { padding: 8px 12px; display: flex; flex-direction: column; gap: 8px; }
-    .wk-row { display: grid; grid-template-columns: 76px 1fr auto; align-items: center;
+    .wk-row { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center;
       min-height: 40px; padding: 6px 10px; cursor: pointer; border-radius: 8px; position: relative; transition: background .12s; gap: 0 8px; }
     .wk-row:hover { background: var(--muted); }
     .wk-col-day { font-size: 12px; font-weight: 400; color: var(--muted-fg); white-space: nowrap; text-align: right; }
@@ -1076,13 +1076,17 @@
     .modal-override-row { display: flex; gap: 6px; flex-wrap: wrap; }
     .de-note-wrap { overflow: hidden; max-height: 0; opacity: 0;
       transition: max-height .25s ease, opacity .2s ease; }
-    .de-note-wrap.visible { max-height: 120px; opacity: 1; }
-    .de-note-wrap textarea { width: 100%; resize: none; box-sizing: border-box;
-      margin-top: 0; background: var(--input-bg, var(--muted));
-      border: 1px solid var(--border); border-radius: 10px; padding: 9px 12px;
-      font-size: 13px; color: var(--fg); font-family: inherit; line-height: 1.4;
-      outline: none; }
-    .de-note-wrap textarea:focus { border-color: var(--accent); }
+    .de-note-wrap.visible { max-height: 120px; opacity: 1; margin-top: 8px; }
+    /* Note / reason textareas match the login & logout field-input states:
+       no border, soft shadow at rest, 2.5px ring on focus. */
+    .de-note-wrap textarea, #futureDayReason { width: 100%; resize: none; box-sizing: border-box;
+      margin-top: 0; background: var(--input-bg); color: var(--foreground);
+      border: none; border-radius: var(--radius-md); padding: 10px 14px;
+      font-size: 14px; font-family: var(--font); line-height: 1.4;
+      outline: none; box-shadow: var(--shadow-xs); transition: box-shadow .15s; }
+    .de-note-wrap textarea::placeholder, #futureDayReason::placeholder { color: var(--muted-fg); opacity: .7; }
+    .de-note-wrap textarea:focus, #futureDayReason:focus { box-shadow: 0 0 0 2.5px rgba(9,9,11,.10); }
+    .dark .de-note-wrap textarea:focus, .dark #futureDayReason:focus { box-shadow: 0 0 0 2.5px rgba(250,250,250,.10); }
     /* Future plan CTA — slides in when a chip is selected */
     .future-plan-cta { overflow: hidden; max-height: 0; opacity: 0;
       transition: max-height .25s ease, opacity .2s ease; pointer-events: none; }
@@ -1201,7 +1205,7 @@
     .wp-picker-overlay { position:fixed; z-index:2000; display:none; }
     .wp-picker-overlay.open { display:block; }
     .wp-picker-dialog { background:var(--card); border:1px solid var(--border); border-radius:16px;
-      padding:16px; width:340px; box-shadow:0 16px 48px rgba(0,0,0,.22); }
+      padding:16px; width:320px; box-shadow:0 16px 48px rgba(0,0,0,.22); }
     /* Header: month/year LEFT, nav arrows RIGHT */
     .wp-picker-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
     .wp-picker-month { font-size:14px; font-weight:600; color:var(--foreground); flex:1; }
@@ -1210,17 +1214,12 @@
       background:var(--muted); color:var(--foreground); display:flex; align-items:center;
       justify-content:center; cursor:pointer; transition:background .1s; padding:0; flex-shrink:0; }
     .wp-picker-nav:hover { background:var(--border); }
-    .wp-picker-weekdays { display:grid; grid-template-columns:56px repeat(7,1fr); gap:4px; margin-bottom:4px; }
+    .wp-picker-weekdays { display:grid; grid-template-columns:repeat(7,1fr); gap:4px; margin-bottom:4px; }
     .wp-picker-weekdays span { text-align:center; font-size:10px; font-weight:600; color:var(--muted-fg);
       letter-spacing:.06em; text-transform:uppercase; padding:4px 0; }
     .wp-picker-weekdays span.wp-wkd-hdr { color:var(--border); }
-    .wp-picker-weekdays .wp-wk-hdr-spacer { display:block; }
     .wp-picker-grid { display:flex; flex-direction:column; gap:4px; }
-    .wp-picker-week { display:grid; grid-template-columns:56px repeat(7,1fr); gap:4px; cursor:default; }
-    .wp-week-label { display:flex; align-items:center; font-size:9px; font-weight:600;
-      color:var(--muted-fg); letter-spacing:.03em; text-transform:uppercase; line-height:1.2;
-      padding-right:4px; white-space:nowrap; overflow:hidden; }
-    .wp-week-label.wp-wk-current { color:var(--foreground); }
+    .wp-picker-week { display:grid; grid-template-columns:repeat(7,1fr); gap:4px; cursor:default; }
     .wp-picker-day { text-align:center; font-size:13px; font-weight:500; color:var(--foreground);
       padding:6px 2px; border-radius:6px; font-variant-numeric:tabular-nums; line-height:1; }
     .wp-picker-day.wp-out { color:var(--muted-fg); opacity:.35; pointer-events:none; }
@@ -2096,7 +2095,6 @@
           <!-- Reason input (shown after a plan is picked) -->
           <div id="futureDayReasonWrap" style="display:none">
             <textarea id="futureDayReason" placeholder="Add a reason (optional)" rows="2"
-              style="width:100%;resize:none;border:1px solid var(--border);border-radius:8px;background:var(--input-bg);color:var(--foreground);font-family:var(--font);font-size:13px;padding:10px 12px;outline:none;transition:border-color .15s"
               oninput="saveFutureDayReason(this.value)"></textarea>
           </div>
           <!-- CTA buttons — hidden until a chip is selected -->
@@ -2559,7 +2557,7 @@
             <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;cursor:pointer" onclick="el('inpBreakTime').click()">
               <div>
                 <div class="form-label">Track Break Time</div>
-                <div class="form-sub">Adds a button to pause the count during break hours. You can either pause or end session directly.</div>
+                <div class="form-sub">Adds a button to pause the count during break hours.</div>
               </div>
               <label class="toggle" onclick="event.stopPropagation()">
                 <input type="checkbox" id="inpBreakTime" checked onchange="autoSaveSettings()">
@@ -2878,7 +2876,7 @@
         </div>
       </div>
       <div class="wp-picker-weekdays">
-        <span class="wp-wk-hdr-spacer"></span><span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span class="wp-wkd-hdr">Sa</span><span class="wp-wkd-hdr">Su</span>
+        <span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span class="wp-wkd-hdr">Sa</span><span class="wp-wkd-hdr">Su</span>
       </div>
       <div class="wp-picker-grid" id="wpPickerGrid"></div>
       <button class="wp-jump-today" id="wpJumpTodayBtn" onclick="_wpJumpToday()" type="button">Today</button>
@@ -3445,10 +3443,6 @@
           <button class="modal-override-btn" id="deHoliday" onclick="setDeOverride('holiday')">Holiday</button>
           <button class="modal-override-btn" id="deLeave" onclick="setDeOverride('leave')">Full Day Leave</button>
         </div>
-        <div class="de-note-wrap" id="deNoteWrap">
-          <div class="form-label" id="deNoteLabel" style="display:none;margin-bottom:6px"></div>
-          <textarea id="deNote" placeholder="Add a note (optional)" rows="1" maxlength="500"></textarea>
-        </div>
         <div id="deTimeWrap">
           <div class="modal-time-row" id="deTimeRow">
             <div style="position:relative;flex:1" class="time-input-wrap">
@@ -3466,6 +3460,10 @@
             </div>
           </div>
           <div class="err-msg" id="deErr">Invalid times — end must be after start.</div>
+        </div>
+        <div class="de-note-wrap" id="deNoteWrap">
+          <div class="form-label" id="deNoteLabel" style="display:none;margin-bottom:6px"></div>
+          <textarea id="deNote" placeholder="Add a note (optional)" rows="1" maxlength="500"></textarea>
         </div>
       </div>
       <div class="dialog-foot-row">
@@ -4686,25 +4684,6 @@
 
         const row = document.createElement('div');
         row.className = 'wp-picker-week';
-
-        // Week label cell
-        const todayDate = new Date(); todayDate.setHours(0,0,0,0);
-        const todayDow = todayDate.getDay();
-        const thisMon = new Date(todayDate); thisMon.setDate(todayDate.getDate() - ((todayDow + 6) % 7));
-        const isCurrentWk = monDate.toDateString() === thisMon.toDateString();
-        const wkLabel = document.createElement('div');
-        wkLabel.className = 'wp-week-label' + (isCurrentWk ? ' wp-wk-current' : '');
-        if (isCurrentWk) {
-          wkLabel.textContent = 'This Week';
-        } else {
-          const fri = new Date(monDate); fri.setDate(monDate.getDate() + 4);
-          const mMo = MONTHS[monDate.getMonth()].slice(0,3);
-          const mFr = MONTHS[fri.getMonth()].slice(0,3);
-          wkLabel.textContent = mMo === mFr
-            ? `${mMo} ${monDate.getDate()}–${fri.getDate()}`
-            : `${mMo} ${monDate.getDate()}–${mFr} ${fri.getDate()}`;
-        }
-        row.appendChild(wkLabel);
 
         for (let d = 0; d < 7; d++) {
           const cellDate = new Date(monDate); cellDate.setDate(monDate.getDate() + d);
@@ -8517,7 +8496,8 @@ ${sig}`
       const _deNoteWrap = el('deNoteWrap');
       const _deNote     = el('deNote');
       if (_deNote) _deNote.value = _effectiveNote;
-      if (_deNoteWrap) _deNoteWrap.classList.toggle('visible', !!_effectiveOverride && _effectiveOverride !== 'wfh');
+      // Optional note is always available (entry + plan modes), matching the time-input states
+      if (_deNoteWrap) _deNoteWrap.classList.add('visible');
       // Shift-aware blur handlers (fresh each open)
       const startBlur = () => applyShiftAmPm(el('deStart'), 'start');
       const endBlur   = () => applyShiftAmPm(el('deEnd'),   'end');
@@ -9550,10 +9530,18 @@ ${sig}`
       const isToday = key === todayKey();
 
       // Check active override button
-      const activeOverride = el('deHalfDay').classList.contains('active') ? 'halfday'
+      let activeOverride = el('deHalfDay').classList.contains('active') ? 'halfday'
         : el('deHoliday').classList.contains('active') ? 'holiday'
         : el('deLeave').classList.contains('active') ? 'leave' : null;
       const _deNoteVal = el('deNote')?.value.trim() || '';
+
+      // Half-day demotion: if the half-day layout is active but the user has entered real
+      // login + logout times that exceed half the daily target, treat it as a normal entry
+      // (switch back to the default duration/target layout instead of the half-day card).
+      if (activeOverride === 'halfday' && s && e) {
+        const _eHd = e <= s ? new Date(e.getTime() + 24 * 3600 * 1000) : e;
+        if (Math.floor((_eHd - s) / 1000) > (c.dailyH * 3600) / 2) activeOverride = null;
+      }
 
       const _isFutureDay = new Date(key + 'T12:00') > new Date() && key !== todayKey();
       if (activeOverride === 'halfday') {
@@ -9580,7 +9568,8 @@ ${sig}`
             checkoutDisplay: short(defE),
             hoursWorked: worked / 3600,
             lastUpdated: new Date().toISOString(),
-            sessionTag: 'edited', override: null
+            sessionTag: 'edited', override: null,
+            ...(_deNoteVal ? { note: _deNoteVal } : { note: null })
           });
         } else { el('deErr').classList.add('show'); return; }
       } else if (s && !e && isToday) {
@@ -9606,7 +9595,8 @@ ${sig}`
         saveDayLogAndSync(key, { ...ex,
           loginTime: `${s.getHours()}:${s.getMinutes()}:${s.getSeconds()}`,
           loginDisplay: short(s), sessionTag: 'edited',
-          lastUpdated: new Date().toISOString(), override: null
+          lastUpdated: new Date().toISOString(), override: null,
+          ...(_deNoteVal ? { note: _deNoteVal } : { note: null })
         });
         el('deErr').classList.remove('show');
         persist();
@@ -9628,7 +9618,8 @@ ${sig}`
           hoursWorked:    worked / 3600,
           lastUpdated:    new Date().toISOString(),
           sessionTag:     'edited',
-          override:       null
+          override:       null,
+          ...(_deNoteVal ? { note: _deNoteVal } : { note: null })
         });
         // Exit time was explicitly set for today → end any active session
         if (isToday && loginDate) {

@@ -1181,22 +1181,22 @@
     .day-sel-btn.active.has-penalty .dsel-dot,
     .day-sel-btn.active.has-plan    .dsel-dot { background: var(--background); opacity: .6; }
     .day-sel-btn:disabled { opacity: .28; cursor: default; pointer-events: none; }
-    /* WKD slot — same width as weekdays, no fill, 1px / 2px-dash border via gradient */
+    /* WKD slot — same width as weekdays, no fill, 1.5px / 8px-dash border via gradient */
     .day-sel-btn.wkd-btn {
       background-color: transparent;
       border: none;
       background-image:
-        repeating-linear-gradient(90deg, var(--border) 0, var(--border) 2px, transparent 2px, transparent 4px),
-        repeating-linear-gradient(90deg, var(--border) 0, var(--border) 2px, transparent 2px, transparent 4px),
-        repeating-linear-gradient(0deg,  var(--border) 0, var(--border) 2px, transparent 2px, transparent 4px),
-        repeating-linear-gradient(0deg,  var(--border) 0, var(--border) 2px, transparent 2px, transparent 4px);
-      background-size: 4px 1px, 4px 1px, 1px 4px, 1px 4px;
+        repeating-linear-gradient(90deg, var(--border) 0, var(--border) 8px, transparent 8px, transparent 12px),
+        repeating-linear-gradient(90deg, var(--border) 0, var(--border) 8px, transparent 8px, transparent 12px),
+        repeating-linear-gradient(0deg,  var(--border) 0, var(--border) 8px, transparent 8px, transparent 12px),
+        repeating-linear-gradient(0deg,  var(--border) 0, var(--border) 8px, transparent 8px, transparent 12px);
+      background-size: 12px 1.5px, 12px 1.5px, 1.5px 12px, 1.5px 12px;
       background-position: 0 0, 0 100%, 0 0, 100% 0;
       background-repeat: repeat-x, repeat-x, repeat-y, repeat-y;
     }
     .day-sel-btn.wkd-btn:not(.active) { opacity: .5; }
-    .day-sel-btn.wkd-btn.active { opacity: 1; }
-    .day-sel-btn.wkd-btn:hover:not(:disabled):not(.active) { opacity: .75; background: transparent; cursor: pointer; }
+    .day-sel-btn.wkd-btn.active { background-color: var(--btn-primary-bg); background-image: none; color: var(--card); opacity: 1; }
+    .day-sel-btn.wkd-btn:hover:not(:disabled):not(.active) { opacity: .75; background-color: transparent; cursor: pointer; }
 
     /* ── This Week wrapper — card with rc-head-style bordered header ── */
     .this-week-wrap { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-lg);
@@ -2705,9 +2705,9 @@
 
         <div class="settings-section-divider"></div>
 
-        <!-- ── System ── -->
+        <!-- ── Account (System + Danger Zone) ── -->
         <div class="settings-section">
-          <div class="settings-section-header">System</div>
+          <div class="settings-section-header">Account</div>
           <div class="settings-group">
 
             <!-- Update Password -->
@@ -2741,24 +2741,16 @@
               </div>
             </div>
 
-          </div>
-        </div><!-- /System section -->
-
-        <div class="settings-section-divider"></div>
-
-        <!-- ── Danger Zone ── -->
-        <div class="settings-section">
-          <div class="settings-section-header" style="color:var(--destructive)">Danger Zone</div>
-          <div class="settings-group">
-
+            <!-- Delete Account -->
             <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
               <div>
-                <div class="form-label">Manage Account</div>
+                <div class="form-label">Delete Account</div>
                 <div class="form-sub">We'll keep your data for 48 hours before permanently removing it.</div>
               </div>
-              <button class="btn-secondary" onclick="openDeleteModal()">Delete Account</button>
+              <button class="btn-secondary" onclick="openDeleteModal()">Delete</button>
             </div>
 
+            <!-- Log Out -->
             <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
               <div>
                 <div class="form-label">Log Out</div>
@@ -2768,7 +2760,7 @@
             </div>
 
           </div>
-        </div><!-- /Danger Zone section -->
+        </div><!-- /Account section -->
 
         <div class="settings-section-divider"></div>
 
@@ -3841,8 +3833,8 @@
       const h = Math.floor(abs / 3600), m = Math.round((abs % 3600) / 60);
       return m > 0 ? `${sign}${h}h ${m}m` : `${sign}${h}h`;
     }
-    // Returns "Over Time" in daily mode, "Surplus" in weekly mode
-    function _surplusLabel() { return cfg().weeklyOn ? 'Surplus' : 'Over Time'; }
+    // Returns "Overtime" in daily mode, "Surplus" in weekly/recommend-timings mode
+    function _surplusLabel() { return cfg().weeklyOn ? 'Surplus' : 'Overtime'; }
     function durLong(secs) {
       const s = Math.abs(secs), h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60);
       if (h === 0) return `${m} min`;
@@ -6981,17 +6973,19 @@
       if (el('rcTargetLabel')) el('rcTargetLabel').textContent = '';
 
       if (!log || log.hoursWorked == null) {
-        el('rcWorked').textContent = '—'; el('rcWorked').style.color = 'var(--muted-fg)';
-        swapText('rcElapsedLabel', 'Total Logged', { color: 'var(--muted-fg)' });
-        if (el('progWrap')) el('progWrap').style.display = '';
+        const _rcNumEl = document.querySelector('.rc-numbers');
+        if (_rcNumEl) _rcNumEl.style.display = 'none';
+        if (el('progWrap')) el('progWrap').style.display = 'none';
         _setTodayDateChip();
-        el('progFill').style.width = '0%'; el('progFill').classList.remove('done');
-        el('progLabel').textContent = isFutureDay ? '' : 'No data logged for this day';
-        el('rcToday').innerHTML = targetRow + _pastDayKpiHtml('—', '—', null, target);
         el('stayHint').style.display = 'none';
         el('otBanner').classList.remove('show'); el('doneBanner').classList.remove('show');
+        const _emptyMsg = isFutureDay ? '' : '<div style="padding:20px 0 12px;text-align:center;font-size:13px;color:var(--muted-fg)">No data logged</div>';
+        el('rcToday').innerHTML = _emptyMsg + targetRow + _pastDayKpiHtml('—', '—', null, target);
         return;
       }
+      // Has data — ensure rc-numbers is visible (may have been hidden by no-data state)
+      const _rcNumEl = document.querySelector('.rc-numbers');
+      if (_rcNumEl) _rcNumEl.style.display = '';
       const worked = Math.round(log.hoursWorked * 3600); // round to nearest second to avoid float drift
       const isDone = worked >= target;
       el('rcWorked').textContent = dur(worked); el('rcWorked').style.color = '';
@@ -9614,7 +9608,7 @@ ${sig}`
         persist();
         closeDayEditModal();
         renderHistory(); renderDaySelector();
-        render();
+        selectDay(key);
         return;
       } else {
         if (!s) { el('deErr').classList.add('show'); return; }
@@ -9651,7 +9645,7 @@ ${sig}`
       renderDaySelector();
       // Always refresh the overview when editing today, regardless of session state
       if (key === todayKey()) {
-        if (loginDate) render(); else renderEmptyState();
+        selectDay(key); // also removes weekend-mode if override was cleared
       } else if (key === selectedDayKey) {
         const _isFutureSave = new Date(key + 'T12:00') > new Date() && key !== todayKey();
         if (_isFutureSave) selectFutureDay(key);

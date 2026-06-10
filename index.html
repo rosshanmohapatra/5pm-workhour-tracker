@@ -1181,12 +1181,11 @@
     .day-sel-btn.active.has-penalty .dsel-dot,
     .day-sel-btn.active.has-plan    .dsel-dot { background: var(--background); opacity: .6; }
     .day-sel-btn:disabled { opacity: .28; cursor: default; pointer-events: none; }
-    /* WKD slot — narrower, dashed, faded so weekends read as off-days */
-    .day-sel-btn.wkd-btn { flex: 0 0 60px; background: transparent; }
-    .day-sel-btn.wkd-btn:not(.active) { opacity: .45; }
+    /* WKD slot — same width as weekdays, no fill, dashed border */
+    .day-sel-btn.wkd-btn { background: transparent; border: 2px dashed var(--border); }
+    .day-sel-btn.wkd-btn:not(.active) { opacity: .5; }
     .day-sel-btn.wkd-btn.active { opacity: 1; }
-    /* Weekend / holiday / leave hover — slightly lifted */
-    .day-sel-btn.wkd-btn:hover:not(:disabled):not(.active) { opacity: .8; background: var(--muted); color: var(--foreground); cursor: pointer; }
+    .day-sel-btn.wkd-btn:hover:not(:disabled):not(.active) { opacity: .75; background: transparent; cursor: pointer; }
 
     /* ── This Week wrapper — card with rc-head-style bordered header ── */
     .this-week-wrap { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-lg);
@@ -3362,9 +3361,9 @@
         </div>
         <div class="err-msg" id="npErr" style="margin-top:8px">Please select a day first.</div>
       </div>
-      <div class="dialog-foot" style="display:flex;flex-direction:column;gap:8px">
-        <button class="btn btn-primary" id="npSave">Save Plan</button>
+      <div class="dialog-foot-row">
         <button class="btn btn-cancel" id="npCancel">Cancel</button>
+        <button class="btn btn-primary" id="npSave">Save Plan</button>
       </div>
     </div>
   </div>
@@ -3501,9 +3500,9 @@
           </div>
         </div>
       </div>
-      <div class="dialog-foot">
-        <button class="btn btn-primary" id="weekPlanSave">Confirm Plan</button>
+      <div class="dialog-foot-row">
         <button class="btn btn-cancel" id="weekPlanSkip">Skip for Now</button>
+        <button class="btn btn-primary" id="weekPlanSave">Confirm Plan</button>
       </div>
     </div>
   </div>

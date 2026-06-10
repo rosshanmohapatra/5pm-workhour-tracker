@@ -4588,6 +4588,7 @@
     let _wpYear = 0, _wpMonth = 0, _wpContext = null; // null = overview, 'analytics' = dashboard
 
     function openWeekPicker(triggerEl) {
+      if (triggerEl?.classList.contains('picker-open')) { closeWeekPicker(); return; }
       triggerEl?.classList.add('picker-open');
       // Open at the month of the currently selected day
       const refDate = selectedDayKey && selectedDayKey !== '__wknd__'
@@ -4629,6 +4630,7 @@
     }
 
     function openAnalyticsWeekPicker(triggerEl) {
+      if (triggerEl?.classList.contains('picker-open')) { closeWeekPicker(); return; }
       triggerEl?.classList.add('picker-open');
       _wpContext = 'analytics';
       const refKey = week(analyticsWeekOffset)[0]?.key;

@@ -1181,22 +1181,16 @@
     .day-sel-btn.active.has-penalty .dsel-dot,
     .day-sel-btn.active.has-plan    .dsel-dot { background: var(--background); opacity: .6; }
     .day-sel-btn:disabled { opacity: .28; cursor: default; pointer-events: none; }
-    /* WKD slot — same width as weekdays, no fill, 1.5px / 8px-dash border via gradient */
-    .day-sel-btn.wkd-btn {
-      background-color: transparent;
-      border: none;
-      background-image:
-        repeating-linear-gradient(90deg, var(--border) 0, var(--border) 8px, transparent 8px, transparent 12px),
-        repeating-linear-gradient(90deg, var(--border) 0, var(--border) 8px, transparent 8px, transparent 12px),
-        repeating-linear-gradient(0deg,  var(--border) 0, var(--border) 8px, transparent 8px, transparent 12px),
-        repeating-linear-gradient(0deg,  var(--border) 0, var(--border) 8px, transparent 8px, transparent 12px);
-      background-size: 12px 1.5px, 12px 1.5px, 1.5px 12px, 1.5px 12px;
-      background-position: 0 0, 0 100%, 0 0, 100% 0;
-      background-repeat: repeat-x, repeat-x, repeat-y, repeat-y;
+    /* WKD slot — same width as weekdays, no fill, dashed border via ::before pseudo */
+    .day-sel-btn.wkd-btn { background: transparent; border: none; }
+    .day-sel-btn.wkd-btn::before {
+      content: ''; position: absolute; inset: 0;
+      border-radius: 10px; border: 1.5px dashed var(--border); pointer-events: none;
     }
     .day-sel-btn.wkd-btn:not(.active) { opacity: .5; }
-    .day-sel-btn.wkd-btn.active { background-color: var(--btn-primary-bg); background-image: none; color: var(--card); opacity: 1; }
-    .day-sel-btn.wkd-btn:hover:not(:disabled):not(.active) { opacity: .75; background-color: transparent; cursor: pointer; }
+    .day-sel-btn.wkd-btn.active { background: var(--btn-primary-bg); color: var(--card); opacity: 1; }
+    .day-sel-btn.wkd-btn.active::before { display: none; }
+    .day-sel-btn.wkd-btn:hover:not(:disabled):not(.active) { opacity: .75; cursor: pointer; }
 
     /* ── This Week wrapper — card with rc-head-style bordered header ── */
     .this-week-wrap { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-lg);

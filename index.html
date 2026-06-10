@@ -123,7 +123,7 @@
       --muted: #f0f0f4; --muted-fg: #70707a; --border: #e1e1e6;
       --input: #e1e1e6; --input-bg: #f4f4f5; --ring: #09090b;
       --btn-primary-bg: #27272a;
-      --btn-secondary-bg: #e4e4e7; --btn-secondary-fg: #09090b; --btn-secondary-hover: #d4d4d8;
+      --btn-secondary-bg: #ebebee; --btn-secondary-fg: #09090b; --btn-secondary-hover: #d4d4d8;
       --success: #16a34a; --success-bg: #f0fdf4; --success-border: #bbf7d0;
       --warning: #d97706; --warning-bg: #fffbeb; --warning-border: #fde68a;
       --destructive: #dc2626; --destructive-bg: #fecaca; --destructive-border: #fecaca;
@@ -192,12 +192,12 @@
     .nav-tabs { display: flex; align-items: center; gap: 4px; }
     .nav-tab { height: 34px; padding: 0 14px; border-radius: var(--radius-md); border: none;
       background: transparent; color: var(--muted-fg); font-size: 13px; font-weight: 500;
-      font-family: var(--font); transition: background .14s, color .14s;
+      font-family: var(--font); transition: box-shadow .14s, color .14s;
       display: flex; align-items: center; gap: 5px; }
-    .nav-tab:hover { background: var(--muted); color: var(--foreground); }
+    .nav-tab:hover { background: transparent; box-shadow: 0 0 0 1px var(--border); color: var(--foreground); }
     .nav-tab.active { background: var(--card); color: var(--foreground); box-shadow: var(--shadow-xs); }
     .dark .navbar { background: var(--background); }
-    .dark .nav-tab:hover { background: var(--muted); color: var(--foreground); }
+    .dark .nav-tab:hover { background: transparent; box-shadow: 0 0 0 1px var(--border); color: var(--foreground); }
     .dark .nav-tab.active { background: var(--muted); color: var(--foreground); box-shadow: none; }
     .nav-tab.active .tab-icon { display: inline-flex !important; }
     .nav-actions { display: flex; align-items: center; gap: 8px; }

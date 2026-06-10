@@ -123,9 +123,10 @@
       --muted: #f0f0f4; --muted-fg: #70707a; --border: #e1e1e6;
       --input: #e1e1e6; --input-bg: #f9f9fb; --ring: #09090b;
       --btn-primary-bg: #27272a;
+      --btn-secondary-bg: #e4e4e7; --btn-secondary-fg: #09090b; --btn-secondary-hover: #d4d4d8;
       --success: #16a34a; --success-bg: #f0fdf4; --success-border: #bbf7d0;
       --warning: #d97706; --warning-bg: #fffbeb; --warning-border: #fde68a;
-      --destructive: #dc2626; --destructive-bg: #fef2f2; --destructive-border: #fecaca;
+      --destructive: #dc2626; --destructive-bg: #fecaca; --destructive-border: #fecaca;
       --blue: #2563eb; --blue-bg: #eff6ff; --blue-border: #bfdbfe;
       --font: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Inter', system-ui, sans-serif;
       --font-display: 'DM Serif Display', Georgia, serif;
@@ -143,10 +144,11 @@
       --background: #09090b; --foreground: #fafafa; --card: #111114;
       --muted: #18181b; --muted-fg: #a0a0aa; --border: #27272b;
       --btn-primary-bg: var(--foreground);
+      --btn-secondary-bg: #1c1c20; --btn-secondary-fg: #fafafa; --btn-secondary-hover: #27272a;
       --input: #38383e; --input-bg: #1c1c20; --ring: #e4e4e7;
       --success: #4ade80; --success-bg: #052e16; --success-border: #166534;
       --warning: #fbbf24; --warning-bg: #1c1400; --warning-border: #78350f;
-      --destructive: #f87171; --destructive-bg: #1c0a0a; --destructive-border: #7f1d1d;
+      --destructive: #f87171; --destructive-bg: #991b1b; --destructive-border: #7f1d1d;
       --blue: #60a5fa; --blue-bg: #0c1a2e; --blue-border: #1e40af;
       /* ── Shadow scale (dark — stronger) ── */
       --shadow-xs: 0 1px 3px rgba(0,0,0,.28);
@@ -278,13 +280,13 @@
       height: 40px; padding: 0 24px; width: 100%; justify-content: center; }
     .btn-primary:hover { filter: brightness(.88); }
     .btn-primary:disabled { opacity: .4; cursor: not-allowed; filter: none; }
-    .btn-cancel { background: #1c1c20; color: #fafafa;
+    .btn-cancel { background: var(--btn-secondary-bg); color: var(--btn-secondary-fg);
       height: 40px; padding: 0 16px; width: 100%;
       border: none; border-radius: var(--radius-md);
       font-size: 14px; font-weight: 500; font-family: var(--font);
       display: flex; align-items: center; justify-content: center;
       cursor: pointer; transition: background .14s; }
-    .btn-cancel:hover { background: #27272a; }
+    .btn-cancel:hover { background: var(--btn-secondary-hover); }
     .btn-sm { height: 30px; padding: 0 12px; font-size: 12px; font-weight: 500;
       border-radius: var(--radius-md); border: none; background: var(--muted);
       color: var(--foreground); transition: background .14s; display: inline-flex;
@@ -306,9 +308,9 @@
     .btn-ghost-danger:disabled:hover { filter: none; }
     .btn-secondary { height: 36px; padding: 0 16px; font-size: 13px; font-weight: 500;
       border-radius: var(--radius-md); font-family: var(--font); display: inline-flex; align-items: center; justify-content: center;
-      background: #1c1c20; color: #fafafa; border: none;
+      background: var(--btn-secondary-bg); color: var(--btn-secondary-fg); border: none;
       cursor: pointer; transition: background .14s; white-space: nowrap; flex-shrink: 0; }
-    .btn-secondary:hover { background: #27272a; }
+    .btn-secondary:hover { background: var(--btn-secondary-hover); }
     .btn-ghost-destructive { height: 36px; padding: 0 16px; font-size: 13px; font-weight: 600;
       border-radius: var(--radius-md); font-family: var(--font); display: inline-flex; align-items: center;
       background: var(--destructive-bg); color: var(--destructive); border: none;
@@ -1180,10 +1182,10 @@
     .ds-fade-wrap { position: relative; }
     .this-week-label { font-size: 11px; font-weight: 600; color: var(--muted-fg); letter-spacing: .06em; text-transform: uppercase; }
     .this-week-label-btn { height:28px; padding:0 10px; border-radius:6px; border:none;
-      background:#1c1c20; color:#fafafa; font-size:11px; font-weight:600;
+      background:var(--btn-secondary-bg); color:var(--btn-secondary-fg); font-size:11px; font-weight:600;
       font-family:var(--font); cursor:pointer; display:inline-flex; align-items:center; gap:5px;
       transition:background .12s; letter-spacing:.02em; white-space:nowrap; }
-    .this-week-label-btn:hover { background:#27272a; }
+    .this-week-label-btn:hover { background:var(--btn-secondary-hover); }
     /* ── Week picker calendar ── */
     /* Day picker dropdown — anchored below trigger button, no backdrop */
     .wp-picker-overlay { position:fixed; z-index:2000; display:none; }
@@ -1222,8 +1224,8 @@
     .wp-jump-today:hover:not(:disabled) { opacity:.88; }
     .wp-jump-today:disabled { opacity:.35; cursor:default; }
     .this-week-nav { display: flex; gap: 4px; }
-    .this-week-btn { width: 24px; height: 24px; border-radius: 6px; border: none; background: #1c1c20; color: #fafafa; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: background .12s; padding: 0; }
-    .this-week-btn:hover { background: #27272a; }
+    .this-week-btn { width: 24px; height: 24px; border-radius: 6px; border: none; background: var(--btn-secondary-bg); color: var(--btn-secondary-fg); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: background .12s; padding: 0; }
+    .this-week-btn:hover { background: var(--btn-secondary-hover); }
     .this-week-btn:disabled { opacity: .3; cursor: default; }
 
     /* ── Past-day login section ── */
@@ -1237,9 +1239,9 @@
       color: var(--foreground); }
     .an-nav-btn { width: 34px; height: 34px; display: flex; align-items: center;
       justify-content: center; border: none; border-radius: 8px;
-      background: #1c1c20; color: #fafafa; flex-shrink: 0;
+      background: var(--btn-secondary-bg); color: var(--btn-secondary-fg); flex-shrink: 0;
       cursor: pointer; transition: background .12s; }
-    .an-nav-btn:hover { background: #27272a; }
+    .an-nav-btn:hover { background: var(--btn-secondary-hover); }
     .an-nav-btn:disabled { opacity: .3; cursor: default; pointer-events: none; }
 
     /* ── In/Out time boxes (P4 card resize) ── */
@@ -1451,12 +1453,12 @@
       .day-sel-btn:hover:not(:disabled):not(.active):not(.wkd-btn) { background: var(--background); border-color: var(--border); color: var(--muted-fg); }
       /* Only show feedback while finger is actually down */
       .day-sel-btn:active:not(:disabled):not(.active):not(.wkd-btn) { background: var(--muted); border-color: var(--foreground); color: var(--foreground); }
-      .this-week-btn:hover { background: #1c1c20; }
-      .this-week-btn:active { background: #27272a; }
+      .this-week-btn:hover { background: var(--btn-secondary-bg); }
+      .this-week-btn:active { background: var(--btn-secondary-hover); }
 
       .rc-update-btn { transition: none; }
-      .rc-update-btn:hover { background: #1c1c20; }
-      .rc-update-btn:active { background: #27272a; }
+      .rc-update-btn:hover { background: var(--btn-secondary-bg); }
+      .rc-update-btn:active { background: var(--btn-secondary-hover); }
 
       .wk-minimize-btn { transition: none; }
       .wk-minimize-btn:hover { background: var(--muted); color: var(--foreground); }
@@ -1739,7 +1741,7 @@
 
     /* ── Update Entry inside Today card ── */
     .rc-update-btn { height: 28px; padding: 0 10px; border-radius: 6px; border: none;
-      background: #1c1c20; color: #fafafa; font-size: 11px; font-weight: 600;
+      background: var(--btn-secondary-bg); color: var(--btn-secondary-fg); font-size: 11px; font-weight: 600;
       font-family: var(--font); cursor: pointer; transition: background .12s;
       white-space: nowrap; display: none; }
     .rc-update-btn.visible { display: inline-flex; align-items: center; gap: 5px; }

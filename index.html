@@ -530,7 +530,6 @@
     .rc-body .rc-numbers { margin-bottom: -4px; }
     /* ── Weekend empty state ── */
     .rc-body.weekend-mode .rc-numbers,
-    .rc-body.weekend-mode .progress-wrap,
     .rc-body.weekend-mode #rcToday,
     .rc-body.weekend-mode #stayHint,
     .rc-body.weekend-mode #otBanner,
@@ -588,16 +587,6 @@
     .rc-worked { font-size: 32px; font-weight: 600; letter-spacing: -1px; line-height: 32px; color: var(--foreground); }
     .rc-elapsed-label { font-size: 11px; font-weight: 600; letter-spacing: .08em;
       text-transform: uppercase; color: var(--muted-fg); margin-top: 2px; }
-    .progress-wrap { display: flex; flex-direction: column; gap: 6px; }
-    .progress-bar-row { display: flex; align-items: center; gap: 10px; }
-    .progress-track { flex: 1; height: 4px; background: var(--muted); border-radius: 99px; overflow: hidden;
-      transition: height .45s ease, background .45s ease; }
-    .progress-track.target-reached { height: 1px; background: var(--border); }
-    .progress-fill { height: 100%; background: var(--foreground); border-radius: 99px;
-      transition: width .8s ease, opacity .35s ease; }
-    .progress-fill.done { background: var(--success); }
-    .progress-fill.target-reached { opacity: 0; }
-    .progress-label { font-size: 14px; font-weight: 600; color: var(--muted-fg); white-space: nowrap; }
     .rc-meta { display: flex; gap: 16px; flex-wrap: wrap; }
     .rc-meta-item { font-size: 12px; color: var(--muted-fg); }
     .rc-meta-item b { color: var(--foreground); }
@@ -2140,7 +2129,6 @@
                    <div class="skel" style="width:52px;height:26px;border-radius:6px;margin-bottom:6px;margin-left:auto"></div>
                    <div class="skel" style="width:60px;height:10px;margin-left:auto"></div></div>
             </div>
-            <div class="skel" style="width:100%;height:4px;border-radius:99px;margin:14px 0 16px"></div>
             <div style="display:flex;gap:8px">
               <div class="skel skel-card" style="flex:1;height:60px"></div>
               <div class="skel skel-card" style="flex:1;height:60px"></div>
@@ -2156,14 +2144,6 @@
             <div class="rc-right-col">
               <div class="rc-target-val" id="rcTarget" style="color:var(--muted-fg)">—</div>
               <div class="rc-target-label" id="rcTargetLabel">Remaining</div>
-            </div>
-          </div>
-          <div class="progress-wrap" id="progWrap">
-            <div class="progress-bar-row">
-              <div class="progress-track" id="progTrack">
-                <div class="progress-fill" id="progFill" style="width:0%"></div>
-              </div>
-              <div class="progress-label" id="progLabel"></div>
             </div>
           </div>
           <div id="rcToday"></div>
@@ -5397,12 +5377,6 @@
         // "Paused" = mid-day pause with Resume available; "Ended" = full checkout
         const _endedLabel = _sessionAccSecs > 0 ? 'Paused' : 'Ended';
         swapText('rcElapsedLabel', isDoneE ? '' : _endedLabel, { color: 'var(--muted-fg)' });
-        if (el('progWrap')) el('progWrap').style.display = isDoneE ? 'none' : '';
-        const pct = eff > 0 ? Math.min((endedSecs / eff) * 100, 100) : 100;
-        el('progFill').style.width = pct.toFixed(1) + '%';
-        el('progFill').classList.toggle('done', isDoneE);
-        if (isDoneE) { el('progFill').classList.add('target-reached'); el('progLabel').textContent = ''; }
-        else { el('progFill').classList.remove('target-reached'); el('progLabel').textContent = `${Math.floor(pct)}%`; }
         el('rcToday').innerHTML = buildTargetHtml(eff, isDoneE);
         el('stayHint').style.display = 'none';
         el('otBanner').classList.remove('show');
@@ -5416,11 +5390,7 @@
       el('rcTarget').textContent = dur(eff); el('rcTarget').style.color = 'var(--muted-fg)';
       if (el('rcTargetLabel')) swapText('rcTargetLabel', 'Remaining');
       swapText('rcElapsedLabel', 'Not Started', { color: 'var(--muted-fg)' });
-      if (el('progWrap')) el('progWrap').style.display = '';
       _setTodayDateChip();
-      el('progFill').style.width = '0%';
-      el('progFill').classList.remove('done');
-      el('progLabel').textContent = '';
       el('rcToday').innerHTML = buildTargetHtml(eff, false);
       el('stayHint').style.display = 'none';
       el('otBanner').classList.remove('show');
@@ -5755,7 +5725,7 @@
       // For Holiday / Leave: hide WH stat rows (rc-numbers, progress bar, IO cards).
       // Half Day keeps them visible — user may still work a partial day.
       const _hideStats = type === 'holiday' || type === 'leave';
-      ['rcNumbers', 'progWrap', 'rcToday', 'stayHint', 'otBanner', 'doneBanner', 'autostopBanner'].forEach(id => {
+      ['rcNumbers', 'rcToday', 'stayHint', 'otBanner', 'doneBanner', 'autostopBanner'].forEach(id => {
         const _e = el(id);
         if (_e) _e.style.display = _hideStats ? 'none' : '';
       });
@@ -6330,8 +6300,6 @@
         animateDuration('rcTarget', remText);
         el('rcTarget').style.color = '';
         if (el('rcTargetLabel')) swapText('rcTargetLabel', 'Remaining');
-        el('progFill').classList.remove('target-reached');
-        el('progTrack')?.classList.remove('target-reached');
       } else if (isDone) {
         const ot = worked - eff;
         const otText = ot < 60 ? '+0m' : `+${dur(ot)}`;
@@ -6339,20 +6307,11 @@
         animateDuration('rcTarget', otText);
         el('rcTarget').style.color = otColor;
         if (el('rcTargetLabel')) swapText('rcTargetLabel', 'Extra Time');
-        el('progFill').classList.add('target-reached');
-        el('progTrack')?.classList.add('target-reached');
       } else {
         el('rcTarget').textContent = '—'; el('rcTarget').style.color = 'var(--muted-fg)';
         if (el('rcTargetLabel')) swapText('rcTargetLabel', 'Remaining');
-        el('progFill').classList.remove('target-reached');
-        el('progTrack')?.classList.remove('target-reached');
       }
 
-      const pct = eff > 0 ? Math.min((worked / eff) * 100, 100) : 100;
-      el('progFill').style.width = pct.toFixed(1) + '%';
-      el('progFill').classList.toggle('done', isDone);
-      el('progLabel').textContent = isDone ? 'Target Reached' : `${Math.floor(pct)}%`;
-      if (el('progWrap')) el('progWrap').style.display = '';
       el('rcToday').innerHTML = buildTargetHtml(eff, false);
 
       // Stay hint
@@ -6656,7 +6615,7 @@
       // clear them here so renderPastDay (and render/renderEmptyState) start from clean state
       const _rcNumEl = document.querySelector('.rc-numbers');
       if (_rcNumEl) _rcNumEl.style.display = '';
-      ['progWrap', 'rcToday', 'stayHint', 'otBanner', 'doneBanner', 'autostopBanner'].forEach(id => {
+      ['rcToday', 'stayHint', 'otBanner', 'doneBanner', 'autostopBanner'].forEach(id => {
         const _e = el(id); if (_e) _e.style.display = '';
       });
       renderDaySelector();
@@ -6723,7 +6682,7 @@
       el('rcBody')?.classList.remove('weekend-mode');
       const _rcNumElF = document.querySelector('.rc-numbers');
       if (_rcNumElF) _rcNumElF.style.display = '';
-      ['progWrap', 'rcToday', 'stayHint', 'otBanner', 'doneBanner', 'autostopBanner'].forEach(id => {
+      ['rcToday', 'stayHint', 'otBanner', 'doneBanner', 'autostopBanner'].forEach(id => {
         const _e = el(id); if (_e) _e.style.display = '';
       });
       renderDaySelector();
@@ -6951,10 +6910,6 @@
       function _clearCardState() {
         swapText('rcElapsedLabel', '', { color: '' });
         showRem(false);
-        el('progFill').style.width = '0%';
-        el('progFill').classList.remove('done', 'target-reached');
-        el('progTrack')?.classList.remove('target-reached');
-        if (el('progWrap')) el('progWrap').style.display = '';
         if (el('rcTargetLabel')) swapText('rcTargetLabel', 'Remaining');
         el('stayHint').style.display = 'none';
         el('otBanner').classList.remove('show');
@@ -6975,7 +6930,6 @@
       if (!log || log.hoursWorked == null) {
         const _rcNumEl = document.querySelector('.rc-numbers');
         if (_rcNumEl) _rcNumEl.style.display = 'none';
-        if (el('progWrap')) el('progWrap').style.display = 'none';
         _setTodayDateChip();
         el('stayHint').style.display = 'none';
         el('otBanner').classList.remove('show'); el('doneBanner').classList.remove('show');
@@ -6990,22 +6944,8 @@
       const isDone = worked >= target;
       el('rcWorked').textContent = dur(worked); el('rcWorked').style.color = '';
       swapText('rcElapsedLabel', 'Total Logged', { color: 'var(--muted-fg)' });
-      if (isDone) {
-        el('otBanner').classList.remove('show');
-        el('doneBanner').classList.remove('show');
-        el('progFill').classList.add('target-reached');
-        el('progTrack')?.classList.add('target-reached');
-        if (el('progWrap')) el('progWrap').style.display = 'none';
-      } else {
-        el('otBanner').classList.remove('show'); el('doneBanner').classList.remove('show');
-        el('progFill').classList.remove('target-reached');
-        el('progTrack')?.classList.remove('target-reached');
-        if (el('progWrap')) el('progWrap').style.display = '';
-      }
-      const pct = Math.min((worked / target) * 100, 100);
-      el('progFill').style.width = pct.toFixed(1) + '%';
-      el('progFill').classList.toggle('done', isDone);
-      el('progLabel').textContent = isDone ? '' : `${Math.floor(pct)}%`;
+      el('otBanner').classList.remove('show');
+      el('doneBanner').classList.remove('show');
       _setTodayDateChip();
       el('stayHint').style.display = 'none';
       const loginDisp = log.loginDisplay || _loginDisplayFromLog(log);

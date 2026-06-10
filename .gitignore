@@ -15,3 +15,11 @@ Thumbs.db
 
 # node_modules
 node_modules/
+
+.vercel
+
+# Local-only files: OAuth client id note, generated reports, scratch assets
+Github_5PM_Client_ID.txt
+*-report-*.pdf
+*-report-*.csv
+test-inline.pdf

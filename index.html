@@ -148,7 +148,7 @@
       --input: #38383e; --input-bg: #1c1c20; --ring: #e4e4e7;
       --success: #4ade80; --success-bg: #052e16; --success-border: #166534;
       --warning: #fbbf24; --warning-bg: #1c1400; --warning-border: #78350f;
-      --destructive: #f87171; --destructive-bg: #991b1b; --destructive-border: #7f1d1d;
+      --destructive: #f87171; --destructive-bg: #450a0a; --destructive-border: #7f1d1d;
       --blue: #60a5fa; --blue-bg: #0c1a2e; --blue-border: #1e40af;
       /* ── Shadow scale (dark — stronger) ── */
       --shadow-xs: 0 1px 3px rgba(0,0,0,.28);
@@ -189,7 +189,7 @@
     .navbar.stuck { box-shadow: 0 4px 20px rgba(0,0,0,.10); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
     .dark .navbar.stuck { box-shadow: 0 4px 20px rgba(0,0,0,.35); }
     .nav-inner { height: 52px; padding: 0 8px; display: flex; align-items: center; justify-content: space-between; }
-    .nav-tabs { display: flex; align-items: center; gap: 4px; }
+    .nav-tabs { display: flex; align-items: center; gap: 8px; }
     .nav-tab { height: 34px; padding: 0 14px; border-radius: var(--radius-md); border: none;
       background: transparent; color: var(--muted-fg); font-size: 13px; font-weight: 500;
       font-family: var(--font); transition: box-shadow .14s, color .14s;
@@ -629,12 +629,15 @@
     .wk-collapsible { overflow: hidden; transition: max-height .28s ease, opacity .22s; }
     .wk-collapsible.open     { max-height: 500px; opacity: 1; }
     .wk-collapsible.minimized { max-height: 0; opacity: 0; }
-    .wk-rows { padding: 12px; }
-    .wk-row { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center;
-      padding: 10px 14px; cursor: pointer; border-radius: 6px; position: relative; transition: background .12s; }
+    .wk-rows { padding: 8px 12px; display: flex; flex-direction: column; gap: 8px; }
+    .wk-row { display: grid; grid-template-columns: 76px 1fr auto; align-items: center;
+      min-height: 40px; padding: 6px 10px; cursor: pointer; border-radius: 8px; position: relative; transition: background .12s; gap: 0 8px; }
     .wk-row:hover { background: var(--muted); }
-    .wk-day { font-size: 14px; color: var(--muted-fg); font-weight: 400; }
-    .wk-row.today .wk-day { color: var(--foreground); font-weight: 600; }
+    .wk-col-day { font-size: 12px; font-weight: 400; color: var(--muted-fg); white-space: nowrap; text-align: right; }
+    .wk-col-mid { display: flex; align-items: center; justify-content: center; }
+    .wk-col-date { font-size: 13px; font-weight: 500; color: var(--foreground); white-space: nowrap; }
+    @keyframes wk-flash { 0%{box-shadow:0 0 0 0 var(--ring)} 30%{box-shadow:0 0 0 2px var(--ring)} 70%{box-shadow:0 0 0 2px var(--ring)} 100%{box-shadow:0 0 0 0 transparent} }
+    .wk-row-flash { animation: wk-flash 1.5s ease-out; }
     .wk-pill { display: inline-flex; align-items: center; gap: 5px;
       font-size: 13px; font-weight: 500;
       color: var(--muted-fg); white-space: nowrap; justify-self: start; }
@@ -691,8 +694,7 @@
 
     /* ── Settings Panel (inline) ── */
     .settings-panel { display: flex; flex-direction: column; gap: 16px; }
-    .settings-header { display: flex; flex-direction: column; gap: 3px; padding-bottom: 4px;
-      border-bottom: 1px solid var(--border); }
+    .settings-header { display: flex; flex-direction: column; gap: 3px; padding-bottom: 4px; }
     .settings-title { font-size: 18px; font-weight: 700; color: var(--foreground); }
     .settings-desc { font-size: 12px; color: var(--muted-fg); }
     .form-field { display: flex; flex-direction: column; gap: 6px; }
@@ -796,7 +798,7 @@
     /* ── Support modal QR + UPI sizing ── */
     .support-qr  { width: min(250px, 100%); aspect-ratio: 1; border-radius: 12px; border: 1px solid var(--border); background: var(--muted); display: flex; align-items: center; justify-content: center; overflow: hidden; padding: 16px; }
     .support-qr canvas, .support-qr img { width: 100%; height: auto; display: block; border-radius: 6px; }
-    .support-upi { width: min(250px, 100%); background: var(--muted); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 8px 10px; display: flex; align-items: center; justify-content: space-between; gap: 6px; cursor: pointer; transition: background .12s; }
+    .support-upi { width: min(250px, 100%); background: var(--muted); border: none; border-radius: var(--radius-md); padding: 8px 10px; display: flex; align-items: center; justify-content: space-between; gap: 6px; cursor: pointer; transition: background .12s; }
     .support-upi:hover { background: var(--border); }
 
     /* ── Dev code interface (Dark Knight) ── */
@@ -1118,7 +1120,7 @@
     .modal-time-sep { color: var(--muted-fg); font-size: 14px; flex-shrink: 0; }
     /* Time row collapsible wrapper */
     #deTimeWrap { overflow: hidden; max-height: 120px; opacity: 1;
-      padding: 0 4px; margin: 0 -4px; /* room for focus ring inside overflow:hidden */
+      padding: 4px 4px; margin: -4px -4px; /* room for focus/hover ring on all sides */
       transition: max-height .25s ease, opacity .18s ease, margin-top .25s ease; }
     #deTimeWrap.hidden { max-height: 0; opacity: 0; margin-top: -16px; }
 
@@ -1137,37 +1139,44 @@
       box-shadow: 0 1px 2px rgba(0,0,0,.15); }
 
     /* ── Day selector strip ── */
+    /* Infinite horizontal grid: exactly 5 cards (Mon–Fri) visible at once, with a ~10%
+       sliver of the neighbouring cards peeking on each side. Edge mask fades the peek
+       into a smooth shadow so the user senses there are more cards to scroll to. */
     .day-selector { display: flex; gap: 8px; overflow-x: auto; -webkit-overflow-scrolling: touch;
       scrollbar-width: none; -ms-overflow-style: none;
-      touch-action: pan-x; overscroll-behavior-x: contain; }
+      touch-action: pan-x; overscroll-behavior-x: contain;
+      -webkit-mask-image: linear-gradient(to right, transparent 0, #000 6%, #000 94%, transparent 100%);
+              mask-image: linear-gradient(to right, transparent 0, #000 6%, #000 94%, transparent 100%); }
     .day-selector::-webkit-scrollbar { display: none; }
     /* Hide nav arrows — scroll replaces them */
     .this-week-nav { display: none; }
-    /* Desktop: exactly 5 days visible, crosshair via JS scrollLeft — scrollbar hidden, user scroll blocked by JS wheel handler */
+    /* Desktop: crosshair via JS scrollLeft — scrollbar hidden, user scroll blocked by JS wheel handler */
     @media (hover: hover) and (min-width: 641px) {
-      .day-sel-btn { flex: 0 0 calc((100% - 32px) / 5) !important; }
       .day-selector { overflow-x: scroll; scrollbar-width: none; -ms-overflow-style: none; }
       .day-selector::-webkit-scrollbar { display: none; }
     }
-    .day-sel-btn { flex: 0 0 60px; display: flex; flex-direction: column; align-items: center;
-      gap: 4px; padding: 10px 4px 8px; border-radius: 10px; border: none;
-      background: var(--background); color: var(--muted-fg); cursor: pointer;
+    /* 5.2 cards across (5 full + 0.1 peek each side); 5 gaps of 8px reserved → 40px */
+    .day-sel-btn { flex: 0 0 calc((100% - 40px) / 5.2); display: flex; flex-direction: column; align-items: center;
+      gap: 4px; padding: 10px 4px; border-radius: 10px; border: none; position: relative;
+      background: var(--btn-secondary-bg); color: var(--muted-fg); cursor: pointer;
       transition: background .12s, color .12s; font-family: var(--font); }
-    .day-sel-btn .dsel-name { font-size: 10px; font-weight: 600; letter-spacing: .06em;
+    .day-sel-btn .dsel-name { font-size: 12px; font-weight: 600; letter-spacing: .04em;
       text-transform: uppercase; }
     .day-sel-btn .dsel-num  { font-size: 18px; font-weight: 700; line-height: 1; }
+    /* Absolute so toggling the dot never reflows the name/number above it */
     .day-sel-btn .dsel-dot  { width: 4px; height: 4px; border-radius: 50%;
+      position: absolute; bottom: 6px; left: 50%; transform: translateX(-50%);
       background: var(--warning); opacity: 0; transition: opacity .15s; }
     .day-sel-btn.has-penalty .dsel-dot,
     .day-sel-btn.has-plan    .dsel-dot { opacity: 1; }
     /* Weekday hover — past or future, bright highlight */
-    .day-sel-btn:hover:not(:disabled):not(.active):not(.wkd-btn) { color: var(--foreground); background: var(--muted); cursor: pointer; }
+    .day-sel-btn:hover:not(:disabled):not(.active):not(.wkd-btn) { color: var(--foreground); background: var(--btn-secondary-hover); cursor: pointer; }
     .day-sel-btn.active { background: var(--btn-primary-bg); color: var(--card); }
     .day-sel-btn.active.has-penalty .dsel-dot,
     .day-sel-btn.active.has-plan    .dsel-dot { background: var(--background); opacity: .6; }
     .day-sel-btn:disabled { opacity: .28; cursor: default; pointer-events: none; }
     /* WKD slot — narrower, dashed, faded so weekends read as off-days */
-    .day-sel-btn.wkd-btn { flex: 0 0 60px; }
+    .day-sel-btn.wkd-btn { flex: 0 0 60px; background: transparent; }
     .day-sel-btn.wkd-btn:not(.active) { opacity: .45; }
     .day-sel-btn.wkd-btn.active { opacity: 1; }
     /* Weekend / holiday / leave hover — slightly lifted */
@@ -1179,7 +1188,7 @@
     .dark .this-week-wrap { box-shadow: none; }
     .this-week-header { display: flex; align-items: center; justify-content: space-between;
       padding: 12px; border-bottom: 1px solid var(--border); }
-    .this-week-wrap .day-selector { padding: 16px; }
+    .this-week-wrap .day-selector { padding: 16px 0; }
     .ds-fade-wrap { position: relative; }
     .this-week-label { font-size: 11px; font-weight: 600; color: var(--muted-fg); letter-spacing: .06em; text-transform: uppercase; }
     .this-week-label-btn { height:28px; padding:0 10px; border-radius:6px; border:none;
@@ -1192,7 +1201,7 @@
     .wp-picker-overlay { position:fixed; z-index:2000; display:none; }
     .wp-picker-overlay.open { display:block; }
     .wp-picker-dialog { background:var(--card); border:1px solid var(--border); border-radius:16px;
-      padding:16px; width:320px; box-shadow:0 16px 48px rgba(0,0,0,.22); }
+      padding:16px; width:340px; box-shadow:0 16px 48px rgba(0,0,0,.22); }
     /* Header: month/year LEFT, nav arrows RIGHT */
     .wp-picker-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
     .wp-picker-month { font-size:14px; font-weight:600; color:var(--foreground); flex:1; }
@@ -1201,12 +1210,17 @@
       background:var(--muted); color:var(--foreground); display:flex; align-items:center;
       justify-content:center; cursor:pointer; transition:background .1s; padding:0; flex-shrink:0; }
     .wp-picker-nav:hover { background:var(--border); }
-    .wp-picker-weekdays { display:grid; grid-template-columns:repeat(7,1fr); gap:2px; margin-bottom:4px; }
+    .wp-picker-weekdays { display:grid; grid-template-columns:56px repeat(7,1fr); gap:4px; margin-bottom:4px; }
     .wp-picker-weekdays span { text-align:center; font-size:10px; font-weight:600; color:var(--muted-fg);
       letter-spacing:.06em; text-transform:uppercase; padding:4px 0; }
     .wp-picker-weekdays span.wp-wkd-hdr { color:var(--border); }
-    .wp-picker-grid { display:flex; flex-direction:column; gap:2px; }
-    .wp-picker-week { display:grid; grid-template-columns:repeat(7,1fr); gap:2px; padding:2px; cursor:default; }
+    .wp-picker-weekdays .wp-wk-hdr-spacer { display:block; }
+    .wp-picker-grid { display:flex; flex-direction:column; gap:4px; }
+    .wp-picker-week { display:grid; grid-template-columns:56px repeat(7,1fr); gap:4px; cursor:default; }
+    .wp-week-label { display:flex; align-items:center; font-size:9px; font-weight:600;
+      color:var(--muted-fg); letter-spacing:.03em; text-transform:uppercase; line-height:1.2;
+      padding-right:4px; white-space:nowrap; overflow:hidden; }
+    .wp-week-label.wp-wk-current { color:var(--foreground); }
     .wp-picker-day { text-align:center; font-size:13px; font-weight:500; color:var(--foreground);
       padding:6px 2px; border-radius:6px; font-variant-numeric:tabular-nums; line-height:1; }
     .wp-picker-day.wp-out { color:var(--muted-fg); opacity:.35; pointer-events:none; }
@@ -1225,7 +1239,7 @@
     .wp-jump-today:hover:not(:disabled) { opacity:.88; }
     .wp-jump-today:disabled { opacity:.35; cursor:default; }
     .this-week-nav { display: flex; gap: 4px; }
-    .this-week-btn { width: 24px; height: 24px; border-radius: 6px; border: none; background: var(--btn-secondary-bg); color: var(--btn-secondary-fg); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: background .12s; padding: 0; }
+    .this-week-btn { width: 28px; height: 28px; border-radius: 6px; border: none; background: var(--btn-secondary-bg); color: var(--btn-secondary-fg); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: background .12s; padding: 0; }
     .this-week-btn:hover { background: var(--btn-secondary-hover); }
     .this-week-btn:disabled { opacity: .3; cursor: default; }
 
@@ -1451,7 +1465,7 @@
 
       .day-sel-btn { transition: none; }
       /* Reset hover to no-op — on touch, hover sticks after tap */
-      .day-sel-btn:hover:not(:disabled):not(.active):not(.wkd-btn) { background: var(--background); border-color: var(--border); color: var(--muted-fg); }
+      .day-sel-btn:hover:not(:disabled):not(.active):not(.wkd-btn) { background: transparent; border-color: var(--border); color: var(--muted-fg); }
       /* Only show feedback while finger is actually down */
       .day-sel-btn:active:not(:disabled):not(.active):not(.wkd-btn) { background: var(--muted); border-color: var(--foreground); color: var(--foreground); }
       .this-week-btn:hover { background: var(--btn-secondary-bg); }
@@ -1600,7 +1614,6 @@
     .tp-center-bar {
       position: absolute; pointer-events: none; top: 50%; transform: translateY(-50%);
       left: 0; right: 0; height: 34px;
-      border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
     }
     .tp-fade-top {
       position: absolute; top: 0; left: 0; right: 0; height: 34px; pointer-events: none;
@@ -2293,22 +2306,25 @@
   <div class="view" id="viewAnalytics">
     <main class="page">
 
-      <!-- Week navigation -->
-      <div class="an-week-nav">
-        <button class="an-nav-btn" id="wkPrevBtn" title="Previous week">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path fill-rule="evenodd" clip-rule="evenodd" d="M16.7071 3.29289C17.0976 3.68342 17.0976 4.31658 16.7071 4.70711L9.41421 12L16.7071 19.2929C17.0976 19.6834 17.0976 20.3166 16.7071 20.7071C16.3166 21.0976 15.6834 21.0976 15.2929 20.7071L7.29289 12.7071C6.90237 12.3166 6.90237 11.6834 7.29289 11.2929L15.2929 3.29289C15.6834 2.90237 16.3166 2.90237 16.7071 3.29289Z" fill="currentColor"/></svg>
-        </button>
-        <span class="an-week-nav-label" id="wkNavLabel">April 13–17</span>
-        <button class="an-nav-btn" id="wkNextBtn" title="Next week" disabled="">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path fill-rule="evenodd" clip-rule="evenodd" d="M7.29289 3.29289C7.68342 2.90237 8.31658 2.90237 8.70711 3.29289L16.7071 11.2929C17.0976 11.6834 17.0976 12.3166 16.7071 12.7071L8.70711 20.7071C8.31658 21.0976 7.68342 21.0976 7.29289 20.7071C6.90237 20.3166 6.90237 19.6834 7.29289 19.2929L14.5858 12L7.29289 4.70711C6.90237 4.31658 6.90237 3.68342 7.29289 3.29289Z" fill="currentColor"/></svg>
-        </button>
-      </div>
-
       <!-- Week card (main analytics content) -->
       <div class="card" id="wkCardAnalytics">
         <div class="rc-head">
           <div class="rc-head-left">
-            <span class="section-label">This Week</span>
+            <button class="this-week-label-btn" id="wkNavLabelBtn" onclick="openAnalyticsWeekPicker(this)" type="button">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" style="flex-shrink:0;opacity:.7">
+                <rect x="3" y="4" width="18" height="18" rx="2" stroke="currentColor" stroke-width="2"/>
+                <path d="M16 2v4M8 2v4M3 10h18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+              <span id="wkNavLabel">April 13–17</span>
+            </button>
+          </div>
+          <div class="this-week-nav">
+            <button class="this-week-btn" id="wkPrevBtn" title="Previous week">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path fill-rule="evenodd" clip-rule="evenodd" d="M16.7071 3.29289C17.0976 3.68342 17.0976 4.31658 16.7071 4.70711L9.41421 12L16.7071 19.2929C17.0976 19.6834 17.0976 20.3166 16.7071 20.7071C16.3166 21.0976 15.6834 21.0976 15.2929 20.7071L7.29289 12.7071C6.90237 12.3166 6.90237 11.6834 7.29289 11.2929L15.2929 3.29289C15.6834 2.90237 16.3166 2.90237 16.7071 3.29289Z" fill="currentColor"/></svg>
+            </button>
+            <button class="this-week-btn" id="wkNextBtn" title="Next week" disabled="">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path fill-rule="evenodd" clip-rule="evenodd" d="M7.29289 3.29289C7.68342 2.90237 8.31658 2.90237 8.70711 3.29289L16.7071 11.2929C17.0976 11.6834 17.0976 12.3166 16.7071 12.7071L8.70711 20.7071C8.31658 21.0976 7.68342 21.0976 7.29289 20.7071C6.90237 20.3166 6.90237 19.6834 7.29289 19.2929L14.5858 12L7.29289 4.70711C6.90237 4.31658 6.90237 3.68342 7.29289 3.29289Z" fill="currentColor"/></svg>
+            </button>
           </div>
         </div>
         <div class="wk-rows" id="wkRows"><div class="wk-row" data-day-key="2026-04-13"><div class="wk-day">Monday</div><div class="wk-pill deficit">0h 00m</div></div><div class="wk-dropdown" id="drop-2026-04-13"><div class="wk-dropdown-inner">
@@ -2400,7 +2416,7 @@
     <main class="page">
       <div class="settings-panel">
 
-        <div class="settings-header" style="flex-direction:row;align-items:center;padding-bottom:12px;border-bottom:1px solid var(--border)">
+        <div class="settings-header" style="flex-direction:row;align-items:center;padding-bottom:12px">
           <div class="settings-title">Settings</div>
           <div style="margin-left:auto;display:flex;align-items:center;gap:8px">
             <div class="form-sub" id="settingsLastSaved" style="font-size:11px;color:var(--muted-fg)">Not saved yet</div>
@@ -2773,11 +2789,7 @@
           <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:14px">
             <button class="btn-secondary" style="font-size:12px;height:32px;padding:0 10px;gap:5px" onclick="openSupportModal()">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
-              Support Project
-            </button>
-            <button class="btn-secondary" style="font-size:12px;height:32px;padding:0 10px;gap:5px" onclick="window.open('https://roshan.framer.wiki/#contact','_blank')">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-              Need Help
+              Support Development
             </button>
           </div>
         </div><!-- /About Developer section -->
@@ -2866,7 +2878,7 @@
         </div>
       </div>
       <div class="wp-picker-weekdays">
-        <span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span class="wp-wkd-hdr">Sa</span><span class="wp-wkd-hdr">Su</span>
+        <span class="wp-wk-hdr-spacer"></span><span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span class="wp-wkd-hdr">Sa</span><span class="wp-wkd-hdr">Su</span>
       </div>
       <div class="wp-picker-grid" id="wpPickerGrid"></div>
       <button class="wp-jump-today" id="wpJumpTodayBtn" onclick="_wpJumpToday()" type="button">Today</button>
@@ -3238,11 +3250,9 @@
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
           </button>
         </div>
-        <div style="padding:0 20px 12px">
-          <button id="upwdSendLinkBtn" class="ob-btn-primary" style="height:40px;font-size:13px;width:100%;border-radius:8px" onclick="upwdSendResetLink()">Send Reset Link</button>
-        </div>
-        <div style="padding:0 20px 20px">
-          <button class="btn-secondary" style="width:100%;justify-content:center" onclick="closeUpwdModal()">Cancel</button>
+        <div style="padding:0 20px 20px;display:flex;gap:8px">
+          <button class="btn-secondary" style="flex:1;justify-content:center" onclick="closeUpwdModal()">Cancel</button>
+          <button id="upwdSendLinkBtn" class="ob-btn-primary" style="flex:1;height:36px;font-size:13px;border-radius:8px" onclick="upwdSendResetLink()">Send Reset Link</button>
         </div>
       </div>
 
@@ -3629,7 +3639,7 @@
     function timeAgo(date) {
       if (!date) return '';
       const s = Math.floor((Date.now() - date.getTime()) / 1000);
-      if (s < 60)   return 'a few seconds ago';
+      if (s < 60)   return 'just now';
       if (s < 3600) { const m = Math.floor(s / 60);    return `${m}m ago`; }
       if (s < 86400){ const h = Math.floor(s / 3600);  return `${h}h ago`; }
       const d = Math.floor(s / 86400); return `${d} day${d > 1 ? 's' : ''} ago`;
@@ -4580,7 +4590,7 @@
     }
 
     // ── Week picker ──────────────────────────────────────────────────────────
-    let _wpYear = 0, _wpMonth = 0;
+    let _wpYear = 0, _wpMonth = 0, _wpContext = null; // null = overview, 'analytics' = dashboard
 
     function openWeekPicker(triggerEl) {
       // Open at the month of the currently selected day
@@ -4617,6 +4627,26 @@
     }
     function closeWeekPicker() {
       el('wpPickerOverlay').classList.remove('open');
+      _wpContext = null;
+    }
+
+    function openAnalyticsWeekPicker(triggerEl) {
+      _wpContext = 'analytics';
+      const refKey = week(analyticsWeekOffset)[0]?.key;
+      const refDate = refKey ? new Date(refKey + 'T12:00') : new Date();
+      _wpYear  = refDate.getFullYear();
+      _wpMonth = refDate.getMonth();
+      _wpRenderCal();
+      const overlay = el('wpPickerOverlay');
+      overlay.classList.add('open');
+      if (triggerEl) {
+        const r = triggerEl.getBoundingClientRect();
+        overlay.style.top  = (r.bottom + 6) + 'px';
+        overlay.style.left = r.left + 'px';
+      }
+      setTimeout(() => {
+        document.addEventListener('click', _wpOutsideClick, { once: true, capture: true });
+      }, 0);
     }
     function _wpPrevMonth() {
       _wpMonth--; if (_wpMonth < 0) { _wpMonth = 11; _wpYear--; }
@@ -4638,7 +4668,7 @@
 
       const today = todayKey();
       // Monday of currently selected week
-      const selMonKey = week(daySelectorWeekOffset)[0]?.key;
+      const selMonKey = _wpContext === 'analytics' ? week(analyticsWeekOffset)[0]?.key : week(daySelectorWeekOffset)[0]?.key;
 
       // Find the Monday on or before the 1st of the month
       const firstOfMonth = new Date(_wpYear, _wpMonth, 1);
@@ -4656,6 +4686,25 @@
 
         const row = document.createElement('div');
         row.className = 'wp-picker-week';
+
+        // Week label cell
+        const todayDate = new Date(); todayDate.setHours(0,0,0,0);
+        const todayDow = todayDate.getDay();
+        const thisMon = new Date(todayDate); thisMon.setDate(todayDate.getDate() - ((todayDow + 6) % 7));
+        const isCurrentWk = monDate.toDateString() === thisMon.toDateString();
+        const wkLabel = document.createElement('div');
+        wkLabel.className = 'wp-week-label' + (isCurrentWk ? ' wp-wk-current' : '');
+        if (isCurrentWk) {
+          wkLabel.textContent = 'This Week';
+        } else {
+          const fri = new Date(monDate); fri.setDate(monDate.getDate() + 4);
+          const mMo = MONTHS[monDate.getMonth()].slice(0,3);
+          const mFr = MONTHS[fri.getMonth()].slice(0,3);
+          wkLabel.textContent = mMo === mFr
+            ? `${mMo} ${monDate.getDate()}–${fri.getDate()}`
+            : `${mMo} ${monDate.getDate()}–${mFr} ${fri.getDate()}`;
+        }
+        row.appendChild(wkLabel);
 
         for (let d = 0; d < 7; d++) {
           const cellDate = new Date(monDate); cellDate.setDate(monDate.getDate() + d);
@@ -4686,6 +4735,20 @@
 
     function _wpSelectDay(dayKey) {
       if (!dayKey) return;
+      if (_wpContext === 'analytics') {
+        const todayDate = new Date(todayKey() + 'T12:00');
+        const selDate   = new Date(dayKey + 'T12:00');
+        const todayMon  = todayDate.getTime() - ((todayDate.getDay() + 6) % 7) * 86400000;
+        const selMon    = selDate.getTime()   - ((selDate.getDay()   + 6) % 7) * 86400000;
+        analyticsWeekOffset = Math.min(0, Math.round((selMon - todayMon) / (7 * 86400000)));
+        renderAnalytics();
+        closeWeekPicker();
+        requestAnimationFrame(() => {
+          const flashRow = document.querySelector(`.wk-row[data-day-key="${dayKey}"]`);
+          if (flashRow) { flashRow.classList.remove('wk-row-flash'); void flashRow.offsetWidth; flashRow.classList.add('wk-row-flash'); }
+        });
+        return;
+      }
       _dsUserNav = true;
       const isFuture = new Date(dayKey + 'T12:00') > new Date() && dayKey !== todayKey();
       const log = dayLog(dayKey);
@@ -6123,6 +6186,7 @@
       el('leaveChip').style.display = 'none';
       // Activate weekend mode
       el('rcBody')?.classList.add('weekend-mode');
+      _hideSkeleton();
       renderWeekendState();
       _updateDayNavBtns();
     }
@@ -6378,7 +6442,7 @@
       const todayDow = today.getDay();
       const thisMon = new Date(today); thisMon.setDate(today.getDate() + (todayDow === 0 ? -6 : 1 - todayDow));
       const off = Math.round((mon - thisMon) / (7 * 86400000));
-      return weekRangeLabel(off); // always show date range, e.g. "Jun 2 – 6"
+      return off === 0 ? 'This Week' : weekRangeLabel(off);
     }
 
     function _updateWeekLabel() {
@@ -6471,9 +6535,11 @@
       for (let off = newEarliest; off < _dsEarliestOffset; off++) weekStrip(off).forEach(d => days.push(d));
       const frag = document.createDocumentFragment();
       days.forEach(day => frag.appendChild(_dsMakeBtn(day, now, tk, selKey, c)));
+      const widthBefore = container.scrollWidth;
       const scrollBefore = container.scrollLeft;
       container.insertBefore(frag, container.firstChild);
-      container.scrollLeft = scrollBefore + days.length * 68; // 60px btn + 8px gap
+      // Preserve viewport: shift scroll by however much width was prepended (card widths are flexible)
+      container.scrollLeft = scrollBefore + (container.scrollWidth - widthBefore);
       _dsEarliestOffset = newEarliest;
     }
 
@@ -6615,6 +6681,7 @@
       el('futureDayPlan').style.display = 'none';
       el('wkndBadgeCard').style.display = 'none';
       el('resultCard').style.display = '';
+      _hideSkeleton();
 
       // Weekend day, or a day marked Holiday / Full Day Leave → unified info card
       const _ovSel = dayLog(key)?.override;
@@ -6981,130 +7048,91 @@
       rows.innerHTML = '';
       let totalSecs = 0, totalSurplusSecs = 0;
 
+      const OV_CFG = {
+        holiday: { label: 'Holiday',  color: '#a855f7', bg: 'rgba(168,85,247,.12)', border: 'rgba(168,85,247,.3)' },
+        leave:   { label: 'On Leave', color: '#3b82f6', bg: 'rgba(59,130,246,.12)', border: 'rgba(59,130,246,.3)'  },
+        halfday: { label: 'Half Day', color: '#0ea5e9', bg: 'rgba(14,165,233,.12)', border: 'rgba(14,165,233,.3)'  },
+      };
+
       for (const day of wk) {
         const log = dayLog(day.key);
         const isToday = day.key === tk && analyticsWeekOffset === 0;
         const wSecs = log?.hoursWorked != null ? log.hoursWorked * 3600 : 0;
-        const early = isEarlyLogin(log);
-        const late  = isLateLogin(log);
+        const isPastDay = !isToday && day.key < tk;
+        const isFutureDay = !isToday && day.key > tk;
+        const ov = log?.override;
 
         const row = document.createElement('div');
         row.className = 'wk-row' + (isToday ? ' today' : '');
         row.dataset.dayKey = day.key;
-        row.style.cursor = 'pointer';
         row.addEventListener('click', () => openDayEditModal(day.key));
-
-        const ov = log?.override; // 'holiday' | 'leave' | 'halfday' | null
-
-        // Override rows: full grey row, centered colored label, no Edited tag
         if (ov === 'holiday' || ov === 'leave' || ov === 'halfday') {
-          // Style the whole row as muted
-          row.style.cssText = 'background:var(--muted);border-radius:8px;cursor:pointer';
-
-          // Override config
-          const OV_CFG = {
-            holiday: { label: 'Holiday',  color: '#a855f7', bg: 'rgba(168,85,247,.12)', border: 'rgba(168,85,247,.3)' },
-            leave:   { label: 'On Leave', color: '#3b82f6', bg: 'rgba(59,130,246,.12)', border: 'rgba(59,130,246,.3)'  },
-            halfday: { label: 'Half Day', color: '#0ea5e9', bg: 'rgba(14,165,233,.12)', border: 'rgba(14,165,233,.3)'  },
-          };
-          const { label, color, bg, border } = OV_CFG[ov];
-
-          // Day name (no Edited tag)
-          const dayEl = document.createElement('div');
-          dayEl.className = 'wk-day';
-          dayEl.style.color = 'var(--muted-fg)';
-          dayEl.textContent = isToday ? `${day.name} (Today)` : day.name;
-          row.appendChild(dayEl);
-
-          // Centered badge
-          const badge = document.createElement('div');
-          badge.style.cssText = `justify-self:center;font-size:12px;font-weight:500;color:${color};background:${bg};border:1px solid ${border};padding:2px 12px;border-radius:20px;letter-spacing:.3px;pointer-events:none`;
-          badge.textContent = label;
-          row.appendChild(badge);
-
-          // Edit icon still on the right
-          const rightWrap = document.createElement('div');
-          rightWrap.className = 'wk-row-actions';
-          const editBtn = document.createElement('button');
-          editBtn.className = 'wk-edit-icon-btn';
-          editBtn.title = 'Edit day';
-          editBtn.innerHTML = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none"><path fill-rule="evenodd" clip-rule="evenodd" d="M18.4324 4C18.2266 4 18.0227 4.04055 17.8325 4.11933C17.6423 4.19811 17.4695 4.31358 17.3239 4.45914L5.25659 16.5265L4.42524 19.5748L7.47353 18.7434L19.5409 6.67608C19.6864 6.53051 19.8019 6.3577 19.8807 6.16751C19.9595 5.97732 20 5.77348 20 5.56761C20 5.36175 19.9595 5.1579 19.8807 4.96771C19.8019 4.77752 19.6864 4.60471 19.5409 4.45914C19.3953 4.31358 19.2225 4.19811 19.0323 4.11933C18.8421 4.04055 18.6383 4 18.4324 4ZM17.0671 2.27157C17.5 2.09228 17.9639 2 18.4324 2C18.9009 2 19.3648 2.09228 19.7977 2.27157C20.2305 2.45086 20.6238 2.71365 20.9551 3.04493C21.2864 3.37621 21.5492 3.7695 21.7285 4.20235C21.9077 4.63519 22 5.09911 22 5.56761C22 6.03611 21.9077 6.50003 21.7285 6.93288C21.5492 7.36572 21.2864 7.75901 20.9551 8.09029L8.69996 20.3454C8.57691 20.4685 8.42387 20.5573 8.25597 20.6031L3.26314 21.9648C2.91693 22.0592 2.54667 21.9609 2.29292 21.7071C2.03917 21.4534 1.94084 21.0831 2.03526 20.7369L3.39694 15.7441C3.44273 15.5762 3.53154 15.4231 3.6546 15.3001L15.9097 3.04493C16.241 2.71365 16.6343 2.45086 17.0671 2.27157Z" fill="currentColor"/></svg>';
-          editBtn.addEventListener('click', e => { e.stopPropagation(); openDayEditModal(day.key); });
-          rightWrap.appendChild(editBtn);
-          row.appendChild(rightWrap);
-
-          // Half day still counts toward total
-          if (ov === 'halfday' && log?.hoursWorked != null) totalSecs += wSecs;
-
-        } else {
-          // Normal rows
-          const dayEl = document.createElement('div');
-          dayEl.className = 'wk-day';
-          dayEl.textContent = isToday ? `${day.name} (Today)` : day.name;
-          row.appendChild(dayEl);
-
-          const rightWrap = document.createElement('div');
-          rightWrap.className = 'wk-row-actions';
-
-          const pill = document.createElement('div');
-          const isPastDay = !isToday && day.key < tk;
-          const isFutureDay = !isToday && day.key > tk;
-          if (isFutureDay) {
-            pill.className = 'wk-pill';
-            pill.textContent = '–';
-            row.appendChild(pill);
-            row.appendChild(rightWrap);
-            rows.appendChild(row);
-            continue;
-          }
-          if (isToday && loginDate) {
-            const ds = Math.max(0, Math.floor((new Date() - loginDate) / 1000));
-            pill.className = 'wk-pill live';
-            pill.innerHTML = `<span class="dot-live"></span>${dur(ds)}`;
-            totalSecs += ds;
-            totalSurplusSecs += Math.max(0, ds - c.dailyH * 3600);
-          } else if (log?.hoursWorked != null && (!isToday || log?.checkoutDisplay)) {
-            const diff = wSecs - c.dailyH * 3600;
-            pill.className = 'wk-pill';
-            if (diff > 120) {
-              const surpH = Math.floor(diff / 3600), surpM = Math.floor((diff % 3600) / 60);
-              const surpStr = surpH > 0 ? `+${surpH}h${surpM > 0 ? ' ' + surpM + 'm' : ''}` : `+${Math.floor(diff/60)}m`;
-              pill.innerHTML = `${dur(wSecs)} <span style="color:var(--success);font-weight:600">${surpStr}</span>`;
-              totalSurplusSecs += diff;
-            } else {
-              pill.textContent = dur(wSecs);
-            }
-            totalSecs += wSecs;
-          } else if (isPastDay) {
-            // Centered "Missing Data" badge like override rows
-            const missBadge = document.createElement('div');
-            missBadge.style.cssText = 'justify-self:center;font-size:12px;font-weight:500;color:var(--destructive);background:var(--destructive-bg);border:1px solid var(--destructive-border);padding:2px 12px;border-radius:20px;letter-spacing:.3px;pointer-events:none';
-            missBadge.textContent = 'Missing Entry';
-            row.appendChild(missBadge);
-            // add edit button (created inline here since editBtn hasn't been declared yet)
-            const missEditBtn = document.createElement('button');
-            missEditBtn.className = 'wk-edit-icon-btn';
-            missEditBtn.title = 'Edit day';
-            missEditBtn.innerHTML = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none"><path fill-rule="evenodd" clip-rule="evenodd" d="M18.4324 4C18.2266 4 18.0227 4.04055 17.8325 4.11933C17.6423 4.19811 17.4695 4.31358 17.3239 4.45914L5.25659 16.5265L4.42524 19.5748L7.47353 18.7434L19.5409 6.67608C19.6864 6.53051 19.8019 6.3577 19.8807 6.16751C19.9595 5.97732 20 5.77348 20 5.56761C20 5.36175 19.9595 5.1579 19.8807 4.96771C19.8019 4.77752 19.6864 4.60471 19.5409 4.45914C19.3953 4.31358 19.2225 4.19811 19.0323 4.11933C18.8421 4.04055 18.6383 4 18.4324 4ZM17.0671 2.27157C17.5 2.09228 17.9639 2 18.4324 2C18.9009 2 19.3648 2.09228 19.7977 2.27157C20.2305 2.45086 20.6238 2.71365 20.9551 3.04493C21.2864 3.37621 21.5492 3.7695 21.7285 4.20235C21.9077 4.63519 22 5.09911 22 5.56761C22 6.03611 21.9077 6.50003 21.7285 6.93288C21.5492 7.36572 21.2864 7.75901 20.9551 8.09029L8.69996 20.3454C8.57691 20.4685 8.42387 20.5573 8.25597 20.6031L3.26314 21.9648C2.91693 22.0592 2.54667 21.9609 2.29292 21.7071C2.03917 21.4534 1.94084 21.0831 2.03526 20.7369L3.39694 15.7441C3.44273 15.5762 3.53154 15.4231 3.6546 15.3001L15.9097 3.04493C16.241 2.71365 16.6343 2.45086 17.0671 2.27157Z" fill="currentColor"/></svg>';
-            missEditBtn.addEventListener('click', e => { e.stopPropagation(); openDayEditModal(day.key); });
-            rightWrap.appendChild(missEditBtn);
-            row.appendChild(rightWrap);
-            rows.appendChild(row);
-            continue;
-          } else {
-            pill.className = 'wk-pill';
-            pill.textContent = '–';
-          }
-          row.appendChild(pill);
-
-          const editBtn = document.createElement('button');
-          editBtn.className = 'wk-edit-icon-btn';
-          editBtn.title = 'Edit day';
-          editBtn.innerHTML = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none"><path fill-rule="evenodd" clip-rule="evenodd" d="M18.4324 4C18.2266 4 18.0227 4.04055 17.8325 4.11933C17.6423 4.19811 17.4695 4.31358 17.3239 4.45914L5.25659 16.5265L4.42524 19.5748L7.47353 18.7434L19.5409 6.67608C19.6864 6.53051 19.8019 6.3577 19.8807 6.16751C19.9595 5.97732 20 5.77348 20 5.56761C20 5.36175 19.9595 5.1579 19.8807 4.96771C19.8019 4.77752 19.6864 4.60471 19.5409 4.45914C19.3953 4.31358 19.2225 4.19811 19.0323 4.11933C18.8421 4.04055 18.6383 4 18.4324 4ZM17.0671 2.27157C17.5 2.09228 17.9639 2 18.4324 2C18.9009 2 19.3648 2.09228 19.7977 2.27157C20.2305 2.45086 20.6238 2.71365 20.9551 3.04493C21.2864 3.37621 21.5492 3.7695 21.7285 4.20235C21.9077 4.63519 22 5.09911 22 5.56761C22 6.03611 21.9077 6.50003 21.7285 6.93288C21.5492 7.36572 21.2864 7.75901 20.9551 8.09029L8.69996 20.3454C8.57691 20.4685 8.42387 20.5573 8.25597 20.6031L3.26314 21.9648C2.91693 22.0592 2.54667 21.9609 2.29292 21.7071C2.03917 21.4534 1.94084 21.0831 2.03526 20.7369L3.39694 15.7441C3.44273 15.5762 3.53154 15.4231 3.6546 15.3001L15.9097 3.04493C16.241 2.71365 16.6343 2.45086 17.0671 2.27157Z" fill="currentColor"/></svg>';
-          editBtn.addEventListener('click', e => { e.stopPropagation(); openDayEditModal(day.key); });
-          rightWrap.appendChild(editBtn);
-          row.appendChild(rightWrap);
+          row.style.background = 'var(--muted)';
         }
+
+        // Col 1: formatted date — "15th June"
+        const d = new Date(day.key + 'T12:00');
+        const dn = d.getDate(), mo = MONTHS[d.getMonth()];
+        const sfx = dn === 1||dn === 21||dn === 31 ? 'st' : dn === 2||dn === 22 ? 'nd' : dn === 3||dn === 23 ? 'rd' : 'th';
+        const colDate = document.createElement('div');
+        colDate.className = 'wk-col-date';
+        colDate.textContent = `${dn}${sfx} ${mo}`;
+        row.appendChild(colDate);
+
+        // Col 2: pill / chip / badge
+        const rightWrap = document.createElement('div');
+        rightWrap.className = 'wk-col-mid';
+
+        if (ov === 'holiday' || ov === 'leave' || ov === 'halfday') {
+          const { label, color, bg, border } = OV_CFG[ov];
+          const chip = document.createElement('div');
+          chip.style.cssText = `font-size:12px;font-weight:500;color:${color};background:${bg};border:1px solid ${border};padding:2px 10px;border-radius:20px;letter-spacing:.3px;pointer-events:none`;
+          chip.textContent = label;
+          rightWrap.appendChild(chip);
+          if (ov === 'halfday' && log?.hoursWorked != null) totalSecs += wSecs;
+        } else if (isFutureDay) {
+          const pill = document.createElement('div');
+          pill.className = 'wk-pill'; pill.textContent = '–';
+          rightWrap.appendChild(pill);
+        } else if (isToday && loginDate) {
+          const ds = Math.max(0, Math.floor((new Date() - loginDate) / 1000));
+          const pill = document.createElement('div');
+          pill.className = 'wk-pill live';
+          pill.innerHTML = `<span class="dot-live"></span>${dur(ds)}`;
+          totalSecs += ds;
+          totalSurplusSecs += Math.max(0, ds - c.dailyH * 3600);
+          rightWrap.appendChild(pill);
+        } else if (log?.hoursWorked != null && (!isToday || log?.checkoutDisplay)) {
+          const diff = wSecs - c.dailyH * 3600;
+          const pill = document.createElement('div');
+          pill.className = 'wk-pill';
+          if (diff > 120) {
+            const surpH = Math.floor(diff / 3600), surpM = Math.floor((diff % 3600) / 60);
+            const surpStr = surpH > 0 ? `+${surpH}h${surpM > 0 ? ' ' + surpM + 'm' : ''}` : `+${Math.floor(diff/60)}m`;
+            pill.innerHTML = `${dur(wSecs)} <span style="color:var(--success);font-weight:600">${surpStr}</span>`;
+            totalSurplusSecs += diff;
+          } else { pill.textContent = dur(wSecs); }
+          totalSecs += wSecs;
+          rightWrap.appendChild(pill);
+        } else if (isPastDay) {
+          const missBadge = document.createElement('div');
+          missBadge.style.cssText = 'font-size:12px;font-weight:500;color:var(--destructive);background:var(--destructive-bg);border:1px solid var(--destructive-border);padding:2px 10px;border-radius:20px;letter-spacing:.3px;pointer-events:none';
+          missBadge.textContent = 'Missing Entry';
+          rightWrap.appendChild(missBadge);
+        } else {
+          const pill = document.createElement('div');
+          pill.className = 'wk-pill'; pill.textContent = '–';
+          rightWrap.appendChild(pill);
+        }
+
+        row.appendChild(rightWrap);
+
+        // Col 3: day name
+        const colDay = document.createElement('div');
+        colDay.className = 'wk-col-day';
+        colDay.textContent = day.name;
+        row.appendChild(colDay);
+
         rows.appendChild(row);
       }
 
@@ -7902,7 +7930,7 @@
 
     // ── ANALYTICS ──────────────────────────────────────
     function renderAnalytics() {
-      el('wkNavLabel').textContent = weekRangeLabel(analyticsWeekOffset);
+      el('wkNavLabel').textContent = analyticsWeekOffset === 0 ? 'This Week' : weekRangeLabel(analyticsWeekOffset);
       el('wkNextBtn').disabled = analyticsWeekOffset >= 0;
       renderHistory();
       renderPenalties();

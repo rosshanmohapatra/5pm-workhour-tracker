@@ -26,24 +26,50 @@
       navigator.credentials.preventSilentAccess();
     }
 
+    // Reveal the app + dismiss the loader. Split out so the MFA step-up gate
+    // can run an async check first and only reveal once the account is cleared.
+    function _revealApp(session) {
+      document.documentElement.style.visibility = '';   // reveal page
+      if (location.search.includes('code=')) {
+        history.replaceState(null, '', location.pathname); // clean up URL bar
+        // Returned from OAuth linking flow — refresh sign-in methods once functions are ready
+        setTimeout(function() { if (typeof hydrateSignInMethods === 'function') hydrateSignInMethods(); }, 500);
+      }
+      // Dismiss loader after at least 1 s from page load (smooth, no flash)
+      var _elapsed = Date.now() - (window._loaderStart || Date.now());
+      var _wait = Math.max(0, 1000 - _elapsed);
+      setTimeout(function() {
+        var _l = document.getElementById('appLoader');
+        if (_l) { _l.classList.add('app-loader-out'); setTimeout(function(){ _l.remove(); }, 320); }
+      }, _wait);
+    }
+
     window._sbClient.auth.onAuthStateChange(function(event, session) {
       if (session) {
-        document.documentElement.style.visibility = '';   // reveal page
-        if (location.search.includes('code=')) {
-          history.replaceState(null, '', location.pathname); // clean up URL bar
-          // Returned from OAuth linking flow — refresh sign-in methods once functions are ready
-          setTimeout(function() { if (typeof hydrateSignInMethods === 'function') hydrateSignInMethods(); }, 500);
+        // ── Two-factor step-up gate ──
+        // If the account has a verified authenticator (nextLevel aal2) but this
+        // session is still aal1 and hasn't satisfied MFA this tab, force the
+        // login challenge. Skip during the OAuth code exchange. Fail-safe: any
+        // error in the check reveals the app rather than locking the user out.
+        var _mfaOk = false;
+        try { _mfaOk = sessionStorage.getItem('wh_mfa_ok') === '1'; } catch (e) {}
+        if (!_mfaOk && !location.search.includes('code=')) {
+          window._sbClient.auth.mfa.getAuthenticatorAssuranceLevel().then(function(res) {
+            var d = res && res.data;
+            if (d && d.nextLevel === 'aal2' && d.currentLevel === 'aal1') {
+              window.location.replace('/login.html');
+            } else {
+              _revealApp(session);
+            }
+          }).catch(function() { _revealApp(session); });
+          return;
         }
-        // Dismiss loader after at least 1 s from page load (smooth, no flash)
-        var _elapsed = Date.now() - (window._loaderStart || Date.now());
-        var _wait = Math.max(0, 1000 - _elapsed);
-        setTimeout(function() {
-          var _l = document.getElementById('appLoader');
-          if (_l) { _l.classList.add('app-loader-out'); setTimeout(function(){ _l.remove(); }, 320); }
-        }, _wait);
+        _revealApp(session);
       } else if (event === 'INITIAL_SESSION' && !location.search.includes('code=')) {
         // No session and no OAuth code being processed — send to login
         window.location.replace('/login.html');
+      } else if (event === 'SIGNED_OUT') {
+        try { sessionStorage.removeItem('wh_mfa_ok'); } catch (e) {}
       }
       // SIGNED_OUT is handled by confirmLogout() / confirmDeleteProfile() below
     });
@@ -748,7 +774,11 @@
     .settings-card-merged { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-xs); }
     .dark .settings-card-merged { box-shadow: none; }
     .settings-section { padding: 16px; }
-    .settings-section-header { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--muted-fg); margin-bottom: 14px; }
+    .settings-section-header { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--muted-fg); margin-bottom: 14px; display: flex; align-items: center; justify-content: space-between; cursor: pointer; user-select: none; }
+    .settings-chevron { display: flex; color: var(--muted-fg); transition: transform .2s ease; }
+    .settings-section.collapsed .settings-chevron { transform: rotate(-90deg); }
+    .settings-section.collapsed > *:not(.settings-section-header) { display: none; }
+    .settings-section.collapsed .settings-section-header { margin-bottom: 0; }
     .settings-section .settings-group { gap: 16px; }
     .settings-section-divider { height: 1px; background: var(--border); }
 
@@ -761,6 +791,17 @@
     .sim-status.connected { color:var(--success); }
     .sim-status.not-connected { color:var(--muted-fg); }
     .sim-status.not-set { color:var(--muted-fg); }
+
+    /* ── Authenticator (MFA) modal ── */
+    .mfa-qr { width:176px; height:176px; margin:2px auto 0; display:block; border-radius:10px; background:#fff; padding:8px; }
+    .mfa-secret { display:flex; align-items:center; justify-content:space-between; gap:8px; background:var(--muted); border:1px solid var(--border); border-radius:8px; padding:8px 12px; font-family:monospace; font-size:13px; letter-spacing:.04em; color:var(--foreground); word-break:break-all; }
+    .mfa-secret button { flex-shrink:0; background:none; border:none; color:var(--muted-fg); cursor:pointer; padding:2px; display:flex; }
+    .mfa-secret button:hover { color:var(--foreground); }
+    .mfa-codes { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+    .mfa-code { font-family:monospace; font-size:14px; letter-spacing:.08em; text-align:center; padding:9px 4px; background:var(--muted); border:1px solid var(--border); border-radius:8px; color:var(--foreground); }
+    .mfa-spinner { width:32px; height:32px; border-radius:50%; border:3px solid var(--border); border-top-color:var(--foreground); animation:mfa-spin .7s linear infinite; margin:10px auto; }
+    @keyframes mfa-spin { to { transform:rotate(360deg); } }
+    .mfa-success-icon { width:48px; height:48px; border-radius:50%; background:var(--success-bg); display:flex; align-items:center; justify-content:center; margin:4px auto 0; }
 
     /* ── Sync button states ── */
     @keyframes sync-spin { to { transform: rotate(360deg); } }
@@ -3301,6 +3342,117 @@
           <button class="ob-btn-primary" style="height:40px;font-size:13px;width:100%;border-radius:8px" onclick="closeCreatePwdModal()">Done</button>
         </div>
       </div>
+    </div>
+  </div>
+
+  <!-- ── Authenticator (2FA) Modal ── -->
+  <div class="overlay" id="mfaOverlay" style="z-index:2100" onclick="if(event.target===this)closeMfaModal()">
+    <div class="dialog" style="max-width:360px">
+
+      <!-- View: Setup (QR + code) -->
+      <div id="mfaViewSetup" style="display:none">
+        <div class="dialog-head" style="display:flex;align-items:flex-start;justify-content:space-between">
+          <div>
+            <div class="dialog-title">Set Up Authenticator</div>
+            <div class="dialog-desc">Scan the QR code with your authenticator app, then enter the 6-digit code.</div>
+          </div>
+          <button class="btn-icon" onclick="closeMfaModal()" title="Close" style="margin:-4px -4px -4px 8px;flex-shrink:0">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+        <div style="padding:0 20px 20px;display:flex;flex-direction:column;gap:12px">
+          <img id="mfaQrImg" class="mfa-qr" alt="Authenticator QR code">
+          <div class="mfa-secret">
+            <span id="mfaSecret">—</span>
+            <button onclick="_copyMfaSecret()" title="Copy setup key">
+              <svg id="mfaSecretCopyIcon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+              <svg id="mfaSecretCheckIcon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:none"><polyline points="20 6 9 17 4 12"/></svg>
+            </button>
+          </div>
+          <input type="text" id="mfaCodeInput" class="field-input" inputmode="numeric" maxlength="6" placeholder="000000" autocomplete="one-time-code" style="text-align:center;letter-spacing:.4em;font-size:16px" oninput="this.value=this.value.replace(/\D/g,'').slice(0,6);el('mfaVerifyBtn').disabled=this.value.length<6">
+          <div id="mfaSetupErr" style="display:none;font-size:12px;color:var(--destructive)"></div>
+          <div style="display:flex;gap:8px">
+            <button class="btn-secondary" style="flex:1;justify-content:center" onclick="closeMfaModal()">Cancel</button>
+            <button id="mfaVerifyBtn" class="ob-btn-primary" style="flex:1;height:36px;font-size:13px;border-radius:8px" onclick="mfaVerifyEnroll()" disabled>Verify</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- View: Verifying -->
+      <div id="mfaViewVerifying" style="display:none">
+        <div style="padding:32px 20px;text-align:center">
+          <div class="mfa-spinner"></div>
+          <div class="dialog-title" style="margin-top:8px">Verifying…</div>
+          <div class="dialog-desc">Checking your authenticator code.</div>
+        </div>
+      </div>
+
+      <!-- View: Backup codes -->
+      <div id="mfaViewBackup" style="display:none">
+        <div class="dialog-head" style="display:flex;align-items:flex-start;justify-content:space-between">
+          <div>
+            <div class="dialog-title">Save Your Backup Codes</div>
+            <div class="dialog-desc">Store these somewhere safe. Each code works once if you lose access to your authenticator.</div>
+          </div>
+        </div>
+        <div style="padding:0 20px 20px;display:flex;flex-direction:column;gap:12px">
+          <div class="mfa-codes" id="mfaCodesGrid"></div>
+          <div style="display:flex;gap:8px">
+            <button class="btn-secondary" style="flex:1;justify-content:center;gap:6px" onclick="_copyBackupCodes()">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+              <span id="mfaCopyLabel">Copy</span>
+            </button>
+            <button class="btn-secondary" style="flex:1;justify-content:center;gap:6px" onclick="_downloadBackupCodes()">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              Download
+            </button>
+          </div>
+          <button class="ob-btn-primary" style="height:40px;font-size:13px;width:100%;border-radius:8px" onclick="mfaShowSuccess()">I've Saved Them</button>
+        </div>
+      </div>
+
+      <!-- View: Success -->
+      <div id="mfaViewSuccess" style="display:none">
+        <div style="padding:24px 20px 20px;text-align:center">
+          <div class="mfa-success-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--success)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          </div>
+          <div class="dialog-title" style="margin-top:12px">Authentication Successful</div>
+          <div class="dialog-desc">Two-factor authentication is now enabled on your account.</div>
+          <button class="ob-btn-primary" style="height:40px;font-size:13px;width:100%;border-radius:8px;margin-top:16px" onclick="closeMfaModal()">Done</button>
+        </div>
+      </div>
+
+      <!-- View: Manage (already enabled) -->
+      <div id="mfaViewManage" style="display:none">
+        <div class="dialog-head" style="display:flex;align-items:flex-start;justify-content:space-between">
+          <div>
+            <div class="dialog-title">Authenticator App</div>
+            <div class="dialog-desc">Two-factor authentication is enabled on your account.</div>
+          </div>
+          <button class="btn-icon" onclick="closeMfaModal()" title="Close" style="margin:-4px -4px -4px 8px;flex-shrink:0">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+        <div style="padding:0 20px 20px;display:flex;flex-direction:column;gap:8px">
+          <button class="btn-ghost-destructive" style="width:100%;justify-content:center" onclick="mfaShowDisable()">Disable Two-Factor Authentication</button>
+        </div>
+      </div>
+
+      <!-- View: Disable confirm -->
+      <div id="mfaViewDisable" style="display:none">
+        <div class="dialog-head" style="display:flex;align-items:flex-start;justify-content:space-between">
+          <div>
+            <div class="dialog-title">Disable 2FA?</div>
+            <div class="dialog-desc">You'll no longer be asked for a code at login. Your backup codes will be deleted.</div>
+          </div>
+        </div>
+        <div style="padding:0 20px 20px;display:flex;gap:8px">
+          <button class="btn-secondary" style="flex:1;justify-content:center" onclick="mfaShowManage()">Cancel</button>
+          <button id="mfaDisableBtn" class="btn-ghost-destructive" style="flex:1;justify-content:center" onclick="mfaConfirmDisable()">Disable</button>
+        </div>
+      </div>
+
     </div>
   </div>
 
@@ -7356,8 +7508,32 @@
     }
 
     // ── SETTINGS ───────────────────────────────────────
+    // Make each labeled settings section collapsible (chevron toggle, state
+    // persisted). Idempotent — safe to call every time settings opens.
+    function initCollapsibleSettings() {
+      let collapsed = {};
+      try { collapsed = JSON.parse(localStorage.getItem('wh_settings_collapsed') || '{}'); } catch (_) {}
+      document.querySelectorAll('.settings-card-merged .settings-section').forEach(section => {
+        const header = section.querySelector('.settings-section-header');
+        if (!header || header.dataset.collapsible) return;
+        header.dataset.collapsible = '1';
+        const key = header.textContent.trim();
+        const chev = document.createElement('span');
+        chev.className = 'settings-chevron';
+        chev.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>';
+        header.appendChild(chev);
+        if (collapsed[key]) section.classList.add('collapsed');
+        header.addEventListener('click', () => {
+          const isC = section.classList.toggle('collapsed');
+          collapsed[key] = isC;
+          try { localStorage.setItem('wh_settings_collapsed', JSON.stringify(collapsed)); } catch (_) {}
+        });
+      });
+    }
+
     function populateSettings() {
       const c = cfg();
+      initCollapsibleSettings();
       el('inpDisplay').value       = c.name || '';
       el('inpPosition').value   = c.position || '';
       const _dh = Math.floor(c.dailyH || 9);
@@ -10870,6 +11046,25 @@ ${sig}`
             : () => _connectProvider('github'),
           destructive: !!githubId,
         }));
+
+        // Authenticator App (TOTP 2FA) — second factor, not a sign-in provider
+        let totpFactor = null;
+        try {
+          const { data: f } = await window._sbClient.auth.mfa.listFactors();
+          totpFactor = (f?.totp || []).find(x => x.status === 'verified') || null;
+        } catch(_) { /* MFA list best-effort */ }
+        const _mfaDivider = document.createElement('div');
+        _mfaDivider.style.cssText = 'height:1px;background:var(--border);margin:2px 0';
+        list.appendChild(_mfaDivider);
+        list.appendChild(_simBuildRow({
+          icon: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l8 4v5c0 5-3.4 8.5-8 11-4.6-2.5-8-6-8-11V6l8-4z"/><path d="M9 12l2 2 4-4"/></svg>`,
+          name: 'Authenticator App',
+          status: totpFactor ? 'Enabled' : 'Not set',
+          connected: !!totpFactor,
+          action: totpFactor ? 'Manage' : 'Set Up',
+          onAction: totpFactor ? () => openMfaManage(totpFactor) : openMfaSetup,
+          destructive: false,
+        }));
       } catch(e) {
         list.innerHTML = '<div style="font-size:13px;color:var(--muted-fg)">Failed to load sign-in methods.</div>';
       }
@@ -10968,6 +11163,159 @@ ${sig}`
       } catch(e) {
         btn.disabled = false; btn.textContent = 'Set Password'; btn.style.opacity = '';
         showErr(e.message || 'Failed to set password. Please try again.');
+      }
+    }
+
+    // ── Authenticator (TOTP 2FA) ─────────────────────────────────────────────
+    let _mfaFactorId = null, _mfaBackupCodes = [], _mfaManageFactor = null;
+
+    function _mfaShowView(id) {
+      ['mfaViewSetup','mfaViewVerifying','mfaViewBackup','mfaViewSuccess','mfaViewManage','mfaViewDisable']
+        .forEach(v => { const e = el(v); if (e) e.style.display = v === id ? '' : 'none'; });
+    }
+    function closeMfaModal() {
+      el('mfaOverlay').classList.remove('open');
+      const db = el('mfaDisableBtn'); if (db) { db.disabled = false; db.textContent = 'Disable'; }
+    }
+    function _mfaSetupError(msg) {
+      const e = el('mfaSetupErr'); if (e) { e.textContent = msg; e.style.display = ''; }
+    }
+
+    // Normalize + hash a backup code (shared shape with login.js verification)
+    function _normalizeBackupCode(c) { return (c || '').toLowerCase().replace(/[^a-z0-9]/g, ''); }
+    async function _sha256Hex(str) {
+      const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+      return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
+    }
+    function _genBackupCodes() {
+      const alphabet = '23456789abcdefghjkmnpqrstuvwxyz'; // no ambiguous 0/1/i/l/o
+      const codes = [];
+      for (let n = 0; n < 10; n++) {
+        const buf = new Uint8Array(8); crypto.getRandomValues(buf);
+        let s = ''; for (let i = 0; i < 8; i++) s += alphabet[buf[i] % alphabet.length];
+        codes.push(s.slice(0, 4) + '-' + s.slice(4));
+      }
+      return codes;
+    }
+    async function _storeBackupCodes(codes) {
+      const { data: { user } } = await window._sbClient.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+      const hashes = await Promise.all(codes.map(c => _sha256Hex(_normalizeBackupCode(c))));
+      await window._sbClient.from('mfa_backup_codes').delete().eq('user_id', user.id);
+      const rows = hashes.map(h => ({ user_id: user.id, code_hash: h }));
+      const { error } = await window._sbClient.from('mfa_backup_codes').insert(rows);
+      if (error) throw error;
+    }
+    function _renderBackupCodes(codes) {
+      const grid = el('mfaCodesGrid'); if (!grid) return;
+      grid.innerHTML = '';
+      codes.forEach(c => { const d = document.createElement('div'); d.className = 'mfa-code'; d.textContent = c; grid.appendChild(d); });
+    }
+
+    async function openMfaSetup() {
+      _mfaShowView('mfaViewSetup');
+      el('mfaOverlay').classList.add('open');
+      el('mfaQrImg').removeAttribute('src');
+      el('mfaSecret').textContent = '…';
+      el('mfaCodeInput').value = '';
+      el('mfaVerifyBtn').disabled = true;
+      _mfaSetupError(''); el('mfaSetupErr').style.display = 'none';
+      try {
+        const mfa = window._sbClient.auth.mfa;
+        // Clean up any stale unverified TOTP factors so enroll doesn't conflict
+        const { data: f } = await mfa.listFactors();
+        const stale = (f?.all || []).filter(x => x.factor_type === 'totp' && x.status !== 'verified');
+        for (const s of stale) { try { await mfa.unenroll({ factorId: s.id }); } catch(_) {} }
+        const { data, error } = await mfa.enroll({ factorType: 'totp' });
+        if (error) throw error;
+        _mfaFactorId = data.id;
+        el('mfaQrImg').src = data.totp.qr_code;
+        el('mfaSecret').textContent = data.totp.secret;
+      } catch(e) {
+        const m = e.message || '';
+        _mfaSetupError(/disabled|not enabled/i.test(m)
+          ? 'TOTP is disabled for this project. Enable it in Supabase → Authentication → MFA.'
+          : (m || 'Could not start setup. Please try again.'));
+      }
+    }
+
+    async function mfaVerifyEnroll() {
+      const code = (el('mfaCodeInput').value || '').replace(/\D/g, '');
+      if (code.length < 6 || !_mfaFactorId) return;
+      _mfaShowView('mfaViewVerifying');
+      try {
+        const { error } = await window._sbClient.auth.mfa.challengeAndVerify({ factorId: _mfaFactorId, code });
+        if (error) throw error;
+        try { sessionStorage.setItem('wh_mfa_ok', '1'); } catch(_) {}
+        // Verified — now generate and store backup codes
+        try {
+          _mfaBackupCodes = _genBackupCodes();
+          await _storeBackupCodes(_mfaBackupCodes);
+          _renderBackupCodes(_mfaBackupCodes);
+          _mfaShowView('mfaViewBackup');
+        } catch(storeErr) {
+          // Factor is live, but codes failed to save — warn and continue
+          showToast("Backup codes not saved", 'error', 'Two-factor is on, but save backup codes failed. Regenerate later.');
+          mfaShowSuccess();
+        }
+        hydrateSignInMethods();
+      } catch(e) {
+        _mfaShowView('mfaViewSetup');
+        el('mfaCodeInput').value = ''; el('mfaVerifyBtn').disabled = true;
+        _mfaSetupError(/invalid|incorrect/i.test(e.message || '') ? 'Incorrect code. Try again.' : (e.message || 'Verification failed.'));
+      }
+    }
+
+    function mfaShowSuccess() { _mfaShowView('mfaViewSuccess'); }
+
+    function _copyBackupCodes() {
+      navigator.clipboard?.writeText(_mfaBackupCodes.join('\n'));
+      const lbl = el('mfaCopyLabel');
+      if (lbl) { lbl.textContent = 'Copied'; setTimeout(() => lbl.textContent = 'Copy', 1600); }
+    }
+    function _downloadBackupCodes() {
+      const body = '5pm — Two-Factor Backup Codes\nSaved ' + new Date().toLocaleString() +
+        '\n\nEach code works once. Keep them somewhere safe.\n\n' + _mfaBackupCodes.join('\n') + '\n';
+      const blob = new Blob([body], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = '5pm-backup-codes.txt';
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+    let _mfaSecretResetTimer = null;
+    function _copyMfaSecret() {
+      navigator.clipboard?.writeText(el('mfaSecret').textContent || '');
+      el('mfaSecretCopyIcon').style.display = 'none';
+      el('mfaSecretCheckIcon').style.display = '';
+      if (_mfaSecretResetTimer) clearTimeout(_mfaSecretResetTimer);
+      _mfaSecretResetTimer = setTimeout(() => {
+        el('mfaSecretCopyIcon').style.display = '';
+        el('mfaSecretCheckIcon').style.display = 'none';
+      }, 1600);
+    }
+
+    function openMfaManage(factor) {
+      _mfaManageFactor = factor;
+      _mfaShowView('mfaViewManage');
+      el('mfaOverlay').classList.add('open');
+    }
+    function mfaShowManage() { _mfaShowView('mfaViewManage'); }
+    function mfaShowDisable() { _mfaShowView('mfaViewDisable'); }
+    async function mfaConfirmDisable() {
+      const btn = el('mfaDisableBtn'); btn.disabled = true; btn.textContent = 'Disabling…';
+      try {
+        const fid = _mfaManageFactor?.id;
+        if (fid) { const { error } = await window._sbClient.auth.mfa.unenroll({ factorId: fid }); if (error) throw error; }
+        const { data: { user } } = await window._sbClient.auth.getUser();
+        if (user) await window._sbClient.from('mfa_backup_codes').delete().eq('user_id', user.id);
+        try { sessionStorage.removeItem('wh_mfa_ok'); } catch(_) {}
+        closeMfaModal();
+        showToast('Two-Factor Disabled', 'success', 'Authenticator app removed from your account.');
+        hydrateSignInMethods();
+      } catch(e) {
+        btn.disabled = false; btn.textContent = 'Disable';
+        showToast('Could not disable', 'error', e.message || 'Please try again.');
       }
     }
 

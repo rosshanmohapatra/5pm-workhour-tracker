@@ -778,6 +778,8 @@
     .settings-chevron { display: flex; color: var(--muted-fg); transition: transform .28s ease; }
     .settings-section.collapsed .settings-chevron { transform: rotate(-90deg); }
     .settings-section.collapsed .settings-section-header { margin-bottom: 0; }
+    /* Sections with a description: tighten the title→description gap to 4px (collapsed rule above still wins at 0) */
+    .settings-section--has-desc .settings-section-header { margin-bottom: 4px; }
     /* Collapse/expand animation — max-height is set in JS to the measured height for a smooth, pixel-precise slide */
     .settings-section-body-inner { overflow: hidden; transition: max-height .28s ease, opacity .22s ease; opacity: 1; }
     .settings-section.collapsed .settings-section-body-inner { opacity: 0; }
@@ -2734,7 +2736,7 @@
         <div class="settings-section-divider"></div>
 
         <!-- ── Sign-In Methods ── -->
-        <div class="settings-section">
+        <div class="settings-section settings-section--has-desc">
           <div class="settings-section-header">Sign-In Methods</div>
           <div class="form-sub" style="margin-bottom:14px">Connect multiple ways to access your account.</div>
           <div id="simList" class="settings-group">

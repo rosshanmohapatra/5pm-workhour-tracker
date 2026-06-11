@@ -1,8 +1,7 @@
 # Supabase project configuration
 # https://supabase.com/docs/guides/cli/config
 
-[project]
-id = "ivgathdwiptuymrqzruq"
+project_id = "ivgathdwiptuymrqzruq"
 
 [db]
 # Migrations live in supabase/migrations/

@@ -774,11 +774,13 @@
     .settings-card-merged { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-xs); }
     .dark .settings-card-merged { box-shadow: none; }
     .settings-section { padding: 16px; }
-    .settings-section-header { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--muted-fg); margin-bottom: 14px; display: flex; align-items: center; justify-content: space-between; cursor: pointer; user-select: none; }
-    .settings-chevron { display: flex; color: var(--muted-fg); transition: transform .2s ease; }
+    .settings-section-header { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--muted-fg); margin-bottom: 14px; display: flex; align-items: center; justify-content: space-between; cursor: pointer; user-select: none; transition: margin-bottom .28s ease; }
+    .settings-chevron { display: flex; color: var(--muted-fg); transition: transform .28s ease; }
     .settings-section.collapsed .settings-chevron { transform: rotate(-90deg); }
-    .settings-section.collapsed > *:not(.settings-section-header) { display: none; }
     .settings-section.collapsed .settings-section-header { margin-bottom: 0; }
+    /* Collapse/expand animation — max-height is set in JS to the measured height for a smooth, pixel-precise slide */
+    .settings-section-body-inner { overflow: hidden; transition: max-height .28s ease, opacity .22s ease; opacity: 1; }
+    .settings-section.collapsed .settings-section-body-inner { opacity: 0; }
     .settings-section .settings-group { gap: 16px; }
     .settings-section-divider { height: 1px; background: var(--border); }
 
@@ -7522,10 +7524,30 @@
         chev.className = 'settings-chevron';
         chev.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>';
         header.appendChild(chev);
-        if (collapsed[key]) section.classList.add('collapsed');
+        // Wrap everything after the header so it can be smoothly slid open/closed.
+        const inner = document.createElement('div');
+        inner.className = 'settings-section-body-inner';
+        while (header.nextSibling) inner.appendChild(header.nextSibling);
+        section.appendChild(inner);
+        // Apply the saved state instantly (no animation on first paint).
+        if (collapsed[key]) { section.classList.add('collapsed'); inner.style.maxHeight = '0px'; }
         header.addEventListener('click', () => {
-          const isC = section.classList.toggle('collapsed');
-          collapsed[key] = isC;
+          const willCollapse = !section.classList.contains('collapsed');
+          if (willCollapse) {
+            // Lock to current height, then animate to 0 on the next frame.
+            inner.style.maxHeight = inner.scrollHeight + 'px';
+            requestAnimationFrame(() => {
+              section.classList.add('collapsed');
+              inner.style.maxHeight = '0px';
+            });
+          } else {
+            section.classList.remove('collapsed');
+            inner.style.maxHeight = inner.scrollHeight + 'px';
+            // Release the cap once open so async content (e.g. sign-in list) can grow.
+            const done = () => { if (!section.classList.contains('collapsed')) inner.style.maxHeight = ''; inner.removeEventListener('transitionend', done); };
+            inner.addEventListener('transitionend', done);
+          }
+          collapsed[key] = willCollapse;
           try { localStorage.setItem('wh_settings_collapsed', JSON.stringify(collapsed)); } catch (_) {}
         });
       });

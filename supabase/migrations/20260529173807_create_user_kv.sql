@@ -113,3 +113,14 @@ END $$;
 -- ── 7. Performance index ───────────────────────────────────
 CREATE INDEX IF NOT EXISTS user_kv_user_id_idx
   ON public.user_kv (user_id);
+
+
+-- ── 8. Table-level UPDATE + DELETE grant ───────────────────
+-- PostgREST needs table-level UPDATE/DELETE here — the column-level UPDATE
+-- grant above is insufficient for the upsert conflict-update + row deletes.
+GRANT UPDATE, DELETE ON public.user_kv TO authenticated;
+
+
+-- ── 9. Replica identity (realtime old-row data) ────────────
+-- FULL so postgres_changes payloads include the previous row on UPDATE/DELETE.
+ALTER TABLE public.user_kv REPLICA IDENTITY FULL;

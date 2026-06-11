@@ -106,11 +106,11 @@ function showView(id) {
 let isSignup = false;
 function toggleMode() {
   isSignup = !isSignup;
-  $('authTitle').textContent   = isSignup ? 'Create an account' : 'Hey Hustler,';
+  $('authTitle').textContent   = isSignup ? 'Create an account' : 'Sign In';
   $('authSub').textContent     = isSignup ? 'Start tracking your work hours.' : 'Let us help you manage your time.';
   $('submitLabel').textContent = isSignup ? 'Create Account' : 'Sign In';
   $('footerText').textContent  = isSignup ? 'Already have an account?' : "Don't have an account?";
-  $('toggleLink').textContent  = isSignup ? 'Log in' : 'Sign up';
+  $('toggleLink').textContent  = isSignup ? 'Sign In' : 'Sign up';
   $('pwdInput').autocomplete   = isSignup ? 'new-password' : 'current-password';
   $('nameField').classList.toggle('show', isSignup);
   $('forgotLink').style.display = isSignup ? 'none' : '';
@@ -124,6 +124,16 @@ function togglePwd() {
   $('eyeOpen').style.display  = isText ? '' : 'none';
   $('eyeClose').style.display = isText ? 'none' : '';
 }
+
+// Show the eye toggle only when the password field has characters
+(function () {
+  const input = $('pwdInput');
+  if (!input) return;
+  const wrap = input.closest('.pwd-wrap');
+  input.addEventListener('input', () => {
+    wrap.classList.toggle('has-value', input.value.length > 0);
+  });
+})();
 
 // --- Email / password sign-in or sign-up ---
 async function handleSubmit() {
@@ -155,6 +165,13 @@ async function handleSubmit() {
     } else {
       const { error } = await _sb.auth.signInWithPassword({ email, password: pwd });
       if (error) throw error;
+      // If the account has a verified authenticator, require the second factor before entering.
+      if (await _mfaRequired()) {
+        btn.classList.remove('loading');
+        btn.disabled = false;
+        showMfaChallenge();
+        return;
+      }
       showSuccess('Welcome back!');
     }
   } catch (err) {
@@ -281,8 +298,83 @@ function showAuthDigits() {
   digits[0].focus();
 }
 
-function completeRecovery() {
-  showSuccess('Access restored');
+// ── Two-factor (TOTP) login challenge ─────────────────────────────────────────
+// True when the signed-in account has a verified authenticator that still needs
+// to be satisfied this session (AAL1 → AAL2 step-up).
+async function _mfaRequired() {
+  try {
+    const { data, error } = await _sb.auth.mfa.getAuthenticatorAssuranceLevel();
+    if (error) return false;
+    return !!data && data.nextLevel === 'aal2' && data.currentLevel === 'aal1';
+  } catch (_) { return false; }
+}
+
+function showMfaChallenge() {
+  $('authFooter').style.display = 'none';
+  showAuthDigits();
+  const bi = $('authBackupInput'); if (bi) bi.value = '';
+  if ($('authBackupVerify')) $('authBackupVerify').disabled = true;
+  if ($('authErr')) $('authErr').classList.remove('show');
+}
+
+function _showAuthErr(msg) {
+  const e = $('authErr');
+  if (e) { e.textContent = msg; e.classList.add('show'); }
+}
+
+// Verify the 6-digit TOTP code against Supabase MFA, then sign in.
+async function completeRecovery() {
+  const digits = ['rd0','rd1','rd2','rd3','rd4','rd5'].map(id => $(id).value).join('');
+  if (digits.length < 6) return;
+  const btn = $('authDigitVerify');
+  btn.classList.add('loading'); btn.disabled = true;
+  if ($('authErr')) $('authErr').classList.remove('show');
+  try {
+    const { data: f } = await _sb.auth.mfa.listFactors();
+    const factor = (f?.totp || []).find(x => x.status === 'verified');
+    if (!factor) throw new Error('No authenticator is set up on this account.');
+    const { error } = await _sb.auth.mfa.challengeAndVerify({ factorId: factor.id, code: digits });
+    if (error) throw error;
+    try { sessionStorage.setItem('wh_mfa_ok', '1'); } catch (_) {}
+    showSuccess('Welcome back!');
+  } catch (err) {
+    btn.classList.remove('loading'); btn.disabled = false;
+    ['rd0','rd1','rd2','rd3','rd4','rd5'].forEach(id => $(id).value = '');
+    $('rd0').focus();
+    _showAuthErr(/invalid|incorrect/i.test(err.message || '') ? 'Incorrect code. Try again.' : (err.message || 'Verification failed.'));
+  }
+}
+
+// Verify a one-time backup code against our own table, then sign in.
+function _normalizeBackupCode(c) { return (c || '').toLowerCase().replace(/[^a-z0-9]/g, ''); }
+async function _sha256Hex(str) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+  return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
+}
+async function verifyBackupCode() {
+  const raw = $('authBackupInput').value;
+  const norm = _normalizeBackupCode(raw);
+  if (norm.length < 8) return;
+  const btn = $('authBackupVerify');
+  btn.disabled = true; btn.textContent = 'Verifying…';
+  if ($('authErr')) $('authErr').classList.remove('show');
+  try {
+    const hash = await _sha256Hex(norm);
+    // Atomic single-statement consume: marks the matching unused code used (RLS scopes to this user).
+    const { data, error } = await _sb
+      .from('mfa_backup_codes')
+      .update({ used_at: new Date().toISOString() })
+      .eq('code_hash', hash)
+      .is('used_at', null)
+      .select();
+    if (error) throw error;
+    if (!data || data.length === 0) throw new Error('Invalid or already-used backup code.');
+    try { sessionStorage.setItem('wh_mfa_ok', '1'); } catch (_) {}
+    showSuccess('Welcome back!');
+  } catch (err) {
+    btn.disabled = false; btn.textContent = 'Use Backup Code';
+    _showAuthErr(err.message || 'Could not verify backup code.');
+  }
 }
 
 // ── 5. Digit-input wiring ─────────────────────────────────────────────────────
@@ -330,4 +422,19 @@ document.getElementById('github-recovery-btn').addEventListener('click', e => ha
 document.addEventListener('keydown', e => {
   if (e.key !== 'Enter') return;
   if ($('viewLogin').style.display !== 'none') handleSubmit();
+  else if ($('viewAuth').style.display !== 'none') {
+    if (!$('authBackupVerify').disabled && document.activeElement === $('authBackupInput')) verifyBackupCode();
+    else if (!$('authDigitVerify').disabled) completeRecovery();
+  }
 });
+
+// ── On load: if a session is already established but still needs the second
+// factor (e.g. bounced here from index.html's step-up gate, or an OAuth login
+// with 2FA enabled), show the authenticator challenge directly instead of the
+// password form so the user doesn't have to re-enter their password.
+(async function () {
+  try {
+    const { data: { session } } = await _sb.auth.getSession();
+    if (session && await _mfaRequired()) showMfaChallenge();
+  } catch (_) { /* no session / offline — show the normal login form */ }
+})();

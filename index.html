@@ -26,22 +26,50 @@
       navigator.credentials.preventSilentAccess();
     }
 
+    // Reveal the app + dismiss the loader. Split out so the MFA step-up gate
+    // can run an async check first and only reveal once the account is cleared.
+    function _revealApp(session) {
+      document.documentElement.style.visibility = '';   // reveal page
+      if (location.search.includes('code=')) {
+        history.replaceState(null, '', location.pathname); // clean up URL bar
+        // Returned from OAuth linking flow — refresh sign-in methods once functions are ready
+        setTimeout(function() { if (typeof hydrateSignInMethods === 'function') hydrateSignInMethods(); }, 500);
+      }
+      // Dismiss loader after at least 1 s from page load (smooth, no flash)
+      var _elapsed = Date.now() - (window._loaderStart || Date.now());
+      var _wait = Math.max(0, 1000 - _elapsed);
+      setTimeout(function() {
+        var _l = document.getElementById('appLoader');
+        if (_l) { _l.classList.add('app-loader-out'); setTimeout(function(){ _l.remove(); }, 320); }
+      }, _wait);
+    }
+
     window._sbClient.auth.onAuthStateChange(function(event, session) {
       if (session) {
-        document.documentElement.style.visibility = '';   // reveal page
-        if (location.search.includes('code=')) {
-          history.replaceState(null, '', location.pathname); // clean up URL bar
+        // ── Two-factor step-up gate ──
+        // If the account has a verified authenticator (nextLevel aal2) but this
+        // session is still aal1 and hasn't satisfied MFA this tab, force the
+        // login challenge. Skip during the OAuth code exchange. Fail-safe: any
+        // error in the check reveals the app rather than locking the user out.
+        var _mfaOk = false;
+        try { _mfaOk = sessionStorage.getItem('wh_mfa_ok') === '1'; } catch (e) {}
+        if (!_mfaOk && !location.search.includes('code=')) {
+          window._sbClient.auth.mfa.getAuthenticatorAssuranceLevel().then(function(res) {
+            var d = res && res.data;
+            if (d && d.nextLevel === 'aal2' && d.currentLevel === 'aal1') {
+              window.location.replace('/login.html');
+            } else {
+              _revealApp(session);
+            }
+          }).catch(function() { _revealApp(session); });
+          return;
         }
-        // Dismiss loader after at least 1 s from page load (smooth, no flash)
-        var _elapsed = Date.now() - (window._loaderStart || Date.now());
-        var _wait = Math.max(0, 1000 - _elapsed);
-        setTimeout(function() {
-          var _l = document.getElementById('appLoader');
-          if (_l) { _l.classList.add('app-loader-out'); setTimeout(function(){ _l.remove(); }, 320); }
-        }, _wait);
+        _revealApp(session);
       } else if (event === 'INITIAL_SESSION' && !location.search.includes('code=')) {
         // No session and no OAuth code being processed — send to login
         window.location.replace('/login.html');
+      } else if (event === 'SIGNED_OUT') {
+        try { sessionStorage.removeItem('wh_mfa_ok'); } catch (e) {}
       }
       // SIGNED_OUT is handled by confirmLogout() / confirmDeleteProfile() below
     });
@@ -530,7 +558,6 @@
     .rc-body .rc-numbers { margin-bottom: -4px; }
     /* ── Weekend empty state ── */
     .rc-body.weekend-mode .rc-numbers,
-    .rc-body.weekend-mode .progress-wrap,
     .rc-body.weekend-mode #rcToday,
     .rc-body.weekend-mode #stayHint,
     .rc-body.weekend-mode #otBanner,
@@ -588,16 +615,6 @@
     .rc-worked { font-size: 32px; font-weight: 600; letter-spacing: -1px; line-height: 32px; color: var(--foreground); }
     .rc-elapsed-label { font-size: 11px; font-weight: 600; letter-spacing: .08em;
       text-transform: uppercase; color: var(--muted-fg); margin-top: 2px; }
-    .progress-wrap { display: flex; flex-direction: column; gap: 6px; }
-    .progress-bar-row { display: flex; align-items: center; gap: 10px; }
-    .progress-track { flex: 1; height: 4px; background: var(--muted); border-radius: 99px; overflow: hidden;
-      transition: height .45s ease, background .45s ease; }
-    .progress-track.target-reached { height: 1px; background: var(--border); }
-    .progress-fill { height: 100%; background: var(--foreground); border-radius: 99px;
-      transition: width .8s ease, opacity .35s ease; }
-    .progress-fill.done { background: var(--success); }
-    .progress-fill.target-reached { opacity: 0; }
-    .progress-label { font-size: 14px; font-weight: 600; color: var(--muted-fg); white-space: nowrap; }
     .rc-meta { display: flex; gap: 16px; flex-wrap: wrap; }
     .rc-meta-item { font-size: 12px; color: var(--muted-fg); }
     .rc-meta-item b { color: var(--foreground); }
@@ -630,7 +647,7 @@
     .wk-collapsible.open     { max-height: 500px; opacity: 1; }
     .wk-collapsible.minimized { max-height: 0; opacity: 0; }
     .wk-rows { padding: 8px 12px; display: flex; flex-direction: column; gap: 8px; }
-    .wk-row { display: grid; grid-template-columns: 76px 1fr auto; align-items: center;
+    .wk-row { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center;
       min-height: 40px; padding: 6px 10px; cursor: pointer; border-radius: 8px; position: relative; transition: background .12s; gap: 0 8px; }
     .wk-row:hover { background: var(--muted); }
     .wk-col-day { font-size: 12px; font-weight: 400; color: var(--muted-fg); white-space: nowrap; text-align: right; }
@@ -757,9 +774,38 @@
     .settings-card-merged { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-xs); }
     .dark .settings-card-merged { box-shadow: none; }
     .settings-section { padding: 16px; }
-    .settings-section-header { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--muted-fg); margin-bottom: 14px; }
+    .settings-section-header { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--muted-fg); margin-bottom: 14px; display: flex; align-items: center; justify-content: space-between; cursor: pointer; user-select: none; transition: margin-bottom .28s ease; }
+    .settings-chevron { display: flex; color: var(--muted-fg); transition: transform .28s ease; }
+    .settings-section.collapsed .settings-chevron { transform: rotate(-90deg); }
+    .settings-section.collapsed .settings-section-header { margin-bottom: 0; }
+    /* Sections with a description: tighten the title→description gap to 4px (collapsed rule above still wins at 0) */
+    .settings-section--has-desc .settings-section-header { margin-bottom: 4px; }
+    /* Collapse/expand animation — max-height is set in JS to the measured height for a smooth, pixel-precise slide */
+    .settings-section-body-inner { overflow: hidden; transition: max-height .28s ease, opacity .22s ease; opacity: 1; }
+    .settings-section.collapsed .settings-section-body-inner { opacity: 0; }
     .settings-section .settings-group { gap: 16px; }
     .settings-section-divider { height: 1px; background: var(--border); }
+
+    /* ── Sign-In Methods ── */
+    .sim-row { display:flex;align-items:center;justify-content:space-between;gap:12px; }
+    .sim-provider { display:flex;align-items:center;gap:10px;min-width:0; }
+    .sim-icon { width:32px;height:32px;border-radius:8px;border:1px solid var(--border);display:flex;align-items:center;justify-content:center;flex-shrink:0;background:var(--muted); }
+    .sim-name { font-size:13px;font-weight:500;color:var(--foreground); }
+    .sim-status { font-size:11px;font-weight:500;margin-top:1px; }
+    .sim-status.connected { color:var(--success); }
+    .sim-status.not-connected { color:var(--muted-fg); }
+    .sim-status.not-set { color:var(--muted-fg); }
+
+    /* ── Authenticator (MFA) modal ── */
+    .mfa-qr { width:176px; height:176px; margin:2px auto 0; display:block; border-radius:10px; background:#fff; padding:8px; }
+    .mfa-secret { display:flex; align-items:center; justify-content:space-between; gap:8px; background:var(--muted); border:1px solid var(--border); border-radius:8px; padding:8px 12px; font-family:monospace; font-size:13px; letter-spacing:.04em; color:var(--foreground); word-break:break-all; }
+    .mfa-secret button { flex-shrink:0; background:none; border:none; color:var(--muted-fg); cursor:pointer; padding:2px; display:flex; }
+    .mfa-secret button:hover { color:var(--foreground); }
+    .mfa-codes { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+    .mfa-code { font-family:monospace; font-size:14px; letter-spacing:.08em; text-align:center; padding:9px 4px; background:var(--muted); border:1px solid var(--border); border-radius:8px; color:var(--foreground); }
+    .mfa-spinner { width:32px; height:32px; border-radius:50%; border:3px solid var(--border); border-top-color:var(--foreground); animation:mfa-spin .7s linear infinite; margin:10px auto; }
+    @keyframes mfa-spin { to { transform:rotate(360deg); } }
+    .mfa-success-icon { width:48px; height:48px; border-radius:50%; background:var(--success-bg); display:flex; align-items:center; justify-content:center; margin:4px auto 0; }
 
     /* ── Sync button states ── */
     @keyframes sync-spin { to { transform: rotate(360deg); } }
@@ -1076,13 +1122,19 @@
     .modal-override-row { display: flex; gap: 6px; flex-wrap: wrap; }
     .de-note-wrap { overflow: hidden; max-height: 0; opacity: 0;
       transition: max-height .25s ease, opacity .2s ease; }
-    .de-note-wrap.visible { max-height: 120px; opacity: 1; }
-    .de-note-wrap textarea { width: 100%; resize: none; box-sizing: border-box;
-      margin-top: 0; background: var(--input-bg, var(--muted));
-      border: 1px solid var(--border); border-radius: 10px; padding: 9px 12px;
-      font-size: 13px; color: var(--fg); font-family: inherit; line-height: 1.4;
-      outline: none; }
-    .de-note-wrap textarea:focus { border-color: var(--accent); }
+    /* Padding gives the focus ring room inside overflow:hidden; negative horizontal
+       margin pulls the wrap back out so the field still spans full width. */
+    .de-note-wrap.visible { max-height: 132px; opacity: 1; padding: 4px; margin: 4px -4px 0; }
+    /* Note / reason textareas match the login & logout field-input states:
+       no border, soft shadow at rest, 2.5px ring on focus. */
+    .de-note-wrap textarea, #futureDayReason { width: 100%; resize: none; box-sizing: border-box;
+      margin-top: 0; background: var(--input-bg); color: var(--foreground);
+      border: none; border-radius: var(--radius-md); padding: 10px 14px;
+      font-size: 14px; font-family: var(--font); line-height: 1.4;
+      outline: none; box-shadow: var(--shadow-xs); transition: box-shadow .15s; }
+    .de-note-wrap textarea::placeholder, #futureDayReason::placeholder { color: var(--muted-fg); opacity: .7; }
+    .de-note-wrap textarea:focus, #futureDayReason:focus { box-shadow: 0 0 0 2.5px rgba(9,9,11,.10); }
+    .dark .de-note-wrap textarea:focus, .dark #futureDayReason:focus { box-shadow: 0 0 0 2.5px rgba(250,250,250,.10); }
     /* Future plan CTA — slides in when a chip is selected */
     .future-plan-cta { overflow: hidden; max-height: 0; opacity: 0;
       transition: max-height .25s ease, opacity .2s ease; pointer-events: none; }
@@ -1175,12 +1227,15 @@
     .day-sel-btn.active.has-penalty .dsel-dot,
     .day-sel-btn.active.has-plan    .dsel-dot { background: var(--background); opacity: .6; }
     .day-sel-btn:disabled { opacity: .28; cursor: default; pointer-events: none; }
-    /* WKD slot — narrower, dashed, faded so weekends read as off-days */
-    .day-sel-btn.wkd-btn { flex: 0 0 60px; background: transparent; }
-    .day-sel-btn.wkd-btn:not(.active) { opacity: .45; }
-    .day-sel-btn.wkd-btn.active { opacity: 1; }
-    /* Weekend / holiday / leave hover — slightly lifted */
-    .day-sel-btn.wkd-btn:hover:not(:disabled):not(.active) { opacity: .8; background: var(--muted); color: var(--foreground); cursor: pointer; }
+    /* WKD slot — same width as weekdays, no fill, dashed border via ::before pseudo */
+    .day-sel-btn.wkd-btn { background: transparent; border: none; color: var(--muted-fg); }
+    .day-sel-btn.wkd-btn::before {
+      content: ''; position: absolute; inset: 0;
+      border-radius: 10px; border: 1.5px solid var(--border); pointer-events: none;
+    }
+    .day-sel-btn.wkd-btn.active { background: var(--btn-primary-bg); color: var(--card); }
+    .day-sel-btn.wkd-btn.active::before { display: none; }
+    .day-sel-btn.wkd-btn:hover:not(:disabled):not(.active) { background: var(--btn-secondary-hover); cursor: pointer; }
 
     /* ── This Week wrapper — card with rc-head-style bordered header ── */
     .this-week-wrap { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-lg);
@@ -1196,12 +1251,14 @@
       font-family:var(--font); cursor:pointer; display:inline-flex; align-items:center; gap:5px;
       transition:background .12s; letter-spacing:.02em; white-space:nowrap; }
     .this-week-label-btn:hover { background:var(--btn-secondary-hover); }
+    .tw-chevron { flex-shrink:0; transition: transform .2s ease; }
+    .this-week-label-btn.picker-open .tw-chevron { transform: rotate(180deg); }
     /* ── Week picker calendar ── */
     /* Day picker dropdown — anchored below trigger button, no backdrop */
     .wp-picker-overlay { position:fixed; z-index:2000; display:none; }
     .wp-picker-overlay.open { display:block; }
     .wp-picker-dialog { background:var(--card); border:1px solid var(--border); border-radius:16px;
-      padding:16px; width:340px; box-shadow:0 16px 48px rgba(0,0,0,.22); }
+      padding:16px; width:320px; box-shadow:0 16px 48px rgba(0,0,0,.22); }
     /* Header: month/year LEFT, nav arrows RIGHT */
     .wp-picker-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
     .wp-picker-month { font-size:14px; font-weight:600; color:var(--foreground); flex:1; }
@@ -1210,17 +1267,12 @@
       background:var(--muted); color:var(--foreground); display:flex; align-items:center;
       justify-content:center; cursor:pointer; transition:background .1s; padding:0; flex-shrink:0; }
     .wp-picker-nav:hover { background:var(--border); }
-    .wp-picker-weekdays { display:grid; grid-template-columns:56px repeat(7,1fr); gap:4px; margin-bottom:4px; }
+    .wp-picker-weekdays { display:grid; grid-template-columns:repeat(7,1fr); gap:4px; margin-bottom:4px; }
     .wp-picker-weekdays span { text-align:center; font-size:10px; font-weight:600; color:var(--muted-fg);
       letter-spacing:.06em; text-transform:uppercase; padding:4px 0; }
     .wp-picker-weekdays span.wp-wkd-hdr { color:var(--border); }
-    .wp-picker-weekdays .wp-wk-hdr-spacer { display:block; }
     .wp-picker-grid { display:flex; flex-direction:column; gap:4px; }
-    .wp-picker-week { display:grid; grid-template-columns:56px repeat(7,1fr); gap:4px; cursor:default; }
-    .wp-week-label { display:flex; align-items:center; font-size:9px; font-weight:600;
-      color:var(--muted-fg); letter-spacing:.03em; text-transform:uppercase; line-height:1.2;
-      padding-right:4px; white-space:nowrap; overflow:hidden; }
-    .wp-week-label.wp-wk-current { color:var(--foreground); }
+    .wp-picker-week { display:grid; grid-template-columns:repeat(7,1fr); gap:4px; cursor:default; }
     .wp-picker-day { text-align:center; font-size:13px; font-weight:500; color:var(--foreground);
       padding:6px 2px; border-radius:6px; font-variant-numeric:tabular-nums; line-height:1; }
     .wp-picker-day.wp-out { color:var(--muted-fg); opacity:.35; pointer-events:none; }
@@ -2066,11 +2118,10 @@
       <div class="this-week-wrap">
         <div class="this-week-header">
           <button class="this-week-label-btn" id="thisWeekLabel" onclick="openWeekPicker(this)" type="button">
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" style="flex-shrink:0;opacity:.7">
-              <rect x="3" y="4" width="18" height="18" rx="2" stroke="currentColor" stroke-width="2"/>
-              <path d="M16 2v4M8 2v4M3 10h18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-            </svg>
             <span id="thisWeekLabelText">This Week</span>
+            <svg class="tw-chevron" width="10" height="10" viewBox="0 0 24 24" fill="none">
+              <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
           </button>
           <div class="this-week-nav">
             <button class="this-week-btn" id="weekPrevBtn" onclick="navDaySelectorDay(-1)" title="Previous day">
@@ -2096,7 +2147,6 @@
           <!-- Reason input (shown after a plan is picked) -->
           <div id="futureDayReasonWrap" style="display:none">
             <textarea id="futureDayReason" placeholder="Add a reason (optional)" rows="2"
-              style="width:100%;resize:none;border:1px solid var(--border);border-radius:8px;background:var(--input-bg);color:var(--foreground);font-family:var(--font);font-size:13px;padding:10px 12px;outline:none;transition:border-color .15s"
               oninput="saveFutureDayReason(this.value)"></textarea>
           </div>
           <!-- CTA buttons — hidden until a chip is selected -->
@@ -2136,7 +2186,6 @@
                    <div class="skel" style="width:52px;height:26px;border-radius:6px;margin-bottom:6px;margin-left:auto"></div>
                    <div class="skel" style="width:60px;height:10px;margin-left:auto"></div></div>
             </div>
-            <div class="skel" style="width:100%;height:4px;border-radius:99px;margin:14px 0 16px"></div>
             <div style="display:flex;gap:8px">
               <div class="skel skel-card" style="flex:1;height:60px"></div>
               <div class="skel skel-card" style="flex:1;height:60px"></div>
@@ -2152,14 +2201,6 @@
             <div class="rc-right-col">
               <div class="rc-target-val" id="rcTarget" style="color:var(--muted-fg)">—</div>
               <div class="rc-target-label" id="rcTargetLabel">Remaining</div>
-            </div>
-          </div>
-          <div class="progress-wrap" id="progWrap">
-            <div class="progress-bar-row">
-              <div class="progress-track" id="progTrack">
-                <div class="progress-fill" id="progFill" style="width:0%"></div>
-              </div>
-              <div class="progress-label" id="progLabel"></div>
             </div>
           </div>
           <div id="rcToday"></div>
@@ -2311,11 +2352,10 @@
         <div class="rc-head">
           <div class="rc-head-left">
             <button class="this-week-label-btn" id="wkNavLabelBtn" onclick="openAnalyticsWeekPicker(this)" type="button">
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" style="flex-shrink:0;opacity:.7">
-                <rect x="3" y="4" width="18" height="18" rx="2" stroke="currentColor" stroke-width="2"/>
-                <path d="M16 2v4M8 2v4M3 10h18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-              </svg>
               <span id="wkNavLabel">April 13–17</span>
+              <svg class="tw-chevron" width="10" height="10" viewBox="0 0 24 24" fill="none">
+                <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
             </button>
           </div>
           <div class="this-week-nav">
@@ -2559,7 +2599,7 @@
             <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;cursor:pointer" onclick="el('inpBreakTime').click()">
               <div>
                 <div class="form-label">Track Break Time</div>
-                <div class="form-sub">Adds a button to pause the count during break hours. You can either pause or end session directly.</div>
+                <div class="form-sub">Adds a button to pause the count during break hours.</div>
               </div>
               <label class="toggle" onclick="event.stopPropagation()">
                 <input type="checkbox" id="inpBreakTime" checked onchange="autoSaveSettings()">
@@ -2695,19 +2735,21 @@
 
         <div class="settings-section-divider"></div>
 
-        <!-- ── System ── -->
-        <div class="settings-section">
-          <div class="settings-section-header">System</div>
-          <div class="settings-group">
+        <!-- ── Sign-In Methods ── -->
+        <div class="settings-section settings-section--has-desc">
+          <div class="settings-section-header">Sign-In Methods</div>
+          <div class="form-sub" style="margin-bottom:14px">Connect multiple ways to access your account.</div>
+          <div id="simList" class="settings-group">
+            <!-- populated by hydrateSignInMethods() -->
+          </div>
+        </div>
 
-            <!-- Update Password -->
-            <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
-              <div>
-                <div class="form-label">Update Password</div>
-                <div class="form-sub">Verify your identity to set a new password.</div>
-              </div>
-              <button class="btn-secondary" onclick="openUpwdModal()">Update</button>
-            </div>
+        <div class="settings-section-divider"></div>
+
+        <!-- ── Account (System + Danger Zone) ── -->
+        <div class="settings-section">
+          <div class="settings-section-header">Account</div>
+          <div class="settings-group">
 
             <!-- Manage Data -->
             <div class="form-field">
@@ -2731,24 +2773,16 @@
               </div>
             </div>
 
-          </div>
-        </div><!-- /System section -->
-
-        <div class="settings-section-divider"></div>
-
-        <!-- ── Danger Zone ── -->
-        <div class="settings-section">
-          <div class="settings-section-header" style="color:var(--destructive)">Danger Zone</div>
-          <div class="settings-group">
-
+            <!-- Delete Account -->
             <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
               <div>
-                <div class="form-label">Manage Account</div>
+                <div class="form-label">Delete Account</div>
                 <div class="form-sub">We'll keep your data for 48 hours before permanently removing it.</div>
               </div>
-              <button class="btn-secondary" onclick="openDeleteModal()">Delete Account</button>
+              <button class="btn-secondary" onclick="openDeleteModal()">Delete</button>
             </div>
 
+            <!-- Log Out -->
             <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
               <div>
                 <div class="form-label">Log Out</div>
@@ -2758,7 +2792,7 @@
             </div>
 
           </div>
-        </div><!-- /Danger Zone section -->
+        </div><!-- /Account section -->
 
         <div class="settings-section-divider"></div>
 
@@ -2878,7 +2912,7 @@
         </div>
       </div>
       <div class="wp-picker-weekdays">
-        <span class="wp-wk-hdr-spacer"></span><span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span class="wp-wkd-hdr">Sa</span><span class="wp-wkd-hdr">Su</span>
+        <span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span class="wp-wkd-hdr">Sa</span><span class="wp-wkd-hdr">Su</span>
       </div>
       <div class="wp-picker-grid" id="wpPickerGrid"></div>
       <button class="wp-jump-today" id="wpJumpTodayBtn" onclick="_wpJumpToday()" type="button">Today</button>
@@ -3275,6 +3309,157 @@
     </div>
   </div>
 
+  <!-- ── Create Password Modal ── -->
+  <div class="overlay" id="createPwdOverlay" style="z-index:2100" onclick="if(event.target===this)closeCreatePwdModal()">
+    <div class="dialog" style="max-width:360px">
+      <div id="createPwdViewForm">
+        <div class="dialog-head" style="display:flex;align-items:flex-start;justify-content:space-between">
+          <div>
+            <div class="dialog-title">Create Password</div>
+            <div class="dialog-desc">Add email &amp; password sign-in to your account.</div>
+          </div>
+          <button class="btn-icon" onclick="closeCreatePwdModal()" title="Close" style="margin:-4px -4px -4px 8px;flex-shrink:0">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+        <div style="padding:0 20px 20px;display:flex;flex-direction:column;gap:10px">
+          <input type="password" id="createPwdInput" class="field-input" placeholder="New password (min. 6 chars)" autocomplete="new-password" style="font-size:13px">
+          <input type="password" id="createPwdConfirm" class="field-input" placeholder="Confirm password" autocomplete="new-password" style="font-size:13px">
+          <div id="createPwdErr" style="display:none;font-size:12px;color:var(--destructive);padding:0 2px"></div>
+          <div style="display:flex;gap:8px;margin-top:2px">
+            <button class="btn-secondary" style="flex:1;justify-content:center" onclick="closeCreatePwdModal()">Cancel</button>
+            <button id="createPwdBtn" class="ob-btn-primary" style="flex:1;height:36px;font-size:13px;border-radius:8px" onclick="submitCreatePwd()">Set Password</button>
+          </div>
+        </div>
+      </div>
+      <div id="createPwdViewDone" style="display:none">
+        <div class="dialog-head" style="display:flex;align-items:flex-start;justify-content:space-between">
+          <div>
+            <div class="dialog-title">Password Created</div>
+            <div class="dialog-desc">You can now sign in with your email and password.</div>
+          </div>
+          <button class="btn-icon" onclick="closeCreatePwdModal()" title="Close" style="margin:-4px -4px -4px 8px;flex-shrink:0">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+        <div style="padding:0 20px 20px">
+          <button class="ob-btn-primary" style="height:40px;font-size:13px;width:100%;border-radius:8px" onclick="closeCreatePwdModal()">Done</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Authenticator (2FA) Modal ── -->
+  <div class="overlay" id="mfaOverlay" style="z-index:2100" onclick="if(event.target===this)closeMfaModal()">
+    <div class="dialog" style="max-width:360px">
+
+      <!-- View: Setup (QR + code) -->
+      <div id="mfaViewSetup" style="display:none">
+        <div class="dialog-head" style="display:flex;align-items:flex-start;justify-content:space-between">
+          <div>
+            <div class="dialog-title">Set Up Authenticator</div>
+            <div class="dialog-desc">Scan the QR code with your authenticator app, then enter the 6-digit code.</div>
+          </div>
+          <button class="btn-icon" onclick="closeMfaModal()" title="Close" style="margin:-4px -4px -4px 8px;flex-shrink:0">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+        <div style="padding:0 20px 20px;display:flex;flex-direction:column;gap:12px">
+          <img id="mfaQrImg" class="mfa-qr" alt="Authenticator QR code">
+          <div class="mfa-secret">
+            <span id="mfaSecret">—</span>
+            <button onclick="_copyMfaSecret()" title="Copy setup key">
+              <svg id="mfaSecretCopyIcon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+              <svg id="mfaSecretCheckIcon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:none"><polyline points="20 6 9 17 4 12"/></svg>
+            </button>
+          </div>
+          <input type="text" id="mfaCodeInput" class="field-input" inputmode="numeric" maxlength="6" placeholder="000000" autocomplete="one-time-code" style="text-align:center;letter-spacing:.4em;font-size:16px" oninput="this.value=this.value.replace(/\D/g,'').slice(0,6);el('mfaVerifyBtn').disabled=this.value.length<6">
+          <div id="mfaSetupErr" style="display:none;font-size:12px;color:var(--destructive)"></div>
+          <div style="display:flex;gap:8px">
+            <button class="btn-secondary" style="flex:1;justify-content:center" onclick="closeMfaModal()">Cancel</button>
+            <button id="mfaVerifyBtn" class="ob-btn-primary" style="flex:1;height:36px;font-size:13px;border-radius:8px" onclick="mfaVerifyEnroll()" disabled>Verify</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- View: Verifying -->
+      <div id="mfaViewVerifying" style="display:none">
+        <div style="padding:32px 20px;text-align:center">
+          <div class="mfa-spinner"></div>
+          <div class="dialog-title" style="margin-top:8px">Verifying…</div>
+          <div class="dialog-desc">Checking your authenticator code.</div>
+        </div>
+      </div>
+
+      <!-- View: Backup codes -->
+      <div id="mfaViewBackup" style="display:none">
+        <div class="dialog-head" style="display:flex;align-items:flex-start;justify-content:space-between">
+          <div>
+            <div class="dialog-title">Save Your Backup Codes</div>
+            <div class="dialog-desc">Store these somewhere safe. Each code works once if you lose access to your authenticator.</div>
+          </div>
+        </div>
+        <div style="padding:0 20px 20px;display:flex;flex-direction:column;gap:12px">
+          <div class="mfa-codes" id="mfaCodesGrid"></div>
+          <div style="display:flex;gap:8px">
+            <button class="btn-secondary" style="flex:1;justify-content:center;gap:6px" onclick="_copyBackupCodes()">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+              <span id="mfaCopyLabel">Copy</span>
+            </button>
+            <button class="btn-secondary" style="flex:1;justify-content:center;gap:6px" onclick="_downloadBackupCodes()">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              Download
+            </button>
+          </div>
+          <button class="ob-btn-primary" style="height:40px;font-size:13px;width:100%;border-radius:8px" onclick="mfaShowSuccess()">I've Saved Them</button>
+        </div>
+      </div>
+
+      <!-- View: Success -->
+      <div id="mfaViewSuccess" style="display:none">
+        <div style="padding:24px 20px 20px;text-align:center">
+          <div class="mfa-success-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--success)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          </div>
+          <div class="dialog-title" style="margin-top:12px">Authentication Successful</div>
+          <div class="dialog-desc">Two-factor authentication is now enabled on your account.</div>
+          <button class="ob-btn-primary" style="height:40px;font-size:13px;width:100%;border-radius:8px;margin-top:16px" onclick="closeMfaModal()">Done</button>
+        </div>
+      </div>
+
+      <!-- View: Manage (already enabled) -->
+      <div id="mfaViewManage" style="display:none">
+        <div class="dialog-head" style="display:flex;align-items:flex-start;justify-content:space-between">
+          <div>
+            <div class="dialog-title">Authenticator App</div>
+            <div class="dialog-desc">Two-factor authentication is enabled on your account.</div>
+          </div>
+          <button class="btn-icon" onclick="closeMfaModal()" title="Close" style="margin:-4px -4px -4px 8px;flex-shrink:0">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+        <div style="padding:0 20px 20px;display:flex;flex-direction:column;gap:8px">
+          <button class="btn-ghost-destructive" style="width:100%;justify-content:center" onclick="mfaShowDisable()">Disable Two-Factor Authentication</button>
+        </div>
+      </div>
+
+      <!-- View: Disable confirm -->
+      <div id="mfaViewDisable" style="display:none">
+        <div class="dialog-head" style="display:flex;align-items:flex-start;justify-content:space-between">
+          <div>
+            <div class="dialog-title">Disable 2FA?</div>
+            <div class="dialog-desc">You'll no longer be asked for a code at login. Your backup codes will be deleted.</div>
+          </div>
+        </div>
+        <div style="padding:0 20px 20px;display:flex;gap:8px">
+          <button class="btn-secondary" style="flex:1;justify-content:center" onclick="mfaShowManage()">Cancel</button>
+          <button id="mfaDisableBtn" class="btn-ghost-destructive" style="flex:1;justify-content:center" onclick="mfaConfirmDisable()">Disable</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
   <!-- Toast -->
   <div class="wh-toast" id="ieToast">
     <svg class="wh-toast-icon" id="toastIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"></svg>
@@ -3362,9 +3547,9 @@
         </div>
         <div class="err-msg" id="npErr" style="margin-top:8px">Please select a day first.</div>
       </div>
-      <div class="dialog-foot" style="display:flex;flex-direction:column;gap:8px">
-        <button class="btn btn-primary" id="npSave">Save Plan</button>
+      <div class="dialog-foot-row">
         <button class="btn btn-cancel" id="npCancel">Cancel</button>
+        <button class="btn btn-primary" id="npSave">Save Plan</button>
       </div>
     </div>
   </div>
@@ -3445,10 +3630,6 @@
           <button class="modal-override-btn" id="deHoliday" onclick="setDeOverride('holiday')">Holiday</button>
           <button class="modal-override-btn" id="deLeave" onclick="setDeOverride('leave')">Full Day Leave</button>
         </div>
-        <div class="de-note-wrap" id="deNoteWrap">
-          <div class="form-label" id="deNoteLabel" style="display:none;margin-bottom:6px"></div>
-          <textarea id="deNote" placeholder="Add a note (optional)" rows="1" maxlength="500"></textarea>
-        </div>
         <div id="deTimeWrap">
           <div class="modal-time-row" id="deTimeRow">
             <div style="position:relative;flex:1" class="time-input-wrap">
@@ -3466,6 +3647,10 @@
             </div>
           </div>
           <div class="err-msg" id="deErr">Invalid times — end must be after start.</div>
+        </div>
+        <div class="de-note-wrap" id="deNoteWrap">
+          <div class="form-label" id="deNoteLabel" style="display:none;margin-bottom:6px"></div>
+          <textarea id="deNote" placeholder="Add a note (optional)" rows="1" maxlength="500"></textarea>
         </div>
       </div>
       <div class="dialog-foot-row">
@@ -3501,9 +3686,9 @@
           </div>
         </div>
       </div>
-      <div class="dialog-foot">
-        <button class="btn btn-primary" id="weekPlanSave">Confirm Plan</button>
+      <div class="dialog-foot-row">
         <button class="btn btn-cancel" id="weekPlanSkip">Skip for Now</button>
+        <button class="btn btn-primary" id="weekPlanSave">Confirm Plan</button>
       </div>
     </div>
   </div>
@@ -3831,8 +4016,8 @@
       const h = Math.floor(abs / 3600), m = Math.round((abs % 3600) / 60);
       return m > 0 ? `${sign}${h}h ${m}m` : `${sign}${h}h`;
     }
-    // Returns "Over Time" in daily mode, "Surplus" in weekly mode
-    function _surplusLabel() { return cfg().weeklyOn ? 'Surplus' : 'Over Time'; }
+    // Returns "Overtime" in daily mode, "Surplus" in weekly/recommend-timings mode
+    function _surplusLabel() { return cfg().weeklyOn ? 'Surplus' : 'Overtime'; }
     function durLong(secs) {
       const s = Math.abs(secs), h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60);
       if (h === 0) return `${m} min`;
@@ -4593,6 +4778,8 @@
     let _wpYear = 0, _wpMonth = 0, _wpContext = null; // null = overview, 'analytics' = dashboard
 
     function openWeekPicker(triggerEl) {
+      if (triggerEl?.classList.contains('picker-open')) { closeWeekPicker(); return; }
+      triggerEl?.classList.add('picker-open');
       // Open at the month of the currently selected day
       const refDate = selectedDayKey && selectedDayKey !== '__wknd__'
         ? new Date(selectedDayKey + 'T12:00')
@@ -4616,7 +4803,8 @@
     }
     function _wpOutsideClick(e) {
       const overlay = el('wpPickerOverlay');
-      if (overlay && !overlay.contains(e.target) && e.target !== el('thisWeekLabel')) {
+      const isTrigger = el('thisWeekLabel')?.contains(e.target) || el('wkNavLabelBtn')?.contains(e.target);
+      if (overlay && !overlay.contains(e.target) && !isTrigger) {
         closeWeekPicker();
       } else if (overlay && overlay.classList.contains('open')) {
         // Re-register for next click outside
@@ -4627,10 +4815,14 @@
     }
     function closeWeekPicker() {
       el('wpPickerOverlay').classList.remove('open');
+      el('thisWeekLabel')?.classList.remove('picker-open');
+      el('wkNavLabelBtn')?.classList.remove('picker-open');
       _wpContext = null;
     }
 
     function openAnalyticsWeekPicker(triggerEl) {
+      if (triggerEl?.classList.contains('picker-open')) { closeWeekPicker(); return; }
+      triggerEl?.classList.add('picker-open');
       _wpContext = 'analytics';
       const refKey = week(analyticsWeekOffset)[0]?.key;
       const refDate = refKey ? new Date(refKey + 'T12:00') : new Date();
@@ -4686,25 +4878,6 @@
 
         const row = document.createElement('div');
         row.className = 'wp-picker-week';
-
-        // Week label cell
-        const todayDate = new Date(); todayDate.setHours(0,0,0,0);
-        const todayDow = todayDate.getDay();
-        const thisMon = new Date(todayDate); thisMon.setDate(todayDate.getDate() - ((todayDow + 6) % 7));
-        const isCurrentWk = monDate.toDateString() === thisMon.toDateString();
-        const wkLabel = document.createElement('div');
-        wkLabel.className = 'wp-week-label' + (isCurrentWk ? ' wp-wk-current' : '');
-        if (isCurrentWk) {
-          wkLabel.textContent = 'This Week';
-        } else {
-          const fri = new Date(monDate); fri.setDate(monDate.getDate() + 4);
-          const mMo = MONTHS[monDate.getMonth()].slice(0,3);
-          const mFr = MONTHS[fri.getMonth()].slice(0,3);
-          wkLabel.textContent = mMo === mFr
-            ? `${mMo} ${monDate.getDate()}–${fri.getDate()}`
-            : `${mMo} ${monDate.getDate()}–${mFr} ${fri.getDate()}`;
-        }
-        row.appendChild(wkLabel);
 
         for (let d = 0; d < 7; d++) {
           const cellDate = new Date(monDate); cellDate.setDate(monDate.getDate() + d);
@@ -5414,12 +5587,6 @@
         // "Paused" = mid-day pause with Resume available; "Ended" = full checkout
         const _endedLabel = _sessionAccSecs > 0 ? 'Paused' : 'Ended';
         swapText('rcElapsedLabel', isDoneE ? '' : _endedLabel, { color: 'var(--muted-fg)' });
-        if (el('progWrap')) el('progWrap').style.display = isDoneE ? 'none' : '';
-        const pct = eff > 0 ? Math.min((endedSecs / eff) * 100, 100) : 100;
-        el('progFill').style.width = pct.toFixed(1) + '%';
-        el('progFill').classList.toggle('done', isDoneE);
-        if (isDoneE) { el('progFill').classList.add('target-reached'); el('progLabel').textContent = ''; }
-        else { el('progFill').classList.remove('target-reached'); el('progLabel').textContent = `${Math.floor(pct)}%`; }
         el('rcToday').innerHTML = buildTargetHtml(eff, isDoneE);
         el('stayHint').style.display = 'none';
         el('otBanner').classList.remove('show');
@@ -5433,11 +5600,7 @@
       el('rcTarget').textContent = dur(eff); el('rcTarget').style.color = 'var(--muted-fg)';
       if (el('rcTargetLabel')) swapText('rcTargetLabel', 'Remaining');
       swapText('rcElapsedLabel', 'Not Started', { color: 'var(--muted-fg)' });
-      if (el('progWrap')) el('progWrap').style.display = '';
       _setTodayDateChip();
-      el('progFill').style.width = '0%';
-      el('progFill').classList.remove('done');
-      el('progLabel').textContent = '';
       el('rcToday').innerHTML = buildTargetHtml(eff, false);
       el('stayHint').style.display = 'none';
       el('otBanner').classList.remove('show');
@@ -5772,7 +5935,7 @@
       // For Holiday / Leave: hide WH stat rows (rc-numbers, progress bar, IO cards).
       // Half Day keeps them visible — user may still work a partial day.
       const _hideStats = type === 'holiday' || type === 'leave';
-      ['rcNumbers', 'progWrap', 'rcToday', 'stayHint', 'otBanner', 'doneBanner', 'autostopBanner'].forEach(id => {
+      ['rcNumbers', 'rcToday', 'stayHint', 'otBanner', 'doneBanner', 'autostopBanner'].forEach(id => {
         const _e = el(id);
         if (_e) _e.style.display = _hideStats ? 'none' : '';
       });
@@ -6347,8 +6510,6 @@
         animateDuration('rcTarget', remText);
         el('rcTarget').style.color = '';
         if (el('rcTargetLabel')) swapText('rcTargetLabel', 'Remaining');
-        el('progFill').classList.remove('target-reached');
-        el('progTrack')?.classList.remove('target-reached');
       } else if (isDone) {
         const ot = worked - eff;
         const otText = ot < 60 ? '+0m' : `+${dur(ot)}`;
@@ -6356,20 +6517,11 @@
         animateDuration('rcTarget', otText);
         el('rcTarget').style.color = otColor;
         if (el('rcTargetLabel')) swapText('rcTargetLabel', 'Extra Time');
-        el('progFill').classList.add('target-reached');
-        el('progTrack')?.classList.add('target-reached');
       } else {
         el('rcTarget').textContent = '—'; el('rcTarget').style.color = 'var(--muted-fg)';
         if (el('rcTargetLabel')) swapText('rcTargetLabel', 'Remaining');
-        el('progFill').classList.remove('target-reached');
-        el('progTrack')?.classList.remove('target-reached');
       }
 
-      const pct = eff > 0 ? Math.min((worked / eff) * 100, 100) : 100;
-      el('progFill').style.width = pct.toFixed(1) + '%';
-      el('progFill').classList.toggle('done', isDone);
-      el('progLabel').textContent = isDone ? 'Target Reached' : `${Math.floor(pct)}%`;
-      if (el('progWrap')) el('progWrap').style.display = '';
       el('rcToday').innerHTML = buildTargetHtml(eff, false);
 
       // Stay hint
@@ -6673,7 +6825,7 @@
       // clear them here so renderPastDay (and render/renderEmptyState) start from clean state
       const _rcNumEl = document.querySelector('.rc-numbers');
       if (_rcNumEl) _rcNumEl.style.display = '';
-      ['progWrap', 'rcToday', 'stayHint', 'otBanner', 'doneBanner', 'autostopBanner'].forEach(id => {
+      ['rcToday', 'stayHint', 'otBanner', 'doneBanner', 'autostopBanner'].forEach(id => {
         const _e = el(id); if (_e) _e.style.display = '';
       });
       renderDaySelector();
@@ -6740,7 +6892,7 @@
       el('rcBody')?.classList.remove('weekend-mode');
       const _rcNumElF = document.querySelector('.rc-numbers');
       if (_rcNumElF) _rcNumElF.style.display = '';
-      ['progWrap', 'rcToday', 'stayHint', 'otBanner', 'doneBanner', 'autostopBanner'].forEach(id => {
+      ['rcToday', 'stayHint', 'otBanner', 'doneBanner', 'autostopBanner'].forEach(id => {
         const _e = el(id); if (_e) _e.style.display = '';
       });
       renderDaySelector();
@@ -6968,10 +7120,6 @@
       function _clearCardState() {
         swapText('rcElapsedLabel', '', { color: '' });
         showRem(false);
-        el('progFill').style.width = '0%';
-        el('progFill').classList.remove('done', 'target-reached');
-        el('progTrack')?.classList.remove('target-reached');
-        if (el('progWrap')) el('progWrap').style.display = '';
         if (el('rcTargetLabel')) swapText('rcTargetLabel', 'Remaining');
         el('stayHint').style.display = 'none';
         el('otBanner').classList.remove('show');
@@ -6990,37 +7138,24 @@
       if (el('rcTargetLabel')) el('rcTargetLabel').textContent = '';
 
       if (!log || log.hoursWorked == null) {
-        el('rcWorked').textContent = '—'; el('rcWorked').style.color = 'var(--muted-fg)';
-        swapText('rcElapsedLabel', 'Total Logged', { color: 'var(--muted-fg)' });
-        if (el('progWrap')) el('progWrap').style.display = '';
+        const _rcNumEl = document.querySelector('.rc-numbers');
+        if (_rcNumEl) _rcNumEl.style.display = 'none';
         _setTodayDateChip();
-        el('progFill').style.width = '0%'; el('progFill').classList.remove('done');
-        el('progLabel').textContent = isFutureDay ? '' : 'No data logged for this day';
-        el('rcToday').innerHTML = targetRow + _pastDayKpiHtml('—', '—', null, target);
         el('stayHint').style.display = 'none';
         el('otBanner').classList.remove('show'); el('doneBanner').classList.remove('show');
+        const _emptyMsg = isFutureDay ? '' : '<div style="padding:20px 0 12px;text-align:center;font-size:13px;color:var(--muted-fg)">No data logged</div>';
+        el('rcToday').innerHTML = _emptyMsg + targetRow + _pastDayKpiHtml('—', '—', null, target);
         return;
       }
+      // Has data — ensure rc-numbers is visible (may have been hidden by no-data state)
+      const _rcNumEl = document.querySelector('.rc-numbers');
+      if (_rcNumEl) _rcNumEl.style.display = '';
       const worked = Math.round(log.hoursWorked * 3600); // round to nearest second to avoid float drift
       const isDone = worked >= target;
       el('rcWorked').textContent = dur(worked); el('rcWorked').style.color = '';
       swapText('rcElapsedLabel', 'Total Logged', { color: 'var(--muted-fg)' });
-      if (isDone) {
-        el('otBanner').classList.remove('show');
-        el('doneBanner').classList.remove('show');
-        el('progFill').classList.add('target-reached');
-        el('progTrack')?.classList.add('target-reached');
-        if (el('progWrap')) el('progWrap').style.display = 'none';
-      } else {
-        el('otBanner').classList.remove('show'); el('doneBanner').classList.remove('show');
-        el('progFill').classList.remove('target-reached');
-        el('progTrack')?.classList.remove('target-reached');
-        if (el('progWrap')) el('progWrap').style.display = '';
-      }
-      const pct = Math.min((worked / target) * 100, 100);
-      el('progFill').style.width = pct.toFixed(1) + '%';
-      el('progFill').classList.toggle('done', isDone);
-      el('progLabel').textContent = isDone ? '' : `${Math.floor(pct)}%`;
+      el('otBanner').classList.remove('show');
+      el('doneBanner').classList.remove('show');
       _setTodayDateChip();
       el('stayHint').style.display = 'none';
       const loginDisp = log.loginDisplay || _loginDisplayFromLog(log);
@@ -7377,8 +7512,52 @@
     }
 
     // ── SETTINGS ───────────────────────────────────────
+    // Make each labeled settings section collapsible (chevron toggle, state
+    // persisted). Idempotent — safe to call every time settings opens.
+    function initCollapsibleSettings() {
+      let collapsed = {};
+      try { collapsed = JSON.parse(localStorage.getItem('wh_settings_collapsed') || '{}'); } catch (_) {}
+      document.querySelectorAll('.settings-card-merged .settings-section').forEach(section => {
+        const header = section.querySelector('.settings-section-header');
+        if (!header || header.dataset.collapsible) return;
+        header.dataset.collapsible = '1';
+        const key = header.textContent.trim();
+        const chev = document.createElement('span');
+        chev.className = 'settings-chevron';
+        chev.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>';
+        header.appendChild(chev);
+        // Wrap everything after the header so it can be smoothly slid open/closed.
+        const inner = document.createElement('div');
+        inner.className = 'settings-section-body-inner';
+        while (header.nextSibling) inner.appendChild(header.nextSibling);
+        section.appendChild(inner);
+        // Apply the saved state instantly (no animation on first paint).
+        if (collapsed[key]) { section.classList.add('collapsed'); inner.style.maxHeight = '0px'; }
+        header.addEventListener('click', () => {
+          const willCollapse = !section.classList.contains('collapsed');
+          if (willCollapse) {
+            // Lock to current height, then animate to 0 on the next frame.
+            inner.style.maxHeight = inner.scrollHeight + 'px';
+            requestAnimationFrame(() => {
+              section.classList.add('collapsed');
+              inner.style.maxHeight = '0px';
+            });
+          } else {
+            section.classList.remove('collapsed');
+            inner.style.maxHeight = inner.scrollHeight + 'px';
+            // Release the cap once open so async content (e.g. sign-in list) can grow.
+            const done = () => { if (!section.classList.contains('collapsed')) inner.style.maxHeight = ''; inner.removeEventListener('transitionend', done); };
+            inner.addEventListener('transitionend', done);
+          }
+          collapsed[key] = willCollapse;
+          try { localStorage.setItem('wh_settings_collapsed', JSON.stringify(collapsed)); } catch (_) {}
+        });
+      });
+    }
+
     function populateSettings() {
       const c = cfg();
+      initCollapsibleSettings();
       el('inpDisplay').value       = c.name || '';
       el('inpPosition').value   = c.position || '';
       const _dh = Math.floor(c.dailyH || 9);
@@ -8517,7 +8696,8 @@ ${sig}`
       const _deNoteWrap = el('deNoteWrap');
       const _deNote     = el('deNote');
       if (_deNote) _deNote.value = _effectiveNote;
-      if (_deNoteWrap) _deNoteWrap.classList.toggle('visible', !!_effectiveOverride && _effectiveOverride !== 'wfh');
+      // Optional note is always available (entry + plan modes), matching the time-input states
+      if (_deNoteWrap) _deNoteWrap.classList.add('visible');
       // Shift-aware blur handlers (fresh each open)
       const startBlur = () => applyShiftAmPm(el('deStart'), 'start');
       const endBlur   = () => applyShiftAmPm(el('deEnd'),   'end');
@@ -9550,10 +9730,18 @@ ${sig}`
       const isToday = key === todayKey();
 
       // Check active override button
-      const activeOverride = el('deHalfDay').classList.contains('active') ? 'halfday'
+      let activeOverride = el('deHalfDay').classList.contains('active') ? 'halfday'
         : el('deHoliday').classList.contains('active') ? 'holiday'
         : el('deLeave').classList.contains('active') ? 'leave' : null;
       const _deNoteVal = el('deNote')?.value.trim() || '';
+
+      // Half-day demotion: if the half-day layout is active but the user has entered real
+      // login + logout times that exceed half the daily target, treat it as a normal entry
+      // (switch back to the default duration/target layout instead of the half-day card).
+      if (activeOverride === 'halfday' && s && e) {
+        const _eHd = e <= s ? new Date(e.getTime() + 24 * 3600 * 1000) : e;
+        if (Math.floor((_eHd - s) / 1000) > (c.dailyH * 3600) / 2) activeOverride = null;
+      }
 
       const _isFutureDay = new Date(key + 'T12:00') > new Date() && key !== todayKey();
       if (activeOverride === 'halfday') {
@@ -9580,7 +9768,8 @@ ${sig}`
             checkoutDisplay: short(defE),
             hoursWorked: worked / 3600,
             lastUpdated: new Date().toISOString(),
-            sessionTag: 'edited', override: null
+            sessionTag: 'edited', override: null,
+            ...(_deNoteVal ? { note: _deNoteVal } : { note: null })
           });
         } else { el('deErr').classList.add('show'); return; }
       } else if (s && !e && isToday) {
@@ -9606,13 +9795,14 @@ ${sig}`
         saveDayLogAndSync(key, { ...ex,
           loginTime: `${s.getHours()}:${s.getMinutes()}:${s.getSeconds()}`,
           loginDisplay: short(s), sessionTag: 'edited',
-          lastUpdated: new Date().toISOString(), override: null
+          lastUpdated: new Date().toISOString(), override: null,
+          ...(_deNoteVal ? { note: _deNoteVal } : { note: null })
         });
         el('deErr').classList.remove('show');
         persist();
         closeDayEditModal();
         renderHistory(); renderDaySelector();
-        render();
+        selectDay(key);
         return;
       } else {
         if (!s) { el('deErr').classList.add('show'); return; }
@@ -9628,7 +9818,8 @@ ${sig}`
           hoursWorked:    worked / 3600,
           lastUpdated:    new Date().toISOString(),
           sessionTag:     'edited',
-          override:       null
+          override:       null,
+          ...(_deNoteVal ? { note: _deNoteVal } : { note: null })
         });
         // Exit time was explicitly set for today → end any active session
         if (isToday && loginDate) {
@@ -9648,7 +9839,7 @@ ${sig}`
       renderDaySelector();
       // Always refresh the overview when editing today, regardless of session state
       if (key === todayKey()) {
-        if (loginDate) render(); else renderEmptyState();
+        selectDay(key); // also removes weekend-mode if override was cleared
       } else if (key === selectedDayKey) {
         const _isFutureSave = new Date(key + 'T12:00') > new Date() && key !== todayKey();
         if (_isFutureSave) selectFutureDay(key);
@@ -10828,6 +11019,327 @@ ${sig}`
     }
     _initAuthDigits();
 
+    // ── Sign-In Methods ──────────────────────────────────────────────────────
+    async function hydrateSignInMethods() {
+      const list = el('simList');
+      if (!list) return;
+      list.innerHTML = '<div style="font-size:13px;color:var(--muted-fg)">Loading…</div>';
+      try {
+        const { data: { user } } = await window._sbClient.auth.getUser();
+        if (!user) { list.innerHTML = ''; return; }
+        const identities = user.identities || [];
+        const emailId  = identities.find(i => i.provider === 'email');
+        const googleId = identities.find(i => i.provider === 'google');
+        const githubId = identities.find(i => i.provider === 'github');
+        const connectedCount = [emailId, googleId, githubId].filter(Boolean).length;
+        list.innerHTML = '';
+
+        // Email & Password
+        list.appendChild(_simBuildRow({
+          icon: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><polyline points="2,4 12,13 22,4"/></svg>`,
+          name: 'Email & Password',
+          status: emailId ? 'Connected' : 'Not Set',
+          connected: !!emailId,
+          action: emailId ? 'Update Password' : 'Create Password',
+          onAction: emailId ? openUpwdModal : openCreatePwdModal,
+          destructive: false,
+        }));
+
+        // Google
+        list.appendChild(_simBuildRow({
+          icon: `<svg width="15" height="15" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>`,
+          name: 'Google',
+          status: googleId ? 'Connected' : 'Not Connected',
+          connected: !!googleId,
+          action: googleId ? 'Disconnect' : 'Connect',
+          onAction: googleId
+            ? () => _disconnectProvider('google', googleId, connectedCount)
+            : () => _connectProvider('google'),
+          destructive: !!googleId,
+        }));
+
+        // GitHub
+        list.appendChild(_simBuildRow({
+          icon: `<svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/></svg>`,
+          name: 'GitHub',
+          status: githubId ? 'Connected' : 'Not Connected',
+          connected: !!githubId,
+          action: githubId ? 'Disconnect' : 'Connect',
+          onAction: githubId
+            ? () => _disconnectProvider('github', githubId, connectedCount)
+            : () => _connectProvider('github'),
+          destructive: !!githubId,
+        }));
+
+        // Authenticator App (TOTP 2FA) — second factor, not a sign-in provider
+        let totpFactor = null;
+        try {
+          const { data: f } = await window._sbClient.auth.mfa.listFactors();
+          totpFactor = (f?.totp || []).find(x => x.status === 'verified') || null;
+        } catch(_) { /* MFA list best-effort */ }
+        list.appendChild(_simBuildRow({
+          icon: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l8 4v5c0 5-3.4 8.5-8 11-4.6-2.5-8-6-8-11V6l8-4z"/><path d="M9 12l2 2 4-4"/></svg>`,
+          name: 'Authenticator App',
+          status: totpFactor ? 'Enabled' : 'Not set',
+          connected: !!totpFactor,
+          action: totpFactor ? 'Manage' : 'Set Up',
+          onAction: totpFactor ? () => openMfaManage(totpFactor) : openMfaSetup,
+          destructive: false,
+        }));
+      } catch(e) {
+        list.innerHTML = '<div style="font-size:13px;color:var(--muted-fg)">Failed to load sign-in methods.</div>';
+      }
+    }
+
+    function _simBuildRow({ icon, name, status, connected, action, onAction, destructive }) {
+      const row = document.createElement('div');
+      row.className = 'sim-row';
+
+      const left = document.createElement('div');
+      left.className = 'sim-provider';
+      const iconWrap = document.createElement('div');
+      iconWrap.className = 'sim-icon';
+      iconWrap.innerHTML = icon;
+      const info = document.createElement('div');
+      const nameEl = document.createElement('div');
+      nameEl.className = 'sim-name';
+      nameEl.textContent = name;
+      const statusEl = document.createElement('div');
+      statusEl.className = 'sim-status ' + (connected ? 'connected' : (status === 'Not Set' ? 'not-set' : 'not-connected'));
+      statusEl.textContent = status;
+      info.appendChild(nameEl);
+      info.appendChild(statusEl);
+      left.appendChild(iconWrap);
+      left.appendChild(info);
+      row.appendChild(left);
+
+      const btn = document.createElement('button');
+      btn.className = destructive ? 'btn-ghost-destructive' : 'btn-secondary';
+      btn.style.cssText = 'flex-shrink:0;font-size:12px;height:30px;padding:0 12px';
+      btn.textContent = action;
+      if (onAction) btn.addEventListener('click', onAction);
+      row.appendChild(btn);
+      return row;
+    }
+
+    async function _connectProvider(provider) {
+      try {
+        const { error } = await window._sbClient.auth.linkIdentity({
+          provider,
+          options: { redirectTo: window.location.origin + window.location.pathname }
+        });
+        if (error) throw error;
+        // Page navigates away to OAuth provider — nothing else to do here
+      } catch(e) {
+        showToast('Connection Failed', 'error', e.message || 'Could not connect ' + provider + '. Please try again.');
+      }
+    }
+
+    async function _disconnectProvider(provider, identity, connectedCount) {
+      if (connectedCount <= 1) {
+        showToast("Can't Disconnect", 'error', 'You need at least one sign-in method to access your account.');
+        return;
+      }
+      try {
+        const { error } = await window._sbClient.auth.unlinkIdentity(identity);
+        if (error) throw error;
+        showToast(provider.charAt(0).toUpperCase() + provider.slice(1) + ' Disconnected', 'success', 'Sign-in method removed from your account.');
+        hydrateSignInMethods();
+      } catch(e) {
+        showToast('Disconnect Failed', 'error', e.message || 'Could not disconnect. Please try again.');
+      }
+    }
+
+    function openCreatePwdModal() {
+      const inp = el('createPwdInput'), conf = el('createPwdConfirm');
+      if (inp) inp.value = '';
+      if (conf) conf.value = '';
+      const err = el('createPwdErr');
+      if (err) { err.textContent = ''; err.style.display = 'none'; }
+      const btn = el('createPwdBtn');
+      if (btn) { btn.disabled = false; btn.textContent = 'Set Password'; btn.style.opacity = ''; }
+      el('createPwdViewForm').style.display = '';
+      el('createPwdViewDone').style.display = 'none';
+      el('createPwdOverlay').classList.add('open');
+    }
+    function closeCreatePwdModal() {
+      el('createPwdOverlay').classList.remove('open');
+    }
+    async function submitCreatePwd() {
+      const pwd  = el('createPwdInput')?.value?.trim() || '';
+      const conf = el('createPwdConfirm')?.value?.trim() || '';
+      const err  = el('createPwdErr');
+      const btn  = el('createPwdBtn');
+      const showErr = (msg) => { if (err) { err.textContent = msg; err.style.display = ''; } };
+      if (pwd.length < 6) { showErr('Password must be at least 6 characters.'); return; }
+      if (pwd !== conf)   { showErr('Passwords do not match.'); return; }
+      if (err) { err.style.display = 'none'; }
+      btn.disabled = true; btn.textContent = 'Setting…'; btn.style.opacity = '.7';
+      try {
+        const { error } = await window._sbClient.auth.updateUser({ password: pwd });
+        if (error) throw error;
+        el('createPwdViewForm').style.display = 'none';
+        el('createPwdViewDone').style.display = '';
+        hydrateSignInMethods();
+      } catch(e) {
+        btn.disabled = false; btn.textContent = 'Set Password'; btn.style.opacity = '';
+        showErr(e.message || 'Failed to set password. Please try again.');
+      }
+    }
+
+    // ── Authenticator (TOTP 2FA) ─────────────────────────────────────────────
+    let _mfaFactorId = null, _mfaBackupCodes = [], _mfaManageFactor = null;
+
+    function _mfaShowView(id) {
+      ['mfaViewSetup','mfaViewVerifying','mfaViewBackup','mfaViewSuccess','mfaViewManage','mfaViewDisable']
+        .forEach(v => { const e = el(v); if (e) e.style.display = v === id ? '' : 'none'; });
+    }
+    function closeMfaModal() {
+      el('mfaOverlay').classList.remove('open');
+      const db = el('mfaDisableBtn'); if (db) { db.disabled = false; db.textContent = 'Disable'; }
+    }
+    function _mfaSetupError(msg) {
+      const e = el('mfaSetupErr'); if (e) { e.textContent = msg; e.style.display = ''; }
+    }
+
+    // Normalize + hash a backup code (shared shape with login.js verification)
+    function _normalizeBackupCode(c) { return (c || '').toLowerCase().replace(/[^a-z0-9]/g, ''); }
+    async function _sha256Hex(str) {
+      const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+      return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
+    }
+    function _genBackupCodes() {
+      const alphabet = '23456789abcdefghjkmnpqrstuvwxyz'; // no ambiguous 0/1/i/l/o
+      const codes = [];
+      for (let n = 0; n < 10; n++) {
+        const buf = new Uint8Array(8); crypto.getRandomValues(buf);
+        let s = ''; for (let i = 0; i < 8; i++) s += alphabet[buf[i] % alphabet.length];
+        codes.push(s.slice(0, 4) + '-' + s.slice(4));
+      }
+      return codes;
+    }
+    async function _storeBackupCodes(codes) {
+      const { data: { user } } = await window._sbClient.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+      const hashes = await Promise.all(codes.map(c => _sha256Hex(_normalizeBackupCode(c))));
+      await window._sbClient.from('mfa_backup_codes').delete().eq('user_id', user.id);
+      const rows = hashes.map(h => ({ user_id: user.id, code_hash: h }));
+      const { error } = await window._sbClient.from('mfa_backup_codes').insert(rows);
+      if (error) throw error;
+    }
+    function _renderBackupCodes(codes) {
+      const grid = el('mfaCodesGrid'); if (!grid) return;
+      grid.innerHTML = '';
+      codes.forEach(c => { const d = document.createElement('div'); d.className = 'mfa-code'; d.textContent = c; grid.appendChild(d); });
+    }
+
+    async function openMfaSetup() {
+      _mfaShowView('mfaViewSetup');
+      el('mfaOverlay').classList.add('open');
+      el('mfaQrImg').removeAttribute('src');
+      el('mfaSecret').textContent = '…';
+      el('mfaCodeInput').value = '';
+      el('mfaVerifyBtn').disabled = true;
+      _mfaSetupError(''); el('mfaSetupErr').style.display = 'none';
+      try {
+        const mfa = window._sbClient.auth.mfa;
+        // Clean up any stale unverified TOTP factors so enroll doesn't conflict
+        const { data: f } = await mfa.listFactors();
+        const stale = (f?.all || []).filter(x => x.factor_type === 'totp' && x.status !== 'verified');
+        for (const s of stale) { try { await mfa.unenroll({ factorId: s.id }); } catch(_) {} }
+        const { data, error } = await mfa.enroll({ factorType: 'totp' });
+        if (error) throw error;
+        _mfaFactorId = data.id;
+        el('mfaQrImg').src = data.totp.qr_code;
+        el('mfaSecret').textContent = data.totp.secret;
+      } catch(e) {
+        const m = e.message || '';
+        _mfaSetupError(/disabled|not enabled/i.test(m)
+          ? 'TOTP is disabled for this project. Enable it in Supabase → Authentication → MFA.'
+          : (m || 'Could not start setup. Please try again.'));
+      }
+    }
+
+    async function mfaVerifyEnroll() {
+      const code = (el('mfaCodeInput').value || '').replace(/\D/g, '');
+      if (code.length < 6 || !_mfaFactorId) return;
+      _mfaShowView('mfaViewVerifying');
+      try {
+        const { error } = await window._sbClient.auth.mfa.challengeAndVerify({ factorId: _mfaFactorId, code });
+        if (error) throw error;
+        try { sessionStorage.setItem('wh_mfa_ok', '1'); } catch(_) {}
+        // Verified — now generate and store backup codes
+        try {
+          _mfaBackupCodes = _genBackupCodes();
+          await _storeBackupCodes(_mfaBackupCodes);
+          _renderBackupCodes(_mfaBackupCodes);
+          _mfaShowView('mfaViewBackup');
+        } catch(storeErr) {
+          // Factor is live, but codes failed to save — warn and continue
+          showToast("Backup codes not saved", 'error', 'Two-factor is on, but save backup codes failed. Regenerate later.');
+          mfaShowSuccess();
+        }
+        hydrateSignInMethods();
+      } catch(e) {
+        _mfaShowView('mfaViewSetup');
+        el('mfaCodeInput').value = ''; el('mfaVerifyBtn').disabled = true;
+        _mfaSetupError(/invalid|incorrect/i.test(e.message || '') ? 'Incorrect code. Try again.' : (e.message || 'Verification failed.'));
+      }
+    }
+
+    function mfaShowSuccess() { _mfaShowView('mfaViewSuccess'); }
+
+    function _copyBackupCodes() {
+      navigator.clipboard?.writeText(_mfaBackupCodes.join('\n'));
+      const lbl = el('mfaCopyLabel');
+      if (lbl) { lbl.textContent = 'Copied'; setTimeout(() => lbl.textContent = 'Copy', 1600); }
+    }
+    function _downloadBackupCodes() {
+      const body = '5pm — Two-Factor Backup Codes\nSaved ' + new Date().toLocaleString() +
+        '\n\nEach code works once. Keep them somewhere safe.\n\n' + _mfaBackupCodes.join('\n') + '\n';
+      const blob = new Blob([body], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = '5pm-backup-codes.txt';
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+    let _mfaSecretResetTimer = null;
+    function _copyMfaSecret() {
+      navigator.clipboard?.writeText(el('mfaSecret').textContent || '');
+      el('mfaSecretCopyIcon').style.display = 'none';
+      el('mfaSecretCheckIcon').style.display = '';
+      if (_mfaSecretResetTimer) clearTimeout(_mfaSecretResetTimer);
+      _mfaSecretResetTimer = setTimeout(() => {
+        el('mfaSecretCopyIcon').style.display = '';
+        el('mfaSecretCheckIcon').style.display = 'none';
+      }, 1600);
+    }
+
+    function openMfaManage(factor) {
+      _mfaManageFactor = factor;
+      _mfaShowView('mfaViewManage');
+      el('mfaOverlay').classList.add('open');
+    }
+    function mfaShowManage() { _mfaShowView('mfaViewManage'); }
+    function mfaShowDisable() { _mfaShowView('mfaViewDisable'); }
+    async function mfaConfirmDisable() {
+      const btn = el('mfaDisableBtn'); btn.disabled = true; btn.textContent = 'Disabling…';
+      try {
+        const fid = _mfaManageFactor?.id;
+        if (fid) { const { error } = await window._sbClient.auth.mfa.unenroll({ factorId: fid }); if (error) throw error; }
+        const { data: { user } } = await window._sbClient.auth.getUser();
+        if (user) await window._sbClient.from('mfa_backup_codes').delete().eq('user_id', user.id);
+        try { sessionStorage.removeItem('wh_mfa_ok'); } catch(_) {}
+        closeMfaModal();
+        showToast('Two-Factor Disabled', 'success', 'Authenticator app removed from your account.');
+        hydrateSignInMethods();
+      } catch(e) {
+        btn.disabled = false; btn.textContent = 'Disable';
+        showToast('Could not disable', 'error', e.message || 'Please try again.');
+      }
+    }
+
     // ── Update Password ──────────────────────────────────────────────────────
     function openUpwdModal() {
       // Populate email from current session
@@ -11256,8 +11768,9 @@ ${sig}`
         initRealtimeSync();
       });
 
-      // Hydrate the profile card — auth data first, then cfg overlay when pullSettings resolves
+      // Hydrate the profile card and sign-in methods — auth data first, then cfg overlay when pullSettings resolves
       hydrateProfileCard();
+      hydrateSignInMethods();
 
       // Restore last active tab (persisted in sessionStorage across reloads)
       const savedTab = (function(){ try { return sessionStorage.getItem('wh_active_tab'); } catch { return null; } })();

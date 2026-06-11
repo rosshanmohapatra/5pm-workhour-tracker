@@ -11075,9 +11075,6 @@ ${sig}`
           const { data: f } = await window._sbClient.auth.mfa.listFactors();
           totpFactor = (f?.totp || []).find(x => x.status === 'verified') || null;
         } catch(_) { /* MFA list best-effort */ }
-        const _mfaDivider = document.createElement('div');
-        _mfaDivider.style.cssText = 'height:1px;background:var(--border);margin:2px 0';
-        list.appendChild(_mfaDivider);
         list.appendChild(_simBuildRow({
           icon: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l8 4v5c0 5-3.4 8.5-8 11-4.6-2.5-8-6-8-11V6l8-4z"/><path d="M9 12l2 2 4-4"/></svg>`,
           name: 'Authenticator App',

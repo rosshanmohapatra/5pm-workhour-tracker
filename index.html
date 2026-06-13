@@ -748,10 +748,10 @@
     /* Info icon button + tooltip */
     .info-icon-btn { display:inline-flex; align-items:center; justify-content:center; width:20px; height:20px; border-radius:50%; border:none; background:transparent; color:var(--muted-fg); cursor:pointer; padding:0; flex-shrink:0; }
     .info-icon-btn:hover { color:var(--foreground); }
-    .info-tooltip { position:fixed; background:var(--card); color:var(--foreground); border:1px solid var(--border); border-radius:10px; padding:10px 12px; pointer-events:none; opacity:0; transition:opacity .15s; z-index:9500; max-width:220px; min-width:140px; box-shadow:0 4px 16px rgba(0,0,0,.12); text-align:left; white-space:normal; }
+    .info-tooltip { position:fixed; background:var(--background); color:var(--foreground); border:1px solid var(--border); border-radius:10px; padding:10px 12px; pointer-events:none; opacity:0; transition:opacity .15s; z-index:9500; max-width:220px; min-width:140px; box-shadow:0 4px 16px rgba(0,0,0,.12); text-align:left; white-space:normal; }
     .info-tooltip.visible { opacity:1; pointer-events:auto; }
     .info-tooltip-title { font-size:12px; font-weight:600; color:var(--foreground); line-height:1.3; margin-bottom:3px; }
-    .info-tooltip-desc { font-size:11px; color:var(--muted-fg) !important; line-height:1.5; }
+    .info-tooltip-desc { font-size:11px; color:var(--muted-fg); line-height:1.5; }
     /* Plan blocks — shared base for Early Leave Plan & Stay Late Plans */
     .target-day-block { border-radius: 8px; padding: 0;
       display: flex; flex-direction: column; gap: 10px; }
@@ -802,6 +802,7 @@
     .sim-status.connected { color:var(--success); }
     .sim-status.not-connected { color:var(--muted-fg); }
     .sim-status.not-set { color:var(--muted-fg); }
+    .sim-status.muted { color:var(--muted-fg); font-weight:400; }
 
     /* ── Authenticator (MFA) modal ── */
     .mfa-qr { width:176px; height:176px; margin:2px auto 0; display:block; border-radius:10px; background:#fff; padding:8px; }
@@ -1433,7 +1434,7 @@
       position:fixed; bottom:24px; left:50%;
       transform:translateX(-50%) translateY(14px);
       min-width:220px; max-width:380px;
-      background:color-mix(in oklch, var(--muted) 92%, black 8%); border:1px solid var(--border);
+      background:var(--background); border:1px solid var(--border);
       border-radius:12px; padding:4px 4px 4px 14px;
       box-shadow:var(--shadow-lg);
       transition:transform .32s cubic-bezier(.32,1,.54,1), opacity .22s;
@@ -11229,13 +11230,14 @@ ${sig}`
         const connectedCount = [emailId, googleId, githubId].filter(Boolean).length;
         list.innerHTML = '';
 
-        // Email & Password
+        // Password
         list.appendChild(_simBuildRow({
-          icon: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><polyline points="2,4 12,13 22,4"/></svg>`,
-          name: 'Email & Password',
-          status: emailId ? 'Connected' : 'Not Set',
+          icon: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>`,
+          name: 'Password',
+          status: emailId ? (_simRelativeTime(emailId.updated_at) || 'Connected') : (user.email || 'Not set'),
+          statusClass: 'muted',
           connected: !!emailId,
-          action: emailId ? 'Update Password' : 'Create Password',
+          action: emailId ? 'Update Password' : 'Set Password',
           onAction: emailId ? openUpwdModal : openCreatePwdModal,
           destructive: false,
         }));
@@ -11286,7 +11288,17 @@ ${sig}`
       }
     }
 
-    function _simBuildRow({ icon, name, status, connected, action, onAction, destructive }) {
+    function _simRelativeTime(dateStr) {
+      if (!dateStr) return null;
+      var diff = Math.floor((Date.now() - new Date(dateStr)) / 1000);
+      if (diff < 60) return 'just now';
+      if (diff < 3600) return 'updated ' + Math.floor(diff / 60) + 'm ago';
+      if (diff < 86400) return 'updated ' + Math.floor(diff / 3600) + 'h ago';
+      var days = Math.floor(diff / 86400);
+      return 'last updated ' + days + ' day' + (days === 1 ? '' : 's') + ' ago';
+    }
+
+    function _simBuildRow({ icon, name, status, statusClass, connected, action, onAction, destructive }) {
       const row = document.createElement('div');
       row.className = 'sim-row';
 
@@ -11300,7 +11312,7 @@ ${sig}`
       nameEl.className = 'sim-name';
       nameEl.textContent = name;
       const statusEl = document.createElement('div');
-      statusEl.className = 'sim-status ' + (connected ? 'connected' : (status === 'Not Set' ? 'not-set' : 'not-connected'));
+      statusEl.className = 'sim-status ' + (statusClass || (connected ? 'connected' : (status === 'Not Set' ? 'not-set' : 'not-connected')));
       statusEl.textContent = status;
       info.appendChild(nameEl);
       info.appendChild(statusEl);
@@ -11913,7 +11925,7 @@ ${sig}`
       titleEl.style.display = title ? '' : 'none';
       var descEl = _modalTip.querySelector('.info-tooltip-desc');
       descEl.textContent = desc;
-      descEl.style.color = getComputedStyle(document.documentElement).getPropertyValue('--muted-fg').trim() || '#70707a';
+      descEl.style.color = title ? '' : 'var(--foreground)';
       _modalTip.style.width = ''; // reset to measure natural width
       _modalTip.classList.add('visible');
       var r = btn.getBoundingClientRect();

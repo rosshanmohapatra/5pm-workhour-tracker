@@ -135,7 +135,7 @@
 
     /* ── Form fields ── */
     .field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
-    .field-label { font-size: 12px; font-weight: 500; color: var(--muted-fg); letter-spacing: .3px; text-transform: uppercase; }
+    .field-label { font-size: 12px; font-weight: 500; color: var(--muted-fg); letter-spacing: .3px; }
     .field-input {
       height: 42px;
       padding: 0 14px;
@@ -368,7 +368,7 @@
 
       <div class="field" id="nameField">
         <div class="field-label">Full Name</div>
-        <input class="field-input" id="nameInput" type="text" placeholder="Alex Costa" autocomplete="name">
+        <input class="field-input" id="nameInput" type="text" placeholder="eg. Peter Parker" autocomplete="name">
       </div>
 
       <div class="field">
@@ -499,8 +499,8 @@
 
   <!-- Footer -->
   <div class="auth-footer" id="authFooter">
-    <span id="footerText">Don't have an account?</span>
-    <a class="auth-footer-link" id="toggleLink" onclick="toggleMode()">Sign up</a>
+    <span id="footerText">New to 5pm?</span>
+    <a class="auth-footer-link" id="toggleLink" onclick="toggleMode()">Create an Account</a>
   </div>
 
   <!-- All login page logic lives in login.js -->

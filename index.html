@@ -748,8 +748,10 @@
     /* Info icon button + tooltip */
     .info-icon-btn { display:inline-flex; align-items:center; justify-content:center; width:20px; height:20px; border-radius:50%; border:none; background:transparent; color:var(--muted-fg); cursor:pointer; padding:0; flex-shrink:0; }
     .info-icon-btn:hover { color:var(--foreground); }
-    .info-tooltip { position:absolute; left:50%; top:calc(100% + 6px); transform:translateX(-50%); white-space:nowrap; background:var(--foreground); color:var(--background); font-size:12px; padding:6px 10px; border-radius:6px; pointer-events:none; opacity:0; transition:opacity .15s; z-index:100; max-width:260px; white-space:normal; text-align:center; line-height:1.5; }
+    .info-tooltip { position:fixed; background:var(--card); color:var(--foreground); border:1px solid var(--border); border-radius:10px; padding:10px 12px; pointer-events:none; opacity:0; transition:opacity .15s; z-index:9500; max-width:220px; min-width:140px; box-shadow:0 4px 16px rgba(0,0,0,.12); text-align:left; white-space:normal; }
     .info-tooltip.visible { opacity:1; pointer-events:auto; }
+    .info-tooltip-title { font-size:12px; font-weight:600; color:var(--foreground); line-height:1.3; margin-bottom:3px; }
+    .info-tooltip-desc { font-size:11px; color:var(--muted-fg); line-height:1.5; }
     /* Plan blocks — shared base for Early Leave Plan & Stay Late Plans */
     .target-day-block { border-radius: 8px; padding: 0;
       display: flex; flex-direction: column; gap: 10px; }
@@ -2944,63 +2946,77 @@
                 <div style="display:flex;flex-direction:column;gap:8px">
 
                   <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
-                    <div>
+                    <div style="display:flex;align-items:center;gap:5px">
                       <div style="font-size:13px;font-weight:500;color:var(--foreground)">Continue Working</div>
-                      <div class="form-sub">Shown when logging in with hours already tracked today.</div>
+                      <div style="position:relative">
+                        <button class="info-icon-btn" type="button" data-tip-desc="Shown when logging in with hours already tracked today." onclick="_toggleModalTip(this)" onmouseenter="_showModalTip(this)" onmouseleave="_hideModalTip()"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg></button>
+                      </div>
                     </div>
                     <button class="btn-secondary" style="flex-shrink:0;font-size:12px;height:32px;padding:0 10px"
                       onclick="openContinueWorkingModal('09:00 AM', 3 * 3600)">Preview</button>
                   </div>
 
                   <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
-                    <div>
+                    <div style="display:flex;align-items:center;gap:5px">
                       <div style="font-size:13px;font-weight:500;color:var(--foreground)">Outside Shift</div>
-                      <div class="form-sub">Shown when logging in outside configured shift hours.</div>
+                      <div>
+                        <button class="info-icon-btn" type="button" data-tip-desc="Shown when logging in outside configured shift hours." onclick="_toggleModalTip(this)" onmouseenter="_showModalTip(this)" onmouseleave="_hideModalTip()"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg></button>
+                      </div>
                     </div>
                     <button class="btn-secondary" style="flex-shrink:0;font-size:12px;height:32px;padding:0 10px"
                       onclick="showOutsideShiftModal(null)">Preview</button>
                   </div>
 
                   <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
-                    <div>
+                    <div style="display:flex;align-items:center;gap:5px">
                       <div style="font-size:13px;font-weight:500;color:var(--foreground)">Daily Target Reached</div>
-                      <div class="form-sub">Shown when target hours are hit (Recommend Timings off).</div>
+                      <div>
+                        <button class="info-icon-btn" type="button" data-tip-desc="Shown when target hours are hit (Recommend Timings off)." onclick="_toggleModalTip(this)" onmouseenter="_showModalTip(this)" onmouseleave="_hideModalTip()"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg></button>
+                      </div>
                     </div>
                     <button class="btn-secondary" style="flex-shrink:0;font-size:12px;height:32px;padding:0 10px"
                       onclick="(function(){ const h = el('dailyTargetHours'); if(h) h.textContent = '9h 00m'; el('dailyTargetReachedOverlay').classList.add('open'); })()">Preview</button>
                   </div>
 
                   <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
-                    <div>
+                    <div style="display:flex;align-items:center;gap:5px">
                       <div style="font-size:13px;font-weight:500;color:var(--foreground)">End of Day Summary</div>
-                      <div class="form-sub">Shown automatically after a session ends.</div>
+                      <div>
+                        <button class="info-icon-btn" type="button" data-tip-desc="Shown automatically after a session ends." onclick="_toggleModalTip(this)" onmouseenter="_showModalTip(this)" onmouseleave="_hideModalTip()"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg></button>
+                      </div>
                     </div>
                     <button class="btn-secondary" style="flex-shrink:0;font-size:12px;height:32px;padding:0 10px"
                       onclick="showCheckoutModal('09:00 AM', new Date(), 9 * 3600)">Preview</button>
                   </div>
 
                   <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
-                    <div>
+                    <div style="display:flex;align-items:center;gap:5px">
                       <div style="font-size:13px;font-weight:500;color:var(--foreground)">iOS Install Prompt</div>
-                      <div class="form-sub">Shown on iOS Safari when the app isn't installed to home screen.</div>
+                      <div>
+                        <button class="info-icon-btn" type="button" data-tip-desc="Shown on iOS Safari when the app isn't installed to home screen." onclick="_toggleModalTip(this)" onmouseenter="_showModalTip(this)" onmouseleave="_hideModalTip()"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg></button>
+                      </div>
                     </div>
                     <button class="btn-secondary" style="flex-shrink:0;font-size:12px;height:32px;padding:0 10px"
                       onclick="(function(){ var o=document.getElementById('iosInstallOverlay'),s=document.getElementById('iosInstallSheet'); o.style.display='block'; s.style.display='block'; requestAnimationFrame(function(){ requestAnimationFrame(function(){ s.style.transform='translateY(0)'; }); }); })()">Preview</button>
                   </div>
 
                   <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
-                    <div>
+                    <div style="display:flex;align-items:center;gap:5px">
                       <div style="font-size:13px;font-weight:500;color:var(--foreground)">Shift Auto-Stopped</div>
-                      <div class="form-sub">Shown when the timer stops automatically after the daily target.</div>
+                      <div>
+                        <button class="info-icon-btn" type="button" data-tip-desc="Shown when the timer stops automatically after the daily target." onclick="_toggleModalTip(this)" onmouseenter="_showModalTip(this)" onmouseleave="_hideModalTip()"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg></button>
+                      </div>
                     </div>
                     <button class="btn-secondary" style="flex-shrink:0;font-size:12px;height:32px;padding:0 10px"
                       onclick="openAutoStopRecovery()">Preview</button>
                   </div>
 
                   <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
-                    <div>
+                    <div style="display:flex;align-items:center;gap:5px">
                       <div style="font-size:13px;font-weight:500;color:var(--foreground)">Onboarding</div>
-                      <div class="form-sub">Re-open the first-launch onboarding flow.</div>
+                      <div>
+                        <button class="info-icon-btn" type="button" data-tip-desc="Re-opens the first-launch onboarding flow." onclick="_toggleModalTip(this)" onmouseenter="_showModalTip(this)" onmouseleave="_hideModalTip()"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg></button>
+                      </div>
                     </div>
                     <button class="btn-secondary" style="flex-shrink:0;font-size:12px;height:32px;padding:0 10px"
                       onclick="openOnboarding()">Preview</button>
@@ -11880,6 +11896,51 @@ ${sig}`
         _scrollLockObserver.observe(o, { attributes: true, attributeFilter: ['class', 'style'] })
       );
     })();
+
+    // Modal section — info tooltip portal (appended to body to escape overflow clipping)
+    var _modalTip = (function() {
+      var el = document.createElement('div');
+      el.className = 'info-tooltip';
+      el.innerHTML = '<div class="info-tooltip-title">Info</div><div class="info-tooltip-desc"></div>';
+      document.body.appendChild(el);
+      return el;
+    })();
+    function _positionAndShowTip(btn) {
+      var desc = btn.getAttribute('data-tip-desc') || '';
+      _modalTip.querySelector('.info-tooltip-desc').textContent = desc;
+      _modalTip.style.width = ''; // reset to measure natural width
+      _modalTip.classList.add('visible');
+      var r = btn.getBoundingClientRect();
+      var vw = window.innerWidth;
+      var vh = window.innerHeight;
+      var gap = 8;
+      var tipW = Math.min(220, vw - gap * 2);
+      var left = r.left + r.width / 2 - tipW / 2;
+      left = Math.max(gap, Math.min(vw - tipW - gap, left));
+      _modalTip.style.left = left + 'px';
+      _modalTip.style.width = tipW + 'px';
+      var tipH = _modalTip.offsetHeight;
+      var spaceBelow = vh - r.bottom;
+      if (spaceBelow >= tipH + gap) {
+        _modalTip.style.top = (r.bottom + gap) + 'px';
+      } else {
+        _modalTip.style.top = Math.max(gap, r.top - tipH - gap) + 'px';
+      }
+    }
+    function _hideModalTip() { _modalTip.classList.remove('visible'); }
+    function _showModalTip(btn) {
+      if (window.matchMedia('(hover: hover)').matches) _positionAndShowTip(btn);
+    }
+    function _toggleModalTip(btn) {
+      if (_modalTip.classList.contains('visible')) {
+        _hideModalTip();
+      } else {
+        _positionAndShowTip(btn);
+      }
+    }
+    document.addEventListener('click', function(e) {
+      if (!e.target.closest('.info-icon-btn')) _hideModalTip();
+    });
   </script>
 
 <!-- ── ONBOARDING MODAL ── -->

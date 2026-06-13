@@ -946,6 +946,11 @@
       text-overflow:ellipsis; }
     .co-val-suf { font-size:12px; font-weight:500; color:var(--muted-fg); }
     .co-stat-divider { width:1px; background:var(--border); margin:12px 0; flex-shrink:0; }
+    @media (max-width:640px) {
+      .co-stats-row { flex-direction:column; gap:8px; background:transparent; }
+      .co-stat { background:var(--muted); border-radius:10px; }
+      .co-stat-divider { display:none; }
+    }
     .co-footer-note { padding:9px 12px; background:var(--muted); border-radius:8px;
       font-size:12px; font-weight:500; color:var(--muted-fg); line-height:1.45; }
     .co-insight { background: var(--success-bg); border: 1px solid var(--success-border);

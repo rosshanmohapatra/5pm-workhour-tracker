@@ -222,10 +222,10 @@
       background: transparent; color: var(--muted-fg); font-size: 13px; font-weight: 500;
       font-family: var(--font); transition: box-shadow .14s, color .14s;
       display: flex; align-items: center; gap: 5px; }
-    .nav-tab:hover { background: transparent; box-shadow: 0 0 0 1px var(--border); color: var(--foreground); }
+    .nav-tab:hover, .nav-tab:active { background: transparent; box-shadow: 0 0 0 1px var(--border); color: var(--foreground); }
     .nav-tab.active { background: var(--card); color: var(--foreground); box-shadow: var(--shadow-xs); }
     .dark .navbar { background: var(--background); }
-    .dark .nav-tab:hover { background: transparent; box-shadow: 0 0 0 1px var(--border); color: var(--foreground); }
+    .dark .nav-tab:hover, .dark .nav-tab:active { background: transparent; box-shadow: 0 0 0 1px var(--border); color: var(--foreground); }
     .dark .nav-tab.active { background: var(--muted); color: var(--foreground); box-shadow: none; }
     .nav-tab.active .tab-icon { display: inline-flex !important; }
     .nav-actions { display: flex; align-items: center; gap: 8px; }
@@ -263,6 +263,9 @@
     .mob-tab .icon-fill { display:none; }
     .mob-tab.active .icon-stroke { display:none; }
     .mob-tab.active .icon-fill { display:block; }
+    .ios-handle-btn { display:flex;justify-content:center;padding:6px 0;cursor:pointer;-webkit-tap-highlight-color:transparent;user-select:none; }
+    .ios-handle-bar { width:36px;height:4px;background:var(--border);border-radius:4px;transition:background .12s; }
+    .ios-handle-btn:active .ios-handle-bar { background:var(--foreground); }
 
     /* ── View system ── */
     .view { display: none; }
@@ -277,14 +280,13 @@
       width: 36px; height: 36px; flex-shrink: 0; background: transparent;
       border: none; border-radius: var(--radius-md); color: var(--muted-fg);
       transition: background .14s, color .14s; position: relative; }
-    .btn-icon:hover  { background: transparent; box-shadow: 0 0 0 1px var(--border); color: var(--foreground); }
-    .dark .btn-icon:hover { background: transparent; box-shadow: 0 0 0 1px var(--border); }
-    .btn-icon:active { opacity: .82; transform: scale(.97); }
+    .btn-icon:hover, .btn-icon:active { background: transparent; box-shadow: 0 0 0 1px var(--border); color: var(--foreground); }
+    .dark .btn-icon:hover, .dark .btn-icon:active { background: transparent; box-shadow: 0 0 0 1px var(--border); }
     /* Active state mirrors the active nav tab — subtle card bg, not flashy black */
     .btn-icon.notif-active { background: var(--card); color: var(--foreground); box-shadow: var(--shadow-xs); }
-    .btn-icon.notif-active:hover { background: var(--card); color: var(--foreground); }
+    .btn-icon.notif-active:hover, .btn-icon.notif-active:active { background: var(--card); color: var(--foreground); }
     .dark .btn-icon.notif-active { background: var(--muted); color: var(--foreground); box-shadow: none; }
-    .dark .btn-icon.notif-active:hover { background: var(--muted); color: var(--foreground); }
+    .dark .btn-icon.notif-active:hover, .dark .btn-icon.notif-active:active { background: var(--muted); color: var(--foreground); }
     .notif-badge { position: absolute; top: 6px; right: 6px; width: 7px; height: 7px;
       border-radius: 50%; background: var(--destructive);
       border: 1.5px solid var(--muted);
@@ -478,9 +480,9 @@
     /* ── Shift combo (input + button inside) ── */
     .shift-cta { display: flex; flex-direction: column; gap: 10px; }
     .shift-combo { display: flex; align-items: center; background: var(--card);
-      border: none; border-radius: var(--radius-lg); height: 52px;
-      padding: 6px; gap: 6px; transition: background .15s; box-shadow: var(--shadow-xs); }
-    .shift-combo:focus-within { background: color-mix(in srgb, var(--card) 60%, var(--muted) 40%); }
+      border: 1.5px solid var(--border); border-radius: var(--radius-lg); height: 52px;
+      padding: 6px; gap: 6px; transition: background .15s, border-color .15s; box-shadow: var(--shadow-xs); }
+    .shift-combo:focus-within { background: color-mix(in srgb, var(--card) 60%, var(--muted) 40%); border-color: var(--border); }
     .shift-combo-input.err { color: var(--destructive); }
     /* Placeholder div that replaces the input at rest — invisible to Safari autofill scanner */
     .tc-ph { cursor:text; color:var(--muted-fg) !important; display:flex; align-items:center; height:100%; }
@@ -883,12 +885,19 @@
     .dialog-head { padding: 22px 22px 16px; position: relative; }
     /* Toast */
     #appToast.toast-show { opacity: 1 !important; pointer-events: all !important; transform: translateX(-50%) translateY(0) !important; }
+    @media (max-width: 640px) {
+      #appToast { left: 16px !important; right: 16px !important; width: auto !important; white-space: normal !important; transform: translateY(20px) !important; }
+      #appToast.toast-show { transform: translateY(0) !important; }
+    }
     /* About Project card */
     .about-dev-pic { width: 40px; height: 40px; border-radius: 50%; object-fit: cover;
       border: 2px solid var(--border); flex-shrink: 0; }
     /* Card is a 5-tap unlock target — block selection so rapid tapping
        doesn't highlight the name/role text. */
     #devAboutCard { user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+    #devAboutCard .settings-section-body-inner { cursor: pointer; }
+    #devAboutCard .settings-section-body-inner button,
+    #devAboutCard .settings-section-body-inner a { cursor: pointer; }
     .about-social-btn { display:inline-flex;align-items:center;justify-content:center;
       width:34px;height:34px;border-radius:8px;border:none;
       background:transparent;color:var(--muted-fg);text-decoration:none;
@@ -1425,7 +1434,9 @@
       transform:translateX(-50%) translateY(0);
       opacity:1; pointer-events:auto;
     }
-    @media (max-width:640px) { .wh-toast { bottom:72px; } }
+    @media (max-width:640px) {
+      .wh-toast { bottom:72px; width:max-content; max-width:calc(100% - 32px); }
+    }
     .wh-toast-icon { width:15px; height:15px; flex-shrink:0; }
     .wh-toast-body { flex:1; min-width:0; }
     .wh-toast-title { font-size:13px; font-weight:500; color:var(--foreground); }
@@ -1762,6 +1773,14 @@
     .ob-day-picker { display: flex; gap: 6px; flex-wrap: wrap; }
     .ob-done-card { background: var(--muted); border-radius: 12px; padding: 20px; text-align: center;
       display: flex; flex-direction: column; align-items: center; gap: 8px; }
+    .ob-feature-list { display: flex; flex-direction: column; gap: 8px; }
+    .ob-feature-card { display: flex; align-items: flex-start; gap: 12px; background: var(--muted);
+      border-radius: 10px; padding: 12px 14px; }
+    .ob-feature-icon { width: 32px; height: 32px; border-radius: 8px; background: var(--card);
+      border: 1px solid var(--border); display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; color: var(--foreground); }
+    .ob-feature-title { font-size: 13px; font-weight: 600; color: var(--foreground); line-height: 1.3; }
+    .ob-feature-desc { font-size: 12px; color: var(--muted-fg); line-height: 1.5; margin-top: 2px; }
     /* Leaving / deleting loader modal */
     .leaving-spinner { width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--foreground);
       border-radius:50%;animation:leaveSpin .7s linear infinite;flex-shrink:0; }
@@ -2496,12 +2515,18 @@
           <div class="settings-section-divider"></div>
 
           <!-- Name + Position inputs -->
-          <div style="padding:16px;display:flex;gap:12px">
-            <div style="flex:1;display:flex;flex-direction:column;gap:6px">
-              <div class="form-label">Your Name</div>
-              <input type="text" class="field-input" id="inpDisplay" placeholder="Full Name" autocomplete="off" maxlength="40">
+          <div style="padding:16px;display:flex;flex-direction:column;gap:10px">
+            <div style="display:flex;gap:12px">
+              <div style="flex:1;display:flex;flex-direction:column;gap:6px">
+                <div class="form-label">Your Name</div>
+                <input type="text" class="field-input" id="inpDisplay" placeholder="Full Name" autocomplete="off" maxlength="40">
+              </div>
+              <div style="flex:1;display:flex;flex-direction:column;gap:6px">
+                <div class="form-label">Company</div>
+                <input type="text" class="field-input" id="inpCompany" placeholder="Where do you work?" autocomplete="off" maxlength="60">
+              </div>
             </div>
-            <div style="flex:1;display:flex;flex-direction:column;gap:6px">
+            <div style="display:flex;flex-direction:column;gap:6px">
               <div class="form-label">Position</div>
               <input type="text" class="field-input" id="inpPosition" placeholder="What do you do?" autocomplete="off" maxlength="60">
             </div>
@@ -2803,7 +2828,7 @@
             <img class="about-dev-pic" src="https://framerusercontent.com/images/u88DE05m7bwVdrx5jcyopewNaE.jpg?width=200&height=200" alt="Roshan Mohapatra">
             <div style="flex:1;min-width:0">
               <div style="font-size:13px;font-weight:600;color:var(--foreground);line-height:1.2">Roshan Mohapatra</div>
-              <div class="form-sub" style="margin-top:1px">Product Designer & Developer</div>
+              <div class="form-sub" style="margin-top:1px">Product Designer</div>
             </div>
             <div style="display:flex;align-items:center;gap:6px">
               <!-- GitHub -->
@@ -2860,6 +2885,29 @@
                 </div>
               </div>
 
+              <!-- Date Override — function row -->
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+                <div>
+                  <div class="form-label">Override Date</div>
+                  <div class="form-sub">Simulate a different calendar day for testing different states.</div>
+                </div>
+                <div style="display:flex;gap:6px;align-items:center;flex-shrink:0">
+                  <button class="this-week-label-btn" id="devDatePickerBtn"
+                    onclick="openDevDatePicker(this)" type="button"
+                    style="height:34px;padding:0 12px;font-size:12px;gap:6px">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+                    </svg>
+                    <span id="devDatePickerLabel">Pick a Date</span>
+                    <svg class="tw-chevron" width="10" height="10" viewBox="0 0 24 24" fill="none">
+                      <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                  </button>
+                  <button class="btn-secondary" style="font-size:12px;height:34px;padding:0 10px;white-space:nowrap"
+                    onclick="clearDevDateOverride()">Reset</button>
+                </div>
+              </div>
+
               <!-- Screens — function row -->
               <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
                 <div>
@@ -2867,6 +2915,15 @@
                   <div class="form-sub">A modal when the user forgets to stop the timer &amp; it stops automatically.</div>
                 </div>
                 <button class="btn-secondary" style="flex-shrink:0" onclick="openAutoStopRecovery()">Open Modal</button>
+              </div>
+
+              <!-- Onboarding — function row -->
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+                <div>
+                  <div class="form-label">Onboarding</div>
+                  <div class="form-sub">Re-open the first-launch onboarding flow.</div>
+                </div>
+                <button class="btn-secondary" style="flex-shrink:0" onclick="openOnboarding()">Open Flow</button>
               </div>
 
               <!-- Sync — function row (kept at the bottom) -->
@@ -2886,6 +2943,60 @@
                   <button id="syncDiagCopy" class="diag-btn" onclick="_copyDiagLog()">Copy Log</button>
                 </div>
                 <div id="syncDiagResult" style="padding:14px 12px 12px;background:#0a0a0a;border:1px solid #222;border-radius:var(--radius-md);font-size:11px;font-family:'SF Mono',ui-monospace,monospace;line-height:1.7;color:#8a8f98;white-space:pre-wrap;word-break:break-all;max-height:280px;overflow:auto"></div>
+              </div>
+
+              <!-- Modals — conditional modals not otherwise triggerable -->
+              <div>
+                <div class="form-label">Modals</div>
+                <div class="form-sub" style="margin-bottom:10px">Conditional modals that only appear under specific runtime states.</div>
+                <div style="display:flex;flex-direction:column;gap:8px">
+
+                  <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+                    <div>
+                      <div style="font-size:13px;font-weight:500;color:var(--foreground)">Continue Working</div>
+                      <div class="form-sub">Shown when logging in with hours already tracked today.</div>
+                    </div>
+                    <button class="btn-secondary" style="flex-shrink:0;font-size:12px;height:32px;padding:0 10px"
+                      onclick="openContinueWorkingModal('09:00 AM', 3 * 3600)">Preview</button>
+                  </div>
+
+                  <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+                    <div>
+                      <div style="font-size:13px;font-weight:500;color:var(--foreground)">Outside Shift</div>
+                      <div class="form-sub">Shown when logging in outside configured shift hours.</div>
+                    </div>
+                    <button class="btn-secondary" style="flex-shrink:0;font-size:12px;height:32px;padding:0 10px"
+                      onclick="showOutsideShiftModal(null)">Preview</button>
+                  </div>
+
+                  <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+                    <div>
+                      <div style="font-size:13px;font-weight:500;color:var(--foreground)">Daily Target Reached</div>
+                      <div class="form-sub">Shown when target hours are hit (Recommend Timings off).</div>
+                    </div>
+                    <button class="btn-secondary" style="flex-shrink:0;font-size:12px;height:32px;padding:0 10px"
+                      onclick="(function(){ const h = el('dailyTargetHours'); if(h) h.textContent = '9h 00m'; el('dailyTargetReachedOverlay').classList.add('open'); })()">Preview</button>
+                  </div>
+
+                  <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+                    <div>
+                      <div style="font-size:13px;font-weight:500;color:var(--foreground)">End of Day Summary</div>
+                      <div class="form-sub">Shown automatically after a session ends.</div>
+                    </div>
+                    <button class="btn-secondary" style="flex-shrink:0;font-size:12px;height:32px;padding:0 10px"
+                      onclick="showCheckoutModal('09:00 AM', new Date(), 9 * 3600)">Preview</button>
+                  </div>
+
+                  <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+                    <div>
+                      <div style="font-size:13px;font-weight:500;color:var(--foreground)">iOS Install Prompt</div>
+                      <div class="form-sub">Shown on iOS Safari when the app isn't installed to home screen.</div>
+                    </div>
+                    <button class="btn-secondary" style="flex-shrink:0;font-size:12px;height:32px;padding:0 10px"
+                      onclick="(function(){ var o=document.getElementById('iosInstallOverlay'),s=document.getElementById('iosInstallSheet'); o.style.display='block'; s.style.display='block'; requestAnimationFrame(function(){ requestAnimationFrame(function(){ s.style.transform='translateY(0)'; }); }); })()">Preview</button>
+                  </div>
+
+                </div>
               </div>
 
             </div>
@@ -3809,6 +3920,7 @@
     // ── STATE ──────────────────────────────────────────
     let loginDate = null, ticker = null;
     let dark = false, wasDone = false, notifSent = false;
+    let _devDateOverride = null; // dev mode: 'YYYY-MM-DD' string or null
     let wkMinimized = false, notifOpen = false;
     let activeView = 'home';
     let selectedDayKey = null;      // null = today; or a date key for past days
@@ -3844,6 +3956,11 @@
     // saveCfg defined in persistence layer
 
     function nowTz() {
+      if (_devDateOverride) {
+        const real = new Date();
+        const [y, m, d] = _devDateOverride.split('-').map(Number);
+        return new Date(y, m - 1, d, real.getHours(), real.getMinutes(), real.getSeconds(), real.getMilliseconds());
+      }
       return new Date();
     }
 
@@ -4803,7 +4920,7 @@
     }
     function _wpOutsideClick(e) {
       const overlay = el('wpPickerOverlay');
-      const isTrigger = el('thisWeekLabel')?.contains(e.target) || el('wkNavLabelBtn')?.contains(e.target);
+      const isTrigger = el('thisWeekLabel')?.contains(e.target) || el('wkNavLabelBtn')?.contains(e.target) || el('devDatePickerBtn')?.contains(e.target);
       if (overlay && !overlay.contains(e.target) && !isTrigger) {
         closeWeekPicker();
       } else if (overlay && overlay.classList.contains('open')) {
@@ -4817,6 +4934,7 @@
       el('wpPickerOverlay').classList.remove('open');
       el('thisWeekLabel')?.classList.remove('picker-open');
       el('wkNavLabelBtn')?.classList.remove('picker-open');
+      el('devDatePickerBtn')?.classList.remove('picker-open');
       _wpContext = null;
     }
 
@@ -4851,9 +4969,10 @@
 
     function _wpRenderCal() {
       el('wpPickerMonth').textContent = `${MONTHS[_wpMonth]} ${_wpYear}`;
-      // Disable Jump to Today when today is already the selected day
       const _jtBtn = el('wpJumpTodayBtn');
-      if (_jtBtn) _jtBtn.disabled = (!selectedDayKey || selectedDayKey === todayKey() || selectedDayKey === '__wknd__');
+      if (_jtBtn) _jtBtn.disabled = _wpContext === 'devDate'
+        ? !_devDateOverride
+        : (!selectedDayKey || selectedDayKey === todayKey() || selectedDayKey === '__wknd__');
       const grid = el('wpPickerGrid');
       if (!grid) return;
       grid.innerHTML = '';
@@ -4883,7 +5002,9 @@
           const cellDate = new Date(monDate); cellDate.setDate(monDate.getDate() + d);
           const cellKey  = `${cellDate.getFullYear()}-${p2(cellDate.getMonth()+1)}-${p2(cellDate.getDate())}`;
           const inMonth  = cellDate.getMonth() === _wpMonth;
-          const isSel    = cellKey === (selectedDayKey || todayKey());
+          const isSel    = _wpContext === 'devDate'
+            ? cellKey === (_devDateOverride || todayKey())
+            : cellKey === (selectedDayKey || todayKey());
           const log      = dayLog(cellKey);
           const isOffDay = isWeekendKey(cellKey)
                         || log?.override === 'holiday'
@@ -4903,11 +5024,17 @@
     }
 
     function _wpJumpToday() {
+      if (_wpContext === 'devDate') { clearDevDateOverride(); closeWeekPicker(); return; }
       _wpSelectDay(todayKey());
     }
 
     function _wpSelectDay(dayKey) {
       if (!dayKey) return;
+      if (_wpContext === 'devDate') {
+        setDevDateOverride(dayKey);
+        closeWeekPicker();
+        return;
+      }
       if (_wpContext === 'analytics') {
         const todayDate = new Date(todayKey() + 'T12:00');
         const selDate   = new Date(dayKey + 'T12:00');
@@ -5579,13 +5706,16 @@
 
       if (endedSecs > 0) {
         const isDoneE = eff > 0 && endedSecs >= eff;
+        const _isPaused = _sessionAccSecs > 0;
         el('rcWorked').textContent = durWorked(endedSecs);
         el('rcWorked').style.color = isDoneE ? 'var(--muted-fg)' : '';
-        el('rcTarget').textContent = isDoneE ? '+' + dur(Math.max(0, endedSecs - eff)) : dur(Math.max(0, eff - endedSecs));
+        el('rcTarget').textContent = isDoneE
+          ? '+' + dur(Math.max(0, endedSecs - eff))
+          : (_isPaused ? dur(Math.max(0, eff - endedSecs)) : '—');
         el('rcTarget').style.color = 'var(--muted-fg)';
-        if (el('rcTargetLabel')) swapText('rcTargetLabel', isDoneE ? 'Extra Time' : 'Remaining');
+        if (el('rcTargetLabel')) swapText('rcTargetLabel', isDoneE ? 'Extra Time' : (_isPaused ? 'Remaining' : ''));
         // "Paused" = mid-day pause with Resume available; "Ended" = full checkout
-        const _endedLabel = _sessionAccSecs > 0 ? 'Paused' : 'Ended';
+        const _endedLabel = _isPaused ? 'Paused' : 'Ended';
         swapText('rcElapsedLabel', isDoneE ? '' : _endedLabel, { color: 'var(--muted-fg)' });
         el('rcToday').innerHTML = buildTargetHtml(eff, isDoneE);
         el('stayHint').style.display = 'none';
@@ -7515,8 +7645,6 @@
     // Make each labeled settings section collapsible (chevron toggle, state
     // persisted). Idempotent — safe to call every time settings opens.
     function initCollapsibleSettings() {
-      let collapsed = {};
-      try { collapsed = JSON.parse(localStorage.getItem('wh_settings_collapsed') || '{}'); } catch (_) {}
       document.querySelectorAll('.settings-card-merged .settings-section').forEach(section => {
         const header = section.querySelector('.settings-section-header');
         if (!header || header.dataset.collapsible) return;
@@ -7531,12 +7659,10 @@
         inner.className = 'settings-section-body-inner';
         while (header.nextSibling) inner.appendChild(header.nextSibling);
         section.appendChild(inner);
-        // Apply the saved state instantly (no animation on first paint).
-        if (collapsed[key]) { section.classList.add('collapsed'); inner.style.maxHeight = '0px'; }
+        // All sections start expanded; no state persisted to localStorage.
         header.addEventListener('click', () => {
           const willCollapse = !section.classList.contains('collapsed');
           if (willCollapse) {
-            // Lock to current height, then animate to 0 on the next frame.
             inner.style.maxHeight = inner.scrollHeight + 'px';
             requestAnimationFrame(() => {
               section.classList.add('collapsed');
@@ -7545,12 +7671,9 @@
           } else {
             section.classList.remove('collapsed');
             inner.style.maxHeight = inner.scrollHeight + 'px';
-            // Release the cap once open so async content (e.g. sign-in list) can grow.
             const done = () => { if (!section.classList.contains('collapsed')) inner.style.maxHeight = ''; inner.removeEventListener('transitionend', done); };
             inner.addEventListener('transitionend', done);
           }
-          collapsed[key] = willCollapse;
-          try { localStorage.setItem('wh_settings_collapsed', JSON.stringify(collapsed)); } catch (_) {}
         });
       });
     }
@@ -7558,8 +7681,9 @@
     function populateSettings() {
       const c = cfg();
       initCollapsibleSettings();
-      el('inpDisplay').value       = c.name || '';
-      el('inpPosition').value   = c.position || '';
+      el('inpDisplay').value   = c.name || '';
+      el('inpCompany').value   = c.company || '';
+      el('inpPosition').value  = c.position || '';
       const _dh = Math.floor(c.dailyH || 9);
       const _dm = Math.round(((c.dailyH || 9) - _dh) * 60);
       el('inpDailyH').value = _dh;
@@ -7980,6 +8104,7 @@
       const notifKickstart = el('inpNotifKickstart')?.checked ?? true;
       const notifOvertime  = el('inpNotifOvertime')?.checked ?? true;
       const name       = el('inpDisplay').value.trim();
+      const company    = el('inpCompany')?.value.trim() || '';
       const position   = el('inpPosition')?.value.trim() || '';
       const weeklyH    = (_wHVal > 0 || _wMVal > 0) ? _wHVal + _wMVal / 60 : cfg().weeklyH;
       const shiftStart = el('inpShiftStart')?.value.trim() || '09:00 AM';
@@ -7990,7 +8115,7 @@
       const recommendTimings = el('inpRecommendTimings')?.checked ?? true;
       const breakTime = el('inpBreakTime')?.checked ?? true;
       const use24h = el('inp24h')?.checked ?? false;
-      saveCfg({ dailyH: daily, weeklyH, weeklyOn: on, lateDays, earlyLeaveDays, notifOn, notifTarget, notifKickstart, notifOvertime, name, position,
+      saveCfg({ dailyH: daily, weeklyH, weeklyOn: on, lateDays, earlyLeaveDays, notifOn, notifTarget, notifKickstart, notifOvertime, name, company, position,
                 targetDay, shiftType, shiftStart, shiftEnd, tzOffset, workDays, recommendTimings, breakTime, use24h,
                 autoStopBuf: cfg().autoStopBuf ?? 2, dismissed: cfg().dismissed ?? [] });
       // If session is running, refresh button state to reflect break-time change
@@ -9427,7 +9552,10 @@ ${sig}`
       if (document.visibilityState === 'hidden') _flushSync({ silent: true });
     });
     // pagehide: PWA close, navigation away
-    window.addEventListener('pagehide', () => _flushSync({ silent: true }));
+    window.addEventListener('pagehide', () => {
+      _flushSync({ silent: true });
+      localStorage.setItem('wh_last_unload_ts', Date.now().toString());
+    });
     // beforeunload: flush silently if dirty; only block reload when actively tracking
     window.addEventListener('beforeunload', (e) => {
       if (_hasPending() || _syncInFlight) _flushSync({ silent: true });
@@ -10309,19 +10437,23 @@ ${sig}`
     el('emailModalOverlay').addEventListener('click', e => { if (e.target === el('emailModalOverlay')) closeEmailModal(); });
     el('outsideShiftOverlay').addEventListener('click', e => { if (e.target === el('outsideShiftOverlay')) closeOutsideShiftModal(); });
 
-    // ── Dev mode unlock: 5 taps on About Developer card ────────────────
+    // ── Dev mode unlock: 5 taps on About Developer body (not header/buttons/links) ──
     (function() {
       let _devTaps = 0, _devTimer = null;
       const devCard = el('devAboutCard');
       if (!devCard) return;
-      devCard.style.cursor = 'pointer';
-      devCard.addEventListener('click', () => {
+      devCard.addEventListener('click', (e) => {
+        // Must be inside the collapsible body (created dynamically by initCollapsibleSettings)
+        const inner = devCard.querySelector('.settings-section-body-inner');
+        if (!inner || !inner.contains(e.target)) return;
+        // Buttons and links have their own actions — don't count those either
+        if (e.target.closest('button, a')) return;
         _devTaps++;
         if (_devTimer) clearTimeout(_devTimer);
         _devTimer = setTimeout(() => { _devTaps = 0; }, 2000);
         const left = 5 - _devTaps;
-        if (_devTaps >= 3 && _devTaps < 5) {
-          showToast(`${left} more tap${left === 1 ? '' : 's'} to enter Developer`, 'none');
+        if (_devTaps >= 1 && _devTaps < 5) {
+          showToast(`${left} more tap${left === 1 ? '' : 's'} to unlock Developer Mode`, 'none');
         } else if (_devTaps >= 5) {
           _devTaps = 0;
           const testCard = el('notifTestCard');
@@ -10343,10 +10475,54 @@ ${sig}`
       });
     })();
 
+    // ── Dev Mode: Date Override ──────────────────────────
+    const _DEV_MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    function _devDateLabel(val) {
+      const [y, m, d] = val.split('-').map(Number);
+      return `${d} ${_DEV_MONTHS[m - 1]} ${y}`;
+    }
+    function setDevDateOverride(val) {
+      if (!val) { clearDevDateOverride(); return; }
+      _devDateOverride = val;
+      const lbl = el('devDatePickerLabel'); if (lbl) lbl.textContent = _devDateLabel(val);
+      _applyDevDateOverride();
+      showToast(`Date set to ${_devDateLabel(val)}`, 'none');
+    }
+    function clearDevDateOverride() {
+      _devDateOverride = null;
+      const lbl = el('devDatePickerLabel'); if (lbl) lbl.textContent = 'Pick a Date';
+      _applyDevDateOverride();
+      showToast('Date reset to today', 'info');
+    }
+    function _applyDevDateOverride() {
+      daySelectorWeekOffset = 0;
+      selectDay(todayKey());
+    }
+    function openDevDatePicker(triggerEl) {
+      if (triggerEl?.classList.contains('picker-open')) { closeWeekPicker(); return; }
+      triggerEl?.classList.add('picker-open');
+      _wpContext = 'devDate';
+      const refDate = _devDateOverride ? new Date(_devDateOverride + 'T12:00') : new Date();
+      _wpYear  = refDate.getFullYear();
+      _wpMonth = refDate.getMonth();
+      _wpRenderCal();
+      const overlay = el('wpPickerOverlay');
+      overlay.classList.add('open');
+      const r = triggerEl.getBoundingClientRect();
+      overlay.style.top  = (r.bottom + 6) + 'px';
+      overlay.style.left = r.left + 'px';
+      setTimeout(() => {
+        document.addEventListener('click', _wpOutsideClick, { once: true, capture: true });
+      }, 0);
+    }
+
     // Toggle off Developer Mode — collapse the panel away smoothly, then hide it.
     function disableDevMode() {
       const card = el('notifTestCard');
       if (!card) return;
+      // Reset date override when leaving dev mode
+      if (_devDateOverride) { _devDateOverride = null; _applyDevDateOverride(); }
+      const lbl = el('devDatePickerLabel'); if (lbl) lbl.textContent = 'Pick a Date';
       // Hide the dev-only User ID row immediately
       const uidRow = el('profileUidRow'); if (uidRow) uidRow.style.display = 'none';
       // Animate height + opacity from current size → 0
@@ -10717,7 +10893,6 @@ ${sig}`
     const OB_DONE_KEY = 'wh_ob_done';
     let _obStep = 1;
     let _obIsWeekly = false;
-    let _obImported = false;
 
     function obSwitchTab(tab) {
       _obIsWeekly = tab === 'weekly';
@@ -10752,7 +10927,7 @@ ${sig}`
       const currentH = dialog ? dialog.offsetHeight : 0;
 
       // Deactivate all panels
-      [1,2,3,4,5].forEach(s => {
+      [1,2,3,4].forEach(s => {
         const p = el('obPanel' + s);
         if (p) p.classList.remove('active', 'dir-back');
       });
@@ -10784,7 +10959,7 @@ ${sig}`
 
     function obUpdateSteps(step, dir) {
       // Instagram Stories stepper
-      for (let i = 1; i <= 5; i++) {
+      for (let i = 1; i <= 4; i++) {
         const seg = el('obSeg' + i);
         if (!seg) continue;
         seg.classList.remove('done', 'current');
@@ -10793,21 +10968,18 @@ ${sig}`
       }
       el('obBackBtn').style.visibility = step > 1 ? 'visible' : 'hidden';
       const nextBtn = el('obNextBtn');
-      if (step === 5) nextBtn.textContent = 'Done';
-      else if (step === 4) nextBtn.textContent = 'Continue';
+      if (step === 4) nextBtn.textContent = 'Done';
       else nextBtn.textContent = 'Next Step';
-      el('obSkipBtn').style.display = step === 5 ? 'none' : '';
+      el('obSkipBtn').style.display = step === 4 ? 'none' : '';
       obAnimateTo(step, dir != null ? dir : 1);
     }
 
     function obSaveStep2() {
       const name = (el('obDisplay')?.value || '').trim();
+      const company = (el('obCompany')?.value || '').trim();
       const position = (el('obPosition')?.value || '').trim();
-      const shiftStart = (el('obShiftStart')?.value || '09:00 AM').trim();
-      const shiftEnd = (el('obShiftEnd')?.value || '06:00 PM').trim();
-      const shiftType = deriveShiftType(shiftStart);
       const c = cfg();
-      saveCfg({ ...c, name, position, shiftStart, shiftEnd, shiftType });
+      saveCfg({ ...c, name, company, position });
     }
 
     function obBuildStep3Pickers() {
@@ -10833,11 +11005,13 @@ ${sig}`
 
     function obPopulateStep3Days() {
       updateObWeeklyCalc();
-      obBuildStep3Pickers();
     }
 
     function obSaveStep3() {
       const c = cfg();
+      const shiftStart = (el('obShiftStart')?.value || '09:00 AM').trim();
+      const shiftEnd = (el('obShiftEnd')?.value || '06:00 PM').trim();
+      const shiftType = deriveShiftType(shiftStart);
       const dh = parseInt(el('obDailyH')?.value, 10) || 9;
       const dm = parseInt(el('obDailyM')?.value, 10) || 0;
       const dailyH = dh + dm / 60;
@@ -10846,10 +11020,7 @@ ${sig}`
       const weeklyH = wh + wm / 60;
       const weeklyOn = _obIsWeekly;
       const workDays = parseInt(el('obWorkDays')?.value || '5', 10) || 5;
-      const earlyLeaveDays = [...document.querySelectorAll('#obEarlyPicker .plan-btn.selected')].map(b => +b.dataset.oday);
-      const lateDays = [...document.querySelectorAll('#obLatePicker .plan-btn.selected')].map(b => +b.dataset.lday);
-      const targetDay = earlyLeaveDays.length ? earlyLeaveDays[0] : null;
-      saveCfg({ ...c, dailyH, weeklyH, weeklyOn, workDays, earlyLeaveDays, lateDays, targetDay });
+      saveCfg({ ...c, shiftStart, shiftEnd, shiftType, dailyH, weeklyH, weeklyOn, workDays });
     }
 
     function obPopulateWeekPanel() {
@@ -10880,13 +11051,11 @@ ${sig}`
     function obStep(dir) {
       if (_obStep === 2 && dir === 1) obSaveStep2();
       if (_obStep === 3 && dir === 1) obSaveStep3();
-      if (_obStep === 4 && dir === 1) obSaveWeekPanel();
-      if (_obStep === 5 && dir === 1) { obFinish(); return; }
+      if (_obStep === 4 && dir === 1) { obFinish(); return; }
       const prev = _obStep;
-      _obStep = Math.max(1, Math.min(5, _obStep + dir));
+      _obStep = Math.max(1, Math.min(4, _obStep + dir));
       if (_obStep !== prev) {
         if (_obStep === 3) obPopulateStep3Days();
-        if (_obStep === 4) obPopulateWeekPanel();
         obUpdateSteps(_obStep, dir);
       }
     }
@@ -11502,115 +11671,9 @@ ${sig}`
 
     function openOnboarding() {
       _obStep = 1;
-      _obImported = false;
       obSwitchTab('daily');
       obUpdateSteps(1);
       el('obOverlay').style.display = 'flex';
-
-      // Shared handler: parse backup file, show summary, auto-fill forms
-      function _obHandleImportData(data, fileName) {
-        const snap = data.wh_backup_v2 ? { cfg: data.wh_backup_v2.cfg, days: data.wh_backup_v2.days }
-                   : data.cfg           ? { cfg: data.cfg, days: data.days }
-                   : null;
-        if (!snap) throw new Error('Unrecognised backup format');
-
-        // Apply data
-        Store.importSnap(data.wh_backup_v2 ? data : { ...data, cfg: snap.cfg, days: snap.days });
-        SbSync.pushAll(); // sync imported history to Supabase (fire-and-forget)
-
-        _obImported = true;
-        const c = snap.cfg || {};
-        const dayCount = Object.keys(snap.days || {}).length;
-        const userName = c.name || '';
-        const position = c.position || '';
-        const escHtml = s => String(s).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
-        const safeFileName = escHtml(fileName || 'wh_log.json');
-        const safeUserName = escHtml(userName);
-        const safePosition = escHtml(position);
-
-        // Show summary card
-        const statusEl = el('obImportStatus');
-        if (statusEl) {
-          statusEl.style.display = 'block';
-          statusEl.style.color = 'var(--foreground)';
-          statusEl.innerHTML = `
-            <div style="background:var(--muted);border-radius:10px;padding:14px 16px;text-align:left;margin-top:4px;display:flex;flex-direction:column;gap:6px">
-              <div style="font-size:12px;font-weight:700;color:var(--success);margin-bottom:2px;display:flex;align-items:center;gap:6px">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path fill-rule="evenodd" clip-rule="evenodd" d="M21.2285 6.60358C21.619 6.9941 21.619 7.62726 21.2285 8.01779L10.2557 18.9906C9.86764 19.3786 9.23938 19.3815 8.84786 18.997L2.66233 12.9219C2.2683 12.5349 2.2626 11.9017 2.64959 11.5077L3.3503 10.7943C3.73729 10.4002 4.37043 10.3945 4.76445 10.7815L9.53589 15.4678L19.1072 5.89647C19.4977 5.50595 20.1309 5.50595 20.5214 5.89647L21.2285 6.60358Z" fill="currentColor"/></svg>
-                Import Successful
-              </div>
-              <div style="display:flex;justify-content:space-between;font-size:12px"><span style="color:var(--muted-fg)">File</span><span style="font-weight:500">${safeFileName}</span></div>
-              ${userName ? `<div style="display:flex;justify-content:space-between;font-size:12px"><span style="color:var(--muted-fg)">Name</span><span style="font-weight:500">${safeUserName}</span></div>` : ''}
-              ${position ? `<div style="display:flex;justify-content:space-between;font-size:12px"><span style="color:var(--muted-fg)">Position</span><span style="font-weight:500">${safePosition}</span></div>` : ''}
-              <div style="display:flex;justify-content:space-between;font-size:12px"><span style="color:var(--muted-fg)">Login Activities</span><span style="font-weight:500">${dayCount} day${dayCount !== 1 ? 's' : ''}</span></div>
-            </div>`;
-        }
-
-        // Auto-fill onboarding form fields from imported data
-        if (userName) { const f = el('obDisplay'); if (f) f.value = userName; }
-        if (position) { const f = el('obPosition'); if (f) f.value = position; }
-        if (c.shiftStart) { const f = el('obShiftStart'); if (f) f.value = c.shiftStart; }
-        if (c.shiftEnd)   { const f = el('obShiftEnd');   if (f) f.value = c.shiftEnd;   }
-        if (c.includeSat != null) {
-          const chk = el('obIncludeSat'); if (chk) { chk.checked = !!c.includeSat; }
-        }
-
-        setTimeout(() => obStep(1), 1400);
-      }
-
-      // Import file handler
-      const fileInput = el('obImportFile');
-      if (fileInput && !fileInput._obBound) {
-        fileInput._obBound = true;
-        fileInput.addEventListener('change', e => {
-          const file = e.target.files?.[0];
-          if (!file) return;
-          const reader = new FileReader();
-          reader.onload = ev => {
-            try { _obHandleImportData(JSON.parse(ev.target.result), file.name); }
-            catch {
-              const statusEl = el('obImportStatus');
-              if (statusEl) { statusEl.textContent = 'Invalid backup file. Please try again.'; statusEl.style.display = 'block'; statusEl.style.color = 'var(--destructive)'; }
-            }
-          };
-          reader.readAsText(file);
-        });
-      }
-
-      // Drag-and-drop on import zone (counter prevents flicker from child elements)
-      const importZone = el('obImportZone');
-      if (importZone && !importZone._obDragBound) {
-        importZone._obDragBound = true;
-        let _dragCnt = 0;
-        const _setDragActive = active => {
-          importZone.classList.toggle('drag-over', active);
-          const txt = el('obImportZoneText');
-          if (txt) txt.innerHTML = active
-            ? '<strong>Release to import</strong><br>Drop your .json backup here'
-            : '<strong>Choose a file or drag &amp; drop here</strong><br>Supports .json files';
-        };
-        importZone.addEventListener('dragenter', e => { e.preventDefault(); _dragCnt++; _setDragActive(true); });
-        importZone.addEventListener('dragleave', () => { _dragCnt--; if (_dragCnt <= 0) { _dragCnt = 0; _setDragActive(false); } });
-        importZone.addEventListener('dragover', e => e.preventDefault());
-        importZone.addEventListener('drop', e => {
-          e.preventDefault();
-          _dragCnt = 0;
-          _setDragActive(false);
-          const file = e.dataTransfer.files?.[0];
-          if (!file) return;
-          const reader = new FileReader();
-          reader.onload = ev => {
-            try { _obHandleImportData(JSON.parse(ev.target.result), file.name); }
-            catch {
-              const statusEl = el('obImportStatus');
-              if (statusEl) { statusEl.textContent = 'Invalid backup file. Please try again.'; statusEl.style.display = 'block'; statusEl.style.color = 'var(--destructive)'; }
-            }
-          };
-          reader.readAsText(file);
-        });
-      }
-
-      // Day picker toggles are wired in obPopulateStep3Days() dynamically
     }
 
     // ── INIT ───────────────────────────────────────────
@@ -11642,8 +11705,11 @@ ${sig}`
 
       const tk = todayKey();
       const _savedDay = localStorage.getItem('wh_sel_day');
-      // Restore last-viewed day if it looks like a valid date key; else fall back to today
-      selectedDayKey = (_savedDay && /^\d{4}-\d{2}-\d{2}$/.test(_savedDay)) ? _savedDay : tk;
+      const _lastUnload = parseInt(localStorage.getItem('wh_last_unload_ts') || '0', 10);
+      // Restore last-viewed day only on a quick reload (page was unloaded < 60s ago).
+      // Coming back after 60+ seconds (commute, overnight, etc.) always lands on today.
+      const _quickReload = _lastUnload > 0 && (Date.now() - _lastUnload) < 60000;
+      selectedDayKey = (_savedDay && /^\d{4}-\d{2}-\d{2}$/.test(_savedDay) && _quickReload) ? _savedDay : tk;
       daySelectorWeekOffset = 0;
       updateSelDayHeader(selectedDayKey);
 
@@ -11815,35 +11881,86 @@ ${sig}`
         <div class="ob-story-seg" id="obSeg2"><div class="ob-story-fill"></div></div>
         <div class="ob-story-seg" id="obSeg3"><div class="ob-story-fill"></div></div>
         <div class="ob-story-seg" id="obSeg4"><div class="ob-story-fill"></div></div>
-        <div class="ob-story-seg" id="obSeg5"><div class="ob-story-fill"></div></div>
       </div>
     </div>
     <div class="ob-body">
 
-      <!-- Step 1: Import Data -->
+      <!-- Step 1: Introduction -->
       <div class="ob-panel active" id="obPanel1">
         <div class="ob-title">Say hello to 5pm</div>
-        <div class="ob-desc">Your work hour tracker that helps you manage your time.</div>
-        <label class="ob-import-zone" for="obImportFile" id="obImportZone">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M11 4C8.37318 4 6.2324 5.99599 6.01793 8.51595C5.98608 8.89012 5.74729 9.21492 5.39963 9.35691C3.3976 10.1746 2 12.1199 2 14.3783C2 16.2952 3.00543 17.9848 4.53512 18.9537C5.00168 19.2493 5.14031 19.8671 4.84477 20.3336C4.54923 20.8002 3.93143 20.9388 3.46488 20.6433C1.38625 19.3266 0 17.0152 0 14.3783C0 11.4804 1.67256 8.9777 4.10178 7.75216C4.66997 4.47797 7.54913 2 11 2C13.8191 2 16.2533 3.65235 17.362 6.03971C19.4286 6.43792 21 8.24044 21 10.4206C21 10.7714 20.959 11.1133 20.8815 11.4415C22.7225 12.3197 24 14.186 24 16.3571C24 18.2066 23.0706 19.8374 21.6596 20.8205C21.2065 21.1362 20.5832 21.0248 20.2675 20.5717C19.9518 20.1185 20.0632 19.4952 20.5163 19.1795C21.4183 18.5511 22 17.5193 22 16.3571C22 14.7492 20.882 13.3863 19.3555 13.0085C19.056 12.9344 18.8075 12.7261 18.6821 12.4442C18.5567 12.1623 18.5684 11.8383 18.7139 11.5662C18.8965 11.2247 19 10.8359 19 10.4206C19 9.10788 17.9516 8.0197 16.6155 7.96031C16.2093 7.94225 15.8545 7.68006 15.7179 7.29708C15.0347 5.38045 13.1833 4 11 4Z" fill="currentColor"/><path d="M7.29289 16.7071C7.68342 17.0976 8.31658 17.0976 8.70711 16.7071L11 14.4142V22C11 22.5523 11.4477 23 12 23C12.5523 23 13 22.5523 13 22V14.4142L15.2929 16.7071C15.6834 17.0976 16.3166 17.0976 16.7071 16.7071C17.0976 16.3166 17.0976 15.6834 16.7071 15.2929L12.7071 11.2929C12.3166 10.9024 11.6834 10.9024 11.2929 11.2929L7.29289 15.2929C6.90237 15.6834 6.90237 16.3166 7.29289 16.7071Z" fill="currentColor"/></svg>
-          <div class="ob-import-zone-text" id="obImportZoneText"><strong>Choose a file or drag &amp; drop here</strong><br>Supports .json files</div>
-          <input type="file" id="obImportFile" accept=".json" style="display:none">
-        </label>
-        <div id="obImportStatus" style="font-size:12px;color:var(--muted-fg);text-align:center;display:none"></div>
+        <div class="ob-desc">Your work hour tracker, built around how you actually work.</div>
+        <div class="ob-feature-list">
+          <div class="ob-feature-card">
+            <div class="ob-feature-icon">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            </div>
+            <div>
+              <div class="ob-feature-title">Track Your Work Hours</div>
+              <div class="ob-feature-desc">See when your day starts, when it ends, and how your hours add up.</div>
+            </div>
+          </div>
+          <div class="ob-feature-card">
+            <div class="ob-feature-icon">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+            </div>
+            <div>
+              <div class="ob-feature-title">Leave On Time</div>
+              <div class="ob-feature-desc">Get notified when you've completed your target hours and it's time to head out.</div>
+            </div>
+          </div>
+          <div class="ob-feature-card">
+            <div class="ob-feature-icon">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07M8.46 8.46a5 5 0 0 0 0 7.07"/></svg>
+            </div>
+            <div>
+              <div class="ob-feature-title">Live Tracking</div>
+              <div class="ob-feature-desc">Track your work hours in real time throughout the day.</div>
+            </div>
+          </div>
+          <div class="ob-feature-card">
+            <div class="ob-feature-icon">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>
+            </div>
+            <div>
+              <div class="ob-feature-title">Built For You</div>
+              <div class="ob-feature-desc">Configure your shift, workweek, targets, and preferences to match how you work.</div>
+            </div>
+          </div>
+          <div class="ob-feature-card">
+            <div class="ob-feature-icon">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            </div>
+            <div>
+              <div class="ob-feature-title">Privacy Focused</div>
+              <div class="ob-feature-desc">Your account keeps your data in sync. Personal details simply make the experience feel more yours.</div>
+            </div>
+          </div>
+        </div>
       </div>
 
-      <!-- Step 2: Personal Details -->
+      <!-- Step 2: Customize Your Workspace -->
       <div class="ob-panel" id="obPanel2">
-        <div class="ob-title">Personal Details</div>
-        <div class="ob-desc">These help personalise your experience. Both fields are optional.</div>
+        <div class="ob-title">Customize Your Workspace</div>
+        <div class="ob-desc">Tell us a bit about yourself. All fields are optional.</div>
         <div class="form-field">
-          <div class="ob-section-label">Your Name</div>
+          <div class="ob-section-label">Display Name</div>
           <input type="text" class="field-input" id="obDisplay" placeholder="Full Name" maxlength="40" autocomplete="off">
+        </div>
+        <div class="form-field">
+          <div class="ob-section-label">Company</div>
+          <input type="text" class="field-input" id="obCompany" placeholder="Where do you work?" maxlength="60" autocomplete="off">
         </div>
         <div class="form-field">
           <div class="ob-section-label">Position</div>
           <input type="text" class="field-input" id="obPosition" placeholder="What do you do?" maxlength="60" autocomplete="off">
         </div>
+      </div>
+
+      <!-- Step 3: Work Schedule -->
+      <div class="ob-panel" id="obPanel3">
+        <div class="ob-title">Work Schedule</div>
+        <div class="ob-desc">Set your shift times and daily target hours.</div>
+        <!-- Shift Hours -->
         <div class="form-field">
           <div class="ob-section-label">Shift Hours</div>
           <div style="display:flex;align-items:center;gap:8px">
@@ -11864,12 +11981,6 @@ ${sig}`
             </div>
           </div>
         </div>
-      </div>
-
-      <!-- Step 3: Setup Routine -->
-      <div class="ob-panel" id="obPanel3">
-        <div class="ob-title">Setup Your Routine</div>
-        <div class="ob-desc">Set your daily target and whether Saturday is a work day.</div>
         <!-- Target tabs -->
         <div class="form-field">
           <input type="hidden" id="obWorkDays" value="5">
@@ -11896,7 +12007,7 @@ ${sig}`
             <div id="obWeeklyCalcInfo" style="margin-top:8px;padding:8px 12px;background:var(--muted);border-radius:8px;font-size:12px;color:var(--muted-fg);line-height:1.5"></div>
           </div>
         </div>
-        <!-- Include Saturday -->
+        <!-- Working Days -->
         <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;cursor:pointer" onclick="el('obIncludeSat').click()">
           <div>
             <div class="ob-section-label" style="text-transform:none;letter-spacing:0;font-size:13px;font-weight:500;color:var(--foreground)">Include Saturday</div>
@@ -11907,27 +12018,10 @@ ${sig}`
             <span class="toggle-track"></span>
           </label>
         </div>
-        <!-- Leave Early -->
-        <div class="form-field">
-          <div class="ob-section-label">Leave Early <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted-fg);font-size:11px">(Optional)</span></div>
-          <div class="ob-day-picker" id="obEarlyPicker"></div>
-        </div>
-        <!-- Stay Late -->
-        <div class="form-field">
-          <div class="ob-section-label">Stay Late <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted-fg);font-size:11px">(Optional)</span></div>
-          <div class="ob-day-picker" id="obLatePicker"></div>
-        </div>
       </div>
 
-      <!-- Step 4: Plan Your Week -->
+      <!-- Step 4: All Done -->
       <div class="ob-panel" id="obPanel4">
-        <div class="ob-title">Plan Your Week</div>
-        <div class="ob-desc">Set your schedule for the week. You can update this anytime from Settings.</div>
-        <div id="obWpDayRows"></div>
-      </div>
-
-      <!-- Step 5: All Done -->
-      <div class="ob-panel" id="obPanel5">
         <div class="ob-done-card">
           <div style="width:52px;height:52px;border-radius:50%;background:#16a34a;display:flex;align-items:center;justify-content:center;margin-bottom:4px;flex-shrink:0">
             <svg width="26" height="26" viewBox="0 0 24 24" fill="none"><path fill-rule="evenodd" clip-rule="evenodd" d="M20.6566 5.47308C21.1068 5.88339 21.1415 6.5758 20.7312 7.02605L9.73116 19.0261C9.52896 19.2491 9.24358 19.3797 8.94191 19.387C8.64025 19.3943 8.34879 19.2776 8.13606 19.0648L3.13606 14.0648C2.71462 13.6434 2.71462 12.9617 3.13606 12.5403C3.5575 12.1189 4.23921 12.1189 4.66065 12.5403L8.87631 16.7559L19.1439 5.47395C19.5542 5.0237 20.2466 4.98278 20.6969 5.39309L20.6566 5.47308Z" fill="white"/></svg>
@@ -11970,13 +12064,9 @@ ${sig}`
   box-shadow:0 -8px 40px rgba(0,0,0,.18);
   transform:translateY(100%);transition:transform .38s cubic-bezier(.32,0,.18,1);">
 
-  <!-- Handle + close -->
-  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
-    <div style="width:36px;height:4px;background:var(--border);border-radius:4px;margin:0 auto;position:absolute;left:50%;transform:translateX(-50%)"></div>
-    <div style="flex:1"></div>
-    <button onclick="dismissIosInstall()" style="width:28px;height:28px;border-radius:50%;border:none;background:var(--muted);color:var(--muted-fg);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0">
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-    </button>
+  <!-- Handle -->
+  <div class="ios-handle-btn" onclick="dismissIosInstall()" style="margin-bottom:8px">
+    <div class="ios-handle-bar"></div>
   </div>
 
   <!-- Heading -->
@@ -11984,7 +12074,7 @@ ${sig}`
     <img src="/brand-light.svg" id="installPromptLogo" alt="5pm" width="48" height="48" style="border-radius:12px;flex-shrink:0">
     <div>
       <div style="font-size:17px;font-weight:700;color:var(--foreground);letter-spacing:-.3px">Add 5pm to your Home Screen</div>
-      <div style="font-size:13px;color:var(--muted-fg);margin-top:2px;line-height:1.4">Get the full app experience.</div>
+      <div style="font-size:13px;color:var(--muted-fg);margin-top:2px;line-height:1.4">Get the full Web App experience.</div>
     </div>
   </div>
 
@@ -11994,11 +12084,10 @@ ${sig}`
     <!-- Step 1 -->
     <div style="display:flex;align-items:center;gap:14px">
       <div style="width:32px;height:32px;border-radius:50%;background:var(--muted);color:var(--muted-fg);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0">1</div>
-      <div style="flex:1">
-        <div style="font-size:13px;color:var(--muted-fg);margin-bottom:5px">Press this button at the bottom of the screen</div>
-        <!-- iOS Share badge -->
+      <div style="flex:1;display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+        <span style="font-size:13px;color:var(--muted-fg)">Tap on</span>
         <span style="display:inline-flex;align-items:center;gap:5px;background:var(--muted);border-radius:8px;padding:5px 10px">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--foreground)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--foreground)"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
           <span style="font-size:12px;font-weight:600;color:var(--foreground)">Share</span>
         </span>
       </div>
@@ -12007,11 +12096,10 @@ ${sig}`
     <!-- Step 2 -->
     <div style="display:flex;align-items:center;gap:14px">
       <div style="width:32px;height:32px;border-radius:50%;background:var(--muted);color:var(--muted-fg);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0">2</div>
-      <div style="flex:1">
-        <div style="font-size:13px;color:var(--muted-fg);margin-bottom:5px">Scroll down and press this from the menu</div>
-        <!-- Add to Home Screen badge -->
+      <div style="flex:1;display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+        <span style="font-size:13px;color:var(--muted-fg)">Tap on</span>
         <span style="display:inline-flex;align-items:center;gap:6px;background:var(--muted);border-radius:100px;padding:5px 12px 5px 8px">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--foreground)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--foreground)"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
           <span style="font-size:12px;font-weight:600;color:var(--foreground)">Add to Home Screen</span>
         </span>
       </div>
@@ -12020,11 +12108,10 @@ ${sig}`
     <!-- Step 3 -->
     <div style="display:flex;align-items:center;gap:14px">
       <div style="width:32px;height:32px;border-radius:50%;background:var(--muted);color:var(--muted-fg);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0">3</div>
-      <div style="flex:1">
-        <div style="font-size:13px;color:var(--muted-fg);margin-bottom:5px">Press this button at the top right corner</div>
-        <!-- Add badge -->
+      <div style="flex:1;display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+        <span style="font-size:13px;color:var(--muted-fg)">Confirm by tapping on</span>
         <span style="display:inline-flex;align-items:center;background:var(--muted);border-radius:8px;padding:5px 12px">
-          <span style="font-size:12px;font-weight:600;color:#007AFF">Add</span>
+          <span style="font-size:12px;font-weight:600;color:var(--foreground)">Add</span>
         </span>
       </div>
     </div>

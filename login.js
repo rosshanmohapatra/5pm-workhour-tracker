@@ -109,8 +109,8 @@ function toggleMode() {
   $('authTitle').textContent   = isSignup ? 'Create an account' : 'Sign In';
   $('authSub').textContent     = isSignup ? 'Start tracking your work hours.' : 'Let us help you manage your time.';
   $('submitLabel').textContent = isSignup ? 'Create Account' : 'Sign In';
-  $('footerText').textContent  = isSignup ? 'Already have an account?' : "Don't have an account?";
-  $('toggleLink').textContent  = isSignup ? 'Sign In' : 'Sign up';
+  $('footerText').textContent  = isSignup ? 'Already have an account?' : 'New to 5pm?';
+  $('toggleLink').textContent  = isSignup ? 'Sign In' : 'Create an Account';
   $('pwdInput').autocomplete   = isSignup ? 'new-password' : 'current-password';
   $('nameField').classList.toggle('show', isSignup);
   $('forgotLink').style.display = isSignup ? 'none' : '';

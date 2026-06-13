@@ -163,7 +163,7 @@
       --font-display: 'DM Serif Display', Georgia, serif;
       /* ── Radius scale ── */
       --radius-xs: 4px; --radius: 6px; --radius-md: 10px;
-      --radius-lg: 12px; --radius-xl: 20px;
+      --radius-lg: 16px; --radius-xl: 20px;
       /* ── Shadow scale ── */
       --shadow-xs: 0 1px 3px rgba(0,0,0,.05), 0 0 1px rgba(0,0,0,.04);
       --shadow-sm: 0 2px 6px rgba(0,0,0,.07), 0 1px 2px rgba(0,0,0,.04);
@@ -723,7 +723,7 @@
     .form-label { font-size: 13px; font-weight: 500; color: var(--foreground); }
     .form-sub   { font-size: 11px; color: var(--muted-fg); margin-top: 1px; }
     .form-row   { display: flex; align-items: center; gap: 8px; }
-    .weekly-block { border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+    .weekly-block { border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
     .toggle-row { display: flex; align-items: center; justify-content: space-between;
       padding: 12px 14px; background: transparent; gap: 12px;
       border-radius: 4px; cursor: pointer; transition: background .12s; }
@@ -1348,7 +1348,7 @@
       line-height: 1.45; flex: 1; }
 
     /* ── Week Badge Card (Weekend Page) ── */
-    .badge-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+    .badge-card { background: var(--card); border: 1px solid var(--border); border-radius: 16px;
       padding: 16px; display: flex; flex-direction: column; gap: 14px; }
     .badge-header { display: flex; align-items: center; gap: 10px; }
     .badge-icon { font-size: 22px; line-height: 1; flex-shrink: 0; }
@@ -1782,7 +1782,7 @@
     .ob-import-zone-text { font-size: 13px; color: var(--muted-fg); }
     .ob-import-zone-text strong { color: var(--foreground); }
     .ob-day-picker { display: flex; gap: 6px; flex-wrap: wrap; }
-    .ob-done-card { background: var(--muted); border-radius: 12px; padding: 20px; text-align: center;
+    .ob-done-card { background: var(--muted); border-radius: 16px; padding: 20px; text-align: center;
       display: flex; flex-direction: column; align-items: center; gap: 8px; }
     .ob-feature-list { display: flex; flex-direction: column; gap: 8px; }
     .ob-feature-card { display: flex; align-items: flex-start; gap: 12px; background: var(--muted);
@@ -3132,9 +3132,9 @@
           <span id="dailyTargetHours" style="font-size:18px;font-weight:700;color:var(--success);letter-spacing:-.02em">—</span>
         </div>
       </div>
-      <div style="padding:0 20px 20px;display:flex;justify-content:flex-end;gap:8px">
-        <button class="btn-secondary" id="dailyTargetCancelBtn">Keep Going</button>
-        <button class="btn btn-primary" id="dailyTargetEndBtn" style="height:38px;padding:0 16px;font-size:13px">End Session</button>
+      <div style="padding:0 20px 20px;display:flex;gap:8px">
+        <button class="btn-secondary" id="dailyTargetCancelBtn" style="flex:1">Keep Going</button>
+        <button class="btn btn-primary" id="dailyTargetEndBtn" style="flex:1;height:38px;padding:0 16px;font-size:13px">End Session</button>
       </div>
     </div>
   </div>

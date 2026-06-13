@@ -1488,10 +1488,10 @@
 
       /* btn-icon: no hover on touch — only :active gives press feedback */
       .btn-icon { transition: none; }
-      .btn-icon:hover { background: transparent; color: var(--muted-fg); }
-      .dark .btn-icon:hover { background: transparent; color: var(--muted-fg); }
-      .btn-icon:active { background: var(--card); color: var(--foreground); }
-      .dark .btn-icon:active { background: var(--muted); }
+      .btn-icon:hover { background: transparent; box-shadow: none; color: var(--muted-fg); }
+      .dark .btn-icon:hover { background: transparent; box-shadow: none; color: var(--muted-fg); }
+      .btn-icon:active { background: transparent; box-shadow: 0 0 0 1px var(--border); color: var(--foreground); }
+      .dark .btn-icon:active { background: transparent; box-shadow: 0 0 0 1px var(--border); color: var(--foreground); }
 
       .mob-tab { transition: none; }
       .mob-tab:active { color: var(--foreground); }

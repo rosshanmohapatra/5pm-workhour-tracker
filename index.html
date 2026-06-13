@@ -2919,24 +2919,6 @@
                 </div>
               </div>
 
-              <!-- Screens — function row -->
-              <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
-                <div>
-                  <div class="form-label">Auto Stop Tracking</div>
-                  <div class="form-sub">A modal when the user forgets to stop the timer &amp; it stops automatically.</div>
-                </div>
-                <button class="btn-secondary" style="flex-shrink:0" onclick="openAutoStopRecovery()">Open Modal</button>
-              </div>
-
-              <!-- Onboarding — function row -->
-              <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
-                <div>
-                  <div class="form-label">Onboarding</div>
-                  <div class="form-sub">Re-open the first-launch onboarding flow.</div>
-                </div>
-                <button class="btn-secondary" style="flex-shrink:0" onclick="openOnboarding()">Open Flow</button>
-              </div>
-
               <!-- Sync — function row (kept at the bottom) -->
               <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
                 <div>
@@ -3004,6 +2986,24 @@
                     </div>
                     <button class="btn-secondary" style="flex-shrink:0;font-size:12px;height:32px;padding:0 10px"
                       onclick="(function(){ var o=document.getElementById('iosInstallOverlay'),s=document.getElementById('iosInstallSheet'); o.style.display='block'; s.style.display='block'; requestAnimationFrame(function(){ requestAnimationFrame(function(){ s.style.transform='translateY(0)'; }); }); })()">Preview</button>
+                  </div>
+
+                  <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+                    <div>
+                      <div style="font-size:13px;font-weight:500;color:var(--foreground)">Shift Auto-Stopped</div>
+                      <div class="form-sub">Shown when the timer stops automatically after the daily target.</div>
+                    </div>
+                    <button class="btn-secondary" style="flex-shrink:0;font-size:12px;height:32px;padding:0 10px"
+                      onclick="openAutoStopRecovery()">Preview</button>
+                  </div>
+
+                  <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+                    <div>
+                      <div style="font-size:13px;font-weight:500;color:var(--foreground)">Onboarding</div>
+                      <div class="form-sub">Re-open the first-launch onboarding flow.</div>
+                    </div>
+                    <button class="btn-secondary" style="flex-shrink:0;font-size:12px;height:32px;padding:0 10px"
+                      onclick="openOnboarding()">Preview</button>
                   </div>
 
                 </div>

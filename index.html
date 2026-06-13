@@ -11906,7 +11906,11 @@ ${sig}`
       return el;
     })();
     function _positionAndShowTip(btn) {
+      var title = btn.getAttribute('data-tip-title') || '';
       var desc = btn.getAttribute('data-tip-desc') || '';
+      var titleEl = _modalTip.querySelector('.info-tooltip-title');
+      titleEl.textContent = title;
+      titleEl.style.display = title ? '' : 'none';
       _modalTip.querySelector('.info-tooltip-desc').textContent = desc;
       _modalTip.style.width = ''; // reset to measure natural width
       _modalTip.classList.add('visible');

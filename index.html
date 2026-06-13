@@ -1752,6 +1752,15 @@
     .ob-icon { font-size: 36px; line-height: 1; }
     .ob-title { font-size: 20px; font-weight: 700; color: var(--foreground); letter-spacing: -.3px; }
     .ob-desc { font-size: 13px; color: var(--muted-fg); line-height: 1.6; margin-top: -12px; }
+    /* Intro header — logo to the left, sized to match the title + description block height (height synced via JS, width follows from aspect-ratio) */
+    .ob-intro-head { display: flex; align-items: center; gap: 14px; }
+    .ob-intro-logo { flex-shrink: 0; aspect-ratio: 1; width: auto; height: 48px; border-radius: 14px; display: block; }
+    .dark .ob-intro-logo.ob-intro-logo-light { display: none; }
+    .ob-intro-logo.ob-intro-logo-dark { display: none; }
+    .dark .ob-intro-logo.ob-intro-logo-dark { display: block; }
+    .ob-intro-text { display: flex; flex-direction: column; justify-content: center; gap: 4px; min-width: 0; }
+    .ob-intro-text .ob-title { font-weight: 600; letter-spacing: -.4px; }
+    .ob-intro-text .ob-desc { margin-top: 0; }
     .ob-section-label { font-size: 11px; font-weight: 600; color: var(--muted-fg); letter-spacing: .06em; text-transform: uppercase; }
     .ob-foot { padding: 12px 20px 16px; border-top: 1px solid var(--border);
       display: flex; align-items: center; justify-content: space-between; gap: 8px; }
@@ -11712,6 +11721,7 @@ ${sig}`
       obSwitchTab('daily');
       obUpdateSteps(1);
       el('obOverlay').style.display = 'flex';
+      _sizeObIntroLogo();
     }
 
     // ── INIT ───────────────────────────────────────────
@@ -11959,6 +11969,30 @@ ${sig}`
     document.addEventListener('click', function(e) {
       if (!e.target.closest('.info-icon-btn')) _hideModalTip();
     });
+
+    // Onboarding intro — keep the logo a perfect square equal to the title + description block height.
+    // The logo is square (width follows height via aspect-ratio), so its height feeds back into the
+    // text's available width. To avoid settling at a too-large equilibrium, shrink to 0 first so the text
+    // measures at its FULL width (fewest lines), then grow to match, settling in a few bounded passes.
+    function _sizeObIntroLogo() {
+      var text = document.querySelector('.ob-intro-text');
+      var logos = document.querySelectorAll('.ob-intro-logo');
+      if (!text || !logos.length) return;
+      logos.forEach(function(l) { l.style.height = '0px'; });
+      var passes = 0;
+      (function settle() {
+        var h = Math.round(text.getBoundingClientRect().height);
+        var cur = Math.round(parseFloat(logos[0].style.height) || 0);
+        if (h && h !== cur) {
+          logos.forEach(function(l) { l.style.height = h + 'px'; });
+          if (passes++ < 4) requestAnimationFrame(settle);
+        }
+      })();
+    }
+    // Re-sync when the viewport (and therefore the text wrap) changes.
+    window.addEventListener('resize', function() {
+      if (el('obOverlay') && el('obOverlay').style.display !== 'none') _sizeObIntroLogo();
+    });
   </script>
 
 <!-- ── ONBOARDING MODAL ── -->
@@ -11976,8 +12010,14 @@ ${sig}`
 
       <!-- Step 1: Introduction -->
       <div class="ob-panel active" id="obPanel1">
-        <div class="ob-title">Say hello to 5pm</div>
-        <div class="ob-desc">Your work hour tracker, built around how you actually work.</div>
+        <div class="ob-intro-head">
+          <img class="ob-intro-logo ob-intro-logo-light" src="/brand-light.svg" alt="5pm">
+          <img class="ob-intro-logo ob-intro-logo-dark" src="/brand-dark.svg" alt="5pm">
+          <div class="ob-intro-text">
+            <div class="ob-title">Say hello to 5pm</div>
+            <div class="ob-desc">Your work hour tracker, built around how you actually work.</div>
+          </div>
+        </div>
         <div class="ob-feature-list">
           <div class="ob-feature-card">
             <div class="ob-feature-icon">

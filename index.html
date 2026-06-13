@@ -1443,7 +1443,7 @@
       opacity:1; pointer-events:auto;
     }
     @media (max-width:640px) {
-      .wh-toast { bottom:72px; width:max-content; max-width:calc(100% - 32px); }
+      .wh-toast { bottom:calc(max(4px, env(safe-area-inset-bottom) * 0.5) + 65px); width:max-content; max-width:calc(100% - 32px); }
     }
     .wh-toast-icon { width:15px; height:15px; flex-shrink:0; }
     .wh-toast-body { flex:1; min-width:0; }

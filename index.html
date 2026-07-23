@@ -732,7 +732,7 @@
       padding: 2px 9px; border-radius: 8px; background: transparent;
       transition: background .15s; cursor: default; }
     .rc-desc-right:not(:empty):hover { background: var(--muted); }
-    .rc-desc-chip { font-size: 12px; font-weight: 500; color: inherit; background: none; padding: 0; border-radius: 0; }
+    .rc-desc-chip { font-size: 12px; font-weight: 500; color: inherit; background: none; padding: 0; border-radius: 0; cursor: default; }
     .rc-desc-chip.ok   { color: var(--success); }
     .rc-desc-chip.warn { color: var(--warning); }
     /* ── KPI numbers ── */
@@ -2461,19 +2461,15 @@
               </div>
             </div>
             <div id="wkndStatsSection">
-              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-                <span style="font-size:13px;font-weight:600;color:var(--foreground)" id="wkndSectionLabel">Last Week</span>
-                <span style="font-size:12px;color:var(--muted-fg)" id="wkndWeekRange">—</span>
-              </div>
-              <div class="rc-io-row" style="margin-top:0;margin-bottom:12px">
-                <div class="rc-io-box">
-                  <div class="rc-io-label">Penalties</div>
-                  <div class="rc-io-val" id="wkndPenalties">0</div>
+              <div class="badge-card" id="wkndBadgeCard" style="display:none">
+                <div class="badge-header">
+                  <div class="badge-icon" id="wkndBadgeIcon"></div>
+                  <div>
+                    <div class="badge-title" id="wkndBadgeTitle">—</div>
+                    <div class="badge-subtitle" id="wkndBadgeSubtitle">—</div>
+                  </div>
                 </div>
-                <div class="rc-io-box">
-                  <div class="rc-io-label">Overtime</div>
-                  <div class="rc-io-val" id="wkndOvertime">—</div>
-                </div>
+                <div class="badge-days" id="wkndBadgeDays"></div>
               </div>
               <div>
                 <button class="btn-secondary" style="height:38px;font-size:13px;padding:0 16px;width:100%;display:flex;align-items:center;justify-content:center;gap:6px" onclick="openWeekReport()">
@@ -2486,18 +2482,6 @@
           </div>
 
         </div>
-      </div>
-
-      <!-- Week Badge Card -->
-      <div class="badge-card" id="wkndBadgeCard" style="display:none">
-        <div class="badge-header">
-          <div class="badge-icon" id="wkndBadgeIcon"></div>
-          <div>
-            <div class="badge-title" id="wkndBadgeTitle">—</div>
-            <div class="badge-subtitle" id="wkndBadgeSubtitle">—</div>
-          </div>
-        </div>
-        <div class="badge-days" id="wkndBadgeDays"></div>
       </div>
 
       </div><!-- /homeCard -->
@@ -6411,24 +6395,8 @@
       } else {
         const wk = week(daySelectorWeekOffset);
         const mon = wk[0].date, fri = wk[wk.length - 1].date;
-        const rangeLabel = mon.getMonth() === fri.getMonth()
-          ? `${MONTHS[mon.getMonth()].slice(0,3)} ${mon.getDate()}–${fri.getDate()}`
-          : `${MONTHS[mon.getMonth()].slice(0,3)} ${mon.getDate()} – ${MONTHS[fri.getMonth()].slice(0,3)} ${fri.getDate()}`;
-        el('wkndWeekRange').textContent = rangeLabel;
-
-        // Dynamic section label: "Last Week" on actual current weekend, else the range
-        const isCurrentWknd = isWeekend() && daySelectorWeekOffset === 0;
-        const sectionLbl = el('wkndSectionLabel');
-        if (sectionLbl) sectionLbl.textContent = isCurrentWknd ? 'Last Week' : rangeLabel;
-
         const rows = _wkndDayData(wk);
-        const penaltyDays  = rows.filter(r => r.isPenalty).length;
         const totalSurplus = rows.reduce((s, r) => s + r.surplusSecs, 0);
-
-        el('wkndPenalties').textContent = penaltyDays;
-        el('wkndPenalties').style.color = penaltyDays > 0 ? 'var(--destructive)' : 'var(--foreground)';
-        el('wkndOvertime').textContent  = totalSurplus > 60 ? '+' + dur(totalSurplus) : '—';
-        el('wkndOvertime').style.color  = totalSurplus > 60 ? 'var(--destructive)' : 'var(--muted-fg)';
 
         const badge = _computeWeekBadge(rows, totalSurplus);
         if (badge && badgeCard) {
@@ -6942,7 +6910,7 @@
         renderDaySelector();
         return;
       }
-      el('rcBody')?.classList.remove('weekend-mode', 'ns-times', 'ns-progress');
+      el('rcBody')?.classList.remove('weekend-mode', 'ns-times', 'ns-progress', 'past-day');
       const c = cfg();
       const now = new Date(), eff = effSecs();
       const worked  = Math.max(0, Math.floor((now - loginDate) / 1000)) + _sessionAccSecs;
@@ -7388,7 +7356,8 @@
 
       const headDateEl = el('rcHeadDate');
       if (key === tk) {
-        // Today
+        // Today — clear past-day state before re-rendering so nothing flickers in
+        _rcShowPastMode(false);
         _setShiftCtaVisible(true);
         el('rcUpdateEntryBtn')?.classList.remove('visible');
         el('leaveChip').style.display = '';

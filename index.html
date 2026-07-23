@@ -594,7 +594,8 @@
     html:has(#viewHome.active), body:has(#viewHome.active) { overflow: hidden !important; }
     /* 3-zone layout: nav top · content center · input bottom */
     #viewHome .page { height: calc(100dvh - 24px - 52px - 16px); overflow: hidden; gap: 0; padding-bottom: 24px; }
-    #homeMain { flex: 1; min-height: 0; display: flex; flex-direction: column; justify-content: center; gap: 16px; padding: 8px 0 8px; overflow-y: auto; }
+    #homeMain { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 16px; padding: 8px 0 8px; overflow-y: auto; }
+    #homeCard { margin-top: auto; margin-bottom: auto; }
     #todayLoginSection { padding-top: 0; }
     /* ── Not-started single-KPI layout ── */
     #rcBody.ns-times .rc-numbers,
@@ -670,6 +671,7 @@
       from { opacity: 0; transform: translateY(8px); }
       to   { opacity: 1; transform: translateY(0);   }
     }
+    #homeCard.card-animating #weekendView { animation: none !important; opacity: 1; transform: none; }
     /* Smooth swap between the weekend note input and its saved dashed card */
     @keyframes wknd-swap-in {
       from { opacity: 0; transform: translateY(6px); }
@@ -7300,11 +7302,12 @@
 
     function _animateCardHeight(fn) {
       const card = el('homeCard');
+      const main = el('homeMain');
       if (!card) { fn(); return; }
       const prevH = card.offsetHeight;
       // Pin BEFORE content change so the swap is invisible
       card.style.height = prevH + 'px';
-      card.style.overflow = 'hidden';
+      if (main) main.style.overflowY = 'hidden'; // prevent scroll jump during animation
       fn();
       // For growing: scrollHeight gives natural content height while card is pinned
       // For shrinking: scrollHeight = prevH (clipped), so briefly go auto to measure
@@ -7314,14 +7317,19 @@
         newH = card.offsetHeight; // forced sync reflow, no paint yet
         card.style.height = prevH + 'px';
       }
-      if (Math.abs(newH - prevH) < 4) { card.style.height = ''; card.style.overflow = ''; return; }
+      const _restore = () => {
+        card.style.height = '';
+        card.style.transition = '';
+        card.classList.remove('card-animating');
+        if (main) main.style.overflowY = '';
+      };
+      if (Math.abs(newH - prevH) < 4) { _restore(); return; }
+      card.classList.add('card-animating'); // suppresses wknd-fade-in during height anim
       requestAnimationFrame(() => {
         card.style.transition = 'height 0.32s cubic-bezier(0.4,0,0.2,1)';
         card.style.height = newH + 'px';
         card.addEventListener('transitionend', function _cleanup() {
-          card.style.height = '';
-          card.style.overflow = '';
-          card.style.transition = '';
+          _restore();
           card.removeEventListener('transitionend', _cleanup);
         }, { once: true });
       });

@@ -7606,8 +7606,8 @@
     // Builds the two bottom KPI cards for past/future days.
     // Shows Duration (loginTime → logoutTime with arrow) + Surplus card.
     function _pastDayKpiHtml(loginDisp, outDisp, workedSecs, targetSecs) {
-      const arrow = `<span style="display:inline-flex;align-items:center;color:var(--muted-fg);margin:0 2px"><svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M5 12H19M19 12L13 6M19 12L13 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>`;
-      const ioLine = `<div style="display:inline-flex;align-items:center;font-size:14px;font-weight:500;color:var(--muted-fg)">${loginDisp}${arrow}${outDisp}</div>`;
+      const arrow = `<span style="display:inline-flex;align-items:center;color:var(--muted-fg);margin:0 6px"><svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M5 12H19M19 12L13 6M19 12L13 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>`;
+      const ioLine = `<div style="display:inline-flex;align-items:center;font-size:16px;font-weight:600;letter-spacing:-.3px;line-height:1.2">${loginDisp}${arrow}${outDisp}</div>`;
       let msgLine = '';
       if (workedSecs != null && targetSecs != null) {
         const diff = workedSecs - targetSecs;
@@ -7617,7 +7617,9 @@
           msgLine = `<span style="font-size:12px;color:var(--success)">You worked ${dur(diff)} more. Overtime!</span>`;
         }
       }
-      return `<div style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:4px 0">${ioLine}${msgLine}</div>`;
+      const pencil = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+      const updateBtn = `<button onclick="openDayEditModal(selectedDayKey)" style="display:inline-flex;align-items:center;gap:6px;padding:7px 16px;border-radius:8px;border:1.5px solid var(--border);background:var(--muted);color:var(--foreground);font-family:var(--font);font-size:13px;font-weight:500;cursor:pointer;transition:background .15s">${pencil}Update Entry</button>`;
+      return `<div style="display:flex;flex-direction:column;align-items:center;gap:10px;padding:4px 0">${ioLine}${msgLine}${updateBtn}</div>`;
     }
 
     function renderPastDay(key) {
@@ -7658,7 +7660,7 @@
         el('stayHint').style.display = 'none';
         el('otBanner').classList.remove('show'); el('doneBanner').classList.remove('show');
         const _emptyMsg = isFutureDay ? '' : `<div style="display:flex;flex-direction:column;align-items:center;gap:14px;padding:8px 0">
-          <span style="font-size:13px;color:var(--muted-fg)">No data logged</span>
+          <span style="font-size:13px;color:var(--muted-fg)">No logs recorded</span>
           <button onclick="openDayEditModal(selectedDayKey)" style="display:inline-flex;align-items:center;gap:6px;padding:7px 16px;border-radius:8px;border:1.5px solid var(--border);background:var(--muted);color:var(--foreground);font-family:var(--font);font-size:13px;font-weight:500;cursor:pointer;transition:background .15s"><svg width="13" height="13" viewBox="0 0 13 13" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M6.5 1v11M1 6.5h11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>Add Entry</button>
         </div>`;
         const _noDataContent = _emptyMsg + targetRow;
@@ -7666,15 +7668,11 @@
         el('rcToday').style.display = _noDataContent ? '' : 'none';
         return;
       }
-      // Restore rcKpiGroup visibility (may have been hidden by no-data state)
-      el('rcKpiGroup').style.display = '';
-      // Has data — ensure rc-numbers is visible (may have been hidden by no-data state)
-      const _rcNumEl = document.querySelector('.rc-numbers');
-      if (_rcNumEl) _rcNumEl.style.display = '';
-      const worked = Math.round(log.hoursWorked * 3600); // round to nearest second to avoid float drift
-      const isDone = worked >= target;
-      el('rcWorked').textContent = dur(worked); el('rcWorked').style.color = '';
-      swapText('rcElapsedLabel', 'Total Logged', { color: 'var(--muted-fg)' });
+      // Past day with data: all display lives in rcToday, hide the KPI group
+      el('rcKpiGroup').style.display = 'none';
+      el('rcWorked').textContent = ''; el('rcWorked').style.color = '';
+      swapText('rcElapsedLabel', '', { color: '' });
+      const worked = Math.round(log.hoursWorked * 3600);
       el('otBanner').classList.remove('show');
       el('doneBanner').classList.remove('show');
       _setTodayDateChip();

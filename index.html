@@ -605,10 +605,16 @@
     #rcBody.ns-times #rcPairTabs,
     #rcBody.ns-progress #rcPairTabs { display: none; }
     /* Active/in-progress: tight 8px layout, 32px breathing above & below the KPI group */
-    #rcBody:not(.ns-times):not(.ns-progress):not(.weekend-mode) { gap: 8px; }
-    #rcBody:not(.ns-times):not(.ns-progress):not(.weekend-mode) #rcKpiGroup { margin-top: 24px; margin-bottom: 24px; }
-    #rcBody:not(.ns-times):not(.ns-progress):not(.weekend-mode) .rc-numbers { padding: 0; margin-top: 0; margin-bottom: 0; width: 100%; }
-    #rcBody:not(.ns-times):not(.ns-progress):not(.weekend-mode) #rcDescRow { padding: 0; margin-bottom: 0; }
+    #rcBody:not(.ns-times):not(.ns-progress):not(.weekend-mode):not(.past-day) { gap: 8px; }
+    #rcBody:not(.ns-times):not(.ns-progress):not(.weekend-mode):not(.past-day) #rcKpiGroup { margin-top: 24px; margin-bottom: 24px; }
+    #rcBody:not(.ns-times):not(.ns-progress):not(.weekend-mode):not(.past-day) .rc-numbers { padding: 0; margin-top: 0; margin-bottom: 0; width: 100%; }
+    #rcBody:not(.ns-times):not(.ns-progress):not(.weekend-mode):not(.past-day) #rcDescRow { padding: 0; margin-bottom: 0; }
+    /* Past / future day: center single KPI, hide empty right col, remove active-mode margins */
+    #rcBody.past-day .rc-numbers { justify-content: center; width: 100%; padding: 0; }
+    #rcBody.past-day .rc-right-col { display: none; }
+    #rcBody.past-day .rc-left-col { align-items: center; }
+    #rcBody.past-day #rcKpiGroup { margin: 0; }
+    #rcBody.past-day { display: flex; flex-direction: column; justify-content: center; align-items: center; flex: 1; gap: 0; }
     .rc-left-col { max-width: 300px; max-height: 200px; }
     .rc-right-col { max-width: 300px; max-height: 200px; }
     #rcBody.ns-times .rc-right-col {
@@ -5930,7 +5936,13 @@
     }
 
     function _rcShowPastMode(show) {
-      if (show) el('rcBody')?.classList.remove('ns-times', 'ns-progress', 'rc-starting');
+      if (show) {
+        el('rcBody')?.classList.remove('ns-times', 'ns-progress', 'rc-starting');
+        el('rcBody')?.classList.add('past-day');
+      } else {
+        el('rcBody')?.classList.remove('past-day');
+        const _kg = el('rcKpiGroup'); if (_kg) _kg.style.display = '';
+      }
       ['rcPairTabs','rcProgressTrack','rcDescRow'].forEach(id => {
         const e = el(id); if (e) e.style.display = show ? 'none' : '';
       });
@@ -7661,15 +7673,21 @@
       if (!log || log.hoursWorked == null) {
         const _rcNumEl = document.querySelector('.rc-numbers');
         if (_rcNumEl) _rcNumEl.style.display = 'none';
+        el('rcKpiGroup').style.display = 'none';
         _setTodayDateChip();
         el('stayHint').style.display = 'none';
         el('otBanner').classList.remove('show'); el('doneBanner').classList.remove('show');
-        const _emptyMsg = isFutureDay ? '' : '<div style="padding:20px 0 12px;text-align:center;font-size:13px;color:var(--muted-fg)">No data logged</div>';
+        const _emptyMsg = isFutureDay ? '' : `<div style="display:flex;flex-direction:column;align-items:center;gap:14px;padding:8px 0">
+          <span style="font-size:13px;color:var(--muted-fg)">No data logged</span>
+          <button onclick="openDayEditModal(selectedDayKey)" style="display:inline-flex;align-items:center;gap:6px;padding:7px 16px;border-radius:8px;border:1.5px solid var(--border);background:var(--muted);color:var(--foreground);font-family:var(--font);font-size:13px;font-weight:500;cursor:pointer;transition:background .15s"><svg width="13" height="13" viewBox="0 0 13 13" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M6.5 1v11M1 6.5h11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>Add Entry</button>
+        </div>`;
         const _noDataContent = _emptyMsg + targetRow;
         el('rcToday').innerHTML = _noDataContent;
         el('rcToday').style.display = _noDataContent ? '' : 'none';
         return;
       }
+      // Restore rcKpiGroup visibility (may have been hidden by no-data state)
+      el('rcKpiGroup').style.display = '';
       // Has data — ensure rc-numbers is visible (may have been hidden by no-data state)
       const _rcNumEl = document.querySelector('.rc-numbers');
       if (_rcNumEl) _rcNumEl.style.display = '';

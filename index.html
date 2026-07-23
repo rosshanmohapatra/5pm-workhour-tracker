@@ -442,8 +442,8 @@
     .day-date { font-size: 18px; font-weight: 600; color: var(--foreground); }
 
     /* ── Notification panel — fixed overlay, never pushes content ── */
-    .notif-panel { position: fixed; top: calc(16px + 52px + 8px); left: 50%; transform: translateX(-50%);
-      width: calc(100% - 48px); max-width: 600px; z-index: 40; padding: 0 !important;
+    .notif-panel { position: fixed; top: calc(24px + 52px + 8px); left: 50%; transform: translateX(-50%);
+      width: calc(100% - 48px); max-width: 552px; z-index: 40; padding: 0 !important;
       overflow: hidden; transition: max-height .28s ease, opacity .2s; }
     .notif-panel.hidden { max-height: 0; opacity: 0; pointer-events: none; }
     .notif-panel.open   { max-height: 900px; opacity: 1; }
@@ -590,8 +590,10 @@
     /* Divider between week and today card — bleeds edge-to-edge past homeCard padding */
     .home-divider { height: 1px; background: var(--border); }
     #homeCard .home-divider { margin: 12px -16px 0; }
+    /* Lock scroll on the home view — nav is sticky so body must not scroll */
+    html:has(#viewHome.active), body:has(#viewHome.active) { overflow: hidden !important; }
     /* 3-zone layout: nav top · content center · input bottom */
-    #viewHome .page { height: 100dvh; overflow: hidden; gap: 0; padding-bottom: 24px; }
+    #viewHome .page { height: calc(100dvh - 24px - 52px - 16px); overflow: hidden; gap: 0; padding-bottom: 24px; }
     #homeMain { flex: 1; min-height: 0; display: flex; flex-direction: column; justify-content: center; gap: 16px; padding: 8px 0 8px; }
     #todayLoginSection { padding-top: 0; }
     /* ── Not-started single-KPI layout ── */
@@ -603,8 +605,9 @@
     #rcBody.ns-progress #rcPairTabs { display: none; }
     /* Active/in-progress: tight 8px layout, 32px breathing above & below the KPI group */
     #rcBody:not(.ns-times):not(.ns-progress):not(.weekend-mode) { gap: 8px; }
-    #rcBody:not(.ns-times):not(.ns-progress):not(.weekend-mode) .rc-numbers { padding: 0; margin-top: 24px; margin-bottom: 0; }
-    #rcBody:not(.ns-times):not(.ns-progress):not(.weekend-mode) #rcDescRow { padding: 0; margin-bottom: 24px; }
+    #rcBody:not(.ns-times):not(.ns-progress):not(.weekend-mode) #rcKpiGroup { margin-top: 24px; margin-bottom: 24px; }
+    #rcBody:not(.ns-times):not(.ns-progress):not(.weekend-mode) .rc-numbers { padding: 0; margin-top: 0; margin-bottom: 0; }
+    #rcBody:not(.ns-times):not(.ns-progress):not(.weekend-mode) #rcDescRow { padding: 0; margin-bottom: 0; }
     .rc-left-col { max-width: 300px; max-height: 200px; }
     .rc-right-col { max-width: 300px; max-height: 200px; }
     #rcBody.ns-times .rc-right-col {
@@ -616,9 +619,7 @@
     #rcBody.ns-progress .rc-right-col { margin-left: 0 !important; align-items: center; }
     #rcBody.ns-progress #rcProgressTrack,
     #rcBody.ns-times #rcProgressTrack { max-height: 0 !important; opacity: 0; margin: 0 !important; }
-    /* Collapse the gap left by the hidden progress track so desc-row stays close */
-    #rcBody.ns-times #rcDescRow,
-    #rcBody.ns-progress #rcDescRow { margin-top: -12px; }
+    /* No negative margin needed — rcKpiGroup gap handles spacing */
     #rcProgressTrack { overflow: hidden; max-height: 20px; }
     /* Smooth animation transitioning ns → in-progress */
     #rcBody.rc-starting .rc-left-col,
@@ -630,8 +631,8 @@
       border-radius: 8px; transition: background .15s; }
     .leave-by-btn:hover { background: var(--muted); }
     /* ── Quick Start shortcut recorder ── */
-    .qs-shortcut-field { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 4px;
-      height: 38px; padding: 0 12px; border-radius: 8px;
+    .qs-shortcut-field { display: inline-flex; align-items: center; flex-wrap: nowrap; gap: 4px;
+      min-height: 38px; padding: 0 4px 0 12px; border-radius: 8px;
       background: var(--input-bg); border: none; box-shadow: var(--shadow-xs);
       color: var(--foreground); font-size: 13px; font-family: var(--font);
       cursor: pointer; outline: none; user-select: none;
@@ -2344,7 +2345,7 @@
             <button class="rc-pair-tab rc-pair-tab-active" onclick="_rcSwitchPair('times',this)">Time</button>
             <button class="rc-pair-tab" onclick="_rcSwitchPair('progress',this)">Progress</button>
           </div>
-          <div id="rcKpiGroup" style="display:flex;flex-direction:column;align-items:center;width:100%;gap:0">
+          <div id="rcKpiGroup" style="display:flex;flex-direction:column;align-items:center;width:100%;gap:8px">
           <div class="rc-numbers">
             <div class="rc-left-col" onclick="_rcKpiTap('left',event)">
               <div class="rc-worked" id="rcWorked">—</div>
@@ -2847,7 +2848,7 @@
                 </button>
               </div>
             </div>
-            <div id="qsShortcutError" style="display:none;color:var(--destructive);font-size:12px;margin-top:6px">
+            <div id="qsShortcutError" style="max-height:0;overflow:hidden;color:var(--destructive);font-size:12px;margin-top:0;transition:max-height .2s ease,margin-top .2s ease">
               Shortcut must begin with Ctrl, Cmd, or Alt.
             </div>
 
@@ -11188,10 +11189,10 @@ ${sig}`
       }
       if (!e.ctrlKey && !e.metaKey && !e.altKey) {
         const errEl = el('qsShortcutError');
-        if (errEl) { errEl.style.display = ''; errEl.textContent = 'Shortcut must begin with Ctrl, Cmd, or Alt.'; }
+        if (errEl) { errEl.style.maxHeight = '40px'; errEl.style.marginTop = '6px'; errEl.textContent = 'Shortcut must begin with Ctrl, Cmd, or Alt.'; }
         return;
       }
-      el('qsShortcutError') && (el('qsShortcutError').style.display = 'none');
+      if (el('qsShortcutError')) { el('qsShortcutError').style.maxHeight = '0'; el('qsShortcutError').style.marginTop = '0'; }
       const mod = e.metaKey ? 'cmd' : e.ctrlKey ? 'ctrl' : 'alt';
       const key = e.key.toLowerCase();
       const shift = e.shiftKey;
@@ -11214,7 +11215,7 @@ ${sig}`
     function resetQsShortcut() {
       saveCfg({ ...cfg(), qsShortcut: {} });
       _renderQsDisplay(null);
-      el('qsShortcutError') && (el('qsShortcutError').style.display = 'none');
+      if (el('qsShortcutError')) { el('qsShortcutError').style.maxHeight = '0'; el('qsShortcutError').style.marginTop = '0'; }
       _qsRecording = false;
       const inp = el('qsShortcutInput');
       if (inp) { inp.classList.remove('recording'); inp.onkeydown = null; }

@@ -447,7 +447,7 @@
       overflow: hidden; transition: max-height .28s ease, opacity .2s; }
     .notif-panel.hidden { max-height: 0; opacity: 0; pointer-events: none; }
     .notif-panel.open   { max-height: 900px; opacity: 1; }
-    .notif-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; }
+    .notif-card { background: color-mix(in srgb, var(--card) 90%, transparent); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); }
     .notif-head { padding: 12px; border-bottom: 1px solid var(--border);
       display: flex; align-items: center; justify-content: space-between; }
     .notif-item { display: flex; align-items: flex-start; gap: 10px;
@@ -625,11 +625,9 @@
     #rcBody.rc-starting .rc-left-col,
     #rcBody.rc-starting .rc-right-col { transition: max-width .35s ease, max-height .35s ease, opacity .3s ease; }
     #rcBody.rc-starting #rcProgressTrack { transition: max-height .35s ease, opacity .35s ease; }
-    /* Leave-by button in desc row */
-    .leave-by-btn { background: none; border: none; font-family: var(--font); font-size: 12px;
-      font-weight: 500; color: var(--muted-fg); cursor: pointer; padding: 2px 9px;
-      border-radius: 8px; transition: background .15s; }
-    .leave-by-btn:hover { background: var(--muted); }
+    /* Leave-by label in desc row */
+    .leave-by-label { font-family: var(--font); font-size: 12px;
+      font-weight: 500; color: var(--muted-fg); padding: 2px 9px; }
     /* ── Quick Start shortcut recorder ── */
     .qs-shortcut-field { display: inline-flex; align-items: center; flex-wrap: nowrap; gap: 4px;
       min-height: 38px; padding: 0 4px 0 12px; border-radius: 8px;
@@ -647,6 +645,8 @@
       color:var(--muted-fg);cursor:pointer;flex-shrink:0;transition:background .15s,color .15s;
       font-family:var(--font); }
     .qs-field-btn:hover { background:var(--muted);color:var(--foreground); }
+    #qsShortcutResetBtn { max-width:0;opacity:0;pointer-events:none;overflow:hidden;
+      transition:max-width .2s ease,opacity .2s ease; }
     .rc-body.weekend-mode .rc-numbers,
     .rc-body.weekend-mode #rcToday,
     .rc-body.weekend-mode #stayHint,
@@ -707,7 +707,7 @@
     .rc-pair-tab-active { background: var(--card); color: var(--foreground); box-shadow: 0 1px 3px rgba(0,0,0,.08); }
     .dark .rc-pair-tab-active { background: var(--muted); }
     /* ── Progress bar ── */
-    .rc-progress-track { height: 5px; background: var(--border); border-radius: 100px; overflow: hidden; }
+    .rc-progress-track { height: 5px; background: var(--border); border-radius: 100px; overflow: hidden; width: 100%; }
     .rc-progress-fill { height: 100%; border-radius: 100px; background: var(--foreground);
       transition: width .5s cubic-bezier(.4,0,.2,1), background .3s; position: relative; overflow: hidden; }
     .rc-progress-fill.running::after { content: ''; position: absolute; top: 0; bottom: 0; left: -80%;
@@ -729,16 +729,16 @@
     .rc-desc-chip.warn { color: var(--warning); }
     /* ── KPI numbers ── */
     .rc-numbers { display: flex; align-items: baseline; gap: 12px; }
-    .rc-left-col { display: flex; flex-direction: column; gap: 2px; cursor: pointer; }
-    .rc-right-col { margin-left:auto;display:flex;flex-direction:column;gap:2px;align-items:flex-end; cursor: pointer; }
+    .rc-left-col { display: flex; flex-direction: column; gap: 2px; }
+    .rc-right-col { margin-left:auto;display:flex;flex-direction:column;gap:2px;align-items:flex-end; }
     .rc-target-val { font-size:16px;font-weight:600;letter-spacing:-.3px;line-height:1.2;color:var(--foreground); }
     .rc-target-label { font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted-fg);text-align:right; }
     .rc-elapsed-row { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; margin-top: 2px; }
     .rc-rem-sep { font-size: 11px; color: var(--muted-fg); opacity: 0.45; font-weight: 700; line-height: 1; }
     .rc-rem-inline { font-size: 11px; font-weight: 600; letter-spacing: .04em; line-height: 1; }
     .rc-rem-text { font-size: 11px; font-weight: 600; color: var(--muted-fg); letter-spacing: .06em; text-transform: uppercase; line-height: 1; }
-    .rc-worked { font-size: 16px; font-weight: 600; letter-spacing: -.3px; line-height: 1.2; color: #fff; }
-    .dark .rc-worked { color: #fff; }
+    .rc-worked { font-size: 16px; font-weight: 600; letter-spacing: -.3px; line-height: 1.2; color: rgba(255,255,255,0.35); }
+    .dark .rc-worked { color: rgba(255,255,255,0.35); }
     .rc-elapsed-label { font-size: 11px; font-weight: 600; letter-spacing: .08em;
       text-transform: uppercase; color: var(--muted-fg); margin-top: 2px; }
     .rc-meta { display: flex; gap: 16px; flex-wrap: wrap; }
@@ -1044,10 +1044,7 @@
       border-radius:100px;background:var(--background);border:1px solid var(--border);
       font-family:var(--font);z-index:10;text-decoration:none;
       white-space:nowrap;overflow:hidden; }
-    .vp-tagline { font-size:11px;font-weight:500;color:var(--muted-fg);
-      max-width:0;overflow:hidden;opacity:0;
-      transition:max-width .55s cubic-bezier(.4,0,.2,1), opacity .45s ease; }
-    .version-pill:hover .vp-tagline { max-width:160px;opacity:1; }
+    .version-pill:hover { background:var(--muted); }
     @media (max-width:640px) { .version-pill { display:none !important; } }
     .dialog-title { font-size: 16px; font-weight: 600; color: var(--foreground); letter-spacing: -.01em; }
     .dialog-desc  { font-size: 13px; color: var(--muted-fg); margin-top: 4px; line-height: 1.5; }
@@ -2347,10 +2344,10 @@
           </div>
           <div id="rcKpiGroup" style="display:flex;flex-direction:column;align-items:center;width:100%;gap:8px">
           <div class="rc-numbers">
-            <div class="rc-left-col" onclick="_rcKpiTap('left',event)">
+            <div class="rc-left-col">
               <div class="rc-worked" id="rcWorked">—</div>
             </div>
-            <div class="rc-right-col" onclick="_rcKpiTap('right',event)">
+            <div class="rc-right-col">
               <div class="rc-target-val" id="rcTarget" style="color:var(--muted-fg)">—</div>
             </div>
           </div>
@@ -3192,8 +3189,9 @@
 
   <!-- Version pill -->
   <a href="https://github.com/rosshanmohapatra/5pm-workhour-tracker/releases" target="_blank" rel="noopener" class="version-pill">
-    <span class="vp-tagline">Work Hour Tracker - </span>
-    <span style="font-size:11px;font-weight:600;color:var(--muted-fg);letter-spacing:.01em">Version 1.0.4</span>
+    <span style="font-size:11px;font-weight:600;color:var(--muted-fg);letter-spacing:.01em">5pm</span>
+    <span style="font-size:10px;font-weight:600;letter-spacing:.05em;
+      background:var(--muted);color:var(--muted-fg);padding:4px 7px;border-radius:100px">v1.0.4</span>
   </a>
 
   <!-- ── Weekly Report Modal ── -->
@@ -5368,8 +5366,8 @@
       // Position
       const _isLoginInput = targetInputId === 'tc-r7m2';
       const refEl = _isLoginInput
-        ? (el('shiftInputRow') || event?.currentTarget || event?.target)
-        : (event?.currentTarget || event?.target || el(targetInputId));
+        ? (el('shiftInputRow') || event?.target?.closest('button,.rc-io-box,[data-tpid]') || event?.target)
+        : (event?.target?.closest('button,.rc-io-box,[data-tpid]') || event?.target || el(targetInputId));
       const refRect = refEl?.getBoundingClientRect();
       if (refRect) {
         const GAP = 12, mW = 216, mH = 200, pad = 8;
@@ -5419,7 +5417,7 @@
       const titleEl = el('tpModalTitle');
       if (titleEl) titleEl.textContent = 'Target';
       // Position centered below the tapped element
-      const refEl = event?.currentTarget || event?.target;
+      const refEl = event?.target?.closest('button,.rc-io-box,[data-tpid]') || event?.target;
       const refRect = refEl?.getBoundingClientRect();
       if (refRect) {
         const GAP = 8, mW = 256, mH = 280, pad = 8;
@@ -5478,7 +5476,7 @@
       const cancelBtn = el('tpCancelBtn');
       if (cancelBtn) cancelBtn.textContent = 'Cancel';
 
-      const refEl = event?.currentTarget || event?.target;
+      const refEl = event?.target?.closest('button,.rc-io-box,[data-tpid]') || event?.target;
       const refRect = refEl?.getBoundingClientRect();
       if (refRect) {
         const GAP = 8, mW = 256, mH = 330, pad = 8;
@@ -6025,7 +6023,7 @@
       // Not started
       const _projLogout = eff > 0 ? short(new Date(Date.now() + eff * 1000)) : '—';
       const _leavByDesc = eff > 0
-        ? '<button class="leave-by-btn" onclick="openDailyTargetPicker(event)">Leave by ' + _projLogout + '</button>'
+        ? '<span class="leave-by-label">Leave by ' + _projLogout + '</span>'
         : '';
       _rcCache = { loginStr: '—', logoutStr: _projLogout, elapsedStr: '0m',
         rightStr: dur(eff), rightClass: 'muted', pct: 0, barClass: '',
@@ -11151,11 +11149,22 @@ ${sig}`
     // ── Quick Start shortcut recorder (Settings Advanced) ────────────────────
     let _qsRecording = false;
 
+    function _updateQsResetBtn(hasShortcut) {
+      const btn = el('qsShortcutResetBtn');
+      if (!btn) return;
+      if (hasShortcut) {
+        btn.style.maxWidth = '28px'; btn.style.opacity = '1'; btn.style.pointerEvents = '';
+      } else {
+        btn.style.maxWidth = '0'; btn.style.opacity = '0'; btn.style.pointerEvents = 'none';
+      }
+    }
+
     function _renderQsDisplay(sc) {
       const disp = el('qsShortcutDisplay');
       if (!disp) return;
       if (!sc || !sc.key) {
         disp.innerHTML = '<span style="color:var(--muted-fg)">Type a shortcut</span>';
+        _updateQsResetBtn(false);
         return;
       }
       const modLabel = sc.mod === 'cmd' ? 'Cmd' : sc.mod === 'alt' ? 'Alt' : 'Ctrl';
@@ -11165,6 +11174,7 @@ ${sig}`
       parts.push('<span class="qs-capsule">' + keyLabel + '</span>');
       const sep = '<span style="color:var(--muted-fg);font-size:11px;font-weight:400;padding:0 1px">+</span>';
       disp.innerHTML = '<span style="display:inline-flex;align-items:center;gap:3px">' + parts.join(sep) + '</span>';
+      _updateQsResetBtn(true);
     }
 
     function startQsRecording() {

@@ -6971,17 +6971,16 @@
       }
 
       // Cache for pair-switching without full re-render
-      _rcStopClock();
       _rcCache = { loginStr: _loginStr, logoutStr: _logoutStr, elapsedStr: _elapsedStr,
         rightStr: _rightStr, rightClass: _rightClass, pct: eff > 0 ? worked / eff : 1,
         barClass: _barClass, descLeft: _loginStr + ' → ' + _logoutStr, descRight: _descRight };
 
       if (_currentPairIs('times')) {
-        el('rcWorked').textContent = _loginStr;
-        el('rcWorked').style.color = '';
+        _rcStartClock();
         el('rcTarget').textContent = _logoutStr;
         el('rcTarget').style.color = '';
       } else {
+        _rcStopClock();
         animateDuration('rcWorked', _elapsedStr);
         el('rcWorked').style.color = isDone ? 'var(--muted-fg)' : '#fafafa';
         el('rcTarget').style.color = _rightClass === 'warn' ? 'var(--warning)' : _rightClass === 'muted' ? 'var(--muted-fg)' : '';

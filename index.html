@@ -441,11 +441,13 @@
     .day-right { text-align: right; padding-bottom: 4px; }
     .day-date { font-size: 18px; font-weight: 600; color: var(--foreground); }
 
-    /* ── Notification panel ── */
-    .notif-panel { overflow: hidden; transition: max-height .28s ease, opacity .2s; }
-    .notif-panel.hidden { max-height: 0; opacity: 0; pointer-events: none; padding-top: 0 !important; padding-bottom: 0 !important; }
+    /* ── Notification panel — fixed overlay, never pushes content ── */
+    .notif-panel { position: fixed; top: calc(24px + 52px + 8px); left: 50%; transform: translateX(-50%);
+      width: calc(100% - 48px); max-width: 552px; z-index: 40; padding: 0 !important;
+      overflow: hidden; transition: max-height .28s ease, opacity .2s; }
+    .notif-panel.hidden { max-height: 0; opacity: 0; pointer-events: none; }
     .notif-panel.open   { max-height: 900px; opacity: 1; }
-    .notif-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; }
+    .notif-card { background: color-mix(in srgb, var(--card) 90%, transparent); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); }
     .notif-head { padding: 12px; border-bottom: 1px solid var(--border);
       display: flex; align-items: center; justify-content: space-between; }
     .notif-item { display: flex; align-items: flex-start; gap: 10px;
@@ -481,7 +483,9 @@
     .ios-shake { animation: ios-shake .5s cubic-bezier(.36,.07,.19,.97) both; }
 
     /* ── Shift combo (input + button inside) ── */
-    .shift-cta { display: flex; flex-direction: column; gap: 10px; }
+    .shift-cta { display: flex; flex-direction: column; gap: 10px; overflow: hidden;
+      max-height: 200px; opacity: 1; transition: max-height .3s ease, opacity .25s ease, padding .3s ease; }
+    .shift-cta.cta-hidden { max-height: 0 !important; opacity: 0; pointer-events: none; padding-top: 0 !important; }
     .shift-combo { display: flex; align-items: center; background: var(--card);
       border: 1.5px solid var(--border); border-radius: var(--radius-lg); height: 52px;
       padding: 6px; gap: 6px; transition: background .15s, border-color .15s; box-shadow: var(--shadow-xs); }
@@ -560,18 +564,113 @@
       display: flex; align-items: center; justify-content: space-between; }
     .rc-head-left { display: flex; align-items: center; gap: 8px; }
     .rc-body { padding: 16px; display: flex; flex-direction: column; gap: 12px; }
-    .rc-body .rc-numbers { margin-bottom: -4px; }
+    .rc-body .rc-numbers { margin-bottom: -4px; padding: 8px 0; }
     /* ── Weekend empty state ── */
+    /* Hide today card header — tab switcher is the new header */
+    #resultCard .rc-head { display: none !important; }
+    /* ── Home view layout ── */
+    .sel-day-ctx { display: none !important; }
+    /* homeCard: week selector + divider + today card unified */
+    #homeCard { background: var(--card); border: 1.5px solid var(--border);
+      border-radius: var(--radius-lg); box-shadow: var(--shadow-xs); overflow: hidden; padding: 16px; }
+    /* Strip card chrome from week wrap and today card (inside homeCard) */
+    .this-week-wrap { background: transparent !important; border: none !important;
+      box-shadow: none !important; border-radius: 0 !important; }
+    .this-week-header { border-bottom: none !important; }
+    #homeCard .this-week-header { padding: 0 0 8px !important; }
+    #homeCard .this-week-wrap .day-selector { padding: 0 !important; }
+    #resultCard { background: transparent !important; border: none !important;
+      box-shadow: none !important; border-radius: 0 !important; }
+    #homeCard .rc-body { padding: 16px 0 0 !important; }
+    /* Strip inner card chrome from futureDayPlan and badge-card (inside homeCard) */
+    #homeCard #futureDayPlan > .card { background: transparent !important; border: none !important;
+      box-shadow: none !important; border-radius: 0 !important; }
+    #homeCard .badge-card { background: transparent !important; border: none !important;
+      box-shadow: none !important; border-radius: 0 !important; }
+    /* Divider between week and today card — bleeds edge-to-edge past homeCard padding */
+    .home-divider { height: 1px; background: var(--border); }
+    #homeCard .home-divider { margin: 12px -16px 0; }
+    /* Lock scroll on the home view — nav is sticky so body must not scroll */
+    html:has(#viewHome.active), body:has(#viewHome.active) { overflow: hidden !important; }
+    /* 3-zone layout: nav top · content center · input bottom */
+    #viewHome .page { height: calc(100dvh - 24px - 52px - 16px); overflow: hidden; gap: 0; padding-bottom: 24px; }
+    #homeMain { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 16px; padding: 8px 0 8px; overflow-y: auto; }
+    #homeCard { margin-top: auto; margin-bottom: auto; }
+    #todayLoginSection { padding-top: 0; }
+    /* ── Not-started single-KPI layout ── */
+    #rcBody.ns-times .rc-numbers,
+    #rcBody.ns-progress .rc-numbers { justify-content: center; padding-bottom: 0; }
+    #rcBody.ns-times #rcDescRow,
+    #rcBody.ns-progress #rcDescRow { padding-top: 0; }
+    #rcBody.ns-times #rcPairTabs,
+    #rcBody.ns-progress #rcPairTabs { display: none; }
+    /* Active/in-progress: tight 8px layout, 32px breathing above & below the KPI group */
+    #rcBody:not(.ns-times):not(.ns-progress):not(.weekend-mode):not(.past-day) { gap: 8px; }
+    #rcBody:not(.ns-times):not(.ns-progress):not(.weekend-mode):not(.past-day) #rcKpiGroup { margin-top: 24px; margin-bottom: 24px; }
+    #rcBody:not(.ns-times):not(.ns-progress):not(.weekend-mode):not(.past-day) .rc-numbers { padding-left: 0; padding-right: 0; margin-top: 0; margin-bottom: 0; width: 100%; }
+    #rcBody:not(.ns-times):not(.ns-progress):not(.weekend-mode):not(.past-day) #rcDescRow { padding: 0; margin-bottom: 0; }
+    /* Past / future day: center single KPI, hide empty right col, remove active-mode margins */
+    #rcBody.past-day .rc-numbers { justify-content: center; width: 100%; padding: 0; }
+    #rcBody.past-day .rc-right-col { display: none; }
+    #rcBody.past-day .rc-left-col { align-items: center; }
+    #rcBody.past-day #rcKpiGroup { margin: 0; }
+    #rcBody.past-day { display: flex; flex-direction: column; justify-content: center; align-items: center; flex: 1; gap: 0; }
+    .rc-left-col { max-width: 300px; max-height: 200px; }
+    .rc-right-col { max-width: 300px; max-height: 200px; }
+    #rcBody.ns-times .rc-right-col {
+      max-width: 0 !important; max-height: 0 !important; opacity: 0; overflow: hidden;
+      pointer-events: none; margin-left: 0 !important; }
+    #rcBody.ns-times .rc-left-col { align-items: center; }
+    #rcBody.ns-progress .rc-left-col {
+      max-width: 0 !important; max-height: 0 !important; opacity: 0; overflow: hidden; pointer-events: none; }
+    #rcBody.ns-progress .rc-right-col { margin-left: 0 !important; align-items: center; }
+    #rcBody.ns-progress #rcProgressTrack,
+    #rcBody.ns-times #rcProgressTrack { max-height: 0 !important; opacity: 0; margin: 0 !important; }
+    /* No negative margin needed — rcKpiGroup gap handles spacing */
+    #rcProgressTrack { overflow: hidden; max-height: 20px; }
+    /* Smooth animation transitioning ns → in-progress */
+    #rcBody.rc-starting .rc-left-col,
+    #rcBody.rc-starting .rc-right-col { transition: max-width .35s ease, max-height .35s ease, opacity .3s ease; }
+    #rcBody.rc-starting #rcProgressTrack { transition: max-height .35s ease, opacity .35s ease; }
+    /* Leave-by label in desc row */
+    .leave-by-label { font-family: var(--font); font-size: 12px;
+      font-weight: 500; color: var(--muted-fg); padding: 2px 9px; }
+    /* ── Quick Start shortcut recorder ── */
+    .qs-shortcut-field { display: inline-flex; align-items: center; flex-wrap: nowrap; gap: 4px;
+      min-height: 38px; padding: 0 4px 0 12px; border-radius: 8px;
+      background: var(--input-bg); border: none; box-shadow: var(--shadow-xs);
+      color: var(--foreground); font-size: 13px; font-family: var(--font);
+      cursor: pointer; outline: none; user-select: none;
+      transition: box-shadow .15s; min-width: 120px; }
+    .qs-shortcut-field.recording { box-shadow: 0 0 0 2.5px rgba(9,9,11,.10); }
+    .dark .qs-shortcut-field.recording { box-shadow: 0 0 0 2.5px rgba(250,250,250,.10); }
+    /* Quick Start shortcut is a keyboard feature — desktop only */
+    @media (max-width: 640px) { .qs-shortcut-row { display: none !important; } }
+    .qs-capsule { display: inline-flex; align-items: center; background: var(--muted);
+      border: 1px solid var(--border); border-radius: 4px; padding: 1px 6px;
+      font-size: 11px; font-weight: 600; font-family: var(--font); line-height: 1.6; }
+    .qs-field-btn { display:inline-flex;align-items:center;justify-content:center;
+      width:28px;height:28px;border-radius:6px;border:none;background:transparent;
+      color:var(--muted-fg);cursor:pointer;flex-shrink:0;transition:background .15s,color .15s;
+      font-family:var(--font); }
+    .qs-field-btn:hover { background:var(--muted);color:var(--foreground); }
+    #qsShortcutResetBtn { max-width:0;opacity:0;pointer-events:none;overflow:hidden;
+      transition:max-width .2s ease,opacity .2s ease; }
     .rc-body.weekend-mode .rc-numbers,
     .rc-body.weekend-mode #rcToday,
     .rc-body.weekend-mode #stayHint,
     .rc-body.weekend-mode #otBanner,
     .rc-body.weekend-mode #doneBanner,
-    .rc-body.weekend-mode #autostopBanner { display: none !important; }
+    .rc-body.weekend-mode #autostopBanner,
+    .rc-body.weekend-mode #rcPairTabs,
+    .rc-body.weekend-mode #rcProgressTrack,
+    .rc-body.weekend-mode #rcDescRow { display: none !important; }
     #weekendView { display: none; }
     .rc-body.weekend-mode #weekendView { display: block; animation: wknd-fade-in .28s ease; }
     /* Override mode (holiday/leave/halfday weekday): card fills remaining card height */
     .rc-body.weekend-mode { flex: 1; }
+    /* Push shift CTA below weekendView content in override mode */
+    #rcBody.weekend-mode #todayLoginSection { order: 10; }
     #weekendView.override-mode { flex: 1; display: flex; flex-direction: column; }
     #weekendView.override-mode #wkndOverrideInfoCard { flex: 1; }
     #weekendView.override-mode #wkndNoteWrap { flex: 1; display: flex; flex-direction: column; margin-bottom: 0; }
@@ -580,6 +679,7 @@
       from { opacity: 0; transform: translateY(8px); }
       to   { opacity: 1; transform: translateY(0);   }
     }
+    #homeCard.card-animating #weekendView { animation: none !important; opacity: 1; transform: none; }
     /* Smooth swap between the weekend note input and its saved dashed card */
     @keyframes wknd-swap-in {
       from { opacity: 0; transform: translateY(6px); }
@@ -608,16 +708,46 @@
       #wkndNote { min-height: 32px; padding: 6px 0; }
       #wkndNoteSend { width: 32px; height: 32px; }
     }
-    .rc-numbers { display: flex; align-items: baseline; gap: 12px; }
+    /* ── Pair tab switcher — matches st-tabs pill style ── */
+    .rc-pair-tabs { display: flex; background: var(--background); border-radius: 8px; padding: 3px; gap: 2px; flex-shrink: 0; align-self: flex-start; }
+    .rc-pair-tab { background: transparent; border: none; font-family: var(--font); font-size: 12px; font-weight: 500;
+      color: var(--muted-fg); padding: 5px 12px; border-radius: 6px; cursor: pointer;
+      transition: background .15s, color .15s; white-space: nowrap; }
+    .rc-pair-tab:hover { color: var(--foreground); }
+    .rc-pair-tab-active { background: var(--card); color: var(--foreground); box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+    .dark .rc-pair-tab-active { background: var(--muted); }
+    /* ── Progress bar ── */
+    .rc-progress-track { height: 5px; background: var(--border); border-radius: 100px; overflow: hidden; width: 100%; }
+    .rc-progress-fill { height: 100%; border-radius: 100px; background: var(--foreground);
+      transition: width .5s cubic-bezier(.4,0,.2,1), background .3s; position: relative; overflow: hidden; }
+    .rc-progress-fill.running::after { content: ''; position: absolute; top: 0; bottom: 0; left: -80%;
+      width: 60%; background: linear-gradient(90deg,transparent,rgba(255,255,255,.18),transparent);
+      animation: rc-shimmer 2s ease-in-out infinite; }
+    @keyframes rc-shimmer { 0% { left: -80%; } 100% { left: 140%; } }
+    @media (prefers-reduced-motion: reduce) { .rc-progress-fill.running::after { animation: none; } }
+    .rc-progress-fill.done { background: var(--success); }
+    .rc-progress-fill.over { background: var(--warning); }
+    .rc-progress-fill.dim  { background: var(--muted-fg); opacity: .5; }
+    /* ── Description row ── */
+    .rc-desc-row { display: flex; justify-content: center; align-items: center; min-height: 20px; padding: 32px 0; }
+    .rc-desc-right { font-size: 12px; font-weight: 500; color: var(--muted-fg);
+      padding: 8px 9px; border-radius: 8px; background: transparent;
+      transition: background .15s; cursor: default; }
+    .rc-desc-chip { font-size: 12px; font-weight: 500; color: inherit; background: none; padding: 0; border-radius: 0; cursor: default; }
+    .rc-desc-chip.ok   { color: var(--success); }
+    .rc-desc-chip.warn { color: var(--warning); }
+    /* ── KPI numbers ── */
+    .rc-numbers { display: flex; align-items: baseline; gap: 12px; padding-top: 8px; padding-bottom: 8px; }
     .rc-left-col { display: flex; flex-direction: column; gap: 2px; }
     .rc-right-col { margin-left:auto;display:flex;flex-direction:column;gap:2px;align-items:flex-end; }
-    .rc-target-val { font-size:32px;font-weight:600;letter-spacing:-1px;line-height:32px;color:var(--foreground); }
+    .rc-target-val { font-size:16px;font-weight:600;letter-spacing:-.3px;line-height:1.2;color:var(--foreground); }
     .rc-target-label { font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted-fg);text-align:right; }
     .rc-elapsed-row { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; margin-top: 2px; }
     .rc-rem-sep { font-size: 11px; color: var(--muted-fg); opacity: 0.45; font-weight: 700; line-height: 1; }
     .rc-rem-inline { font-size: 11px; font-weight: 600; letter-spacing: .04em; line-height: 1; }
     .rc-rem-text { font-size: 11px; font-weight: 600; color: var(--muted-fg); letter-spacing: .06em; text-transform: uppercase; line-height: 1; }
-    .rc-worked { font-size: 32px; font-weight: 600; letter-spacing: -1px; line-height: 32px; color: var(--foreground); }
+    .rc-worked { font-size: 16px; font-weight: 600; letter-spacing: -.3px; line-height: 1.2; color: rgba(255,255,255,0.35); }
+    .dark .rc-worked { color: rgba(255,255,255,0.35); }
     .rc-elapsed-label { font-size: 11px; font-weight: 600; letter-spacing: .08em;
       text-transform: uppercase; color: var(--muted-fg); margin-top: 2px; }
     .rc-meta { display: flex; gap: 16px; flex-wrap: wrap; }
@@ -926,10 +1056,7 @@
       border-radius:100px;background:var(--background);border:1px solid var(--border);
       font-family:var(--font);z-index:10;text-decoration:none;
       white-space:nowrap;overflow:hidden; }
-    .vp-tagline { font-size:11px;font-weight:500;color:var(--muted-fg);
-      max-width:0;overflow:hidden;opacity:0;
-      transition:max-width .55s cubic-bezier(.4,0,.2,1), opacity .45s ease; }
-    .version-pill:hover .vp-tagline { max-width:160px;opacity:1; }
+    .version-pill:hover { background:var(--muted); }
     @media (max-width:640px) { .version-pill { display:none !important; } }
     .dialog-title { font-size: 16px; font-weight: 600; color: var(--foreground); letter-spacing: -.01em; }
     .dialog-desc  { font-size: 13px; color: var(--muted-fg); margin-top: 4px; line-height: 1.5; }
@@ -1235,17 +1362,9 @@
     .day-sel-btn .dsel-name { font-size: 12px; font-weight: 600; letter-spacing: .04em;
       text-transform: uppercase; }
     .day-sel-btn .dsel-num  { font-size: 18px; font-weight: 700; line-height: 1; }
-    /* Absolute so toggling the dot never reflows the name/number above it */
-    .day-sel-btn .dsel-dot  { width: 4px; height: 4px; border-radius: 50%;
-      position: absolute; bottom: 6px; left: 50%; transform: translateX(-50%);
-      background: var(--warning); opacity: 0; transition: opacity .15s; }
-    .day-sel-btn.has-penalty .dsel-dot,
-    .day-sel-btn.has-plan    .dsel-dot { opacity: 1; }
     /* Weekday hover — past or future, bright highlight */
     .day-sel-btn:hover:not(:disabled):not(.active):not(.wkd-btn) { color: var(--foreground); background: var(--btn-secondary-hover); cursor: pointer; }
     .day-sel-btn.active { background: var(--btn-primary-bg); color: var(--card); }
-    .day-sel-btn.active.has-penalty .dsel-dot,
-    .day-sel-btn.active.has-plan    .dsel-dot { background: var(--background); opacity: .6; }
     .day-sel-btn:disabled { opacity: .28; cursor: default; pointer-events: none; }
     /* WKD slot — same width as weekdays, no fill, dashed border via ::before pseudo */
     .day-sel-btn.wkd-btn { background: transparent; border: none; color: var(--muted-fg); }
@@ -1470,8 +1589,8 @@
       .login-row { flex-wrap: wrap; }
       #tc-r7m2, #tc-r7m2-ph { min-width: 0; }
       /* Today card numbers — keep in one line */
-      .rc-worked { font-size: 24px; letter-spacing: -.5px; line-height: 24px; }
-      .rc-target-val { font-size: 24px; letter-spacing: -.5px; line-height: 24px; }
+      .rc-worked { font-size: 16px; letter-spacing: -.3px; line-height: 1.2; }
+      .rc-target-val { font-size: 16px; letter-spacing: -.3px; line-height: 1.2; }
       /* Stack "Not Started" label above the remaining time */
       .rc-elapsed-row { flex-direction: column; align-items: flex-start; gap: 1px; }
       .rc-rem-sep { display: none !important; }
@@ -1485,8 +1604,8 @@
       .mob-topbar .btn-icon { width:40px; height:40px; border-radius:10px; }
       /* Small breathing room below the topbar */
       .view.active .page { padding-top: 24px !important; }
-      /* Notification panel: reduce top gap on mobile so it doesn't crowd the page title */
-      #notifPanel { padding-top: 4px; }
+      /* Notification panel: anchor below mobile topbar */
+      #notifPanel { top: calc(44px + env(safe-area-inset-top) + 8px); width: calc(100% - 32px); }
     }
 
     /* ── Touch / pressed states (no lingering hover on mobile) ── */
@@ -2119,8 +2238,8 @@
       </button>
     </nav>
 
-  <!-- Notification panel — inline, between nav and content -->
-  <div class="notif-panel hidden" id="notifPanel" style="max-width:600px;margin:0 auto;padding:16px 24px 0;">
+  <!-- Notification panel — fixed overlay -->
+  <div class="notif-panel hidden" id="notifPanel">
     <div class="notif-card">
       <div class="notif-head">
         <span class="section-label">Notifications</span>
@@ -2148,13 +2267,17 @@
         <button onclick="Notification.requestPermission().then(function(p){if(p==='granted')document.getElementById('notifPermBar').classList.remove('show')})" style="flex-shrink:0;height:26px;padding:0 10px;font-size:11px;font-weight:600;border-radius:6px;border:none;background:var(--warning-bg);color:var(--warning);cursor:pointer;white-space:nowrap;font-family:var(--font)">Turn On</button>
       </div>
 
-      <!-- Selected day context (greeting left, live clock right) -->
+      <div id="homeMain">
+      <!-- Selected day context — greeting hidden, clock remains -->
       <div class="sel-day-ctx">
         <div class="sel-day-left">
           <div class="sel-day-rel" id="selDayRel">Today</div>
         </div>
         <div class="sel-day-clock" id="selDayClock">—</div>
       </div>
+
+      <!-- Unified card: week selector + divider + today card -->
+      <div id="homeCard">
 
       <!-- Day selector (Mon–Fri of current week) -->
       <div class="this-week-wrap">
@@ -2175,9 +2298,12 @@
           </div>
         </div>
         <div class="ds-fade-wrap">
-          <div class="day-selector" id="daySelectorRow"><button class="day-sel-btn has-data"><span class="dsel-name">Mon</span><span class="dsel-num">13</span><span class="dsel-dot"></span></button><button class="day-sel-btn has-data"><span class="dsel-name">Tue</span><span class="dsel-num">14</span><span class="dsel-dot"></span></button><button class="day-sel-btn active"><span class="dsel-name">Wed</span><span class="dsel-num">15</span><span class="dsel-dot"></span></button><button class="day-sel-btn future"><span class="dsel-name">Fri</span><span class="dsel-num">16</span><span class="dsel-dot"></span></button><button class="day-sel-btn future"><span class="dsel-name">Fri</span><span class="dsel-num">17</span><span class="dsel-dot"></span></button></div>
+          <div class="day-selector" id="daySelectorRow"><button class="day-sel-btn has-data"><span class="dsel-name">Mon</span><span class="dsel-num">13</span></button><button class="day-sel-btn has-data"><span class="dsel-name">Tue</span><span class="dsel-num">14</span></button><button class="day-sel-btn active"><span class="dsel-name">Wed</span><span class="dsel-num">15</span></button><button class="day-sel-btn future"><span class="dsel-name">Fri</span><span class="dsel-num">16</span></button><button class="day-sel-btn future"><span class="dsel-name">Fri</span><span class="dsel-num">17</span></button></div>
         </div>
       </div>
+
+      <!-- Divider between week selector and today card / future plan -->
+      <div class="home-divider"></div>
 
       <!-- Future day plan section -->
       <div id="futureDayPlan" style="display:none">
@@ -2233,17 +2359,69 @@
               <div class="skel skel-card" style="flex:1;height:60px"></div>
             </div>
           </div>
+          <div class="rc-pair-tabs" id="rcPairTabs">
+            <button class="rc-pair-tab rc-pair-tab-active" onclick="_rcSwitchPair('times',this)">Time</button>
+            <button class="rc-pair-tab" onclick="_rcSwitchPair('progress',this)">Progress</button>
+          </div>
+          <div id="rcKpiGroup" style="display:flex;flex-direction:column;align-items:center;width:100%;gap:8px">
           <div class="rc-numbers">
             <div class="rc-left-col">
-              <div class="rc-worked" id="rcWorked" style="color:var(--muted-fg)">—</div>
-              <div class="rc-elapsed-row">
-                <div class="rc-elapsed-label" id="rcElapsedLabel">Not Started</div>
-              </div>
+              <div class="rc-worked" id="rcWorked">—</div>
             </div>
             <div class="rc-right-col">
               <div class="rc-target-val" id="rcTarget" style="color:var(--muted-fg)">—</div>
-              <div class="rc-target-label" id="rcTargetLabel">Remaining</div>
             </div>
+          </div>
+          <div class="rc-progress-track" id="rcProgressTrack">
+            <div class="rc-progress-fill" id="rcProgressFill" style="width:0%"></div>
+          </div>
+          <div class="rc-desc-row" id="rcDescRow">
+            <span class="rc-desc-right" id="rcDescRight"></span>
+          </div>
+          </div>
+          <div class="shift-cta" id="todayLoginSection">
+            <!-- Single combo: input + button inside -->
+            <div class="shift-combo" id="shiftInputRow">
+              <!-- Zero-size absorber — no name/type signals that credential managers key off -->
+              <input type="text" autocomplete="off" autocorrect="off" autocapitalize="off"
+                tabindex="-1" aria-hidden="true"
+                style="position:absolute;opacity:0;height:0;width:0;pointer-events:none;border:none;padding:0">
+              <!-- Hidden sync target — all existing parse/modal/keydown logic reads/writes here -->
+              <input id="tc-r7m2" type="text" autocomplete="off" spellcheck="false"
+                data-lpignore="true" data-form-type="other" data-1p-ignore="true"
+                style="position:absolute;opacity:0;height:0;width:0;pointer-events:none;border:none;padding:0">
+              <!-- Clock trigger — left side -->
+              <button class="tp-seg-clock" type="button" onclick="openTpModal('tc-r7m2',event,'Log In',calculate)" title="Pick time">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
+                  <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.75"/>
+                  <path d="M12 7v5l3 3" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </button>
+              <!-- Free-text time input -->
+              <input class="tp-free-input" id="tpFreeInput" type="text" inputmode="text"
+                placeholder="Enter time" maxlength="14"
+                autocomplete="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true">
+              <span class="shift-combo-active-label" id="shiftActiveLabel">—</span>
+              <div id="calcBtnWrap" style="position:relative;display:flex;align-items:stretch">
+                <button class="shift-combo-btn" id="calcBtn">Quick Start</button>
+                <button class="split-chevron-btn" id="calcBtnChevron" style="display:none" title="More options">
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </button>
+                <div class="split-dropdown" id="calcBtnDropdown" style="display:none">
+                  <button class="split-dropdown-item" id="endSessionBtn">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="4" width="16" height="16" rx="2.5"/></svg>
+                    Stop
+                  </button>
+                </div>
+              </div>
+            </div>
+            <!-- Resume row (after End Session or auto-stop) -->
+            <div class="shift-resume-row" id="resumeRow" style="display:none">
+              <span class="shift-combo-hint" id="resumeLabel" style="flex:1;text-align:left;font-size:12px"></span>
+              <button class="shift-resume-btn" id="resumeBtn">Resume</button>
+            </div>
+            <div class="err-msg" id="errMsg">Couldn't parse that. Try: 11:30, 1130, 11:30 AM, or 13:30</div>
+            <div class="login-ap-hint" id="loginApHint"></div>
           </div>
           <div id="rcToday"></div>
           <div id="stayHint" class="stay-hint" style="display:none">
@@ -2296,19 +2474,15 @@
               </div>
             </div>
             <div id="wkndStatsSection">
-              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-                <span style="font-size:13px;font-weight:600;color:var(--foreground)" id="wkndSectionLabel">Last Week</span>
-                <span style="font-size:12px;color:var(--muted-fg)" id="wkndWeekRange">—</span>
-              </div>
-              <div class="rc-io-row" style="margin-top:0;margin-bottom:12px">
-                <div class="rc-io-box">
-                  <div class="rc-io-label">Penalties</div>
-                  <div class="rc-io-val" id="wkndPenalties">0</div>
+              <div class="badge-card" id="wkndBadgeCard" style="display:none">
+                <div class="badge-header">
+                  <div class="badge-icon" id="wkndBadgeIcon"></div>
+                  <div>
+                    <div class="badge-title" id="wkndBadgeTitle">—</div>
+                    <div class="badge-subtitle" id="wkndBadgeSubtitle">—</div>
+                  </div>
                 </div>
-                <div class="rc-io-box">
-                  <div class="rc-io-label">Overtime</div>
-                  <div class="rc-io-val" id="wkndOvertime">—</div>
-                </div>
+                <div class="badge-days" id="wkndBadgeDays"></div>
               </div>
               <div>
                 <button class="btn-secondary" style="height:38px;font-size:13px;padding:0 16px;width:100%;display:flex;align-items:center;justify-content:center;gap:6px" onclick="openWeekReport()">
@@ -2323,64 +2497,8 @@
         </div>
       </div>
 
-      <!-- Week Badge Card — direct child of .page, below .this-week-wrap -->
-      <div class="badge-card" id="wkndBadgeCard" style="display:none">
-        <div class="badge-header">
-          <div class="badge-icon" id="wkndBadgeIcon"></div>
-          <div>
-            <div class="badge-title" id="wkndBadgeTitle">—</div>
-            <div class="badge-subtitle" id="wkndBadgeSubtitle">—</div>
-          </div>
-        </div>
-        <div class="badge-days" id="wkndBadgeDays"></div>
-      </div>
-
-      <!-- Shift CTA (today mode) -->
-      <div class="shift-cta" id="todayLoginSection">
-        <!-- Single combo: input + button inside -->
-        <div class="shift-combo" id="shiftInputRow">
-          <!-- Zero-size absorber — no name/type signals that credential managers key off -->
-          <input type="text" autocomplete="off" autocorrect="off" autocapitalize="off"
-            tabindex="-1" aria-hidden="true"
-            style="position:absolute;opacity:0;height:0;width:0;pointer-events:none;border:none;padding:0">
-          <!-- Hidden sync target — all existing parse/modal/keydown logic reads/writes here -->
-          <input id="tc-r7m2" type="text" autocomplete="off" spellcheck="false"
-            data-lpignore="true" data-form-type="other" data-1p-ignore="true"
-            style="position:absolute;opacity:0;height:0;width:0;pointer-events:none;border:none;padding:0">
-          <!-- Clock trigger — left side -->
-          <button class="tp-seg-clock" type="button" onclick="openTpModal('tc-r7m2',event,'Log In',calculate)" title="Pick time">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
-              <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.75"/>
-              <path d="M12 7v5l3 3" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-          </button>
-          <!-- Free-text time input -->
-          <input class="tp-free-input" id="tpFreeInput" type="text" inputmode="text"
-            placeholder="Enter time" maxlength="14"
-            autocomplete="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true">
-          <span class="shift-combo-active-label" id="shiftActiveLabel">—</span>
-          <div id="calcBtnWrap" style="position:relative;display:flex;align-items:stretch">
-            <button class="shift-combo-btn" id="calcBtn">Quick Start</button>
-            <button class="split-chevron-btn" id="calcBtnChevron" style="display:none" title="More options">
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            </button>
-            <div class="split-dropdown" id="calcBtnDropdown" style="display:none">
-              <button class="split-dropdown-item" id="endSessionBtn">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                End Session
-              </button>
-            </div>
-          </div>
-        </div>
-        <!-- Resume row (after End Session or auto-stop) -->
-        <div class="shift-resume-row" id="resumeRow" style="display:none">
-          <span class="shift-combo-hint" id="resumeLabel" style="flex:1;text-align:left;font-size:12px"></span>
-          <button class="shift-resume-btn" id="resumeBtn">Resume</button>
-        </div>
-        <div class="err-msg" id="errMsg">Couldn't parse that. Try: 11:30, 1130, 11:30 AM, or 13:30</div>
-        <div class="login-ap-hint" id="loginApHint"></div>
-      </div>
-
+      </div><!-- /homeCard -->
+      </div><!-- /homeMain -->
 
     </main>
   </div>
@@ -2713,6 +2831,28 @@
               </div>
             </div>
             </div><!-- /Recommend Timings wrapper -->
+
+            <!-- Quick Start Shortcut (desktop only) -->
+            <div class="qs-shortcut-row" style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+              <div style="flex:1;min-width:0">
+                <div class="form-label">Quick Start</div>
+                <div class="form-sub">Use this shortcut to start tracking instantly.</div>
+              </div>
+              <div id="qsShortcutInput" class="qs-shortcut-field" tabindex="0"
+                   onclick="startQsRecording()" onblur="_qsOnBlur()"
+                   style="flex-shrink:0;padding:0 4px 0 12px;gap:6px">
+                <span id="qsShortcutDisplay" style="color:var(--muted-fg);flex:1">None</span>
+                <button type="button" class="qs-field-btn" id="qsShortcutEditBtn" onclick="event.stopPropagation();startQsRecording()" title="Edit shortcut">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                </button>
+                <button type="button" class="qs-field-btn" id="qsShortcutResetBtn" onclick="event.stopPropagation();resetQsShortcut()" title="Reset shortcut">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+              </div>
+            </div>
+            <div id="qsShortcutError" class="qs-shortcut-row" style="max-height:0;overflow:hidden;color:var(--destructive);font-size:12px;margin-top:0;transition:max-height .2s ease,margin-top .2s ease">
+              Shortcut must begin with Ctrl, Cmd, or Alt.
+            </div>
 
           </div>
         </div><!-- /Advanced section -->
@@ -3068,10 +3208,9 @@
 
   <!-- Version pill -->
   <a href="https://github.com/rosshanmohapatra/5pm-workhour-tracker/releases" target="_blank" rel="noopener" class="version-pill">
-    <span style="font-size:11px;font-weight:600;color:var(--muted-fg);letter-spacing:.01em">Version</span>
-    <span class="vp-tagline">- Work Hour Tracker</span>
+    <span style="font-size:11px;font-weight:600;color:var(--muted-fg);letter-spacing:.01em">5pm</span>
     <span style="font-size:10px;font-weight:600;letter-spacing:.05em;
-      background:var(--muted);color:var(--muted-fg);padding:4px 7px;border-radius:100px">v1.0.4</span>
+      background:var(--muted);color:var(--muted-fg);padding:4px 7px;border-radius:100px">v1.0.6</span>
   </a>
 
   <!-- ── Weekly Report Modal ── -->
@@ -3926,7 +4065,7 @@
 
   <script>
 
-    const APP_VERSION = '1.0.4';
+    const APP_VERSION = '1.0.6';
     localStorage.setItem('wh_ver', APP_VERSION);
 
     // ── HELPERS ─────────────────────────────────────────
@@ -3979,7 +4118,7 @@
     }
 
     // ── CONFIG ─────────────────────────────────────────
-    const CFG_DEF = { dailyH:9, weeklyH:45, weeklyOn:true, lateDays:[], earlyLeaveEntries:[], lateEntries:[], notifOn:false, notifTarget:true, notifKickstart:true, notifOvertime:true, name:'', position:'', targetDay:null, autoStopBuf:2, tzOffset:330, shiftType:'morning', workDays:5, recommendTimings:true, breakTime:true, use24h:false, dismissed:[] };
+    const CFG_DEF = { dailyH:9, weeklyH:45, weeklyOn:true, lateDays:[], earlyLeaveEntries:[], lateEntries:[], notifOn:false, notifTarget:true, notifKickstart:true, notifOvertime:true, name:'', position:'', targetDay:null, autoStopBuf:2, tzOffset:330, shiftType:'morning', workDays:5, recommendTimings:true, breakTime:true, use24h:false, dismissed:[], qsShortcut:{ mod:'ctrl', key:'s' } };
     function cfg() { const r=Store.getCfg(); return r?{...CFG_DEF,...r}:{...CFG_DEF}; }
 
     // ── PUSH USER ID ───────────────────────────────────
@@ -5246,8 +5385,8 @@
       // Position
       const _isLoginInput = targetInputId === 'tc-r7m2';
       const refEl = _isLoginInput
-        ? (el('shiftInputRow') || event?.currentTarget || event?.target)
-        : (event?.currentTarget || event?.target || el(targetInputId));
+        ? (el('shiftInputRow') || event?.target?.closest('button,.rc-io-box,[data-tpid]') || event?.target)
+        : (event?.target?.closest('button,.rc-io-box,[data-tpid]') || event?.target || el(targetInputId));
       const refRect = refEl?.getBoundingClientRect();
       if (refRect) {
         const GAP = 12, mW = 216, mH = 200, pad = 8;
@@ -5255,7 +5394,7 @@
         let top = _isLoginInput
           ? refRect.top - mH - GAP
           : refRect.bottom + GAP;
-        let left = refRect.left;
+        let left = refRect.left + refRect.width / 2 - mW / 2;
         if (top < pad) top = refRect.bottom + GAP;          // fallback below if above clips
         if (top + mH > window.innerHeight - pad) top = Math.max(pad, refRect.top - mH - GAP);
         if (left + mW > window.innerWidth - pad) left = window.innerWidth - mW - pad;
@@ -5296,12 +5435,13 @@
       modal.classList.add('tp-duration-mode');
       const titleEl = el('tpModalTitle');
       if (titleEl) titleEl.textContent = 'Target';
-      // Position near the tapped element
-      const refEl = event?.currentTarget || event?.target;
+      // Position centered below the tapped element
+      const refEl = event?.target?.closest('button,.rc-io-box,[data-tpid]') || event?.target;
       const refRect = refEl?.getBoundingClientRect();
       if (refRect) {
         const GAP = 8, mW = 256, mH = 280, pad = 8;
-        let top = refRect.bottom + GAP, left = refRect.left;
+        let top = refRect.bottom + GAP;
+        let left = refRect.left + refRect.width / 2 - mW / 2;
         if (left + mW > window.innerWidth - pad) left = window.innerWidth - mW - pad;
         if (left < pad) left = pad;
         if (top + mH > window.innerHeight - pad) top = Math.max(pad, refRect.top - mH - GAP);
@@ -5355,11 +5495,12 @@
       const cancelBtn = el('tpCancelBtn');
       if (cancelBtn) cancelBtn.textContent = 'Cancel';
 
-      const refEl = event?.currentTarget || event?.target;
+      const refEl = event?.target?.closest('button,.rc-io-box,[data-tpid]') || event?.target;
       const refRect = refEl?.getBoundingClientRect();
       if (refRect) {
         const GAP = 8, mW = 256, mH = 330, pad = 8;
-        let top = refRect.bottom + GAP, left = refRect.left;
+        let top = refRect.bottom + GAP;
+        let left = refRect.left + refRect.width / 2 - mW / 2;
         if (left + mW > window.innerWidth - pad) left = window.innerWidth - mW - pad;
         if (left < pad) left = pad;
         if (top + mH > window.innerHeight - pad) top = Math.max(pad, refRect.top - mH - GAP);
@@ -5705,6 +5846,119 @@
       if (skel && !skel.classList.contains('hidden')) skel.classList.add('hidden');
     }
 
+    // ── TODAY CARD: PAIR TABS + PROGRESS BAR ──────────
+    let _rcCurrentPair = 'times';
+    let _rcClockId = null;
+    // Cached values set each render so pair-switch can re-display without a full re-render
+    let _rcCache = { loginStr:'—', logoutStr:'—', elapsedStr:'0m', rightStr:'—', rightClass:'', pct:0, barClass:'', descLeft:'', descRight:'' };
+
+    function _rcSwitchPair(pair, btn) {
+      _rcCurrentPair = pair;
+      document.querySelectorAll('.rc-pair-tab').forEach(t => t.classList.remove('rc-pair-tab-active'));
+      if (btn) btn.classList.add('rc-pair-tab-active');
+      const c = _rcCache;
+      const _body = el('rcBody');
+      if (pair === 'times') {
+        if (c.notStarted) {
+          if (_body) { _body.classList.remove('ns-progress'); _body.classList.add('ns-times'); }
+          _rcStartClock();
+        } else {
+          _rcStartClock();
+        }
+        el('rcTarget').textContent = c.logoutStr;
+        el('rcTarget').style.color = '';
+        _rcSetDesc(c.descRight);
+      } else {
+        _rcStopClock();
+        if (c.notStarted) {
+          if (_body) { _body.classList.remove('ns-times'); _body.classList.add('ns-progress'); }
+          el('rcWorked').textContent = c.elapsedStr;
+          el('rcWorked').style.color = 'var(--muted-fg)';
+        } else {
+          el('rcWorked').textContent = c.elapsedStr;
+          el('rcWorked').style.color = (c.rightClass === 'muted' || c.rightClass === 'warn') ? 'var(--muted-fg)' : '#fafafa';
+        }
+        el('rcTarget').textContent = c.rightStr;
+        el('rcTarget').style.color = c.rightClass === 'ok' ? 'var(--success)' : c.rightClass === 'warn' ? 'var(--warning)' : c.rightClass === 'muted' ? 'var(--muted-fg)' : '';
+        _rcSetDesc(c.descRight);
+      }
+    }
+
+    function _rcKpiTap(side, event) {
+      if (side === 'left') {
+        if (loginDate || _sessionAccSecs > 0) openLoginLogoutPicker(event);
+      } else {
+        // Target tap: open logout time picker on Times tab, duration picker on Progress tab
+        if (_currentPairIs('times') && loginDate) {
+          openLoginLogoutPicker(event);
+          _tpSwitchTab('logout');
+        } else {
+          openDailyTargetPicker(event);
+        }
+      }
+    }
+
+    function _rcStartClock() {
+      if (_rcClockId) return;
+      _rcUpdateClock();
+      _rcClockId = setInterval(_rcUpdateClock, 1000);
+    }
+
+    function _rcStopClock() {
+      if (!_rcClockId) return;
+      clearInterval(_rcClockId);
+      _rcClockId = null;
+    }
+
+    function _rcUpdateClock() {
+      if (!_currentPairIs('times')) { _rcStopClock(); return; }
+      const _now = nowTz();
+      const _h = _now.getHours(), _m = _now.getMinutes(), _s = _now.getSeconds();
+      const _use24 = cfg && cfg().use24h;
+      const _clockStr = _use24
+        ? p2(_h) + ':' + p2(_m) + ':' + p2(_s)
+        : p2(_h % 12 || 12) + ':' + p2(_m) + ':' + p2(_s) + ' ' + (_h >= 12 ? 'PM' : 'AM');
+      const _we = el('rcWorked');
+      if (_we) { _we.textContent = _clockStr; _we.style.color = loginDate ? 'rgba(255,255,255,0.75)' : 'var(--muted-fg)'; }
+    }
+
+    function _rcSetProgress(pct, barClass) {
+      const fill = el('rcProgressFill');
+      if (!fill) return;
+      fill.style.width = Math.min(pct * 100, 100) + '%';
+      fill.className = 'rc-progress-fill' + (barClass ? ' ' + barClass : '');
+    }
+
+    function _rcSetDesc(rightHtml) {
+      const r = el('rcDescRight');
+      if (r) r.innerHTML = rightHtml || '';
+    }
+
+    function _rcTransitionToActive() {
+      const body = el('rcBody');
+      if (!body) return;
+      // Apply transition first, then on next frame remove the ns-* class so the
+      // browser has a "before" value to animate from.
+      body.classList.add('rc-starting');
+      requestAnimationFrame(() => {
+        body.classList.remove('ns-times', 'ns-progress');
+        setTimeout(() => body.classList.remove('rc-starting'), 420);
+      });
+    }
+
+    function _rcShowPastMode(show) {
+      if (show) {
+        el('rcBody')?.classList.remove('ns-times', 'ns-progress', 'rc-starting');
+        el('rcBody')?.classList.add('past-day');
+      } else {
+        el('rcBody')?.classList.remove('past-day');
+        const _kg = el('rcKpiGroup'); if (_kg) _kg.style.display = '';
+      }
+      ['rcPairTabs','rcProgressTrack','rcDescRow'].forEach(id => {
+        const e = el(id); if (e) e.style.display = show ? 'none' : '';
+      });
+    }
+
     // ── EMPTY STATE ────────────────────────────────────
     function renderEmptyState() {
       // Async sync callbacks (pullAll / pullSettings) fire regardless of which day is
@@ -5726,12 +5980,14 @@
       }
       if (_isPlannedDay) {
         selectedDayKey = todayKey();
-        el('todayLoginSection').style.display = _todayOv === 'halfday' ? '' : 'none';
+        _setShiftCtaVisible(_todayOv === 'halfday');
         el('resultCard').style.display = '';
         renderWeekendState(todayKey(), _todayOv);
         _updateDayNavBtns();
         return;
       }
+      _rcShowPastMode(false);
+      el('rcBody')?.classList.remove('ns-times', 'ns-progress', 'rc-starting');
       const eff = effSecs();
       const _tkE = todayKey(), _logE = dayLog(_tkE) || {};
 
@@ -5743,17 +5999,45 @@
       if (endedSecs > 0) {
         const isDoneE = eff > 0 && endedSecs >= eff;
         const _isPaused = _sessionAccSecs > 0;
-        el('rcWorked').textContent = durWorked(endedSecs);
-        el('rcWorked').style.color = isDoneE ? 'var(--muted-fg)' : '';
-        el('rcTarget').textContent = isDoneE
-          ? '+' + dur(Math.max(0, endedSecs - eff))
-          : (_isPaused ? dur(Math.max(0, eff - endedSecs)) : '—');
-        el('rcTarget').style.color = 'var(--muted-fg)';
-        if (el('rcTargetLabel')) swapText('rcTargetLabel', isDoneE ? 'Extra Time' : (_isPaused ? 'Remaining' : ''));
-        // "Paused" = mid-day pause with Resume available; "Ended" = full checkout
-        const _endedLabel = _isPaused ? 'Paused' : 'Ended';
-        swapText('rcElapsedLabel', isDoneE ? '' : _endedLabel, { color: 'var(--muted-fg)' });
-        el('rcToday').innerHTML = buildTargetHtml(eff, isDoneE);
+        const _loginStr  = _loginDisplayFromLog(_logE) || '—';
+        const _logoutStr = _logE.checkoutDisplay || '—';
+        const _elapsedStr = durWorked(endedSecs);
+        let _rightStr, _rightClass, _barClass, _descRight;
+        if (isDoneE) {
+          const ot = Math.max(0, endedSecs - eff);
+          _rightStr   = '+' + dur(ot);
+          _rightClass = 'ok';
+          _barClass   = 'done';
+          _descRight  = ot > 60 ? '<span class="rc-desc-chip ok">+' + dur(ot) + ' extra</span>' : '<span class="rc-desc-chip ok">Target met</span>';
+        } else if (_isPaused) {
+          const rem = Math.max(0, eff - endedSecs);
+          _rightStr   = dur(rem);
+          _rightClass = 'muted';
+          _barClass   = '';
+          _descRight  = '<span class="rc-desc-chip">' + dur(rem) + ' left</span>';
+        } else {
+          const short_ = Math.max(0, eff - endedSecs);
+          _rightStr   = '—';
+          _rightClass = 'muted';
+          _barClass   = 'dim';
+          _descRight  = short_ > 60 ? '<span class="rc-desc-chip">−' + dur(short_) + ' short</span>' : '';
+        }
+        const _descLeft = _loginStr !== '—' ? _loginStr + ' → ' + _logoutStr : '';
+        _rcCache = { loginStr: _loginStr, logoutStr: _logoutStr, elapsedStr: _elapsedStr,
+          rightStr: _rightStr, rightClass: _rightClass, pct: eff > 0 ? endedSecs / eff : 0,
+          barClass: _barClass, descLeft: _descLeft, descRight: _descRight };
+        if (_currentPairIs('times')) {
+          _rcStartClock();
+        } else {
+          _rcStopClock();
+          el('rcWorked').textContent = _elapsedStr;
+        }
+        el('rcWorked').style.color = isDoneE && !_currentPairIs('times') ? 'var(--muted-fg)' : '';
+        el('rcTarget').textContent = _currentPairIs('times') ? _logoutStr : _rightStr;
+        el('rcTarget').style.color = _rightClass === 'ok' && !_currentPairIs('times') ? 'var(--success)' : _rightClass === 'muted' && !_currentPairIs('times') ? 'var(--muted-fg)' : '';
+        _rcSetProgress(eff > 0 ? endedSecs / eff : 0, _barClass);
+        _rcSetDesc(_descRight);
+        el('rcToday').innerHTML = ''; el('rcToday').style.display = 'none';
         el('stayHint').style.display = 'none';
         el('otBanner').classList.remove('show');
         el('doneBanner').classList.remove('show');
@@ -5761,18 +6045,41 @@
         return;
       }
 
-      el('rcWorked').textContent = '0m';
-      el('rcWorked').style.color = 'var(--muted-fg)';
-      el('rcTarget').textContent = dur(eff); el('rcTarget').style.color = 'var(--muted-fg)';
+      // Not started
+      const _projLogout = eff > 0 ? short(new Date(Date.now() + eff * 1000)) : '—';
+      const _leavByDesc = eff > 0
+        ? '<span class="leave-by-label">Leave by ' + _projLogout + '</span>'
+        : '';
+      _rcCache = { loginStr: '—', logoutStr: _projLogout, elapsedStr: '0m',
+        rightStr: dur(eff), rightClass: 'muted', pct: 0, barClass: '',
+        descLeft: '', descRight: _leavByDesc, notStarted: true };
+      const _body = el('rcBody');
+      if (_body) {
+        _body.classList.remove('ns-times', 'ns-progress', 'rc-starting');
+        _body.classList.add(_currentPairIs('times') ? 'ns-times' : 'ns-progress');
+      }
+      if (_currentPairIs('times')) {
+        _rcStartClock();
+      } else {
+        _rcStopClock();
+        el('rcWorked').textContent = '0m';
+        el('rcWorked').style.color = 'var(--muted-fg)';
+      }
+      el('rcTarget').textContent = _currentPairIs('times') ? _projLogout : dur(eff);
+      el('rcTarget').style.color = 'var(--muted-fg)';
       if (el('rcTargetLabel')) swapText('rcTargetLabel', 'Remaining');
       swapText('rcElapsedLabel', 'Not Started', { color: 'var(--muted-fg)' });
       _setTodayDateChip();
-      el('rcToday').innerHTML = buildTargetHtml(eff, false);
+      _rcSetProgress(0, '');
+      _rcSetDesc(_leavByDesc);
+      el('rcToday').innerHTML = ''; el('rcToday').style.display = 'none';
       el('stayHint').style.display = 'none';
       el('otBanner').classList.remove('show');
       el('doneBanner').classList.remove('show');
       el('autostopBanner').classList.remove('show');
     }
+
+    function _currentPairIs(pair) { return _rcCurrentPair === pair; }
 
     // ── WEEKEND STATE ─────────────────────────────────
     function isWeekend() {
@@ -6115,24 +6422,8 @@
       } else {
         const wk = week(daySelectorWeekOffset);
         const mon = wk[0].date, fri = wk[wk.length - 1].date;
-        const rangeLabel = mon.getMonth() === fri.getMonth()
-          ? `${MONTHS[mon.getMonth()].slice(0,3)} ${mon.getDate()}–${fri.getDate()}`
-          : `${MONTHS[mon.getMonth()].slice(0,3)} ${mon.getDate()} – ${MONTHS[fri.getMonth()].slice(0,3)} ${fri.getDate()}`;
-        el('wkndWeekRange').textContent = rangeLabel;
-
-        // Dynamic section label: "Last Week" on actual current weekend, else the range
-        const isCurrentWknd = isWeekend() && daySelectorWeekOffset === 0;
-        const sectionLbl = el('wkndSectionLabel');
-        if (sectionLbl) sectionLbl.textContent = isCurrentWknd ? 'Last Week' : rangeLabel;
-
         const rows = _wkndDayData(wk);
-        const penaltyDays  = rows.filter(r => r.isPenalty).length;
         const totalSurplus = rows.reduce((s, r) => s + r.surplusSecs, 0);
-
-        el('wkndPenalties').textContent = penaltyDays;
-        el('wkndPenalties').style.color = penaltyDays > 0 ? 'var(--destructive)' : 'var(--foreground)';
-        el('wkndOvertime').textContent  = totalSurplus > 60 ? '+' + dur(totalSurplus) : '—';
-        el('wkndOvertime').style.color  = totalSurplus > 60 ? 'var(--destructive)' : 'var(--muted-fg)';
 
         const badge = _computeWeekBadge(rows, totalSurplus);
         if (badge && badgeCard) {
@@ -6510,7 +6801,7 @@
       // Show card, hide session-only elements
       el('futureDayPlan').style.display = 'none';
       el('resultCard').style.display = '';
-      el('todayLoginSection').style.display = 'none';
+      _setShiftCtaVisible(false);
       el('rcUpdateEntryBtn')?.classList.remove('visible');
       el('leaveChip').style.display = 'none';
       // Activate weekend mode
@@ -6640,13 +6931,13 @@
     function render() {
       if (!loginDate) return;
       _hideSkeleton();
-      el('rcBody')?.classList.remove('weekend-mode');
       // When browsing a past/future day, only refresh the day-selector dots silently.
       // Without this guard the live ticker overwrites past-day content every second.
       if (selectedDayKey && selectedDayKey !== todayKey()) {
         renderDaySelector();
         return;
       }
+      el('rcBody')?.classList.remove('weekend-mode', 'ns-times', 'ns-progress', 'past-day');
       const c = cfg();
       const now = new Date(), eff = effSecs();
       const worked  = Math.max(0, Math.floor((now - loginDate) / 1000)) + _sessionAccSecs;
@@ -6661,34 +6952,58 @@
       const autoStopAt = (c.dailyH + (c.autoStopBuf ?? 2)) * 3600;
       if (!autoStopped && worked >= autoStopAt) { doAutoStop(); return; }
 
-      animateDuration('rcWorked', durWorked(worked));
-      el('rcWorked').style.color = isDone ? 'var(--muted-fg)' : '#fafafa';
-      if (el('rcTarget')) el('rcTarget').style.color = '';
-      // "Leave at" badge: prefer personal Out Time target if set
-      const _tkNow = todayKey(), _logNow = dayLog(_tkNow) || {};
-      const _earlyTarget = _logNow.earlyLeaveTarget;
-      _setTodayDateChip();
+      _rcShowPastMode(false);
+      const _loginStr  = short(loginDate);
+      const _logoutStr = short(leaveDate);
+      const _elapsedStr = durWorked(worked);
+      let _rightStr, _rightClass, _barClass, _descRight;
 
       el('otBanner').classList.remove('show'); // never show — overtime shown inline
       if (!isDone && eff > 0) {
         const rem = eff - worked;
         const remText = rem < 60 ? `${Math.max(0, rem)}s` : dur(rem);
-        animateDuration('rcTarget', remText);
-        el('rcTarget').style.color = '';
-        if (el('rcTargetLabel')) swapText('rcTargetLabel', 'Remaining');
+        _rightStr   = remText;
+        _rightClass = '';
+        _barClass   = 'running';
+        _descRight  = 'Leave by <span class="rc-desc-chip">' + _logoutStr + '</span>';
       } else if (isDone) {
         const ot = worked - eff;
-        const otText = ot < 60 ? '+0m' : `+${dur(ot)}`;
-        const otColor = ot < 60 ? 'var(--muted-fg)' : 'var(--foreground)';
-        animateDuration('rcTarget', otText);
-        el('rcTarget').style.color = otColor;
-        if (el('rcTargetLabel')) swapText('rcTargetLabel', 'Extra Time');
+        _rightStr   = ot < 60 ? '+0m' : '+' + dur(ot);
+        _rightClass = ot < 60 ? 'muted' : 'warn';
+        _barClass   = 'running over';
+        _descRight  = ot > 60 ? '<span class="rc-desc-chip warn">+' + dur(ot) + ' overtime</span>' : '<span class="rc-desc-chip">Time to go</span>';
       } else {
-        el('rcTarget').textContent = '—'; el('rcTarget').style.color = 'var(--muted-fg)';
-        if (el('rcTargetLabel')) swapText('rcTargetLabel', 'Remaining');
+        _rightStr   = '—';
+        _rightClass = 'muted';
+        _barClass   = 'running';
+        _descRight  = '';
       }
 
-      el('rcToday').innerHTML = buildTargetHtml(eff, false);
+      // Cache for pair-switching without full re-render
+      _rcCache = { loginStr: _loginStr, logoutStr: _logoutStr, elapsedStr: _elapsedStr,
+        rightStr: _rightStr, rightClass: _rightClass, pct: eff > 0 ? worked / eff : 1,
+        barClass: _barClass, descLeft: _loginStr + ' → ' + _logoutStr, descRight: _descRight };
+
+      if (_currentPairIs('times')) {
+        _rcStartClock();
+        el('rcTarget').textContent = _logoutStr;
+        el('rcTarget').style.color = '';
+      } else {
+        _rcStopClock();
+        animateDuration('rcWorked', _elapsedStr);
+        el('rcWorked').style.color = isDone ? 'var(--muted-fg)' : '#fafafa';
+        el('rcTarget').style.color = _rightClass === 'warn' ? 'var(--warning)' : _rightClass === 'muted' ? 'var(--muted-fg)' : '';
+        if (eff > 0) animateDuration('rcTarget', _rightStr); else el('rcTarget').textContent = _rightStr;
+      }
+      _rcSetDesc(_descRight);
+
+      _rcSetProgress(eff > 0 ? worked / eff : 1, _barClass);
+      // "Leave at" badge: prefer personal Out Time target if set
+      const _tkNow = todayKey(), _logNow = dayLog(_tkNow) || {};
+      const _earlyTarget = _logNow.earlyLeaveTarget;
+      _setTodayDateChip();
+
+      el('rcToday').innerHTML = ''; el('rcToday').style.display = 'none';
 
       // Stay hint
       const hint = buildStayHint();
@@ -6703,6 +7018,9 @@
         el('doneMsg').textContent = ago > 60 ? `Should've left at ${short(leaveDate)}` : "You're done. Head out!";
         el('doneBanner').classList.add('show');
         notify(eff);
+        // Switch button to End once target is reached (only when still tracking)
+        const _cbtn = el('calcBtn');
+        if (_cbtn && _cbtn.dataset.state === 'running') setCalcBtnState('done');
       } else {
         el('doneBanner').classList.remove('show');
       }
@@ -6832,12 +7150,13 @@
       if (!day.isWeekend && log?.futurePlan) btn.classList.add('has-plan');
       if (isFuture) btn.classList.add('future');
       btn.innerHTML = `<span class="dsel-name">${day.name.slice(0,3)}</span>`
-                    + `<span class="dsel-num">${day.date.getDate()}</span>`
-                    + `<span class="dsel-dot"></span>`;
+                    + `<span class="dsel-num">${day.date.getDate()}</span>`;
       btn.addEventListener('click', () => {
         _dsUserNav = true;
-        if (isFuture) selectFutureDay(day.key);
-        else selectDay(day.key);
+        _animateCardHeight(() => {
+          if (isFuture) selectFutureDay(day.key);
+          else selectDay(day.key);
+        });
         _syncOffsetFromKey(day.key);
       });
       return btn;
@@ -6934,8 +7253,10 @@
       const now = new Date();
       const dayDate = new Date(targetKey + 'T12:00');
       _dsUserNav = true;
-      if (dayDate > now && targetKey !== todayKey()) selectFutureDay(targetKey);
-      else selectDay(targetKey);
+      _animateCardHeight(() => {
+        if (dayDate > now && targetKey !== todayKey()) selectFutureDay(targetKey);
+        else selectDay(targetKey);
+      });
       _syncOffsetFromKey(targetKey);
     }
 
@@ -6981,6 +7302,46 @@
       else                    el('rcDayLabel').textContent = _fmtDayHeading(_labelDate);
     }
 
+    function _setShiftCtaVisible(v) {
+      const s = el('todayLoginSection'); if (!s) return;
+      s.classList.toggle('cta-hidden', !v);
+    }
+
+    function _animateCardHeight(fn) {
+      const card = el('homeCard');
+      const main = el('homeMain');
+      if (!card) { fn(); return; }
+      const prevH = card.offsetHeight;
+      // Pin BEFORE content change so the swap is invisible
+      card.style.height = prevH + 'px';
+      if (main) main.style.overflowY = 'hidden'; // prevent scroll jump during animation
+      fn();
+      // For growing: scrollHeight gives natural content height while card is pinned
+      // For shrinking: scrollHeight = prevH (clipped), so briefly go auto to measure
+      let newH = card.scrollHeight;
+      if (newH <= prevH) {
+        card.style.height = 'auto';
+        newH = card.offsetHeight; // forced sync reflow, no paint yet
+        card.style.height = prevH + 'px';
+      }
+      const _restore = () => {
+        card.style.height = '';
+        card.style.transition = '';
+        card.classList.remove('card-animating');
+        if (main) main.style.overflowY = '';
+      };
+      if (Math.abs(newH - prevH) < 4) { _restore(); return; }
+      card.classList.add('card-animating'); // suppresses wknd-fade-in during height anim
+      requestAnimationFrame(() => {
+        card.style.transition = 'height 0.32s cubic-bezier(0.4,0,0.2,1)';
+        card.style.height = newH + 'px';
+        card.addEventListener('transitionend', function _cleanup() {
+          _restore();
+          card.removeEventListener('transitionend', _cleanup);
+        }, { once: true });
+      });
+    }
+
     function selectDay(key) {
       const tk = todayKey();
       selectedDayKey = key;
@@ -7009,7 +7370,7 @@
         : _ovSel === 'halfday' ? 'halfday' : null;
       if (_infoType) {
         _syncOffsetFromKey(key);
-        el('todayLoginSection').style.display = 'none';
+        _setShiftCtaVisible(false);
         // Past _infoType days get Update Entry; today doesn't need it (editable inline)
         if (key < tk) { el('rcUpdateEntryBtn')?.classList.add('visible'); }
         else           { el('rcUpdateEntryBtn')?.classList.remove('visible'); }
@@ -7022,22 +7383,23 @@
 
       const headDateEl = el('rcHeadDate');
       if (key === tk) {
-        // Today
-        el('todayLoginSection').style.display = '';
+        // Today — clear past-day state before re-rendering so nothing flickers in
+        _rcShowPastMode(false);
+        _setShiftCtaVisible(true);
         el('rcUpdateEntryBtn')?.classList.remove('visible');
         el('leaveChip').style.display = '';
         if (headDateEl) { headDateEl.classList.remove('visible'); }
         if (loginDate) render(); else renderEmptyState();
       } else if (key < tk) {
         // Past day: show Update Entry button
-        el('todayLoginSection').style.display = 'none';
+        _setShiftCtaVisible(false);
         el('rcUpdateEntryBtn')?.classList.add('visible');
         el('leaveChip').style.display = 'none';
         if (headDateEl) { headDateEl.classList.remove('visible'); }
         renderPastDay(key);
       } else {
         // Future day: day selector already shows the date — nothing needed on right
-        el('todayLoginSection').style.display = 'none';
+        _setShiftCtaVisible(false);
         el('rcUpdateEntryBtn')?.classList.remove('visible');
         el('leaveChip').style.display = 'none';
         if (headDateEl) headDateEl.classList.remove('visible');
@@ -7067,7 +7429,7 @@
       if (isWeekendKey(key)) {
         _syncOffsetFromKey(key);
         updateSelDayHeader(key); // sets rcDayLabel to day name ("Saturday") — not "Today"
-        el('todayLoginSection').style.display = 'none';
+        _setShiftCtaVisible(false);
         el('rcUpdateEntryBtn')?.classList.remove('visible');
         el('leaveChip').style.display = 'none';
         el('futureDayPlan').style.display = 'none';
@@ -7081,7 +7443,7 @@
       const wk = week(daySelectorWeekOffset), day = wk.find(d => d.key === key);
       const log = dayLog(key);
 
-      el('todayLoginSection').style.display = 'none';
+      _setShiftCtaVisible(false);
       el('rcUpdateEntryBtn')?.classList.remove('visible');
       el('leaveChip').style.display = 'none';
       el('rcHeadDate')?.classList.remove('visible'); // date already in day selector
@@ -7240,42 +7602,25 @@
     // Builds the two bottom KPI cards for past/future days.
     // Shows Duration (loginTime → logoutTime with arrow) + Surplus card.
     function _pastDayKpiHtml(loginDisp, outDisp, workedSecs, targetSecs) {
-      const arrow = `<span class="rc-io-duration-arrow"><svg width="11" height="11" viewBox="0 0 24 24" fill="none"><path d="M5 12H19M19 12L13 6M19 12L13 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>`;
-      const durationCard = `
-        <div class="rc-io-box">
-          <div class="rc-io-label">Duration</div>
-          <div class="rc-io-val-row">
-            <div class="rc-io-duration">
-              <span class="rc-io-val">${loginDisp}</span>
-              ${arrow}
-              <span class="rc-io-val">${outDisp}</span>
-            </div>
-          </div>
-        </div>`;
-      let surplusText = '—', surplusColor = 'var(--muted-fg)', surplusLabel = _surplusLabel();
-      let isDone = false;
+      const arrow = `<span style="display:inline-flex;align-items:center;color:var(--muted-fg);margin:0 6px"><svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M5 12H19M19 12L13 6M19 12L13 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>`;
+      const ioLine = `<div style="display:inline-flex;align-items:center;font-size:16px;font-weight:600;letter-spacing:-.3px;line-height:1.2">${loginDisp}${arrow}${outDisp}</div>`;
+      let msgLine = '';
       if (workedSecs != null && targetSecs != null) {
         const diff = workedSecs - targetSecs;
-        if (Math.abs(diff) < 60) {
-          surplusText = 'On Target'; surplusColor = 'var(--success)'; surplusLabel = _surplusLabel(); isDone = true;
-        } else if (diff > 0) {
-          surplusText = durShort(diff); surplusColor = 'var(--success)'; surplusLabel = _surplusLabel(); isDone = true;
-        } else {
-          surplusText = durShort(diff); surplusColor = 'var(--foreground)'; surplusLabel = 'Balance';
+        if (diff < -300) {
+          msgLine = `<span style="font-size:12px;color:var(--muted-fg)">You missed the target by ${dur(Math.abs(diff))}</span>`;
+        } else if (diff > 300) {
+          msgLine = `<span style="font-size:12px;color:var(--success)">You worked ${dur(diff)} more. Overtime!</span>`;
         }
       }
-      const surplusCard = `
-        <div class="rc-io-box">
-          <div class="rc-io-label">${surplusLabel}</div>
-          <div class="rc-io-val-row">
-            <div class="rc-io-val" style="color:${surplusColor}">${surplusText}</div>
-          </div>
-        </div>`;
-      return `<div class="rc-io-row">${durationCard}${surplusCard}</div>`;
+      const pencil = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+      const updateBtn = `<button onclick="openDayEditModal(selectedDayKey)" style="display:inline-flex;align-items:center;gap:6px;padding:7px 16px;border-radius:8px;border:1.5px solid var(--border);background:var(--muted);color:var(--foreground);font-family:var(--font);font-size:13px;font-weight:500;cursor:pointer;transition:background .15s">${pencil}Update Entry</button>`;
+      return `<div style="display:flex;flex-direction:column;align-items:center;gap:10px;padding:4px 0">${ioLine}${msgLine}${updateBtn}</div>`;
     }
 
     function renderPastDay(key) {
       _hideSkeleton();
+      _rcShowPastMode(true); // hide tabs, progress bar, desc row for past/future days
       const c = cfg(), log = dayLog(key);
       const target = c.dailyH * 3600;
       const _pastDay = week(daySelectorWeekOffset).find(d => d.key === key);
@@ -7306,26 +7651,31 @@
       if (!log || log.hoursWorked == null) {
         const _rcNumEl = document.querySelector('.rc-numbers');
         if (_rcNumEl) _rcNumEl.style.display = 'none';
+        el('rcKpiGroup').style.display = 'none';
         _setTodayDateChip();
         el('stayHint').style.display = 'none';
         el('otBanner').classList.remove('show'); el('doneBanner').classList.remove('show');
-        const _emptyMsg = isFutureDay ? '' : '<div style="padding:20px 0 12px;text-align:center;font-size:13px;color:var(--muted-fg)">No data logged</div>';
-        el('rcToday').innerHTML = _emptyMsg + targetRow + _pastDayKpiHtml('—', '—', null, target);
+        const _emptyMsg = isFutureDay ? '' : `<div style="display:flex;flex-direction:column;align-items:center;gap:14px;padding:8px 0">
+          <span style="font-size:13px;color:var(--muted-fg)">No logs recorded</span>
+          <button onclick="openDayEditModal(selectedDayKey)" style="display:inline-flex;align-items:center;gap:6px;padding:7px 16px;border-radius:8px;border:1.5px solid var(--border);background:var(--muted);color:var(--foreground);font-family:var(--font);font-size:13px;font-weight:500;cursor:pointer;transition:background .15s"><svg width="13" height="13" viewBox="0 0 13 13" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M6.5 1v11M1 6.5h11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>Add Entry</button>
+        </div>`;
+        const _noDataContent = _emptyMsg + targetRow;
+        el('rcToday').innerHTML = _noDataContent;
+        el('rcToday').style.display = _noDataContent ? '' : 'none';
         return;
       }
-      // Has data — ensure rc-numbers is visible (may have been hidden by no-data state)
-      const _rcNumEl = document.querySelector('.rc-numbers');
-      if (_rcNumEl) _rcNumEl.style.display = '';
-      const worked = Math.round(log.hoursWorked * 3600); // round to nearest second to avoid float drift
-      const isDone = worked >= target;
-      el('rcWorked').textContent = dur(worked); el('rcWorked').style.color = '';
-      swapText('rcElapsedLabel', 'Total Logged', { color: 'var(--muted-fg)' });
+      // Past day with data: all display lives in rcToday, hide the KPI group
+      el('rcKpiGroup').style.display = 'none';
+      el('rcWorked').textContent = ''; el('rcWorked').style.color = '';
+      swapText('rcElapsedLabel', '', { color: '' });
+      const worked = Math.round(log.hoursWorked * 3600);
       el('otBanner').classList.remove('show');
       el('doneBanner').classList.remove('show');
       _setTodayDateChip();
       el('stayHint').style.display = 'none';
       const loginDisp = log.loginDisplay || _loginDisplayFromLog(log);
       const outDisp   = log.checkoutDisplay || '—';
+      el('rcToday').style.display = '';
       el('rcToday').innerHTML = targetRow + _pastDayKpiHtml(loginDisp, outDisp, worked, target);
     }
 
@@ -7535,16 +7885,24 @@
       btn.disabled = false;
       btn.dataset.state = state;
       if (dd) dd.style.display = 'none';
-      if (state === 'running') {
+      const _svgPlay = '<svg width="12" height="12" viewBox="0 0 24 24" style="flex-shrink:0"><path fill="currentColor" d="M7 4v16l13-8z"/></svg>';
+      const _svgPause = '<svg width="12" height="12" viewBox="0 0 24 24" style="flex-shrink:0"><rect fill="currentColor" x="6" y="5" width="4" height="14" rx="1"/><rect fill="currentColor" x="14" y="5" width="4" height="14" rx="1"/></svg>';
+      const _svgStop = '<svg width="12" height="12" viewBox="0 0 24 24" style="flex-shrink:0"><rect fill="currentColor" x="5" y="5" width="14" height="14" rx="2"/></svg>';
+      if (state === 'done') {
+        btn.innerHTML = '<span style="display:flex;align-items:center;gap:6px;justify-content:center">' + _svgStop + 'End</span>';
+        btn.classList.add('end-shift');
+        wrap?.classList.remove('split-btn-wrap');
+        if (chev) chev.style.display = 'none';
+      } else if (state === 'running') {
         const breakOn = cfg().breakTime !== false;
         if (breakOn) {
-          // Pause + chevron → End Session dropdown (full split)
-          btn.textContent = 'Pause'; btn.classList.add('pause-shift');
+          btn.innerHTML = '<span style="display:flex;align-items:center;gap:6px;justify-content:center">' + _svgPause + 'Pause</span>';
+          btn.classList.add('pause-shift');
           wrap?.classList.add('split-btn-wrap');
           if (chev) { chev.style.display = ''; chev.className = 'split-chevron-btn pause-shift-chev'; }
         } else {
-          // Single "End Session" button — no pause, no split
-          btn.textContent = 'End Session'; btn.classList.add('end-shift');
+          btn.innerHTML = '<span style="display:flex;align-items:center;gap:6px;justify-content:center">' + _svgStop + 'End</span>';
+          btn.classList.add('end-shift');
           wrap?.classList.remove('split-btn-wrap');
           if (chev) chev.style.display = 'none';
         }
@@ -7553,12 +7911,13 @@
         _tpSegClear();
         _tcSetLabel('Update Login Time');
       } else if (state === 'ended') {
-        btn.textContent = 'Resume'; btn.classList.add('resume-shift');
+        btn.innerHTML = '<span style="display:flex;align-items:center;gap:6px;justify-content:center">' + _svgPlay + 'Resume</span>';
+        btn.classList.add('resume-shift');
         wrap?.classList.add('split-btn-wrap');
         if (chev) { chev.style.display = ''; chev.className = 'split-chevron-btn resume-shift-chev'; }
         _tcSetLabel('Update Login Time');
       } else { // 'start' — plain full-width button, no split styling
-        btn.textContent = 'Quick Start';
+        btn.innerHTML = '<span style="display:flex;align-items:center;gap:6px;justify-content:center">' + _svgPlay + 'Start</span>';
         wrap?.classList.remove('split-btn-wrap');
         if (chev) chev.style.display = 'none';
         _tcSetLabel('Enter Login Time');
@@ -7578,6 +7937,7 @@
       el('autostopBanner').classList.remove('show');
       persistSession();
       selectDay(todayKey());
+      _rcTransitionToActive();
       render();
       if (ticker) clearInterval(ticker);
       ticker = setInterval(render, 1000);
@@ -7587,20 +7947,12 @@
     }
     function isOutsideShift(p) {
       const c = cfg();
-      const s = parse(c.shiftStart || '09:00 AM'), e = parse(c.shiftEnd || '06:00 PM');
-      if (!s || !e) return false;
-      // Compare hours+minutes as integers — avoids Date-object millisecond drift
-      // where a login at exactly 11:30 could compare as < 11:30:00.000 and falsely trigger.
+      const s = parse(c.shiftStart || '09:00 AM');
+      if (!s) return false;
       const pM = p.getHours() * 60 + p.getMinutes();
       const sM = s.getHours() * 60 + s.getMinutes();
-      const eM = e.getHours() * 60 + e.getMinutes();
-      if (eM >= sM) {
-        // Normal shift (e.g. 11:30 AM → 9:30 PM): outside = before start OR after end
-        return pM < sM || pM > eM;
-      } else {
-        // Overnight shift (e.g. 10:00 PM → 6:00 AM): outside = gap between end and start
-        return pM > eM && pM < sM;
-      }
+      // Block only when logging in 60+ minutes before shift start
+      return sM - pM >= 60;
     }
     function showOutsideShiftModal(p) {
       _pendingLoginP = p;
@@ -7670,7 +8022,7 @@
       el('shiftInputRow').classList.remove('active-state', 'hidden');
       el('autostopBanner').classList.remove('show');
       selectedDayKey = todayKey();
-      el('todayLoginSection').style.display = '';
+      _setShiftCtaVisible(true);
       el('rcUpdateEntryBtn')?.classList.remove('visible');
       updateSelDayHeader(selectedDayKey);
       renderEmptyState();
@@ -7784,6 +8136,8 @@
         );
       }
       updateWeeklyCalc();
+      // Restore shortcut config
+      _renderQsDisplay(c.qsShortcut);
       const _ls = Store.getLastSaved();
       if (_ls) _refreshLastSaved();
     }
@@ -8151,9 +8505,11 @@
       const recommendTimings = el('inpRecommendTimings')?.checked ?? true;
       const breakTime = el('inpBreakTime')?.checked ?? true;
       const use24h = el('inp24h')?.checked ?? false;
+      const _qsShortcut = cfg().qsShortcut || { mod: 'ctrl', key: 's' };
       saveCfg({ dailyH: daily, weeklyH, weeklyOn: on, lateDays, earlyLeaveDays, notifOn, notifTarget, notifKickstart, notifOvertime, name, company, position,
                 targetDay, shiftType, shiftStart, shiftEnd, tzOffset, workDays, recommendTimings, breakTime, use24h,
-                autoStopBuf: cfg().autoStopBuf ?? 2, dismissed: cfg().dismissed ?? [] });
+                autoStopBuf: cfg().autoStopBuf ?? 2, dismissed: cfg().dismissed ?? [],
+                qsShortcut: _qsShortcut });
       // If session is running, refresh button state to reflect break-time change
       if (loginDate) setCalcBtnState('running');
       renderDaySelector(); // refresh strip in case work-days changed
@@ -10308,7 +10664,7 @@ ${sig}`
     }
     function _toggleThemeAnimated(event) {
       const nextDark = !dark;
-      const DURATION = 400;
+      const DURATION = 260;
       const VARIANT  = 'circle'; // circle | square | triangle | diamond | hexagon | rectangle | star
 
       if (typeof document.startViewTransition !== 'function') {
@@ -10439,6 +10795,8 @@ ${sig}`
       if (state === 'running') {
         if (cfg().breakTime !== false) endSession();  // Pause mode
         else confirmEndSession();                      // Direct End Session (no break time)
+      } else if (state === 'done') {
+        confirmEndSession();                           // Target done — End ends the session
       } else calculate();
     });
 
@@ -10820,6 +11178,111 @@ ${sig}`
         el('outTargetEditWrap')?.classList.remove('open');
       }
     });
+    // ── Quick Start shortcut recorder (Settings Advanced) ────────────────────
+    let _qsRecording = false;
+
+    function _updateQsResetBtn(hasShortcut) {
+      const btn = el('qsShortcutResetBtn');
+      if (!btn) return;
+      if (hasShortcut) {
+        btn.style.maxWidth = '28px'; btn.style.opacity = '1'; btn.style.pointerEvents = '';
+      } else {
+        btn.style.maxWidth = '0'; btn.style.opacity = '0'; btn.style.pointerEvents = 'none';
+      }
+    }
+
+    function _renderQsDisplay(sc) {
+      const disp = el('qsShortcutDisplay');
+      if (!disp) return;
+      if (!sc || !sc.key) {
+        disp.innerHTML = '<span style="color:var(--muted-fg)">Type a shortcut</span>';
+        _updateQsResetBtn(false);
+        return;
+      }
+      const modLabel = sc.mod === 'cmd' ? 'Cmd' : sc.mod === 'alt' ? 'Alt' : 'Ctrl';
+      const keyLabel = sc.key.length === 1 ? sc.key.toUpperCase() : sc.key;
+      const parts = ['<span class="qs-capsule">' + modLabel + '</span>'];
+      if (sc.shift) parts.push('<span class="qs-capsule">Shift</span>');
+      parts.push('<span class="qs-capsule">' + keyLabel + '</span>');
+      const sep = '<span style="color:var(--muted-fg);font-size:11px;font-weight:400;padding:0 1px">+</span>';
+      disp.innerHTML = '<span style="display:inline-flex;align-items:center;gap:3px">' + parts.join(sep) + '</span>';
+      _updateQsResetBtn(true);
+    }
+
+    function startQsRecording() {
+      _qsRecording = true;
+      const inp = el('qsShortcutInput');
+      if (!inp) return;
+      const disp = el('qsShortcutDisplay');
+      if (disp) disp.innerHTML = '<span style="color:var(--muted-fg);font-style:italic">Press your shortcut</span>';
+      inp.classList.add('recording');
+      inp.focus();
+      inp.onkeydown = _qsRecordKeydown;
+    }
+
+    function _qsRecordKeydown(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      if (e.repeat) return;
+      if (['Control', 'Meta', 'Alt', 'Shift'].includes(e.key)) {
+        const disp = el('qsShortcutDisplay');
+        if (disp) disp.innerHTML = '<span style="color:var(--muted-fg);font-size:11px">Press Ctrl, Cmd, or Alt, then type a key.</span>';
+        return;
+      }
+      if (!e.ctrlKey && !e.metaKey && !e.altKey) {
+        const errEl = el('qsShortcutError');
+        if (errEl) { errEl.style.maxHeight = '40px'; errEl.style.marginTop = '6px'; errEl.textContent = 'Shortcut must begin with Ctrl, Cmd, or Alt.'; }
+        return;
+      }
+      if (el('qsShortcutError')) { el('qsShortcutError').style.maxHeight = '0'; el('qsShortcutError').style.marginTop = '0'; }
+      const mod = e.metaKey ? 'cmd' : e.ctrlKey ? 'ctrl' : 'alt';
+      const key = e.key.toLowerCase();
+      const shift = e.shiftKey;
+      const sc = { mod, key, shift };
+      saveCfg({ ...cfg(), qsShortcut: sc });
+      _renderQsDisplay(sc);
+      _qsRecording = false;
+      const inp = el('qsShortcutInput');
+      if (inp) { inp.classList.remove('recording'); inp.onkeydown = null; }
+    }
+
+    function _qsOnBlur() {
+      if (!_qsRecording) return;
+      _qsRecording = false;
+      const inp = el('qsShortcutInput');
+      if (inp) { inp.classList.remove('recording'); inp.onkeydown = null; }
+      _renderQsDisplay(cfg().qsShortcut);
+    }
+
+    function resetQsShortcut() {
+      saveCfg({ ...cfg(), qsShortcut: {} });
+      _renderQsDisplay(null);
+      if (el('qsShortcutError')) { el('qsShortcutError').style.maxHeight = '0'; el('qsShortcutError').style.marginTop = '0'; }
+      _qsRecording = false;
+      const inp = el('qsShortcutInput');
+      if (inp) { inp.classList.remove('recording'); inp.onkeydown = null; }
+    }
+
+    // ── Quick Start keyboard shortcut ────────────────────────────────────────
+    document.addEventListener('keydown', function _qsShortcutHandler(e) {
+      if (_qsRecording) return;
+      const tag = e.target.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || e.target.isContentEditable) return;
+      const sc = cfg().qsShortcut;
+      if (!sc || !sc.key) return;
+      const mod = sc.mod || 'ctrl';
+      const key = sc.key.toLowerCase();
+      const modMatch = (mod === 'ctrl' && (e.ctrlKey || e.metaKey)) ||
+                       (mod === 'cmd'  && (e.ctrlKey || e.metaKey)) ||
+                       (mod === 'alt'  && e.altKey);
+      if (!modMatch || e.key.toLowerCase() !== key) return;
+      if (sc.shift && !e.shiftKey) return;
+      const btn = el('calcBtn');
+      if (!btn || btn.dataset.state !== 'start' || btn.disabled) return;
+      e.preventDefault();
+      btn.click();
+    });
+
     // ── tc-r7m2 activate/deactivate (autofill shield) ──────────────────────────
     // Safari autofill scanner only attaches to rendered, interactive inputs.
     // We keep the real input display:none at rest; only swap it in on explicit tap.
@@ -11817,7 +12280,7 @@ ${sig}`
         el('autostopBanner').classList.add('show');
         el('autostopMsg').textContent = `Auto-stopped at ${tl.checkoutDisplay || '—'} — target + buffer reached.`;
         renderEmptyState(); // show card in read mode
-      } else { renderEmptyState(); }
+      } else { setCalcBtnState('start'); renderEmptyState(); }
 
       // If selected day is not today, render appropriately; on weekends route
       // through selectDay so the strip card gets the active class.

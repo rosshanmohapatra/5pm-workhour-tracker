@@ -594,7 +594,7 @@
     html:has(#viewHome.active), body:has(#viewHome.active) { overflow: hidden !important; }
     /* 3-zone layout: nav top · content center · input bottom */
     #viewHome .page { height: calc(100dvh - 24px - 52px - 16px); overflow: hidden; gap: 0; padding-bottom: 24px; }
-    #homeMain { flex: 1; min-height: 0; display: flex; flex-direction: column; justify-content: center; gap: 16px; padding: 8px 0 8px; }
+    #homeMain { flex: 1; min-height: 0; display: flex; flex-direction: column; justify-content: center; gap: 16px; padding: 8px 0 8px; overflow-y: auto; }
     #todayLoginSection { padding-top: 0; }
     /* ── Not-started single-KPI layout ── */
     #rcBody.ns-times .rc-numbers,
@@ -5900,7 +5900,7 @@
         ? p2(_h) + ':' + p2(_m) + ':' + p2(_s)
         : p2(_h % 12 || 12) + ':' + p2(_m) + ':' + p2(_s) + ' ' + (_h >= 12 ? 'PM' : 'AM');
       const _we = el('rcWorked');
-      if (_we) { _we.textContent = _clockStr; _we.style.color = loginDate ? '' : 'var(--muted-fg)'; }
+      if (_we) { _we.textContent = _clockStr; _we.style.color = loginDate ? 'rgba(255,255,255,0.75)' : 'var(--muted-fg)'; }
     }
 
     function _rcSetProgress(pct, barClass) {
@@ -7144,8 +7144,10 @@
                     + `<span class="dsel-num">${day.date.getDate()}</span>`;
       btn.addEventListener('click', () => {
         _dsUserNav = true;
-        if (isFuture) selectFutureDay(day.key);
-        else selectDay(day.key);
+        _animateCardHeight(() => {
+          if (isFuture) selectFutureDay(day.key);
+          else selectDay(day.key);
+        });
         _syncOffsetFromKey(day.key);
       });
       return btn;
@@ -7242,8 +7244,10 @@
       const now = new Date();
       const dayDate = new Date(targetKey + 'T12:00');
       _dsUserNav = true;
-      if (dayDate > now && targetKey !== todayKey()) selectFutureDay(targetKey);
-      else selectDay(targetKey);
+      _animateCardHeight(() => {
+        if (dayDate > now && targetKey !== todayKey()) selectFutureDay(targetKey);
+        else selectDay(targetKey);
+      });
       _syncOffsetFromKey(targetKey);
     }
 
@@ -7292,6 +7296,28 @@
     function _setShiftCtaVisible(v) {
       const s = el('todayLoginSection'); if (!s) return;
       s.classList.toggle('cta-hidden', !v);
+    }
+
+    function _animateCardHeight(fn) {
+      const card = el('homeCard');
+      if (!card) { fn(); return; }
+      const prevH = card.offsetHeight;
+      fn();
+      const newH = card.offsetHeight;
+      if (Math.abs(newH - prevH) < 4) return;
+      card.style.transition = 'none';
+      card.style.height = prevH + 'px';
+      card.style.overflow = 'hidden';
+      requestAnimationFrame(() => {
+        card.style.transition = 'height 0.32s cubic-bezier(0.4,0,0.2,1)';
+        card.style.height = newH + 'px';
+        card.addEventListener('transitionend', function _cleanup() {
+          card.style.height = '';
+          card.style.overflow = '';
+          card.style.transition = '';
+          card.removeEventListener('transitionend', _cleanup);
+        }, { once: true });
+      });
     }
 
     function selectDay(key) {

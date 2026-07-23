@@ -2,6 +2,19 @@
 Changelog
 
 
+v1.0.6
+
+Improved
+- Cleaner weekend page. Removed the Penalties and Overtime cards and the week label row.
+- The weekly badge now sits above View Stats, not below it.
+- Even 8px spacing between the KPIs, progress bar, and the Leave by line.
+
+Fixed
+- Switching from a past day back to today no longer flickers.
+- The Leave by time no longer looks like a button on hover.
+- Quick Start shortcut is a keyboard feature, so it's hidden on mobile now.
+
+
 v1.0.2
 
 Added

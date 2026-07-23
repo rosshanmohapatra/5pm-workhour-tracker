@@ -5857,7 +5857,7 @@
           el('rcWorked').style.color = 'var(--muted-fg)';
         } else {
           el('rcWorked').textContent = c.elapsedStr;
-          el('rcWorked').style.color = c.rightClass === 'muted' ? 'var(--muted-fg)' : '';
+          el('rcWorked').style.color = (c.rightClass === 'muted' || c.rightClass === 'warn') ? 'var(--muted-fg)' : '#fafafa';
         }
         el('rcTarget').textContent = c.rightStr;
         el('rcTarget').style.color = c.rightClass === 'ok' ? 'var(--success)' : c.rightClass === 'warn' ? 'var(--warning)' : c.rightClass === 'muted' ? 'var(--muted-fg)' : '';
@@ -7302,12 +7302,19 @@
       const card = el('homeCard');
       if (!card) { fn(); return; }
       const prevH = card.offsetHeight;
-      fn();
-      const newH = card.offsetHeight;
-      if (Math.abs(newH - prevH) < 4) return;
-      card.style.transition = 'none';
+      // Pin BEFORE content change so the swap is invisible
       card.style.height = prevH + 'px';
       card.style.overflow = 'hidden';
+      fn();
+      // For growing: scrollHeight gives natural content height while card is pinned
+      // For shrinking: scrollHeight = prevH (clipped), so briefly go auto to measure
+      let newH = card.scrollHeight;
+      if (newH <= prevH) {
+        card.style.height = 'auto';
+        newH = card.offsetHeight; // forced sync reflow, no paint yet
+        card.style.height = prevH + 'px';
+      }
+      if (Math.abs(newH - prevH) < 4) { card.style.height = ''; card.style.overflow = ''; return; }
       requestAnimationFrame(() => {
         card.style.transition = 'height 0.32s cubic-bezier(0.4,0,0.2,1)';
         card.style.height = newH + 'px';

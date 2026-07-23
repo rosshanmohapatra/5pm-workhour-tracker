@@ -441,9 +441,11 @@
     .day-right { text-align: right; padding-bottom: 4px; }
     .day-date { font-size: 18px; font-weight: 600; color: var(--foreground); }
 
-    /* ── Notification panel ── */
-    .notif-panel { overflow: hidden; transition: max-height .28s ease, opacity .2s; }
-    .notif-panel.hidden { max-height: 0; opacity: 0; pointer-events: none; padding-top: 0 !important; padding-bottom: 0 !important; }
+    /* ── Notification panel — fixed overlay, never pushes content ── */
+    .notif-panel { position: fixed; top: calc(16px + 52px + 8px); left: 50%; transform: translateX(-50%);
+      width: calc(100% - 48px); max-width: 600px; z-index: 40; padding: 0 !important;
+      overflow: hidden; transition: max-height .28s ease, opacity .2s; }
+    .notif-panel.hidden { max-height: 0; opacity: 0; pointer-events: none; }
     .notif-panel.open   { max-height: 900px; opacity: 1; }
     .notif-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; }
     .notif-head { padding: 12px; border-bottom: 1px solid var(--border);
@@ -639,6 +641,11 @@
     .qs-capsule { display: inline-flex; align-items: center; background: var(--muted);
       border: 1px solid var(--border); border-radius: 4px; padding: 1px 6px;
       font-size: 11px; font-weight: 600; font-family: var(--font); line-height: 1.6; }
+    .qs-field-btn { display:inline-flex;align-items:center;justify-content:center;
+      width:28px;height:28px;border-radius:6px;border:none;background:transparent;
+      color:var(--muted-fg);cursor:pointer;flex-shrink:0;transition:background .15s,color .15s;
+      font-family:var(--font); }
+    .qs-field-btn:hover { background:var(--muted);color:var(--foreground); }
     .rc-body.weekend-mode .rc-numbers,
     .rc-body.weekend-mode #rcToday,
     .rc-body.weekend-mode #stayHint,
@@ -729,7 +736,8 @@
     .rc-rem-sep { font-size: 11px; color: var(--muted-fg); opacity: 0.45; font-weight: 700; line-height: 1; }
     .rc-rem-inline { font-size: 11px; font-weight: 600; letter-spacing: .04em; line-height: 1; }
     .rc-rem-text { font-size: 11px; font-weight: 600; color: var(--muted-fg); letter-spacing: .06em; text-transform: uppercase; line-height: 1; }
-    .rc-worked { font-size: 16px; font-weight: 600; letter-spacing: -.3px; line-height: 1.2; color: var(--foreground); }
+    .rc-worked { font-size: 16px; font-weight: 600; letter-spacing: -.3px; line-height: 1.2; color: #fff; }
+    .dark .rc-worked { color: #fff; }
     .rc-elapsed-label { font-size: 11px; font-weight: 600; letter-spacing: .08em;
       text-transform: uppercase; color: var(--muted-fg); margin-top: 2px; }
     .rc-meta { display: flex; gap: 16px; flex-wrap: wrap; }
@@ -1586,8 +1594,8 @@
       .mob-topbar .btn-icon { width:40px; height:40px; border-radius:10px; }
       /* Small breathing room below the topbar */
       .view.active .page { padding-top: 24px !important; }
-      /* Notification panel: reduce top gap on mobile so it doesn't crowd the page title */
-      #notifPanel { padding-top: 4px; }
+      /* Notification panel: anchor below mobile topbar */
+      #notifPanel { top: calc(44px + env(safe-area-inset-top) + 8px); width: calc(100% - 32px); }
     }
 
     /* ── Touch / pressed states (no lingering hover on mobile) ── */
@@ -2211,8 +2219,8 @@
       </button>
     </nav>
 
-  <!-- Notification panel — inline, between nav and content -->
-  <div class="notif-panel hidden" id="notifPanel" style="max-width:600px;margin:0 auto;padding:16px 24px 0;">
+  <!-- Notification panel — fixed overlay -->
+  <div class="notif-panel hidden" id="notifPanel">
     <div class="notif-card">
       <div class="notif-head">
         <span class="section-label">Notifications</span>
@@ -2336,9 +2344,10 @@
             <button class="rc-pair-tab rc-pair-tab-active" onclick="_rcSwitchPair('times',this)">Time</button>
             <button class="rc-pair-tab" onclick="_rcSwitchPair('progress',this)">Progress</button>
           </div>
+          <div id="rcKpiGroup" style="display:flex;flex-direction:column;align-items:center;width:100%;gap:0">
           <div class="rc-numbers">
             <div class="rc-left-col" onclick="_rcKpiTap('left',event)">
-              <div class="rc-worked" id="rcWorked" style="color:var(--muted-fg)">—</div>
+              <div class="rc-worked" id="rcWorked">—</div>
             </div>
             <div class="rc-right-col" onclick="_rcKpiTap('right',event)">
               <div class="rc-target-val" id="rcTarget" style="color:var(--muted-fg)">—</div>
@@ -2349,6 +2358,7 @@
           </div>
           <div class="rc-desc-row" id="rcDescRow">
             <span class="rc-desc-right" id="rcDescRight"></span>
+          </div>
           </div>
           <div class="shift-cta" id="todayLoginSection">
             <!-- Single combo: input + button inside -->
@@ -2822,19 +2832,18 @@
             <!-- Quick Start Shortcut -->
             <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
               <div style="flex:1;min-width:0">
-                <div class="form-label">Quick Start Shortcut</div>
+                <div class="form-label">Quick Start</div>
                 <div class="form-sub">Use this shortcut to start tracking instantly.</div>
               </div>
-              <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
-                <div id="qsShortcutInput" class="qs-shortcut-field" tabindex="0"
-                     onclick="startQsRecording()" onblur="_qsOnBlur()">
-                  <span id="qsShortcutDisplay" style="color:var(--muted-fg)">None</span>
-                </div>
-                <button type="button" class="btn-icon" id="qsShortcutEditBtn" onclick="startQsRecording()" title="Edit shortcut">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+              <div id="qsShortcutInput" class="qs-shortcut-field" tabindex="0"
+                   onclick="startQsRecording()" onblur="_qsOnBlur()"
+                   style="flex-shrink:0;padding:0 4px 0 12px;gap:6px">
+                <span id="qsShortcutDisplay" style="color:var(--muted-fg);flex:1">None</span>
+                <button type="button" class="qs-field-btn" id="qsShortcutEditBtn" onclick="event.stopPropagation();startQsRecording()" title="Edit shortcut">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                 </button>
-                <button type="button" class="btn-icon" id="qsShortcutResetBtn" onclick="resetQsShortcut()" title="Reset shortcut">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                <button type="button" class="qs-field-btn" id="qsShortcutResetBtn" onclick="event.stopPropagation();resetQsShortcut()" title="Reset shortcut">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                 </button>
               </div>
             </div>
@@ -3182,10 +3191,8 @@
 
   <!-- Version pill -->
   <a href="https://github.com/rosshanmohapatra/5pm-workhour-tracker/releases" target="_blank" rel="noopener" class="version-pill">
-    <span style="font-size:11px;font-weight:600;color:var(--muted-fg);letter-spacing:.01em">Version</span>
-    <span class="vp-tagline">- Work Hour Tracker</span>
-    <span style="font-size:10px;font-weight:600;letter-spacing:.05em;
-      background:var(--muted);color:var(--muted-fg);padding:4px 7px;border-radius:100px">v1.0.4</span>
+    <span class="vp-tagline">Work Hour Tracker - </span>
+    <span style="font-size:11px;font-weight:600;color:var(--muted-fg);letter-spacing:.01em">Version 1.0.4</span>
   </a>
 
   <!-- ── Weekly Report Modal ── -->
@@ -10626,7 +10633,7 @@ ${sig}`
     }
     function _toggleThemeAnimated(event) {
       const nextDark = !dark;
-      const DURATION = 400;
+      const DURATION = 260;
       const VARIANT  = 'circle'; // circle | square | triangle | diamond | hexagon | rectangle | star
 
       if (typeof document.startViewTransition !== 'function') {

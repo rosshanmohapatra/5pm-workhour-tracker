@@ -6924,13 +6924,13 @@
     function render() {
       if (!loginDate) return;
       _hideSkeleton();
-      el('rcBody')?.classList.remove('weekend-mode', 'ns-times', 'ns-progress');
       // When browsing a past/future day, only refresh the day-selector dots silently.
       // Without this guard the live ticker overwrites past-day content every second.
       if (selectedDayKey && selectedDayKey !== todayKey()) {
         renderDaySelector();
         return;
       }
+      el('rcBody')?.classList.remove('weekend-mode', 'ns-times', 'ns-progress');
       const c = cfg();
       const now = new Date(), eff = effSecs();
       const worked  = Math.max(0, Math.floor((now - loginDate) / 1000)) + _sessionAccSecs;

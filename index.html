@@ -7606,38 +7606,18 @@
     // Builds the two bottom KPI cards for past/future days.
     // Shows Duration (loginTime → logoutTime with arrow) + Surplus card.
     function _pastDayKpiHtml(loginDisp, outDisp, workedSecs, targetSecs) {
-      const arrow = `<span class="rc-io-duration-arrow"><svg width="11" height="11" viewBox="0 0 24 24" fill="none"><path d="M5 12H19M19 12L13 6M19 12L13 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>`;
-      const durationCard = `
-        <div class="rc-io-box">
-          <div class="rc-io-label">Duration</div>
-          <div class="rc-io-val-row">
-            <div class="rc-io-duration">
-              <span class="rc-io-val">${loginDisp}</span>
-              ${arrow}
-              <span class="rc-io-val">${outDisp}</span>
-            </div>
-          </div>
-        </div>`;
-      let surplusText = '—', surplusColor = 'var(--muted-fg)', surplusLabel = _surplusLabel();
-      let isDone = false;
+      const arrow = `<span style="display:inline-flex;align-items:center;color:var(--muted-fg);margin:0 2px"><svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M5 12H19M19 12L13 6M19 12L13 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>`;
+      const ioLine = `<div style="display:inline-flex;align-items:center;font-size:14px;font-weight:500;color:var(--muted-fg)">${loginDisp}${arrow}${outDisp}</div>`;
+      let msgLine = '';
       if (workedSecs != null && targetSecs != null) {
         const diff = workedSecs - targetSecs;
-        if (Math.abs(diff) < 60) {
-          surplusText = 'On Target'; surplusColor = 'var(--success)'; surplusLabel = _surplusLabel(); isDone = true;
-        } else if (diff > 0) {
-          surplusText = durShort(diff); surplusColor = 'var(--success)'; surplusLabel = _surplusLabel(); isDone = true;
-        } else {
-          surplusText = durShort(diff); surplusColor = 'var(--foreground)'; surplusLabel = 'Balance';
+        if (diff < -300) {
+          msgLine = `<span style="font-size:12px;color:var(--muted-fg)">You missed the target by ${dur(Math.abs(diff))}</span>`;
+        } else if (diff > 300) {
+          msgLine = `<span style="font-size:12px;color:var(--success)">You worked ${dur(diff)} more. Overtime!</span>`;
         }
       }
-      const surplusCard = `
-        <div class="rc-io-box">
-          <div class="rc-io-label">${surplusLabel}</div>
-          <div class="rc-io-val-row">
-            <div class="rc-io-val" style="color:${surplusColor}">${surplusText}</div>
-          </div>
-        </div>`;
-      return `<div class="rc-io-row">${durationCard}${surplusCard}</div>`;
+      return `<div style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:4px 0">${ioLine}${msgLine}</div>`;
     }
 
     function renderPastDay(key) {

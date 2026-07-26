@@ -522,7 +522,9 @@
       border: none; }
     .split-chevron-btn.resume-shift-chev { background: var(--btn-primary-bg); color: var(--card);
       border-left: 1px solid rgba(255,255,255,.15); }
-    .split-dropdown { position: absolute; right: 0; top: calc(100% + 6px);
+    /* position: fixed — .shift-cta has overflow:hidden for its collapse animation,
+       which would clip an absolutely-positioned dropdown before it ever became visible */
+    .split-dropdown { position: fixed;
       background: var(--card); border: 1px solid var(--border);
       border-radius: var(--radius-lg); box-shadow: var(--shadow-lg);
       overflow: hidden; z-index: 200; min-width: 150px; }
@@ -2374,7 +2376,9 @@
               <button class="rc-pair-tab rc-pair-tab-active" onclick="_rcSwitchPair('times',this)">Time</button>
               <button class="rc-pair-tab" onclick="_rcSwitchPair('progress',this)">Progress</button>
             </div>
-            <button class="rc-info-btn" id="rcInfoBtn" onclick="openTodayDetails(event)" title="Today's Details" aria-label="Today's Details">
+            <button class="rc-info-btn" id="rcInfoBtn"
+              onmouseenter="_tdShowPopover()" onmouseleave="_tdHidePopoverDelayed()" onclick="_tdTapModal(event)"
+              title="Today's Details" aria-label="Today's Details">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
             </button>
           </div>
@@ -3948,12 +3952,9 @@
   </div>
 
   <!-- ── Today's Details popover (desktop) ── -->
-  <div class="td-popover" id="tdPopover">
+  <div class="td-popover" id="tdPopover" onmouseenter="_tdCancelHide()" onmouseleave="_tdHidePopoverDelayed()">
     <div class="td-pop-head">
       <span class="td-pop-title">Today's Details</span>
-      <button class="btn-icon" onclick="closeTodayDetails()" title="Close" style="width:24px;height:24px">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-      </button>
     </div>
     <div class="td-body" id="tdPopoverBody"></div>
   </div>
@@ -5619,42 +5620,49 @@
       return html;
     }
 
-    function openTodayDetails(event) {
-      if (event) { event.stopPropagation(); event.preventDefault(); }
-      const content = _tdBuildContent();
-      const isMobile = window.matchMedia('(max-width: 640px)').matches;
-      if (isMobile) {
-        el('tdModalBody').innerHTML = content;
-        el('tdOverlay').classList.add('open');
-      } else {
-        const pop = el('tdPopover');
-        el('tdPopoverBody').innerHTML = content;
-        const btn = el('rcInfoBtn'), refRect = btn.getBoundingClientRect();
-        const GAP = 8, mW = 280, pad = 8;
-        let top = refRect.bottom + GAP;
-        let left = refRect.right - mW;
-        if (left < pad) left = pad;
-        if (left + mW > window.innerWidth - pad) left = window.innerWidth - mW - pad;
-        pop.style.top = top + 'px'; pop.style.left = left + 'px';
-        pop.classList.add('open');
-        setTimeout(() => document.addEventListener('mousedown', _tdOutsideClick), 10);
-      }
+    function _tdIsMobile() { return window.matchMedia('(max-width: 640px)').matches; }
+
+    let _tdHoverTimer = null;
+
+    // Desktop: hover the info button shows the popover
+    function _tdShowPopover() {
+      if (_tdIsMobile()) return;
+      clearTimeout(_tdHoverTimer);
+      const pop = el('tdPopover');
+      el('tdPopoverBody').innerHTML = _tdBuildContent();
+      const btn = el('rcInfoBtn'), refRect = btn.getBoundingClientRect();
+      const GAP = 8, mW = 280, pad = 8;
+      let top = refRect.bottom + GAP;
+      let left = refRect.right - mW;
+      if (left < pad) left = pad;
+      if (left + mW > window.innerWidth - pad) left = window.innerWidth - mW - pad;
+      pop.style.top = top + 'px'; pop.style.left = left + 'px';
+      pop.classList.add('open');
     }
 
-    function _tdOutsideClick(e) {
-      const pop = el('tdPopover');
-      if (pop && pop.classList.contains('open') && !pop.contains(e.target) && !e.target.closest('#rcInfoBtn')) {
-        closeTodayDetails();
-      }
+    // Small delay so moving the cursor from the button into the popover doesn't close it
+    function _tdHidePopoverDelayed() {
+      if (_tdIsMobile()) return;
+      _tdHoverTimer = setTimeout(() => el('tdPopover')?.classList.remove('open'), 150);
+    }
+
+    function _tdCancelHide() { clearTimeout(_tdHoverTimer); }
+
+    // Mobile: tap the info button opens the modal
+    function _tdTapModal(event) {
+      if (!_tdIsMobile()) return;
+      if (event) { event.stopPropagation(); event.preventDefault(); }
+      el('tdModalBody').innerHTML = _tdBuildContent();
+      el('tdOverlay').classList.add('open');
     }
 
     function closeTodayDetails() {
       el('tdPopover')?.classList.remove('open');
       el('tdOverlay')?.classList.remove('open');
-      document.removeEventListener('mousedown', _tdOutsideClick);
     }
 
     function openIgnoreTodayConfirm() {
+      closeTodayDetails();
       el('tdIgnoreConfirmOverlay')?.classList.add('open');
     }
 
@@ -5663,10 +5671,6 @@
       saveDayLog(tk, { ...ex, todayTargetH: cfg().dailyH });
       el('tdIgnoreConfirmOverlay')?.classList.remove('open');
       if (loginDate) render(); else renderEmptyState();
-      // Refresh whichever Today's Details surface is currently open with the recalculated values
-      const content = _tdBuildContent();
-      if (el('tdPopover')?.classList.contains('open')) el('tdPopoverBody').innerHTML = content;
-      else if (el('tdOverlay')?.classList.contains('open')) el('tdModalBody').innerHTML = content;
     }
 
     function _tpOutsideClick(e) {
@@ -10915,7 +10919,13 @@ ${sig}`
       e.stopPropagation();
       const dd = el('calcBtnDropdown');
       if (!dd) return;
-      dd.style.display = dd.style.display === 'none' ? '' : 'none';
+      const willOpen = dd.style.display === 'none';
+      if (willOpen) {
+        const rect = el('calcBtnWrap').getBoundingClientRect();
+        dd.style.top = (rect.bottom + 6) + 'px';
+        dd.style.right = (window.innerWidth - rect.right) + 'px';
+      }
+      dd.style.display = willOpen ? '' : 'none';
     });
     document.addEventListener('click', () => {
       const dd = el('calcBtnDropdown');

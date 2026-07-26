@@ -368,8 +368,8 @@
       border:1px solid var(--border);border-radius:var(--radius-md);background:var(--input-bg);
       color:var(--foreground);font-family:var(--font);transition:border-color .15s,box-shadow .15s;
       -moz-appearance:textfield;caret-color:transparent; }
-    .auth-digit:focus { border-color:var(--ring);outline:none;box-shadow:0 0 0 3px rgba(9,9,11,.08); }
-    .dark .auth-digit:focus { box-shadow:0 0 0 3px rgba(250,250,250,.08); }
+    .auth-digit:focus { border-color:var(--ring);outline:none;box-shadow:inset 0 0 0 3px rgba(9,9,11,.08); }
+    .dark .auth-digit:focus { box-shadow:inset 0 0 0 3px rgba(250,250,250,.08); }
     .auth-digit::-webkit-outer-spin-button,.auth-digit::-webkit-inner-spin-button { -webkit-appearance:none; }
 
     /* ── Input ── */
@@ -378,9 +378,9 @@
       border: none; border-radius: var(--radius-md); outline: none;
       box-shadow: var(--shadow-xs); transition: box-shadow .15s; }
     .field-input::placeholder { color: var(--muted-fg); opacity: .7; }
-    .field-input:focus { box-shadow: 0 0 0 2.5px rgba(9,9,11,.10); }
-    .dark .field-input:focus { box-shadow: 0 0 0 2.5px rgba(250,250,250,.10); }
-    .field-input.err { box-shadow: 0 0 0 2px rgba(220,38,38,.35); }
+    .field-input:focus { box-shadow: inset 0 0 0 2.5px rgba(9,9,11,.10); }
+    .dark .field-input:focus { box-shadow: inset 0 0 0 2.5px rgba(250,250,250,.10); }
+    .field-input.err { box-shadow: inset 0 0 0 2px rgba(220,38,38,.35); }
     input[type=number]::-webkit-inner-spin-button,
     input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
     input[type=number] { -moz-appearance: textfield; }
@@ -602,8 +602,8 @@
     #rcBody.ns-progress .rc-numbers { justify-content: center; padding-bottom: 0; }
     #rcBody.ns-times #rcDescRow,
     #rcBody.ns-progress #rcDescRow { padding-top: 0; }
-    #rcBody.ns-times #rcPairTabs,
-    #rcBody.ns-progress #rcPairTabs { display: none; }
+    #rcBody.ns-times #rcPairTabsRow,
+    #rcBody.ns-progress #rcPairTabsRow { display: none; }
     /* Active/in-progress: tight 8px layout, 32px breathing above & below the KPI group */
     #rcBody:not(.ns-times):not(.ns-progress):not(.weekend-mode):not(.past-day) { gap: 8px; }
     #rcBody:not(.ns-times):not(.ns-progress):not(.weekend-mode):not(.past-day) #rcKpiGroup { margin-top: 24px; margin-bottom: 24px; }
@@ -642,8 +642,8 @@
       color: var(--foreground); font-size: 13px; font-family: var(--font);
       cursor: pointer; outline: none; user-select: none;
       transition: box-shadow .15s; min-width: 120px; }
-    .qs-shortcut-field.recording { box-shadow: 0 0 0 2.5px rgba(9,9,11,.10); }
-    .dark .qs-shortcut-field.recording { box-shadow: 0 0 0 2.5px rgba(250,250,250,.10); }
+    .qs-shortcut-field.recording { box-shadow: inset 0 0 0 2.5px rgba(9,9,11,.10); }
+    .dark .qs-shortcut-field.recording { box-shadow: inset 0 0 0 2.5px rgba(250,250,250,.10); }
     /* Quick Start shortcut is a keyboard feature — desktop only */
     @media (max-width: 640px) { .qs-shortcut-row { display: none !important; } }
     .qs-capsule { display: inline-flex; align-items: center; background: var(--muted);
@@ -662,7 +662,7 @@
     .rc-body.weekend-mode #otBanner,
     .rc-body.weekend-mode #doneBanner,
     .rc-body.weekend-mode #autostopBanner,
-    .rc-body.weekend-mode #rcPairTabs,
+    .rc-body.weekend-mode #rcPairTabsRow,
     .rc-body.weekend-mode #rcProgressTrack,
     .rc-body.weekend-mode #rcDescRow { display: none !important; }
     #weekendView { display: none; }
@@ -709,6 +709,7 @@
       #wkndNoteSend { width: 32px; height: 32px; }
     }
     /* ── Pair tab switcher — matches st-tabs pill style ── */
+    .rc-pair-tabs-row { display: flex; align-items: center; justify-content: space-between; width: 100%; }
     .rc-pair-tabs { display: flex; background: var(--background); border-radius: 8px; padding: 3px; gap: 2px; flex-shrink: 0; align-self: flex-start; }
     .rc-pair-tab { background: transparent; border: none; font-family: var(--font); font-size: 12px; font-weight: 500;
       color: var(--muted-fg); padding: 5px 12px; border-radius: 6px; cursor: pointer;
@@ -716,6 +717,27 @@
     .rc-pair-tab:hover { color: var(--foreground); }
     .rc-pair-tab-active { background: var(--card); color: var(--foreground); box-shadow: 0 1px 3px rgba(0,0,0,.08); }
     .dark .rc-pair-tab-active { background: var(--muted); }
+    /* ── Today's Details info button ── */
+    .rc-info-btn { width: 26px; height: 26px; display: inline-flex; align-items: center; justify-content: center;
+      background: transparent; border: none; border-radius: 7px; color: var(--muted-fg); cursor: pointer;
+      transition: background .15s, color .15s; flex-shrink: 0; }
+    .rc-info-btn:hover { background: var(--muted); color: var(--foreground); }
+    /* ── Today's Details popover (desktop) ── */
+    .td-popover { position: fixed; z-index: 250; width: 280px; max-width: calc(100vw - 16px);
+      background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+      box-shadow: 0 8px 30px rgba(0,0,0,.18); padding: 14px; opacity: 0; transform: translateY(-4px);
+      pointer-events: none; transition: opacity .15s ease, transform .15s ease; }
+    .td-popover.open { opacity: 1; transform: translateY(0); pointer-events: all; }
+    .td-pop-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+    .td-pop-title { font-size: 13px; font-weight: 700; color: var(--foreground); }
+    /* ── Today's Details content rows — shared by popover + mobile modal ── */
+    .td-row { display: flex; align-items: center; justify-content: space-between; padding: 7px 0; font-size: 13px; }
+    .td-row + .td-row { border-top: 1px solid var(--border); }
+    .td-row-label { color: var(--muted-fg); }
+    .td-row-val { font-weight: 600; color: var(--foreground); font-variant-numeric: tabular-nums; }
+    .td-row-val.success { color: var(--success); }
+    .td-row-val.warn { color: var(--warning); }
+    .td-ignore-btn { width: 100%; margin-top: 12px; }
     /* ── Progress bar ── */
     .rc-progress-track { height: 5px; background: var(--border); border-radius: 100px; overflow: hidden; width: 100%; }
     .rc-progress-fill { height: 100%; border-radius: 100px; background: var(--foreground);
@@ -1258,8 +1280,8 @@
       padding: 0 8px; background: var(--input-bg); color: var(--foreground);
       border: none; border-radius: 6px; outline: none;
       box-shadow: var(--shadow-xs); transition: box-shadow .15s; }
-    .wk-time-input:focus { box-shadow: 0 0 0 2.5px rgba(9,9,11,.10); }
-    .dark .wk-time-input:focus { box-shadow: 0 0 0 2.5px rgba(250,250,250,.10); }
+    .wk-time-input:focus { box-shadow: inset 0 0 0 2.5px rgba(9,9,11,.10); }
+    .dark .wk-time-input:focus { box-shadow: inset 0 0 0 2.5px rgba(250,250,250,.10); }
     .wk-edit-btn { font-size: 12px; font-weight: 500; padding: 4px 10px;
       border-radius: 6px; border: none; background: var(--muted);
       color: var(--foreground); transition: background .12s; cursor: pointer; }
@@ -1280,8 +1302,8 @@
       font-size: 14px; font-family: var(--font); line-height: 1.4;
       outline: none; box-shadow: var(--shadow-xs); transition: box-shadow .15s; }
     .de-note-wrap textarea::placeholder, #futureDayReason::placeholder { color: var(--muted-fg); opacity: .7; }
-    .de-note-wrap textarea:focus, #futureDayReason:focus { box-shadow: 0 0 0 2.5px rgba(9,9,11,.10); }
-    .dark .de-note-wrap textarea:focus, .dark #futureDayReason:focus { box-shadow: 0 0 0 2.5px rgba(250,250,250,.10); }
+    .de-note-wrap textarea:focus, #futureDayReason:focus { box-shadow: inset 0 0 0 2.5px rgba(9,9,11,.10); }
+    .dark .de-note-wrap textarea:focus, .dark #futureDayReason:focus { box-shadow: inset 0 0 0 2.5px rgba(250,250,250,.10); }
     /* Future plan CTA — slides in when a chip is selected */
     .future-plan-cta { overflow: hidden; max-height: 0; opacity: 0;
       transition: max-height .25s ease, opacity .2s ease; pointer-events: none; }
@@ -1473,8 +1495,8 @@
     .badge-icon { font-size: 22px; line-height: 1; flex-shrink: 0; }
     .badge-title { font-size: 15px; font-weight: 700; color: var(--foreground); line-height: 1.2; }
     .badge-subtitle { font-size: 12px; color: var(--muted-fg); margin-top: 2px; }
-    .badge-days { display: flex; align-items: flex-end; justify-content: space-between; gap: 6px; }
-    .badge-day { display: flex; flex-direction: column; align-items: center; gap: 4px; flex: 1; }
+    .badge-days { display: flex; align-items: flex-end; justify-content: space-between; gap: 6px; width: 100%; }
+    .badge-day { display: flex; flex-direction: column; align-items: center; gap: 4px; flex: 1; min-width: 0; }
     .badge-day-name { font-size: 9px; font-weight: 700; color: var(--muted-fg);
       text-transform: uppercase; letter-spacing: .06em; }
     .badge-day-hrs { font-size: 10px; color: var(--muted-fg); font-variant-numeric: tabular-nums; }
@@ -1495,9 +1517,9 @@
       border: none; outline: none;
       box-shadow: var(--shadow-xs); transition: box-shadow .15s; }
     .time-input-wrap input[type="text"]:focus {
-      box-shadow: 0 0 0 2.5px rgba(9,9,11,.10); }
+      box-shadow: inset 0 0 0 2.5px rgba(9,9,11,.10); }
     .dark .time-input-wrap input[type="text"]:focus {
-      box-shadow: 0 0 0 2.5px rgba(250,250,250,.10); }
+      box-shadow: inset 0 0 0 2.5px rgba(250,250,250,.10); }
     input[type=time]::-webkit-calendar-picker-indicator { opacity:.5; cursor:pointer; }
     .dark input[type=time]::-webkit-calendar-picker-indicator { filter:invert(1); opacity:.4; }
 
@@ -1896,8 +1918,8 @@
       font-family: var(--font); cursor: pointer; transition: background .14s; }
     .ob-btn-link:hover { background: var(--border); color: var(--foreground); }
     .ob-panel input[type="text"] { outline: none; }
-    .ob-panel input[type="text"]:focus { border-color: var(--ring) !important; box-shadow: 0 0 0 3px rgba(9,9,11,.08); }
-    .dark .ob-panel input[type="text"]:focus { box-shadow: 0 0 0 3px rgba(250,250,250,.08); }
+    .ob-panel input[type="text"]:focus { border-color: var(--ring) !important; box-shadow: inset 0 0 0 3px rgba(9,9,11,.08); }
+    .dark .ob-panel input[type="text"]:focus { box-shadow: inset 0 0 0 3px rgba(250,250,250,.08); }
     .ob-import-zone { border: 2px dashed var(--border); border-radius: 12px; padding: 28px 20px;
       text-align: center; cursor: pointer;
       transition: border-color .22s ease, background .22s ease, box-shadow .22s ease; display: flex;
@@ -2359,9 +2381,14 @@
               <div class="skel skel-card" style="flex:1;height:60px"></div>
             </div>
           </div>
-          <div class="rc-pair-tabs" id="rcPairTabs">
-            <button class="rc-pair-tab rc-pair-tab-active" onclick="_rcSwitchPair('times',this)">Time</button>
-            <button class="rc-pair-tab" onclick="_rcSwitchPair('progress',this)">Progress</button>
+          <div class="rc-pair-tabs-row" id="rcPairTabsRow">
+            <div class="rc-pair-tabs" id="rcPairTabs">
+              <button class="rc-pair-tab rc-pair-tab-active" onclick="_rcSwitchPair('times',this)">Time</button>
+              <button class="rc-pair-tab" onclick="_rcSwitchPair('progress',this)">Progress</button>
+            </div>
+            <button class="rc-info-btn" id="rcInfoBtn" onclick="openTodayDetails(event)" title="Today's Details" aria-label="Today's Details">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+            </button>
           </div>
           <div id="rcKpiGroup" style="display:flex;flex-direction:column;align-items:center;width:100%;gap:8px">
           <div class="rc-numbers">
@@ -3942,6 +3969,49 @@
       <div class="dialog-foot-row">
         <button class="btn btn-cancel" id="dayEditCancel">Cancel</button>
         <button class="btn btn-primary" id="dayEditSave">Update</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Today's Details popover (desktop) ── -->
+  <div class="td-popover" id="tdPopover">
+    <div class="td-pop-head">
+      <span class="td-pop-title">Today's Details</span>
+      <button class="btn-icon" onclick="closeTodayDetails()" title="Close" style="width:24px;height:24px">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="td-body" id="tdPopoverBody"></div>
+  </div>
+
+  <!-- ── Today's Details modal (mobile) ── -->
+  <div class="overlay" id="tdOverlay" onclick="if(event.target===this)closeTodayDetails()">
+    <div class="dialog" style="max-width:320px">
+      <div class="dialog-head" style="display:flex;align-items:center;justify-content:space-between">
+        <div class="dialog-title">Today's Details</div>
+        <button class="btn-icon" onclick="closeTodayDetails()" title="Close" style="margin:-4px -4px -4px 0;flex-shrink:0">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="dialog-body" id="tdModalBody" style="padding-bottom:20px"></div>
+    </div>
+  </div>
+
+  <!-- ── Ignore Today Confirmation Modal ── -->
+  <div class="overlay" id="tdIgnoreConfirmOverlay">
+    <div class="dialog" style="max-width:340px">
+      <div class="dialog-head" style="display:flex;align-items:flex-start;justify-content:space-between">
+        <div>
+          <div class="dialog-title">Ignore today's recommendation?</div>
+          <div class="dialog-desc">Recalculate your Leave By time using only today's base daily target.<br>This change applies only to today.</div>
+        </div>
+        <button class="btn-icon" onclick="el('tdIgnoreConfirmOverlay').classList.remove('open')" title="Close" style="margin:-4px -4px -4px 8px;flex-shrink:0">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div style="padding:0 20px 20px;display:flex;justify-content:flex-end;gap:8px">
+        <button class="btn-secondary" onclick="el('tdIgnoreConfirmOverlay').classList.remove('open')">Cancel</button>
+        <button class="btn btn-primary" style="width:auto;height:38px;padding:0 16px;font-size:13px" onclick="_tdConfirmIgnoreToday()">Confirm</button>
       </div>
     </div>
   </div>
@@ -5547,6 +5617,84 @@
       if (loginDate) render(); else renderEmptyState();
     }
 
+    // ── TODAY'S DETAILS (info popover / mobile modal) ──────────────────
+    // Builds the shared content HTML — identical across the desktop popover and mobile modal.
+    function _tdBuildContent() {
+      const c = cfg(), eff = effSecs(), daily = c.dailyH * 3600;
+      const worked = loginDate
+        ? Math.max(0, Math.floor((new Date() - loginDate) / 1000)) + _sessionAccSecs
+        : _sessionAccSecs;
+      const recOn = c.recommendTimings !== false;
+      const surplus = recOn ? Math.max(0, daily - eff) : 0;
+      const overtimeReq = recOn ? Math.max(0, eff - daily) : 0;
+      const onBreak = c.breakTime !== false && !loginDate && _sessionAccSecs > 0;
+
+      let html = `<div class="td-row"><span class="td-row-label">Worked Duration</span><span class="td-row-val">${durWorked(worked)}</span></div>`;
+      if (surplus > 60) {
+        html += `<div class="td-row"><span class="td-row-label">Available Surplus</span><span class="td-row-val success">${dur(surplus)}</span></div>`;
+      }
+      if (overtimeReq > 60) {
+        html += `<div class="td-row"><span class="td-row-label">Overtime Required</span><span class="td-row-val warn">${dur(overtimeReq)}</span></div>`;
+      }
+      if (onBreak) {
+        html += `<div class="td-row"><span class="td-row-label">On Break</span><span class="td-row-val">Yes</span></div>`;
+      }
+      if (surplus > 60 || overtimeReq > 60) {
+        html += `<button class="btn-secondary td-ignore-btn" onclick="openIgnoreTodayConfirm()">Ignore Today</button>`;
+      }
+      return html;
+    }
+
+    function openTodayDetails(event) {
+      if (event) { event.stopPropagation(); event.preventDefault(); }
+      const content = _tdBuildContent();
+      const isMobile = window.matchMedia('(max-width: 640px)').matches;
+      if (isMobile) {
+        el('tdModalBody').innerHTML = content;
+        el('tdOverlay').classList.add('open');
+      } else {
+        const pop = el('tdPopover');
+        el('tdPopoverBody').innerHTML = content;
+        const btn = el('rcInfoBtn'), refRect = btn.getBoundingClientRect();
+        const GAP = 8, mW = 280, pad = 8;
+        let top = refRect.bottom + GAP;
+        let left = refRect.right - mW;
+        if (left < pad) left = pad;
+        if (left + mW > window.innerWidth - pad) left = window.innerWidth - mW - pad;
+        pop.style.top = top + 'px'; pop.style.left = left + 'px';
+        pop.classList.add('open');
+        setTimeout(() => document.addEventListener('mousedown', _tdOutsideClick), 10);
+      }
+    }
+
+    function _tdOutsideClick(e) {
+      const pop = el('tdPopover');
+      if (pop && pop.classList.contains('open') && !pop.contains(e.target) && !e.target.closest('#rcInfoBtn')) {
+        closeTodayDetails();
+      }
+    }
+
+    function closeTodayDetails() {
+      el('tdPopover')?.classList.remove('open');
+      el('tdOverlay')?.classList.remove('open');
+      document.removeEventListener('mousedown', _tdOutsideClick);
+    }
+
+    function openIgnoreTodayConfirm() {
+      el('tdIgnoreConfirmOverlay')?.classList.add('open');
+    }
+
+    function _tdConfirmIgnoreToday() {
+      const tk = todayKey(), ex = dayLog(tk) || {};
+      saveDayLog(tk, { ...ex, todayTargetH: cfg().dailyH });
+      el('tdIgnoreConfirmOverlay')?.classList.remove('open');
+      if (loginDate) render(); else renderEmptyState();
+      // Refresh whichever Today's Details surface is currently open with the recalculated values
+      const content = _tdBuildContent();
+      if (el('tdPopover')?.classList.contains('open')) el('tdPopoverBody').innerHTML = content;
+      else if (el('tdOverlay')?.classList.contains('open')) el('tdModalBody').innerHTML = content;
+    }
+
     function _tpOutsideClick(e) {
       const modal = el('tpModal');
       if (modal && modal.classList.contains('open') && !modal.contains(e.target)) {
@@ -5954,7 +6102,7 @@
         el('rcBody')?.classList.remove('past-day');
         const _kg = el('rcKpiGroup'); if (_kg) _kg.style.display = '';
       }
-      ['rcPairTabs','rcProgressTrack','rcDescRow'].forEach(id => {
+      ['rcPairTabsRow','rcProgressTrack','rcDescRow'].forEach(id => {
         const e = el(id); if (e) e.style.display = show ? 'none' : '';
       });
     }
@@ -6983,6 +7131,10 @@
       _rcCache = { loginStr: _loginStr, logoutStr: _logoutStr, elapsedStr: _elapsedStr,
         rightStr: _rightStr, rightClass: _rightClass, pct: eff > 0 ? worked / eff : 1,
         barClass: _barClass, descLeft: _loginStr + ' → ' + _logoutStr, descRight: _descRight };
+
+      // Hover tooltip on the right KPI — Remaining time, same on both Time/Progress tabs
+      const _remSecs = eff > 0 ? Math.max(0, eff - worked) : 0;
+      el('rcTarget').title = eff > 0 ? 'Remaining ' + (worked >= eff ? '0m' : dur(_remSecs)) : '';
 
       if (_currentPairIs('times')) {
         _rcStartClock();
@@ -10276,22 +10428,6 @@ ${sig}`
         } else {
           saveDayLogAndSync(key, { ...ex, hoursWorked: 0, override: activeOverride, sessionTag: 'edited', ...(_deNoteVal ? { note: _deNoteVal } : { note: null }) });
         }
-      } else if (!s && !e) {
-        // Both empty → apply shift defaults
-        const sd = getShiftDefaults();
-        const defS = parse(sd.start), defE = parse(sd.end);
-        if (defS && defE) {
-          const worked = Math.floor((defE - defS) / 1000);
-          saveDayLogAndSync(key, { ...ex,
-            loginTime: `${defS.getHours()}:${defS.getMinutes()}:${defS.getSeconds()}`,
-            loginDisplay: short(defS),
-            checkoutDisplay: short(defE),
-            hoursWorked: worked / 3600,
-            lastUpdated: new Date().toISOString(),
-            sessionTag: 'edited', override: null,
-            ...(_deNoteVal ? { note: _deNoteVal } : { note: null })
-          });
-        } else { el('deErr').classList.add('show'); return; }
       } else if (s && !e && isToday) {
         // Today — end time is optional (session may not be done yet)
         if (loginDate) {
@@ -10325,8 +10461,8 @@ ${sig}`
         selectDay(key);
         return;
       } else {
-        if (!s) { el('deErr').classList.add('show'); return; }
-        if (!e) { el('deErr').classList.add('show'); return; }
+        if (!s) { el('deErr').textContent = 'Enter a start time.'; el('deErr').classList.add('show'); return; }
+        if (!e) { el('deErr').textContent = 'Enter an end time.'; el('deErr').classList.add('show'); return; }
         // Overnight shift: if end <= start, treat end as next day
         const eAdj = e <= s ? new Date(e.getTime() + 24 * 3600 * 1000) : e;
         el('deErr').classList.remove('show');

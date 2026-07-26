@@ -2,6 +2,23 @@
 Changelog
 
 
+v1.1.0
+
+New
+- Today's Details. Tap the info icon next to Time and Progress for a closer look at your day: hours worked, banked surplus, overtime needed, and break status when it applies.
+- Ignore Today. Not feeling the week's recommended pace? Reset just today back to your normal daily target, right from Today's Details.
+
+Improved
+- The right-hand number now tells you how much time is left, right when you hover over it.
+- Hovering the info icon opens Today's Details instantly, and it closes on its own when you move away.
+- Focus rings on every input now stay neatly inside their field, no more clipped edges.
+- The weekend summary card now fills the full width of the page.
+
+Fixed
+- Saving an entry with no time no longer quietly logs a default 9 to 6 shift. You'll get a clear heads up instead.
+- The dropdown next to Pause now opens properly and lets you end your session.
+
+
 v1.0.6
 
 Improved

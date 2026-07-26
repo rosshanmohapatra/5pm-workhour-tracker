@@ -5854,7 +5854,7 @@
         }
         el('rcTarget').textContent = c.rightStr;
         el('rcTarget').style.color = c.rightClass === 'ok' ? 'var(--success)' : c.rightClass === 'warn' ? 'var(--warning)' : c.rightClass === 'muted' ? 'var(--muted-fg)' : '';
-        _rcSetDesc(c.descRightProgress !== undefined ? c.descRightProgress : c.descRight);
+        _rcSetDesc(c.descRight);
       }
     }
 
@@ -6930,7 +6930,7 @@
       const _loginStr  = short(loginDate);
       const _logoutStr = short(leaveDate);
       const _elapsedStr = durWorked(worked);
-      let _rightStr, _rightClass, _barClass, _descRight, _descRightProgress;
+      let _rightStr, _rightClass, _barClass, _descRight;
 
       el('otBanner').classList.remove('show'); // never show — overtime shown inline
       if (!isDone && eff > 0) {
@@ -6940,27 +6940,23 @@
         _rightClass = '';
         _barClass   = 'running';
         _descRight  = 'Leave by <span class="rc-desc-chip">' + _logoutStr + '</span>';
-        _descRightProgress = 'Arrived by <span class="rc-desc-chip">' + _loginStr + '</span>';
       } else if (isDone) {
         const ot = worked - eff;
         _rightStr   = ot < 60 ? '+0m' : '+' + dur(ot);
         _rightClass = ot < 60 ? 'muted' : 'warn';
         _barClass   = 'running over';
         _descRight  = ot > 60 ? '<span class="rc-desc-chip warn">+' + dur(ot) + ' overtime</span>' : '<span class="rc-desc-chip">Time to go</span>';
-        _descRightProgress = _descRight;
       } else {
         _rightStr   = '—';
         _rightClass = 'muted';
         _barClass   = 'running';
         _descRight  = '';
-        _descRightProgress = '';
       }
 
       // Cache for pair-switching without full re-render
       _rcCache = { loginStr: _loginStr, logoutStr: _logoutStr, elapsedStr: _elapsedStr,
         rightStr: _rightStr, rightClass: _rightClass, pct: eff > 0 ? worked / eff : 1,
-        barClass: _barClass, descLeft: _loginStr + ' → ' + _logoutStr, descRight: _descRight,
-        descRightProgress: _descRightProgress };
+        barClass: _barClass, descLeft: _loginStr + ' → ' + _logoutStr, descRight: _descRight };
 
       if (_currentPairIs('times')) {
         _rcStartClock();
@@ -6973,7 +6969,7 @@
         el('rcTarget').style.color = _rightClass === 'warn' ? 'var(--warning)' : _rightClass === 'muted' ? 'var(--muted-fg)' : '';
         if (eff > 0) animateDuration('rcTarget', _rightStr); else el('rcTarget').textContent = _rightStr;
       }
-      _rcSetDesc(_currentPairIs('times') ? _descRight : _descRightProgress);
+      _rcSetDesc(_descRight);
 
       _rcSetProgress(eff > 0 ? worked / eff : 1, _barClass);
       // "Leave at" badge: prefer personal Out Time target if set

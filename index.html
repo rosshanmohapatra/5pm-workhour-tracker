@@ -634,9 +634,6 @@
     #rcBody.rc-starting .rc-left-col,
     #rcBody.rc-starting .rc-right-col { transition: max-width .35s ease, max-height .35s ease, opacity .3s ease; }
     #rcBody.rc-starting #rcProgressTrack { transition: max-height .35s ease, opacity .35s ease; }
-    /* Leave-by label in desc row */
-    .leave-by-label { font-family: var(--font); font-size: 12px;
-      font-weight: 500; color: var(--muted-fg); padding: 2px 9px; }
     /* ── Quick Start shortcut recorder ── */
     .qs-shortcut-field { display: inline-flex; align-items: center; flex-wrap: nowrap; gap: 4px;
       min-height: 38px; padding: 0 4px 0 12px; border-radius: 8px;
@@ -5603,8 +5600,17 @@
       const surplus = recOn ? Math.max(0, daily - eff) : 0;
       const overtimeReq = recOn ? Math.max(0, eff - daily) : 0;
       const onBreak = c.breakTime !== false && !loginDate && _sessionAccSecs > 0;
+      let remainingVal = '';
+      if (eff > 0) {
+        remainingVal = worked >= eff
+          ? ((worked - eff) < 60 ? 'Done for today' : _rcRemainingFmt(worked - eff) + ' overtime')
+          : _rcRemainingFmt(eff - worked) + ' remaining';
+      }
 
       let html = `<div class="td-row"><span class="td-row-label">Worked Duration</span><span class="td-row-val">${durWorked(worked)}</span></div>`;
+      if (remainingVal) {
+        html += `<div class="td-row"><span class="td-row-label">Remaining</span><span class="td-row-val">${remainingVal}</span></div>`;
+      }
       if (surplus > 60) {
         html += `<div class="td-row"><span class="td-row-label">Available Surplus</span><span class="td-row-val success">${dur(surplus)}</span></div>`;
       }
@@ -5989,7 +5995,9 @@
           if (_body) { _body.classList.remove('ns-progress'); _body.classList.add('ns-times'); }
           _rcStartClock();
         } else {
-          _rcStartClock();
+          _rcStopClock();
+          el('rcWorked').textContent = c.loginStr;
+          el('rcWorked').style.color = (c.rightClass === 'muted' || c.rightClass === 'warn') ? 'var(--muted-fg)' : '#fafafa';
         }
         el('rcTarget').textContent = c.logoutStr;
         el('rcTarget').style.color = '';
@@ -6058,6 +6066,16 @@
     function _rcSetDesc(rightHtml) {
       const r = el('rcDescRight');
       if (r) r.innerHTML = rightHtml || '';
+    }
+
+    // "9h remaining" / "4h 12m remaining" / "48m remaining" — no leading 0h, no trailing 00m
+    function _rcRemainingFmt(secs) {
+      const s = Math.max(0, Math.round(secs));
+      if (s < 60) return `${s}s`;
+      const h = Math.floor(s / 3600), m = Math.round((s % 3600) / 60);
+      if (h === 0) return `${m}m`;
+      if (m === 0) return `${h}h`;
+      return `${h}h ${m}m`;
     }
 
     function _rcTransitionToActive() {
@@ -6129,33 +6147,35 @@
         const _logoutStr = _logE.checkoutDisplay || '—';
         const _elapsedStr = durWorked(endedSecs);
         let _rightStr, _rightClass, _barClass, _descRight;
+        // Center KPI only reflects an actively-ticking session (loginDate set) — hidden here,
+        // whether paused, checked out, or already past target.
         if (isDoneE) {
           const ot = Math.max(0, endedSecs - eff);
           _rightStr   = '+' + dur(ot);
           _rightClass = 'ok';
           _barClass   = 'done';
-          _descRight  = ot > 60 ? '<span class="rc-desc-chip ok">+' + dur(ot) + ' extra</span>' : '<span class="rc-desc-chip ok">Target met</span>';
+          _descRight  = '';
         } else if (_isPaused) {
           const rem = Math.max(0, eff - endedSecs);
           _rightStr   = dur(rem);
           _rightClass = 'muted';
           _barClass   = '';
-          _descRight  = '<span class="rc-desc-chip">' + dur(rem) + ' left</span>';
+          _descRight  = '';
         } else {
           const short_ = Math.max(0, eff - endedSecs);
           _rightStr   = '—';
           _rightClass = 'muted';
           _barClass   = 'dim';
-          _descRight  = short_ > 60 ? '<span class="rc-desc-chip">−' + dur(short_) + ' short</span>' : '';
+          _descRight  = '';
         }
         const _descLeft = _loginStr !== '—' ? _loginStr + ' → ' + _logoutStr : '';
         _rcCache = { loginStr: _loginStr, logoutStr: _logoutStr, elapsedStr: _elapsedStr,
           rightStr: _rightStr, rightClass: _rightClass, pct: eff > 0 ? endedSecs / eff : 0,
           barClass: _barClass, descLeft: _descLeft, descRight: _descRight };
+        _rcStopClock();
         if (_currentPairIs('times')) {
-          _rcStartClock();
+          el('rcWorked').textContent = _loginStr;
         } else {
-          _rcStopClock();
           el('rcWorked').textContent = _elapsedStr;
         }
         el('rcWorked').style.color = isDoneE && !_currentPairIs('times') ? 'var(--muted-fg)' : '';
@@ -6171,11 +6191,9 @@
         return;
       }
 
-      // Not started
+      // Not started — Center KPI only shows while a session is actively ticking, hidden here
       const _projLogout = eff > 0 ? short(new Date(Date.now() + eff * 1000)) : '—';
-      const _leavByDesc = eff > 0
-        ? '<span class="leave-by-label">Leave by ' + _projLogout + '</span>'
-        : '';
+      const _leavByDesc = '';
       _rcCache = { loginStr: '—', logoutStr: _projLogout, elapsedStr: '0m',
         rightStr: dur(eff), rightClass: 'muted', pct: 0, barClass: '',
         descLeft: '', descRight: _leavByDesc, notStarted: true };
@@ -7091,13 +7109,13 @@
         _rightStr   = remText;
         _rightClass = '';
         _barClass   = 'running';
-        _descRight  = 'Leave by <span class="rc-desc-chip">' + _logoutStr + '</span>';
+        _descRight  = '<span class="rc-desc-chip">' + _rcRemainingFmt(rem) + ' remaining</span>';
       } else if (isDone) {
         const ot = worked - eff;
         _rightStr   = ot < 60 ? '+0m' : '+' + dur(ot);
         _rightClass = ot < 60 ? 'muted' : 'warn';
         _barClass   = 'running over';
-        _descRight  = ot > 60 ? '<span class="rc-desc-chip warn">+' + dur(ot) + ' overtime</span>' : '<span class="rc-desc-chip">Time to go</span>';
+        _descRight  = ot > 60 ? '<span class="rc-desc-chip warn">' + _rcRemainingFmt(ot) + ' overtime</span>' : '<span class="rc-desc-chip ok">Done for today</span>';
       } else {
         _rightStr   = '—';
         _rightClass = 'muted';
@@ -7115,7 +7133,9 @@
       el('rcTarget').title = eff > 0 ? 'Remaining ' + (worked >= eff ? '0m' : dur(_remSecs)) : '';
 
       if (_currentPairIs('times')) {
-        _rcStartClock();
+        _rcStopClock();
+        el('rcWorked').textContent = _loginStr;
+        el('rcWorked').style.color = isDone ? 'var(--muted-fg)' : '#fafafa';
         el('rcTarget').textContent = _logoutStr;
         el('rcTarget').style.color = '';
       } else {

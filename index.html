@@ -625,12 +625,17 @@
     #homeCard .home-divider { margin: 12px -16px 0; }
     /* Lock scroll on the home view — nav is sticky so body must not scroll */
     html:has(#viewHome.active), body:has(#viewHome.active) { overflow: hidden !important; }
-    /* 3-zone layout: nav top · content center · input bottom */
-    #viewHome .page { height: calc(100dvh - 24px - 52px - 16px); overflow: hidden; gap: 0; padding-bottom: 24px; }
-    #homeMain { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 16px; padding: 8px 0 8px; overflow-y: auto; }
-    /* Pairs with .sel-day-ctx's margin-top:auto — together they center the
-       {clock + card} group as one unit within #homeMain, like the login page. */
-    #homeCard { margin-bottom: auto; }
+    /* 3-zone layout: nav top · content center · input bottom.
+       padding-top:0 — that space now lives in .sel-day-ctx's auto margins instead,
+       so the gap above the clock and the gap below it come out exactly equal
+       (see .sel-day-ctx below). .notif-perm-bar carries its own margin-top to
+       compensate when it's visible. */
+    #viewHome .page { height: calc(100dvh - 24px - 52px - 16px); overflow: hidden; gap: 0; padding-top: 0; padding-bottom: 24px; }
+    /* padding/gap both 0 — same reasoning: all vertical spacing here comes from
+       .sel-day-ctx's own margin-top:auto / margin-bottom:auto instead of fixed
+       values, so nav-to-clock and clock-to-card stay exactly equal at any
+       viewport height. */
+    #homeMain { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 0; padding: 0; overflow-y: auto; }
     #todayLoginSection { padding-top: 0; }
     /* ── Not-started single-KPI layout ── */
     #rcBody.ns-times .rc-numbers,
@@ -1281,14 +1286,14 @@
     }
 
     /* ── Selected day context (Home header) — persistent clock, always visible.
-       margin-top:auto pairs with #homeCard's margin-bottom:auto so the leftover
-       vertical space in #homeMain splits evenly above the clock and below the
-       card, centering the {clock + card} group as one unit (like the login
-       page) instead of pinning the clock to a fixed offset from the navbar.
-       The gap between the clock and the card itself stays #homeMain's fixed
-       16px flex gap either way, so it doesn't stretch along with them. ── */
+       Both margin-top and margin-bottom are auto, and every other fixed spacer
+       around it (page/homeMain padding, homeMain's flex gap) has been zeroed —
+       flexbox splits ALL of that leftover space evenly between these two auto
+       margins, so the gap from the navbar to the clock and the gap from the
+       clock to #homeCard come out exactly equal at any viewport height, with
+       the {clock + card} group centered as one unit like the login page. ── */
     .sel-day-ctx { display: flex; flex-direction: column; align-items: center; justify-content: center;
-      gap: 2px; margin-top: auto; }
+      gap: 2px; margin-top: auto; margin-bottom: auto; }
     .sel-day-left { display: flex; flex-direction: column; align-items: center; min-width: 0; }
     .sel-day-date-str { font-size: 12px; color: var(--muted-fg); font-weight: 500; letter-spacing: .01em; }
     .sel-day-rel { font-size: 13px; font-weight: 600; color: var(--muted-fg);
@@ -1314,10 +1319,12 @@
     #autostopBanner { display: none; }
     #autostopBanner.show { display: flex; }
 
-    /* ── Notification permission warning ── */
+    /* ── Notification permission warning ──
+       margin-top compensates for #viewHome .page's padding-top:0 (that space was
+       moved into the clock's auto margins so nav-to-clock == clock-to-card) ── */
     .notif-perm-bar { align-items: center; gap: 8px; padding: 9px 12px; border-radius: var(--radius-md);
       border: 1px solid var(--warning-border); background: var(--warning-bg);
-      color: var(--warning); font-size: 12px; display: none; }
+      color: var(--warning); font-size: 12px; display: none; margin-top: 24px; }
     .notif-perm-bar.show { display: flex; }
 
     /* ── wk-time-input fix ── */

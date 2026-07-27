@@ -26,9 +26,31 @@
       navigator.credentials.preventSilentAccess();
     }
 
+    // Guard against stale localStorage from a DIFFERENT Supabase account on this
+    // device — every wh_* key (day logs, session, config) is cached with no
+    // per-user scoping, so switching accounts on the same browser without this
+    // check inherits the previous account's active session, day logs, etc.
+    // A missing stamp (new device, or an existing user's first load after this
+    // fix shipped) is adopted rather than wiped, so no one loses real data.
+    function _guardAccountLocalData(session) {
+      try {
+        var uid = session && session.user && session.user.id;
+        if (!uid) return;
+        var ownerKey = 'wh_owner_uid';
+        var cachedOwner = localStorage.getItem(ownerKey);
+        if (cachedOwner && cachedOwner !== uid) {
+          Object.keys(localStorage)
+            .filter(function(k) { return k.indexOf('wh_') === 0 && k !== 'wh_theme'; })
+            .forEach(function(k) { localStorage.removeItem(k); });
+        }
+        localStorage.setItem(ownerKey, uid);
+      } catch (e) {}
+    }
+
     // Reveal the app + dismiss the loader. Split out so the MFA step-up gate
     // can run an async check first and only reveal once the account is cleared.
     function _revealApp(session) {
+      _guardAccountLocalData(session);
       document.documentElement.style.visibility = '';   // reveal page
       if (location.search.includes('code=')) {
         history.replaceState(null, '', location.pathname); // clean up URL bar
@@ -12229,6 +12251,12 @@ ${sig}`
       const delay = new Promise(r => setTimeout(r, 2000));
       Promise.all([_sbSignOut(), delay]).finally(() => {
         localStorage.removeItem('wh_auth');
+        // Clear cached account data (day logs, session, config) so whoever signs
+        // in next on this device — even the same person — starts from a clean
+        // pull instead of silently inheriting this account's local cache.
+        Object.keys(localStorage)
+          .filter(k => k.startsWith('wh_') && k !== 'wh_theme')
+          .forEach(k => localStorage.removeItem(k));
         window.location.href = 'login.html';
       });
     }

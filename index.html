@@ -30,19 +30,29 @@
     // device — every wh_* key (day logs, session, config) is cached with no
     // per-user scoping, so switching accounts on the same browser without this
     // check inherits the previous account's active session, day logs, etc.
-    // A missing stamp (new device, or an existing user's first load after this
-    // fix shipped) is adopted rather than wiped, so no one loses real data.
+    //
+    // wh_localwipe_v1 forces exactly one unconditional wipe per browser the
+    // first time this code runs, regardless of which account is signed in.
+    // Without it, a browser that was ALREADY contaminated before this fix
+    // shipped has no historical owner stamp to compare against, so the
+    // mismatch check below would never fire — it would silently adopt the
+    // wrong account's data as if it were the current user's own. After this
+    // one-time reset, the ongoing owner-mismatch check keeps things clean.
     function _guardAccountLocalData(session) {
       try {
         var uid = session && session.user && session.user.id;
         if (!uid) return;
         var ownerKey = 'wh_owner_uid';
+        var migrationKey = 'wh_localwipe_v1';
         var cachedOwner = localStorage.getItem(ownerKey);
-        if (cachedOwner && cachedOwner !== uid) {
+        var mismatch = cachedOwner && cachedOwner !== uid;
+        var firstRun = localStorage.getItem(migrationKey) !== '1';
+        if (mismatch || firstRun) {
           Object.keys(localStorage)
-            .filter(function(k) { return k.indexOf('wh_') === 0 && k !== 'wh_theme'; })
+            .filter(function(k) { return k.indexOf('wh_') === 0 && k !== 'wh_theme' && k !== migrationKey; })
             .forEach(function(k) { localStorage.removeItem(k); });
         }
+        localStorage.setItem(migrationKey, '1');
         localStorage.setItem(ownerKey, uid);
       } catch (e) {}
     }

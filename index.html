@@ -626,22 +626,15 @@
     /* Lock scroll on the home view — nav is sticky so body must not scroll */
     html:has(#viewHome.active), body:has(#viewHome.active) { overflow: hidden !important; }
     /* 3-zone layout: nav top · content center · input bottom.
-       padding is 0 on both ends — that space now lives entirely in the auto
-       margins on .sel-day-ctx and #homeCard instead, so nav-to-clock,
-       clock-to-card, and card-to-bottom all come out exactly equal, which
-       centers the {clock + card} group as a whole (see .sel-day-ctx and
-       #homeCard below). .notif-perm-bar carries its own margin-top to
-       compensate when it's visible. */
-    #viewHome .page { height: calc(100dvh - 24px - 52px - 16px); overflow: hidden; gap: 0; padding-top: 0; padding-bottom: 0; }
-    /* padding/gap both 0 — same reasoning: all vertical spacing here comes from
-       auto margins instead of fixed values, so every gap stays exactly equal
-       at any viewport height. */
-    #homeMain { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 0; padding: 0; overflow-y: auto; }
-    /* Third auto margin (with .sel-day-ctx's top+bottom) — splits the leftover
-       space in #homeMain three ways so the card isn't left pinned to the
-       bottom: nav-to-clock, clock-to-card, and card-to-page-bottom all end up
-       equal, which reads as the {clock + card} group being centered. */
-    #homeCard { margin-bottom: auto; }
+       The clock sits at a small fixed offset below the navbar (homeMain's own
+       padding-top); #homeCard carries the auto margins, so IT is what's
+       actually centered in the remaining space — locked to the middle of the
+       screen the way a login card is, not just "surrounded by equal gaps". */
+    #viewHome .page { height: calc(100dvh - 24px - 52px - 16px); overflow: hidden; gap: 0; padding-bottom: 24px; }
+    #homeMain { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 16px; padding: 8px 0 8px; overflow-y: auto; }
+    /* margin-top + margin-bottom both auto — centers the card vertically in
+       whatever space is left under the clock, regardless of viewport height. */
+    #homeCard { margin-top: auto; margin-bottom: auto; }
     #todayLoginSection { padding-top: 0; }
     /* ── Not-started single-KPI layout ── */
     #rcBody.ns-times .rc-numbers,
@@ -1291,15 +1284,11 @@
       #emailModalOverlay .email-textarea { resize: none; }
     }
 
-    /* ── Selected day context (Home header) — persistent clock, always visible.
-       Both margin-top and margin-bottom are auto, and every other fixed spacer
-       around it (page/homeMain padding, homeMain's flex gap) has been zeroed —
-       flexbox splits ALL of that leftover space evenly between these two auto
-       margins, so the gap from the navbar to the clock and the gap from the
-       clock to #homeCard come out exactly equal at any viewport height, with
-       the {clock + card} group centered as one unit like the login page. ── */
+    /* ── Selected day context (Home header) — persistent clock, always visible,
+       sitting at a small fixed offset below the navbar (see #homeMain's
+       padding-top). #homeCard is the element that's actually centered. ── */
     .sel-day-ctx { display: flex; flex-direction: column; align-items: center; justify-content: center;
-      gap: 2px; margin-top: auto; margin-bottom: auto; }
+      gap: 2px; }
     .sel-day-left { display: flex; flex-direction: column; align-items: center; min-width: 0; }
     .sel-day-date-str { font-size: 12px; color: var(--muted-fg); font-weight: 500; letter-spacing: .01em; }
     .sel-day-rel { font-size: 13px; font-weight: 600; color: var(--muted-fg);
@@ -1325,12 +1314,10 @@
     #autostopBanner { display: none; }
     #autostopBanner.show { display: flex; }
 
-    /* ── Notification permission warning ──
-       margin-top compensates for #viewHome .page's padding-top:0 (that space was
-       moved into the clock's auto margins so nav-to-clock == clock-to-card) ── */
+    /* ── Notification permission warning ── */
     .notif-perm-bar { align-items: center; gap: 8px; padding: 9px 12px; border-radius: var(--radius-md);
       border: 1px solid var(--warning-border); background: var(--warning-bg);
-      color: var(--warning); font-size: 12px; display: none; margin-top: 24px; }
+      color: var(--warning); font-size: 12px; display: none; }
     .notif-perm-bar.show { display: flex; }
 
     /* ── wk-time-input fix ── */

@@ -1288,7 +1288,7 @@
     .sel-day-date-str { font-size: 12px; color: var(--muted-fg); font-weight: 500; letter-spacing: .01em; }
     .sel-day-rel { font-size: 13px; font-weight: 600; color: var(--muted-fg);
       line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .sel-day-clock { font-size: 16px; line-height: 24px; font-weight: 400; letter-spacing: normal;
+    .sel-day-clock { font-size: 16px; line-height: 24px; font-weight: 600; letter-spacing: normal;
       color: var(--foreground); font-variant-numeric: tabular-nums; white-space: nowrap; }
 
     /* ── Session tags ── */
@@ -7506,7 +7506,7 @@
     function selectDay(key) {
       const tk = todayKey();
       selectedDayKey = key;
-      localStorage.setItem('wh_sel_day', key);
+      try { sessionStorage.setItem('wh_sel_day', key); } catch {}
       el('rcBody')?.classList.remove('weekend-mode');
       el('weekendView')?.classList.remove('override-mode');
       // renderWeekendState sets inline display:none on these elements for holiday/leave;
@@ -7577,7 +7577,7 @@
 
     function selectFutureDay(key) {
       selectedDayKey = key;
-      localStorage.setItem('wh_sel_day', key);
+      try { sessionStorage.setItem('wh_sel_day', key); } catch {}
       el('rcBody')?.classList.remove('weekend-mode');
       const _rcNumElF = document.querySelector('.rc-numbers');
       if (_rcNumElF) _rcNumElF.style.display = '';
@@ -10114,7 +10114,6 @@ ${sig}`
     // pagehide: PWA close, navigation away
     window.addEventListener('pagehide', () => {
       _flushSync({ silent: true });
-      localStorage.setItem('wh_last_unload_ts', Date.now().toString());
     });
     // beforeunload: flush silently if dirty; only block reload when actively tracking
     window.addEventListener('beforeunload', (e) => {
@@ -12367,12 +12366,14 @@ ${sig}`
       tickHeader();
 
       const tk = todayKey();
-      const _savedDay = localStorage.getItem('wh_sel_day');
-      const _lastUnload = parseInt(localStorage.getItem('wh_last_unload_ts') || '0', 10);
-      // Restore last-viewed day only on a quick reload (page was unloaded < 60s ago).
-      // Coming back after 60+ seconds (commute, overnight, etc.) always lands on today.
-      const _quickReload = _lastUnload > 0 && (Date.now() - _lastUnload) < 60000;
-      selectedDayKey = (_savedDay && /^\d{4}-\d{2}-\d{2}$/.test(_savedDay) && _quickReload) ? _savedDay : tk;
+      // sessionStorage survives a reload of this tab but is empty on a fresh open
+      // (new tab/window, or the browser session ending) — a reliable signal for
+      // "reload" vs "open" with no arbitrary time window. Opening the site always
+      // lands on Today; reloading keeps whichever day (past, present, or future)
+      // was being viewed.
+      let _sessionDay = null;
+      try { _sessionDay = sessionStorage.getItem('wh_sel_day'); } catch {}
+      selectedDayKey = (_sessionDay && /^\d{4}-\d{2}-\d{2}$/.test(_sessionDay)) ? _sessionDay : tk;
       daySelectorWeekOffset = 0;
       updateSelDayHeader(selectedDayKey);
 

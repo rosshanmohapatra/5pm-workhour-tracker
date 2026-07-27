@@ -626,16 +626,22 @@
     /* Lock scroll on the home view — nav is sticky so body must not scroll */
     html:has(#viewHome.active), body:has(#viewHome.active) { overflow: hidden !important; }
     /* 3-zone layout: nav top · content center · input bottom.
-       padding-top:0 — that space now lives in .sel-day-ctx's auto margins instead,
-       so the gap above the clock and the gap below it come out exactly equal
-       (see .sel-day-ctx below). .notif-perm-bar carries its own margin-top to
+       padding is 0 on both ends — that space now lives entirely in the auto
+       margins on .sel-day-ctx and #homeCard instead, so nav-to-clock,
+       clock-to-card, and card-to-bottom all come out exactly equal, which
+       centers the {clock + card} group as a whole (see .sel-day-ctx and
+       #homeCard below). .notif-perm-bar carries its own margin-top to
        compensate when it's visible. */
-    #viewHome .page { height: calc(100dvh - 24px - 52px - 16px); overflow: hidden; gap: 0; padding-top: 0; padding-bottom: 24px; }
+    #viewHome .page { height: calc(100dvh - 24px - 52px - 16px); overflow: hidden; gap: 0; padding-top: 0; padding-bottom: 0; }
     /* padding/gap both 0 — same reasoning: all vertical spacing here comes from
-       .sel-day-ctx's own margin-top:auto / margin-bottom:auto instead of fixed
-       values, so nav-to-clock and clock-to-card stay exactly equal at any
-       viewport height. */
+       auto margins instead of fixed values, so every gap stays exactly equal
+       at any viewport height. */
     #homeMain { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 0; padding: 0; overflow-y: auto; }
+    /* Third auto margin (with .sel-day-ctx's top+bottom) — splits the leftover
+       space in #homeMain three ways so the card isn't left pinned to the
+       bottom: nav-to-clock, clock-to-card, and card-to-page-bottom all end up
+       equal, which reads as the {clock + card} group being centered. */
+    #homeCard { margin-bottom: auto; }
     #todayLoginSection { padding-top: 0; }
     /* ── Not-started single-KPI layout ── */
     #rcBody.ns-times .rc-numbers,

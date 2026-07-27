@@ -628,9 +628,8 @@
     /* 3-zone layout: nav top · content center · input bottom */
     #viewHome .page { height: calc(100dvh - 24px - 52px - 16px); overflow: hidden; gap: 0; padding-bottom: 24px; }
     #homeMain { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 16px; padding: 8px 0 8px; overflow-y: auto; }
-    /* margin-top removed: an auto top margin here fights the fixed gap we want under
-       the clock. margin-bottom:auto still absorbs any leftover space at the page's
-       bottom edge when content is short, so it doesn't look like dead space either. */
+    /* Pairs with .sel-day-ctx's margin-top:auto — together they center the
+       {clock + card} group as one unit within #homeMain, like the login page. */
     #homeCard { margin-bottom: auto; }
     #todayLoginSection { padding-top: 0; }
     /* ── Not-started single-KPI layout ── */
@@ -1279,11 +1278,14 @@
     }
 
     /* ── Selected day context (Home header) — persistent clock, always visible.
-       padding is 0 top / 16 bottom so the visual gap to the navbar above and to
-       #homeCard below comes out equal (page padding + homeMain padding = 32px
-       above; this padding + homeMain's flex gap = 32px below) ── */
+       margin-top:auto pairs with #homeCard's margin-bottom:auto so the leftover
+       vertical space in #homeMain splits evenly above the clock and below the
+       card, centering the {clock + card} group as one unit (like the login
+       page) instead of pinning the clock to a fixed offset from the navbar.
+       The gap between the clock and the card itself stays #homeMain's fixed
+       16px flex gap either way, so it doesn't stretch along with them. ── */
     .sel-day-ctx { display: flex; flex-direction: column; align-items: center; justify-content: center;
-      gap: 2px; padding: 0 0 16px; }
+      gap: 2px; margin-top: auto; }
     .sel-day-left { display: flex; flex-direction: column; align-items: center; min-width: 0; }
     .sel-day-date-str { font-size: 12px; color: var(--muted-fg); font-weight: 500; letter-spacing: .01em; }
     .sel-day-rel { font-size: 13px; font-weight: 600; color: var(--muted-fg);

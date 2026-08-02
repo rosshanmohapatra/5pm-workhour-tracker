@@ -618,8 +618,13 @@
     /* Strip inner card chrome from futureDayPlan and badge-card (inside homeCard) */
     #homeCard #futureDayPlan > .card { background: transparent !important; border: none !important;
       box-shadow: none !important; border-radius: 0 !important; }
+    /* padding-inline:0 — the card chrome is stripped here, so its own 16px side
+       padding just insets the week summary 16px further than every sibling
+       (note field, View Stats), which read as the row being squeezed and
+       squeezed the day circles enough to wrap their hour labels. */
     #homeCard .badge-card { background: transparent !important; border: none !important;
-      box-shadow: none !important; border-radius: 0 !important; }
+      box-shadow: none !important; border-radius: 0 !important;
+      padding-left: 0 !important; padding-right: 0 !important; }
     /* Divider between week and today card — bleeds edge-to-edge past homeCard padding */
     .home-divider { height: 1px; background: var(--border); }
     #homeCard .home-divider { margin: 12px -16px 0; }
@@ -1296,6 +1301,13 @@
       line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .sel-day-clock { font-size: 16px; line-height: 24px; font-weight: 600; letter-spacing: normal;
       color: var(--foreground); font-variant-numeric: tabular-nums; white-space: nowrap; }
+    /* Analogue: the element holds an SVG face instead of text, so drop the text
+       line-height that would otherwise add phantom space under it. */
+    .sel-day-clock.analogue { line-height: 0; }
+    .sel-day-clock.analogue .ana-clock { display: block; }
+    /* No transition on the hands: angles wrap 359°→0° every hour, and a tween across
+       that boundary animates the hand backwards a full turn. They update every
+       second anyway, so the motion is already fine-grained. */
 
     /* ── Session tags ── */
     .tag-pill { display: inline-flex; align-items: center; font-size: 9px; font-weight: 700;
@@ -1407,13 +1419,11 @@
 
     /* ── Day selector strip ── */
     /* Infinite horizontal grid: exactly 5 cards (Mon–Fri) visible at once, with a ~10%
-       sliver of the neighbouring cards peeking on each side. Edge mask fades the peek
-       into a smooth shadow so the user senses there are more cards to scroll to. */
+       sliver of the neighbouring cards peeking on each side. No edge mask — the peek
+       itself is enough of a scroll affordance, and the fade read as a dirty shadow. */
     .day-selector { display: flex; gap: 8px; overflow-x: auto; -webkit-overflow-scrolling: touch;
       scrollbar-width: none; -ms-overflow-style: none;
-      touch-action: pan-x; overscroll-behavior-x: contain;
-      -webkit-mask-image: linear-gradient(to right, transparent 0, #000 6%, #000 94%, transparent 100%);
-              mask-image: linear-gradient(to right, transparent 0, #000 6%, #000 94%, transparent 100%); }
+      touch-action: pan-x; overscroll-behavior-x: contain; }
     .day-selector::-webkit-scrollbar { display: none; }
     /* Hide nav arrows — scroll replaces them */
     .this-week-nav { display: none; }
@@ -1541,11 +1551,17 @@
     .badge-icon { font-size: 22px; line-height: 1; flex-shrink: 0; }
     .badge-title { font-size: 15px; font-weight: 700; color: var(--foreground); line-height: 1.2; }
     .badge-subtitle { font-size: 12px; color: var(--muted-fg); margin-top: 2px; }
-    .badge-days { display: flex; align-items: flex-end; justify-content: space-between; gap: 6px; width: 100%; }
+    /* align-items:flex-start — with flex-end, a day whose hours wrapped to two lines
+       sat higher than its neighbours, knocking the whole row out of alignment
+       (Fri's "–" is one line, Mon–Thu's "9h 10m" was two). Top-aligning keeps every
+       weekday label on one baseline regardless of what's underneath. */
+    .badge-days { display: flex; align-items: flex-start; justify-content: space-between; gap: 6px; width: 100%; }
     .badge-day { display: flex; flex-direction: column; align-items: center; gap: 4px; flex: 1; min-width: 0; }
     .badge-day-name { font-size: 9px; font-weight: 700; color: var(--muted-fg);
       text-transform: uppercase; letter-spacing: .06em; }
-    .badge-day-hrs { font-size: 10px; color: var(--muted-fg); font-variant-numeric: tabular-nums; }
+    /* nowrap — "9h 10m" must stay on one line; wrapping is what broke the row above */
+    .badge-day-hrs { font-size: 10px; color: var(--muted-fg); font-variant-numeric: tabular-nums;
+      white-space: nowrap; }
 
     /* ── Shift combo hint ── */
     .shift-combo-hint { font-size:11px; color:var(--muted-fg); text-align:center;
@@ -2864,6 +2880,28 @@
                 <input type="checkbox" id="inp24h" onchange="onUse24hChange()">
                 <span class="toggle-track"></span>
               </label>
+            </div>
+
+            <!-- Clock Style (Digital / Analogue) -->
+            <div class="form-field">
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+                <div>
+                  <div class="form-label">Clock Style</div>
+                  <div class="form-sub">How the clock above your day card is displayed.</div>
+                </div>
+                <div class="st-tabs" id="clockStyleTabs">
+                  <button type="button" class="st-tab" id="clkTabDigital" onclick="switchClockStyle('digital')">Digital</button>
+                  <button type="button" class="st-tab" id="clkTabAnalogue" onclick="switchClockStyle('analogue')">Analogue</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Clock Timezone -->
+            <div class="form-field">
+              <div class="form-label">Clock Timezone</div>
+              <div class="form-sub">Show the clock in another timezone. Your tracked hours still follow this device.</div>
+              <select class="field-input" id="inpTimezone" onchange="onTimezoneChange()"
+                      style="height:38px;font-size:13px;margin-top:8px;cursor:pointer"></select>
             </div>
 
             <!-- Recommend Timings Toggle + expandable block -->
@@ -4239,7 +4277,7 @@
     }
 
     // ── CONFIG ─────────────────────────────────────────
-    const CFG_DEF = { dailyH:9, weeklyH:45, weeklyOn:true, lateDays:[], earlyLeaveEntries:[], lateEntries:[], notifOn:false, notifTarget:true, notifKickstart:true, notifOvertime:true, name:'', position:'', targetDay:null, autoStopBuf:2, tzOffset:330, shiftType:'morning', workDays:5, recommendTimings:true, breakTime:true, use24h:false, dismissed:[], qsShortcut:{ mod:'ctrl', key:'s' } };
+    const CFG_DEF = { dailyH:9, weeklyH:45, weeklyOn:true, lateDays:[], earlyLeaveEntries:[], lateEntries:[], notifOn:false, notifTarget:true, notifKickstart:true, notifOvertime:true, name:'', position:'', targetDay:null, autoStopBuf:2, tzOffset:330, shiftType:'morning', workDays:5, recommendTimings:true, breakTime:true, use24h:false, clockStyle:'digital', tzName:'', dismissed:[], qsShortcut:{ mod:'ctrl', key:'s' } };
     function cfg() { const r=Store.getCfg(); return r?{...CFG_DEF,...r}:{...CFG_DEF}; }
 
     // ── PUSH USER ID ───────────────────────────────────
@@ -4904,6 +4942,63 @@
     const FULL_DAYS_EN = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
     const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
+    // ── Clock timezone ────────────────────────────────
+    // Returns a Date whose LOCAL fields read as the wall-clock time in `tzName`.
+    // Everything downstream uses getHours()/getMinutes(), so shifting the fields is
+    // all that's needed — no instant is being changed, only how it's read.
+    function _tzNow(tzName, base) {
+      const now = base || new Date();
+      if (!tzName) return now;
+      try {
+        const p = new Intl.DateTimeFormat('en-US', {
+          timeZone: tzName, hour12: false,
+          year: 'numeric', month: '2-digit', day: '2-digit',
+          hour: '2-digit', minute: '2-digit', second: '2-digit'
+        }).formatToParts(now).reduce((a, x) => (a[x.type] = x.value, a), {});
+        // hour12:false yields "24" for midnight in some engines — normalise to 0.
+        return new Date(+p.year, +p.month - 1, +p.day, (+p.hour) % 24, +p.minute, +p.second, now.getMilliseconds());
+      } catch { return now; } // unknown/unsupported zone — fall back to device time
+    }
+
+    function _clockNow() { return _tzNow((cfg().tzName || '').trim(), nowTz()); }
+
+    // ── Analogue clock face ───────────────────────────
+    // Face is built once; ticking only rotates the three hands, so we're not
+    // rebuilding SVG markup every second.
+    function _analogueFaceHtml() {
+      const C = 32, R = 28;
+      let ticks = '';
+      for (let i = 0; i < 12; i++) {
+        const rad = (i * 30 - 90) * Math.PI / 180;
+        const major = i % 3 === 0;
+        const r1 = R - 3, r2 = R - (major ? 8 : 5.5);
+        ticks += `<line x1="${(C + Math.cos(rad) * r1).toFixed(2)}" y1="${(C + Math.sin(rad) * r1).toFixed(2)}"`
+               + ` x2="${(C + Math.cos(rad) * r2).toFixed(2)}" y2="${(C + Math.sin(rad) * r2).toFixed(2)}"`
+               + ` stroke="var(--muted-fg)" stroke-width="${major ? 2 : 1.25}" stroke-linecap="round" opacity="${major ? .9 : .45}"/>`;
+      }
+      // Hands are drawn pointing at 12 and rotated into place by _renderAnalogueClock.
+      return `<svg class="ana-clock" width="64" height="64" viewBox="0 0 64 64" fill="none">
+        <circle cx="${C}" cy="${C}" r="${R}" stroke="var(--border)" stroke-width="1.5"/>
+        ${ticks}
+        <line class="ana-h" x1="${C}" y1="${C}" x2="${C}" y2="${C - 14}" stroke="var(--foreground)" stroke-width="2.6" stroke-linecap="round"/>
+        <line class="ana-m" x1="${C}" y1="${C}" x2="${C}" y2="${C - 20}" stroke="var(--foreground)" stroke-width="2" stroke-linecap="round"/>
+        <line class="ana-s" x1="${C}" y1="${C}" x2="${C}" y2="${C - 22}" stroke="var(--destructive)" stroke-width="1" stroke-linecap="round"/>
+        <circle cx="${C}" cy="${C}" r="2.2" fill="var(--foreground)"/>
+      </svg>`;
+    }
+
+    function _renderAnalogueClock(host, d) {
+      if (!host.querySelector('svg.ana-clock')) host.innerHTML = _analogueFaceHtml();
+      const h = d.getHours() % 12, m = d.getMinutes(), s = d.getSeconds();
+      const spin = (sel, ang) => {
+        const n = host.querySelector(sel);
+        if (n) n.setAttribute('transform', `rotate(${ang.toFixed(2)} 32 32)`);
+      };
+      spin('.ana-h', (h + m / 60) * 30);
+      spin('.ana-m', (m + s / 60) * 6);
+      spin('.ana-s', s * 6);
+    }
+
     function tickHeader() {
       const n = nowTz();
       const timeStr = clock(n);
@@ -4911,7 +5006,18 @@
       el('dayDate').textContent  = `${MONTHS[n.getMonth()]} ${n.getDate()}`;
       el('dayClock').textContent = timeStr;
       const clkEl = el('selDayClock');
-      if (clkEl) clkEl.textContent = timeStr;
+      if (clkEl) {
+        const cd = _clockNow();
+        if ((cfg().clockStyle || 'digital') === 'analogue') {
+          clkEl.classList.add('analogue');
+          clkEl.title = clock(cd);
+          _renderAnalogueClock(clkEl, cd);
+        } else {
+          clkEl.classList.remove('analogue');
+          clkEl.title = '';
+          clkEl.textContent = clock(cd);
+        }
+      }
       _setTodayDateChip();
     }
 
@@ -8281,6 +8387,13 @@
       if (btToggle) { btToggle.checked = c.breakTime !== false; }
       const h24Toggle = el('inp24h');
       if (h24Toggle) { h24Toggle.checked = c.use24h === true; }
+      // Clock style + timezone (Advanced)
+      const _isAna = (c.clockStyle || 'digital') === 'analogue';
+      el('clkTabDigital')?.classList.toggle('active', !_isAna);
+      el('clkTabAnalogue')?.classList.toggle('active', _isAna);
+      _populateTimezoneSelect();
+      const _tzSel = el('inpTimezone');
+      if (_tzSel) _tzSel.value = c.tzName || '';
       const recBlock = el('recommendTimingsBlock');
       if (recBlock) {
         const recOn = c.recommendTimings !== false;
@@ -8546,6 +8659,43 @@
       }
     }
 
+    // ── Clock settings (Advanced) ─────────────────────
+    function switchClockStyle(style) {
+      const isAna = style === 'analogue';
+      el('clkTabDigital')?.classList.toggle('active', !isAna);
+      el('clkTabAnalogue')?.classList.toggle('active', isAna);
+      saveCfg({ ...cfg(), clockStyle: isAna ? 'analogue' : 'digital' });
+      const clkEl = el('selDayClock');
+      if (clkEl && !isAna) clkEl.innerHTML = ''; // drop the SVG before switching to text
+      tickHeader(); // repaint immediately rather than waiting for the next second
+    }
+
+    function _tzOptions() {
+      try {
+        if (typeof Intl.supportedValuesOf === 'function') return Intl.supportedValuesOf('timeZone');
+      } catch {}
+      // Older engines don't expose the full zone list — cover the common ones.
+      return ['UTC','Asia/Kolkata','Asia/Dubai','Asia/Singapore','Asia/Tokyo','Asia/Shanghai',
+              'Europe/London','Europe/Berlin','Europe/Paris','Europe/Madrid',
+              'America/New_York','America/Chicago','America/Denver','America/Los_Angeles',
+              'America/Sao_Paulo','Australia/Sydney','Pacific/Auckland'];
+    }
+
+    function _populateTimezoneSelect() {
+      const sel = el('inpTimezone');
+      if (!sel || sel.options.length) return; // build once
+      let sysTz = '';
+      try { sysTz = Intl.DateTimeFormat().resolvedOptions().timeZone || ''; } catch {}
+      const opts = [`<option value="">Device timezone${sysTz ? ` (${sysTz})` : ''}</option>`]
+        .concat(_tzOptions().map(z => `<option value="${z}">${z.replace(/_/g, ' ')}</option>`));
+      sel.innerHTML = opts.join('');
+    }
+
+    function onTimezoneChange() {
+      saveCfg({ ...cfg(), tzName: el('inpTimezone')?.value || '' });
+      tickHeader();
+    }
+
     function switchStTab(tab) {
       const isWeekly = tab === 'weekly';
       el('stTabDaily').classList.toggle('active', !isWeekly);
@@ -8695,6 +8845,9 @@
       saveCfg({ dailyH: daily, weeklyH, weeklyOn: on, lateDays, earlyLeaveDays, notifOn, notifTarget, notifKickstart, notifOvertime, name, company, position,
                 targetDay, shiftType, shiftStart, shiftEnd, tzOffset, workDays, recommendTimings, breakTime, use24h,
                 autoStopBuf: cfg().autoStopBuf ?? 2, dismissed: cfg().dismissed ?? [],
+                // Clock settings persist via their own handlers — carry them through,
+                // otherwise saving any unrelated setting would silently reset them.
+                clockStyle: cfg().clockStyle || 'digital', tzName: cfg().tzName || '',
                 qsShortcut: _qsShortcut });
       // If session is running, refresh button state to reflect break-time change
       if (loginDate) setCalcBtnState('running');

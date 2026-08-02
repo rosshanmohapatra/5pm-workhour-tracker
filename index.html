@@ -2457,6 +2457,9 @@
           <div id="rcEmptyState" style="display:none">
             <span class="rc-empty-text">Start now to leave by <span id="rcEmptyLeaveTime">—</span>.</span>
           </div>
+          <!-- Day summary / Update Entry — sits ABOVE the time input so the
+               summary reads before the input that edits it -->
+          <div id="rcToday"></div>
           <div class="shift-cta" id="todayLoginSection">
             <!-- Single combo: input + button inside -->
             <div class="shift-combo" id="shiftInputRow">
@@ -2501,7 +2504,6 @@
             <div class="err-msg" id="errMsg">Couldn't parse that. Try: 11:30, 1130, 11:30 AM, or 13:30</div>
             <div class="login-ap-hint" id="loginApHint"></div>
           </div>
-          <div id="rcToday"></div>
           <div id="stayHint" class="stay-hint" style="display:none">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M12 18.5C12.5523 18.5 13 18.0523 13 17.5L13 10.5C13 9.94772 12.5523 9.5 12 9.5C11.4477 9.5 11 9.94772 11 10.5L11 17.5C11 18.0523 11.4477 18.5 12 18.5Z" fill="currentColor"/><path d="M12 8.5C12.8284 8.5 13.5 7.82843 13.5 7C13.5 6.17157 12.8284 5.5 12 5.5C11.1716 5.5 10.5 6.17157 10.5 7C10.5 7.82843 11.1716 8.5 12 8.5Z" fill="currentColor"/><path fill-rule="evenodd" clip-rule="evenodd" d="M1 12C1 18.0751 5.92487 23 12 23C18.0751 23 23 18.0751 23 12C23 5.92487 18.0751 1 12 1C5.92487 1 1 5.92487 1 12ZM12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12C21 16.9706 16.9706 21 12 21Z" fill="currentColor"/></svg>
             <span id="stayHintText"></span>
@@ -6193,56 +6195,26 @@
         : (_logE.hoursWorked && _logE.checkoutDisplay ? Math.round(_logE.hoursWorked * 3600) : 0);
 
       if (endedSecs > 0) {
-        const isDoneE = eff > 0 && endedSecs >= eff;
-        const _isPaused = _sessionAccSecs > 0;
+        // The day is over — target reached or not, and however it ended (user hit End,
+        // checked out, paused, or auto-stopped). Live KPIs and a progress bar describe
+        // an in-flight session, so none of that is actionable any more. Replace the
+        // whole tracker with the same static summary a past day shows: times worked,
+        // duration, how it landed against target, and a way to correct it.
         const _loginStr  = _loginDisplayFromLog(_logE) || '—';
         const _logoutStr = _logE.checkoutDisplay || '—';
-        const _elapsedStr = durWorked(endedSecs);
-        let _rightStr, _rightClass, _barClass, _descRight;
-        // Center KPI only reflects an actively-ticking session (loginDate set) — hidden here,
-        // whether paused, checked out, or already past target.
-        if (isDoneE) {
-          const ot = Math.max(0, endedSecs - eff);
-          _rightStr   = '+' + dur(ot);
-          _rightClass = 'ok';
-          _barClass   = 'done';
-          _descRight  = '';
-        } else if (_isPaused) {
-          const rem = Math.max(0, eff - endedSecs);
-          _rightStr   = dur(rem);
-          _rightClass = 'muted';
-          _barClass   = '';
-          _descRight  = '';
-        } else {
-          const short_ = Math.max(0, eff - endedSecs);
-          _rightStr   = '—';
-          _rightClass = 'muted';
-          _barClass   = 'dim';
-          _descRight  = '';
-        }
-        const _descLeft = _loginStr !== '—' ? _loginStr + ' → ' + _logoutStr : '';
-        _rcCache = { loginStr: _loginStr, logoutStr: _logoutStr, elapsedStr: _elapsedStr,
-          rightStr: _rightStr, rightClass: _rightClass, pct: eff > 0 ? endedSecs / eff : 0,
-          barClass: _barClass, descLeft: _descLeft, descRight: _descRight };
-        if (_currentPairIs('times')) {
-          el('rcWorked').textContent = _loginStr;
-        } else {
-          el('rcWorked').textContent = _elapsedStr;
-        }
-        el('rcWorked').style.color = isDoneE && !_currentPairIs('times') ? 'var(--muted-fg)' : '';
-        el('rcTarget').textContent = _currentPairIs('times') ? _logoutStr : _rightStr;
-        el('rcTarget').style.color = _rightClass === 'ok' && !_currentPairIs('times') ? 'var(--success)' : _rightClass === 'muted' && !_currentPairIs('times') ? 'var(--muted-fg)' : '';
-        _rcSetProgress(eff > 0 ? endedSecs / eff : 0, _barClass);
-        _rcSetDesc(_descRight);
-        // Today's session has ended (target reached, or just checked out / paused).
-        // The shift CTA has reset to "Start", which would begin a NEW session rather
-        // than edit this one — so surface Update Entry as the way to correct today.
-        el('rcToday').innerHTML = `<div style="display:flex;justify-content:center;padding:4px 0">${_updateEntryBtnHtml()}</div>`;
+        const _tabsRowE  = el('rcPairTabsRow'); if (_tabsRowE)  _tabsRowE.style.display  = 'none';
+        const _kpiGroupE = el('rcKpiGroup');    if (_kpiGroupE) _kpiGroupE.style.display = 'none';
+        // eff === 0 means the weekly target was already met, so there's no meaningful
+        // per-day target to compare against — pass null to suppress the verdict line.
         el('rcToday').style.display = '';
+        el('rcToday').innerHTML = _pastDayKpiHtml(_loginStr, _logoutStr, endedSecs, eff > 0 ? eff : null);
         el('stayHint').style.display = 'none';
         el('otBanner').classList.remove('show');
         el('doneBanner').classList.remove('show');
-        el('autostopBanner').classList.remove('show');
+        // Keep the auto-stop banner up — it's the only thing explaining why the day
+        // ended on its own. (Previously cleared unconditionally here, which meant the
+        // banner init/doAutoStop had just shown was wiped on the very next render.)
+        if (!autoStopped) el('autostopBanner').classList.remove('show');
         return;
       }
 
@@ -7021,11 +6993,19 @@
         lastUpdated:  now.toISOString(),
         sessionTag:   'autostopped'
       });
+      // The session is genuinely over, so settle the bookkeeping the same way
+      // endSession() does: park the full total in _sessionAccSecs and drop loginDate.
+      // Without this a later render() would add elapsed-since-login on top of the
+      // accumulated total and double-count the day.
+      _sessionAccSecs = worked;
+      Store.clearSession();
+      loginDate = null;
       setCalcBtnState('ended');
       el('shiftInputRow').classList.remove('active-state');
       el('autostopBanner').classList.add('show');
       el('autostopMsg').textContent = `Auto-stopped at ${short(now)} — target + buffer reached.`;
       renderDaySelector();
+      renderEmptyState(); // swap the live tracker for the day summary right away
     }
 
     // ── ANIMATED NUMBER TICKER (react-animated-numbers style, 1.5× speed) ──
@@ -7806,7 +7786,12 @@
 
     function _pastDayKpiHtml(loginDisp, outDisp, workedSecs, targetSecs) {
       const arrow = `<span style="display:inline-flex;align-items:center;color:var(--muted-fg);margin:0 6px"><svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M5 12H19M19 12L13 6M19 12L13 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>`;
-      const ioLine = `<div style="display:inline-flex;align-items:center;font-size:16px;font-weight:600;letter-spacing:-.3px;line-height:1.2">${loginDisp}${arrow}${outDisp}</div>`;
+      // Duration alongside the times — "how long" is the thing you actually judge
+      // the day by, and deriving it from two clock times in your head is friction.
+      const durPart = workedSecs != null
+        ? `<span style="color:var(--muted-fg);font-weight:500;margin-left:8px">(${durWorked(workedSecs)})</span>`
+        : '';
+      const ioLine = `<div style="display:inline-flex;align-items:center;font-size:16px;font-weight:600;letter-spacing:-.3px;line-height:1.2">${loginDisp}${arrow}${outDisp}${durPart}</div>`;
       let msgLine = '';
       if (workedSecs != null && targetSecs != null) {
         const diff = workedSecs - targetSecs;

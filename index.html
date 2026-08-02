@@ -4963,27 +4963,18 @@
     function _clockNow() { return _tzNow((cfg().tzName || '').trim(), nowTz()); }
 
     // ── Analogue clock face ───────────────────────────
-    // Face is built once; ticking only rotates the three hands, so we're not
-    // rebuilding SVG markup every second.
+    // Pre-Material-You Google Clock styling: a hairline ring, no ticks, no numerals,
+    // two plain hands and a thin accent second hand. Face is built once; ticking only
+    // rotates the hands, so we're not rebuilding SVG markup every second.
     function _analogueFaceHtml() {
-      const C = 32, R = 28;
-      let ticks = '';
-      for (let i = 0; i < 12; i++) {
-        const rad = (i * 30 - 90) * Math.PI / 180;
-        const major = i % 3 === 0;
-        const r1 = R - 3, r2 = R - (major ? 8 : 5.5);
-        ticks += `<line x1="${(C + Math.cos(rad) * r1).toFixed(2)}" y1="${(C + Math.sin(rad) * r1).toFixed(2)}"`
-               + ` x2="${(C + Math.cos(rad) * r2).toFixed(2)}" y2="${(C + Math.sin(rad) * r2).toFixed(2)}"`
-               + ` stroke="var(--muted-fg)" stroke-width="${major ? 2 : 1.25}" stroke-linecap="round" opacity="${major ? .9 : .45}"/>`;
-      }
+      const C = 32, R = 27;
       // Hands are drawn pointing at 12 and rotated into place by _renderAnalogueClock.
       return `<svg class="ana-clock" width="64" height="64" viewBox="0 0 64 64" fill="none">
-        <circle cx="${C}" cy="${C}" r="${R}" stroke="var(--border)" stroke-width="1.5"/>
-        ${ticks}
-        <line class="ana-h" x1="${C}" y1="${C}" x2="${C}" y2="${C - 14}" stroke="var(--foreground)" stroke-width="2.6" stroke-linecap="round"/>
-        <line class="ana-m" x1="${C}" y1="${C}" x2="${C}" y2="${C - 20}" stroke="var(--foreground)" stroke-width="2" stroke-linecap="round"/>
-        <line class="ana-s" x1="${C}" y1="${C}" x2="${C}" y2="${C - 22}" stroke="var(--destructive)" stroke-width="1" stroke-linecap="round"/>
-        <circle cx="${C}" cy="${C}" r="2.2" fill="var(--foreground)"/>
+        <circle cx="${C}" cy="${C}" r="${R}" stroke="var(--border)" stroke-width="1.25"/>
+        <line class="ana-h" x1="${C}" y1="${C}" x2="${C}" y2="${C - 13}" stroke="var(--foreground)" stroke-width="2" stroke-linecap="round"/>
+        <line class="ana-m" x1="${C}" y1="${C}" x2="${C}" y2="${C - 19}" stroke="var(--foreground)" stroke-width="2" stroke-linecap="round"/>
+        <line class="ana-s" x1="${C}" y1="${C}" x2="${C}" y2="${C - 21}" stroke="var(--destructive)" stroke-width="1" stroke-linecap="round"/>
+        <circle cx="${C}" cy="${C}" r="1.75" fill="var(--foreground)"/>
       </svg>`;
     }
 

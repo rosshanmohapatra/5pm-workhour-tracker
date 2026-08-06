@@ -628,6 +628,17 @@
     /* Divider between week and today card — bleeds edge-to-edge past homeCard padding */
     .home-divider { height: 1px; background: var(--border); }
     #homeCard .home-divider { margin: 12px -16px 0; }
+    /* ── Ongoing-session-elsewhere banner ── */
+    .rc-running-elsewhere-card { display: flex; align-items: center; justify-content: space-between;
+      gap: 10px; padding: 10px 12px; margin: 12px 0 0; background: var(--warning-bg);
+      border: 1px solid var(--warning-border); border-radius: 10px; }
+    .rc-running-elsewhere-text { display: flex; align-items: center; gap: 8px;
+      font-size: 12px; font-weight: 600; color: var(--warning); min-width: 0; }
+    .rc-running-elsewhere-dot { width: 7px; height: 7px; border-radius: 50%;
+      background: var(--warning); flex-shrink: 0; animation: rc-pulse-dot 1.6s ease-in-out infinite; }
+    @keyframes rc-pulse-dot { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
+    @media (prefers-reduced-motion: reduce) { .rc-running-elsewhere-dot { animation: none; } }
+    .rc-running-elsewhere-actions { display: flex; gap: 6px; flex-shrink: 0; }
     /* Lock scroll on the home view — nav is sticky so body must not scroll */
     html:has(#viewHome.active), body:has(#viewHome.active) { overflow: hidden !important; }
     /* 3-zone layout: nav top · content center · input bottom.
@@ -775,13 +786,17 @@
     /* ── Today's Details content rows — shared by popover + mobile modal ── */
     .td-row { display: flex; align-items: center; justify-content: space-between; padding: 7px 0; font-size: 13px; }
     .td-row + .td-row { border-top: 1px solid var(--border); }
-    .td-row-label { color: var(--muted-fg); }
+    .td-row-label { display: flex; align-items: center; gap: 7px; color: var(--muted-fg); }
+    .td-row-label svg { flex-shrink: 0; }
     .td-row-val { font-weight: 600; color: var(--foreground); font-variant-numeric: tabular-nums; }
     .td-row-val.success { color: var(--success); }
     .td-row-val.warn { color: var(--warning); }
     .td-ignore-btn { width: 100%; margin-top: 12px; }
-    /* ── Progress bar ── */
-    .rc-progress-track { height: 5px; background: var(--border); border-radius: 100px; overflow: hidden; width: 100%; }
+    /* ── Progress bar ──
+       Existing single bar, unchanged, reaching 100% = target complete. Overtime is a
+       separate translucent overlay painted inside the SAME track (not an extension of
+       it) — the base bar and its color never change once the target is hit. ── */
+    .rc-progress-track { height: 5px; background: var(--border); border-radius: 100px; overflow: hidden; width: 100%; position: relative; }
     .rc-progress-fill { height: 100%; border-radius: 100px; background: var(--foreground);
       transition: width .5s cubic-bezier(.4,0,.2,1), background .3s; position: relative; overflow: hidden; }
     .rc-progress-fill.running::after { content: ''; position: absolute; top: 0; bottom: 0; left: -80%;
@@ -790,8 +805,16 @@
     @keyframes rc-shimmer { 0% { left: -80%; } 100% { left: 140%; } }
     @media (prefers-reduced-motion: reduce) { .rc-progress-fill.running::after { animation: none; } }
     .rc-progress-fill.done { background: var(--success); }
-    .rc-progress-fill.over { background: var(--warning); }
+    /* Overtime overlay — sits on top of the (already 100%-filled) bar, revealing
+       left-to-right as overtime accrues toward Auto Stop. Low-opacity flat tint only:
+       no glow, shadow, or pulse. The track's own overflow:hidden + border-radius clip
+       it to the same rounded shape, so it never needs its own radius. */
+    .rc-progress-fill-ot { position: absolute; inset: 0; width: 0%;
+      background: var(--success); opacity: .2; transition: width .6s ease-out; pointer-events: none; }
     .rc-progress-fill.dim  { background: var(--muted-fg); opacity: .5; }
+    .rc-progress-fill-ot { position: absolute; top: 0; height: 100%; left: 100%; width: 0;
+      background: var(--warning); border-radius: 0 100px 100px 0;
+      transition: left .5s cubic-bezier(.4,0,.2,1), width .5s cubic-bezier(.4,0,.2,1); }
     /* ── Description row ── */
     .rc-desc-row { display: flex; justify-content: center; align-items: center; min-height: 20px; padding: 32px 0; }
     .rc-desc-right { font-size: 12px; font-weight: 500; color: var(--muted-fg);
@@ -2389,6 +2412,22 @@
       <!-- Divider between week selector and today card / future plan -->
       <div class="home-divider"></div>
 
+      <!-- Ongoing session banner — shown whenever a session is running AND the user
+           is browsing a day other than Today (past, future, or weekend), so it's
+           never possible to lose track of a live session while looking at history. -->
+      <div id="rcRunningElsewhere" style="display:none">
+        <div class="rc-running-elsewhere-card">
+          <div class="rc-running-elsewhere-text">
+            <span class="rc-running-elsewhere-dot"></span>
+            <span id="rcRunningElsewhereLabel">Session running</span>
+          </div>
+          <div class="rc-running-elsewhere-actions">
+            <button class="btn-secondary" onclick="_dismissRunningElsewhereBanner()" style="height:32px;padding:0 12px;font-size:12px">Keep Going</button>
+            <button class="btn-ghost-destructive" onclick="_endSessionFromElsewhere()" style="height:32px;padding:0 12px;font-size:12px">End</button>
+          </div>
+        </div>
+      </div>
+
       <!-- Future day plan section -->
       <div id="futureDayPlan" style="display:none">
         <div class="card" style="padding:20px 16px;display:flex;flex-direction:column;gap:16px">
@@ -2465,6 +2504,7 @@
           </div>
           <div class="rc-progress-track" id="rcProgressTrack">
             <div class="rc-progress-fill" id="rcProgressFill" style="width:0%"></div>
+            <div class="rc-progress-fill-ot" id="rcProgressFillOt"></div>
           </div>
           <div class="rc-desc-row" id="rcDescRow">
             <span class="rc-desc-right" id="rcDescRight"></span>
@@ -5766,6 +5806,22 @@
     }
 
     // ── TODAY'S DETAILS (info popover / mobile modal) ──────────────────
+    // Small circular progress indicator for rows that count toward a fixed end —
+    // an empty ring filling in as pct climbs, swapping to a solid checkmark once
+    // it's reached. Not used for rows with no end to count toward (Worked Duration).
+    function _tdProgressIcon(pct) {
+      const p = Math.max(0, Math.min(1, pct));
+      if (p >= 1) {
+        return `<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="7" fill="var(--success)"/><path d="M4 7.3l2 2 4-4.6" stroke="var(--card)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>`;
+      }
+      const r = 5.5, C = 2 * Math.PI * r, dash = p * C;
+      return `<svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+        <circle cx="7" cy="7" r="${r}" stroke="var(--border)" stroke-width="2"/>
+        <circle cx="7" cy="7" r="${r}" stroke="var(--foreground)" stroke-width="2" stroke-linecap="round"
+          stroke-dasharray="${dash.toFixed(2)} ${C.toFixed(2)}" transform="rotate(-90 7 7)"/>
+      </svg>`;
+    }
+
     // Builds the shared content HTML — identical across the desktop popover and mobile modal.
     function _tdBuildContent() {
       const c = cfg(), eff = effSecs(), daily = c.dailyH * 3600;
@@ -5776,16 +5832,18 @@
       const surplus = recOn ? Math.max(0, daily - eff) : 0;
       const overtimeReq = recOn ? Math.max(0, eff - daily) : 0;
       const onBreak = c.breakTime !== false && !loginDate && _sessionAccSecs > 0;
-      let remainingVal = '';
-      if (eff > 0) {
-        remainingVal = worked >= eff
-          ? ((worked - eff) < 60 ? 'Done for today' : _rcRemainingFmt(worked - eff) + ' overtime')
-          : _rcRemainingFmt(eff - worked) + ' remaining';
-      }
 
       let html = `<div class="td-row"><span class="td-row-label">Worked Duration</span><span class="td-row-val">${durWorked(worked)}</span></div>`;
-      if (remainingVal) {
-        html += `<div class="td-row"><span class="td-row-label">Remaining</span><span class="td-row-val">${remainingVal}</span></div>`;
+
+      if (eff > 0) {
+        // Remaining always shows a plain number — 0 once overtime begins, never the
+        // overtime figure itself. Overtime (when it exists) is its own row below.
+        const remainingSecs = Math.max(0, eff - worked);
+        html += `<div class="td-row"><span class="td-row-label">${_tdProgressIcon(worked / eff)}Remaining</span><span class="td-row-val">${durWorked(remainingSecs)}</span></div>`;
+        const ot = Math.max(0, worked - eff);
+        if (ot >= 60) {
+          html += `<div class="td-row"><span class="td-row-label">Overtime</span><span class="td-row-val warn">${durWorked(ot)}</span></div>`;
+        }
       }
       if (surplus > 60) {
         html += `<div class="td-row"><span class="td-row-label">Available Surplus</span><span class="td-row-val success">${dur(surplus)}</span></div>`;
@@ -6154,8 +6212,45 @@
       if (skel && !skel.classList.contains('hidden')) skel.classList.add('hidden');
     }
 
+    // ── ONGOING SESSION ELSEWHERE BANNER ──────────────
+    // Day key the banner was last dismissed for — "Keep Going" only silences it while
+    // still browsing that specific day; switching days (or a fresh session) re-arms it.
+    let _runningElsewhereDismissedKey = null;
+
+    function _updateRunningElsewhereBanner() {
+      const wrap = el('rcRunningElsewhere');
+      if (!wrap) return;
+      const show = !!loginDate && !!selectedDayKey && selectedDayKey !== todayKey()
+        && _runningElsewhereDismissedKey !== selectedDayKey;
+      wrap.style.display = show ? '' : 'none';
+      if (show) {
+        const lbl = el('rcRunningElsewhereLabel');
+        if (lbl) lbl.textContent = 'Session running · Started at ' + short(loginDate);
+      }
+    }
+
+    function _dismissRunningElsewhereBanner() {
+      _runningElsewhereDismissedKey = selectedDayKey;
+      _updateRunningElsewhereBanner();
+    }
+
+    function _endSessionFromElsewhere() {
+      _runningElsewhereDismissedKey = null;
+      if (cfg().breakTime !== false) endSession(); else confirmEndSession();
+      _updateRunningElsewhereBanner();
+    }
+
     // ── TODAY CARD: PAIR TABS + PROGRESS BAR ──────────
     let _rcCurrentPair = 'times';
+    // Overtime overlay reveal — armed becomes true ~650ms after the target is first
+    // reached, on its own timer rather than the 1s render tick, so the pause before
+    // it appears feels deliberate. Resets whenever the day isn't in the done state.
+    let _otOverlayArmed = false;
+    let _otOverlayTimer = null;
+    function _otOverlayReset() {
+      _otOverlayArmed = false;
+      if (_otOverlayTimer) { clearTimeout(_otOverlayTimer); _otOverlayTimer = null; }
+    }
     // Cached values set each render so pair-switch can re-display without a full re-render
     let _rcCache = { loginStr:'—', logoutStr:'—', elapsedStr:'0m', rightStr:'—', rightClass:'', pct:0, barClass:'', descLeft:'', descRight:'' };
 
@@ -6172,8 +6267,8 @@
           el('rcWorked').textContent = c.loginStr;
           el('rcWorked').style.color = (c.rightClass === 'muted' || c.rightClass === 'warn') ? 'var(--muted-fg)' : '#fafafa';
         }
-        el('rcTarget').textContent = c.logoutStr;
-        el('rcTarget').style.color = '';
+        el('rcTarget').textContent = c.isDone ? c.rightStr : c.logoutStr;
+        el('rcTarget').style.color = c.isDone ? (c.rightClass === 'warn' ? 'var(--warning)' : 'var(--muted-fg)') : '';
         _rcSetDesc(c.descRight);
       } else {
         if (c.notStarted) {
@@ -6204,11 +6299,15 @@
       }
     }
 
-    function _rcSetProgress(pct, barClass) {
+    // otFrac: overtime progress toward Auto Stop (0..1), rendered as a translucent
+    // overlay INSIDE the existing bar — the base fill/color is untouched by it.
+    function _rcSetProgress(pct, barClass, otFrac) {
       const fill = el('rcProgressFill');
+      const otFill = el('rcProgressFillOt');
       if (!fill) return;
       fill.style.width = Math.min(pct * 100, 100) + '%';
       fill.className = 'rc-progress-fill' + (barClass ? ' ' + barClass : '');
+      if (otFill) otFill.style.width = Math.min(Math.max(otFrac || 0, 0), 1) * 100 + '%';
     }
 
     function _rcSetDesc(rightHtml) {
@@ -7040,6 +7139,7 @@
     function selectWeekendView() {
       selectedDayKey = '__wknd__';
       renderDaySelector();
+      _updateRunningElsewhereBanner();
       // Header
       const wk = week(daySelectorWeekOffset);
       const mon = wk[0].date, fri = wk[wk.length - 1].date;
@@ -7203,6 +7303,7 @@
       // Without this guard the live ticker overwrites past-day content every second.
       if (selectedDayKey && selectedDayKey !== todayKey()) {
         renderDaySelector();
+        _updateRunningElsewhereBanner();
         return;
       }
       el('rcBody')?.classList.remove('weekend-mode', 'ns-times', 'ns-progress', 'past-day');
@@ -7227,6 +7328,7 @@
       let _rightStr, _rightClass, _barClass, _descRight;
 
       el('otBanner').classList.remove('show'); // never show — overtime shown inline
+      let _otFrac = 0;
       if (!isDone && eff > 0) {
         const rem = eff - worked;
         const remText = rem < 60 ? `${Math.max(0, rem)}s` : dur(rem);
@@ -7234,23 +7336,43 @@
         _rightClass = '';
         _barClass   = 'running';
         _descRight  = '<span class="rc-desc-chip">' + _rcRemainingFmt(rem) + ' remaining</span>';
+        _otOverlayReset();
       } else if (isDone) {
         const ot = worked - eff;
         _rightStr   = ot < 60 ? '+0m' : '+' + dur(ot);
         _rightClass = ot < 60 ? 'muted' : 'warn';
-        _barClass   = 'running over';
-        _descRight  = ot > 60 ? '<span class="rc-desc-chip warn">' + _rcRemainingFmt(ot) + ' overtime</span>' : '<span class="rc-desc-chip ok">Done for today</span>';
+        // Bar keeps its existing color/appearance at 100% — the overtime overlay
+        // (rendered separately below) is what signals "target reached", not a
+        // base-color change.
+        _barClass   = 'running';
+        // No "Done for today" chip here — the doneBanner below the input ("You're
+        // done. Head out!") already says that; this row only earns its keep once
+        // there's a number worth reporting.
+        _descRight  = ot > 60 ? '<span class="rc-desc-chip warn">' + _rcRemainingFmt(ot) + ' overtime</span>' : '';
+        // Delay the overlay's first appearance ~650ms so it reads as a deliberate
+        // reveal rather than snapping in the instant the target's crossed.
+        if (!_otOverlayArmed && !_otOverlayTimer) {
+          _otOverlayTimer = setTimeout(() => { _otOverlayArmed = true; _otOverlayTimer = null; if (loginDate) render(); }, 650);
+        }
+        if (_otOverlayArmed) {
+          // Overtime's share of the Auto Stop window — 0 the instant target is hit,
+          // 1 exactly at Auto Stop (autoStopAt - eff is that window's length).
+          const _otWindow = autoStopAt - eff;
+          _otFrac = _otWindow > 0 ? ot / _otWindow : 1;
+        }
       } else {
         _rightStr   = '—';
         _rightClass = 'muted';
         _barClass   = 'running';
         _descRight  = '';
+        _otOverlayReset();
       }
 
       // Cache for pair-switching without full re-render
       _rcCache = { loginStr: _loginStr, logoutStr: _logoutStr, elapsedStr: _elapsedStr,
         rightStr: _rightStr, rightClass: _rightClass, pct: eff > 0 ? worked / eff : 1,
-        barClass: _barClass, descLeft: _loginStr + ' → ' + _logoutStr, descRight: _descRight };
+        barClass: _barClass, descLeft: _loginStr + ' → ' + _logoutStr, descRight: _descRight,
+        isDone: isDone };
 
       // Hover tooltip on the right KPI — Remaining time, same on both Time/Progress tabs
       const _remSecs = eff > 0 ? Math.max(0, eff - worked) : 0;
@@ -7259,8 +7381,10 @@
       if (_currentPairIs('times')) {
         el('rcWorked').textContent = _loginStr;
         el('rcWorked').style.color = isDone ? 'var(--muted-fg)' : '#fafafa';
-        el('rcTarget').textContent = _logoutStr;
-        el('rcTarget').style.color = '';
+        // Once the target's hit, "Leave by" is stale info (that time already passed) —
+        // show overtime worked instead, same as the Progress tab's right KPI.
+        el('rcTarget').textContent = isDone ? _rightStr : _logoutStr;
+        el('rcTarget').style.color = isDone ? (_rightClass === 'warn' ? 'var(--warning)' : 'var(--muted-fg)') : '';
       } else {
         animateDuration('rcWorked', _elapsedStr);
         el('rcWorked').style.color = isDone ? 'var(--muted-fg)' : '#fafafa';
@@ -7269,7 +7393,7 @@
       }
       _rcSetDesc(_descRight);
 
-      _rcSetProgress(eff > 0 ? worked / eff : 1, _barClass);
+      _rcSetProgress(eff > 0 ? worked / eff : 1, _barClass, _otFrac);
       // "Leave at" badge: prefer personal Out Time target if set
       const _tkNow = todayKey(), _logNow = dayLog(_tkNow) || {};
       const _earlyTarget = _logNow.earlyLeaveTarget;
@@ -7618,6 +7742,7 @@
       const tk = todayKey();
       selectedDayKey = key;
       try { sessionStorage.setItem('wh_sel_day', key); } catch {}
+      _updateRunningElsewhereBanner();
       el('rcBody')?.classList.remove('weekend-mode');
       el('weekendView')?.classList.remove('override-mode');
       // renderWeekendState sets inline display:none on these elements for holiday/leave;
@@ -7689,6 +7814,7 @@
     function selectFutureDay(key) {
       selectedDayKey = key;
       try { sessionStorage.setItem('wh_sel_day', key); } catch {}
+      _updateRunningElsewhereBanner();
       el('rcBody')?.classList.remove('weekend-mode');
       const _rcNumElF = document.querySelector('.rc-numbers');
       if (_rcNumElF) _rcNumElF.style.display = '';
@@ -11684,38 +11810,54 @@ ${sig}`
       setTimeout(_tcDeactivate, 80);
     });
 
-    // ── TAB TITLE COUNTDOWN ─────────────────────────
-    // While the tab is hidden and a session is running, show a live countdown
-    // in the browser tab title so the user knows how long they have left.
+    // ── TAB TITLE COUNTDOWN / OVERTIME ALERT ─────────
+    // While the tab is hidden and a session is running, show a live countdown in the
+    // browser tab title. Once the target's reached, alternate the title between an
+    // alert ("Target Reached!" / "Overtime 5mins") and the base title every tick —
+    // the same flashing-title technique chat/mail apps use for unread messages, so
+    // it catches the eye of someone who's tabbed away. Only ever runs while hidden;
+    // a visible tab already shows this live on the card, no need to flash it too.
     // Uses Date.now() to stay accurate even when the interval is throttled.
     const _baseTitle = '5pm - Work Hour Tracker';
     let _tabTitleTimer = null;
+    let _tabFlashPhase = false;
 
     function _formatTabTitle() {
-      if (!loginDate) return;
+      if (!loginDate) { _stopTitleFlash(); return; }
       const nowMs   = Date.now();
       const worked  = _sessionAccSecs + Math.floor((nowMs - loginDate.getTime()) / 1000);
       const target  = effSecs();
-      const remSecs = Math.max(0, target - worked);
-      const h = Math.floor(remSecs / 3600);
-      const m = Math.floor((remSecs % 3600) / 60);
-      if (remSecs <= 0) {
-        document.title = 'Target hit · 5pm';
+      const remSecs = target - worked; // unclamped — negative once overtime begins
+      if (remSecs > 0) {
+        _tabFlashPhase = false; // so a later "done" phase always starts on the alert
+        const h = Math.floor(remSecs / 3600), m = Math.floor((remSecs % 3600) / 60);
+        document.title = h > 0 ? `${h}hr ${m}mins left` : `${m}mins left`;
         return;
       }
-      document.title = h > 0 ? `${h}hr ${m}mins left` : `${m}mins left`;
+      // durWorked() rounds to the minute, so this only visibly changes about once a
+      // minute even though it's recomputed every tick — no separate refresh timer needed.
+      const otSecs = -remSecs;
+      _tabFlashPhase = !_tabFlashPhase;
+      document.title = _tabFlashPhase
+        ? (otSecs < 60 ? 'Target Reached!' : 'Overtime ' + durWorked(otSecs))
+        : _baseTitle;
+    }
+
+    function _stopTitleFlash() {
+      if (_tabTitleTimer) { clearInterval(_tabTitleTimer); _tabTitleTimer = null; }
+      _tabFlashPhase = false;
+      document.title = _baseTitle;
     }
 
     document.addEventListener('visibilitychange', () => {
       if (document.hidden) {
         if (loginDate) { // only show countdown when a session is active
+          _tabFlashPhase = false;
           _formatTabTitle();
           _tabTitleTimer = setInterval(_formatTabTitle, 1000);
         }
       } else {
-        clearInterval(_tabTitleTimer);
-        _tabTitleTimer = null;
-        document.title = _baseTitle;
+        _stopTitleFlash();
       }
     });
 

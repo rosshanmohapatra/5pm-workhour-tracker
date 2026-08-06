@@ -623,13 +623,12 @@
     /* Divider between week and today card — bleeds edge-to-edge past homeCard padding */
     .home-divider { height: 1px; background: var(--border); }
     #homeCard .home-divider { margin: 12px -16px 0; }
-    /* ── Ongoing-session-elsewhere banner ──
-       width:100% is load-bearing: #rcBody.past-day switches to align-items:center,
-       which would otherwise shrink this to its content width and center it like a
-       floating pill instead of a full-width banner. */
+    /* ── Ongoing-session-elsewhere banner ── sits between #homeCard and
+       #homeBottomSpacer in #homeMain's own flex flow, so #homeMain's gap:16px
+       already spaces it from its neighbours — no margin of its own needed. */
     #rcRunningElsewhere { width: 100%; }
     .rc-running-elsewhere-card { display: flex; align-items: center; justify-content: space-between;
-      gap: 10px; padding: 10px 12px; margin: 12px 0 0; background: var(--warning-bg);
+      gap: 10px; padding: 10px 12px; background: var(--warning-bg);
       border: 1px solid var(--warning-border); border-radius: 10px; width: 100%;
       box-sizing: border-box; }
     .rc-running-elsewhere-text { display: flex; align-items: center; gap: 8px;
@@ -2577,25 +2576,6 @@
             </div>
           </div>
 
-          <!-- Ongoing session banner — sits where doneBanner ("You're done. Head out!")
-               would be on Today's view. Shown whenever a session is running AND the
-               user is browsing a day other than Today (past, future, or weekend), so
-               it's never possible to lose track of a live session while looking at
-               history. weekend-mode force-hides doneBanner/otBanner/etc. but doesn't
-               touch this element, so it stays visible exactly where they'd be. -->
-          <div id="rcRunningElsewhere" style="display:none">
-            <div class="rc-running-elsewhere-card">
-              <div class="rc-running-elsewhere-text">
-                <span class="rc-running-elsewhere-dot"></span>
-                <span id="rcRunningElsewhereLabel">Session running</span>
-              </div>
-              <div class="rc-running-elsewhere-actions">
-                <button class="btn-secondary" onclick="_dismissRunningElsewhereBanner()" style="height:32px;padding:0 12px;font-size:12px">Keep Going</button>
-                <button class="btn-ghost-destructive" onclick="_endSessionFromElsewhere()" style="height:32px;padding:0 12px;font-size:12px">End</button>
-              </div>
-            </div>
-          </div>
-
           <!-- ── Weekend / Holiday / Leave info state ── -->
           <div id="weekendView">
             <!-- Info card: dashed + clickable on past override days, plain on weekends -->
@@ -2644,6 +2624,26 @@
       </div>
 
       </div><!-- /homeCard -->
+
+      <!-- Ongoing session banner — sits right below the home card, outside its
+           chrome, so it always reads as "the card's own status" rather than being
+           tucked inside a card region that can itself be hidden by weekend/past-day
+           layout switches. Shown whenever a session is running AND the user is
+           browsing a day other than Today (past, future, or weekend), so it's never
+           possible to lose track of a live session while looking at history. -->
+      <div id="rcRunningElsewhere" style="display:none">
+        <div class="rc-running-elsewhere-card">
+          <div class="rc-running-elsewhere-text">
+            <span class="rc-running-elsewhere-dot"></span>
+            <span id="rcRunningElsewhereLabel">Session running</span>
+          </div>
+          <div class="rc-running-elsewhere-actions">
+            <button class="btn-secondary" onclick="_dismissRunningElsewhereBanner()" style="height:32px;padding:0 12px;font-size:12px">Keep Going</button>
+            <button class="btn-ghost-destructive" onclick="_endSessionFromElsewhere()" style="height:32px;padding:0 12px;font-size:12px">End</button>
+          </div>
+        </div>
+      </div>
+
       <div id="homeBottomSpacer" aria-hidden="true"></div>
       </div><!-- /homeMain -->
 

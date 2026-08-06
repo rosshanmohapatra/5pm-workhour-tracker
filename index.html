@@ -618,20 +618,20 @@
     /* Strip inner card chrome from futureDayPlan and badge-card (inside homeCard) */
     #homeCard #futureDayPlan > .card { background: transparent !important; border: none !important;
       box-shadow: none !important; border-radius: 0 !important; }
-    /* padding-inline:0 — the card chrome is stripped here, so its own 16px side
-       padding just insets the week summary 16px further than every sibling
-       (note field, View Stats), which read as the row being squeezed and
-       squeezed the day circles enough to wrap their hour labels. */
     #homeCard .badge-card { background: transparent !important; border: none !important;
-      box-shadow: none !important; border-radius: 0 !important;
-      padding-left: 0 !important; padding-right: 0 !important; }
+      box-shadow: none !important; border-radius: 0 !important; }
     /* Divider between week and today card — bleeds edge-to-edge past homeCard padding */
     .home-divider { height: 1px; background: var(--border); }
     #homeCard .home-divider { margin: 12px -16px 0; }
-    /* ── Ongoing-session-elsewhere banner ── */
+    /* ── Ongoing-session-elsewhere banner ──
+       width:100% is load-bearing: #rcBody.past-day switches to align-items:center,
+       which would otherwise shrink this to its content width and center it like a
+       floating pill instead of a full-width banner. */
+    #rcRunningElsewhere { width: 100%; }
     .rc-running-elsewhere-card { display: flex; align-items: center; justify-content: space-between;
       gap: 10px; padding: 10px 12px; margin: 12px 0 0; background: var(--warning-bg);
-      border: 1px solid var(--warning-border); border-radius: 10px; }
+      border: 1px solid var(--warning-border); border-radius: 10px; width: 100%;
+      box-sizing: border-box; }
     .rc-running-elsewhere-text { display: flex; align-items: center; gap: 8px;
       font-size: 12px; font-weight: 600; color: var(--warning); min-width: 0; }
     .rc-running-elsewhere-dot { width: 7px; height: 7px; border-radius: 50%;
@@ -1568,8 +1568,15 @@
       line-height: 1.45; flex: 1; }
 
     /* ── Week Badge Card (Weekend Page) ── */
+    /* padding is vertical-only, permanently — .badge-card is only ever used inside
+       #homeCard's weekend view, where its own chrome (bg/border) gets stripped and
+       it needs to line up flush with its siblings (note field, View Stats button).
+       This used to be fixed via a separate #homeCard-scoped override fighting this
+       rule's own horizontal padding — two declarations of the same thing regressed
+       repeatedly whenever one got touched without the other. Fixed at the source
+       instead: there is no horizontal padding to override any more. */
     .badge-card { background: var(--card); border: 1px solid var(--border); border-radius: 16px;
-      padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+      padding: 16px 0; display: flex; flex-direction: column; gap: 14px; }
     .badge-header { display: flex; align-items: center; gap: 10px; }
     .badge-icon { font-size: 22px; line-height: 1; flex-shrink: 0; }
     .badge-title { font-size: 15px; font-weight: 700; color: var(--foreground); line-height: 1.2; }
@@ -2412,22 +2419,6 @@
       <!-- Divider between week selector and today card / future plan -->
       <div class="home-divider"></div>
 
-      <!-- Ongoing session banner — shown whenever a session is running AND the user
-           is browsing a day other than Today (past, future, or weekend), so it's
-           never possible to lose track of a live session while looking at history. -->
-      <div id="rcRunningElsewhere" style="display:none">
-        <div class="rc-running-elsewhere-card">
-          <div class="rc-running-elsewhere-text">
-            <span class="rc-running-elsewhere-dot"></span>
-            <span id="rcRunningElsewhereLabel">Session running</span>
-          </div>
-          <div class="rc-running-elsewhere-actions">
-            <button class="btn-secondary" onclick="_dismissRunningElsewhereBanner()" style="height:32px;padding:0 12px;font-size:12px">Keep Going</button>
-            <button class="btn-ghost-destructive" onclick="_endSessionFromElsewhere()" style="height:32px;padding:0 12px;font-size:12px">End</button>
-          </div>
-        </div>
-      </div>
-
       <!-- Future day plan section -->
       <div id="futureDayPlan" style="display:none">
         <div class="card" style="padding:20px 16px;display:flex;flex-direction:column;gap:16px">
@@ -2583,6 +2574,25 @@
             <div class="banner-left">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M12 5.5C12.5523 5.5 13 5.94772 13 6.5L13 13.5C13 14.0523 12.5523 14.5 12 14.5C11.4477 14.5 11 14.0523 11 13.5L11 6.5C11 5.94772 11.4477 5.5 12 5.5Z" fill="currentColor"/><path d="M12 18.5C12.8284 18.5 13.5 17.8284 13.5 17C13.5 16.1716 12.8284 15.5 12 15.5C11.1716 15.5 10.5 16.1716 10.5 17C10.5 17.8284 11.1716 18.5 12 18.5Z" fill="currentColor"/><path fill-rule="evenodd" clip-rule="evenodd" d="M1 12C1 5.92487 5.92487 1 12 1C18.0751 1 23 5.92487 23 12C23 18.0751 18.0751 23 12 23C5.92487 23 1 18.0751 1 12ZM12 3C7.02944 3 3 7.02944 3 12C3 16.9706 7.02944 21 12 21C16.9706 21 21 16.9706 21 12C21 7.02944 16.9706 3 12 3Z" fill="currentColor"/></svg>
               <span id="autostopMsg">Tracking auto-stopped at daily target + buffer.</span>
+            </div>
+          </div>
+
+          <!-- Ongoing session banner — sits where doneBanner ("You're done. Head out!")
+               would be on Today's view. Shown whenever a session is running AND the
+               user is browsing a day other than Today (past, future, or weekend), so
+               it's never possible to lose track of a live session while looking at
+               history. weekend-mode force-hides doneBanner/otBanner/etc. but doesn't
+               touch this element, so it stays visible exactly where they'd be. -->
+          <div id="rcRunningElsewhere" style="display:none">
+            <div class="rc-running-elsewhere-card">
+              <div class="rc-running-elsewhere-text">
+                <span class="rc-running-elsewhere-dot"></span>
+                <span id="rcRunningElsewhereLabel">Session running</span>
+              </div>
+              <div class="rc-running-elsewhere-actions">
+                <button class="btn-secondary" onclick="_dismissRunningElsewhereBanner()" style="height:32px;padding:0 12px;font-size:12px">Keep Going</button>
+                <button class="btn-ghost-destructive" onclick="_endSessionFromElsewhere()" style="height:32px;padding:0 12px;font-size:12px">End</button>
+              </div>
             </div>
           </div>
 

@@ -774,9 +774,10 @@
     .rc-pair-tab:hover { color: var(--foreground); }
     .rc-pair-tab-active { background: var(--card); color: var(--foreground); box-shadow: 0 1px 3px rgba(0,0,0,.08); }
     .dark .rc-pair-tab-active { background: var(--muted); }
-    /* ── Today's Details info button ── */
-    .rc-info-btn { width: 26px; height: 26px; display: inline-flex; align-items: center; justify-content: center;
-      background: transparent; border: none; border-radius: 7px; color: var(--muted-fg); cursor: pointer;
+    /* ── Today's Details trigger button (icon + "Customize" text) ── */
+    .rc-info-btn { height: 26px; display: inline-flex; align-items: center; gap: 5px; padding: 0 10px 0 8px;
+      background: var(--background); border: none; border-radius: 7px; color: var(--muted-fg); cursor: pointer;
+      font-family: var(--font); font-size: 12px; font-weight: 500; white-space: nowrap;
       transition: background .15s, color .15s; flex-shrink: 0; }
     .rc-info-btn:hover { background: var(--muted); color: var(--foreground); }
     /* ── Today's Details popover (desktop) ── */
@@ -785,8 +786,27 @@
       box-shadow: 0 8px 30px rgba(0,0,0,.18); padding: 14px; opacity: 0; transform: translateY(-4px);
       pointer-events: none; transition: opacity .15s ease, transform .15s ease; }
     .td-popover.open { opacity: 1; transform: translateY(0); pointer-events: all; }
-    .td-pop-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+    .td-pop-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; gap: 8px; }
     .td-pop-title { font-size: 13px; font-weight: 700; color: var(--foreground); }
+    /* ── Today plan dropdown (Full Day / Half Day / Leave / Holiday) ── */
+    .td-plan-select { position: relative; flex-shrink: 0; }
+    .td-plan-trigger { display: inline-flex; align-items: center; gap: 4px; padding: 5px 8px;
+      font-family: var(--font); font-size: 12px; font-weight: 600; color: var(--foreground);
+      background: var(--background); border: 1px solid var(--border); border-radius: 7px; cursor: pointer;
+      transition: background .15s, border-color .15s; white-space: nowrap; }
+    .td-plan-trigger:hover { background: var(--muted); }
+    .td-plan-trigger svg { color: var(--muted-fg); flex-shrink: 0; }
+    .td-plan-menu { position: absolute; top: calc(100% + 6px); right: 0; z-index: 10; min-width: 148px;
+      background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+      box-shadow: 0 8px 24px rgba(0,0,0,.18); padding: 4px; opacity: 0; transform: translateY(-4px) scale(.98);
+      pointer-events: none; transition: opacity .12s ease, transform .12s ease; }
+    .td-plan-menu.open { opacity: 1; transform: translateY(0) scale(1); pointer-events: all; }
+    .td-plan-item { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%;
+      padding: 7px 9px; font-family: var(--font); font-size: 12.5px; font-weight: 500; color: var(--foreground);
+      background: transparent; border: none; border-radius: 6px; cursor: pointer; text-align: left; }
+    .td-plan-item:hover { background: var(--muted); }
+    .td-plan-item.active::after { content: ''; width: 6px; height: 6px; border-radius: 50%;
+      background: var(--foreground); flex-shrink: 0; }
     /* ── Today's Details content rows — shared by popover + mobile modal ── */
     .td-row { display: flex; align-items: center; justify-content: space-between; padding: 7px 0; font-size: 13px; }
     .td-row + .td-row { border-top: 1px solid var(--border); }
@@ -2485,7 +2505,8 @@
             <button class="rc-info-btn" id="rcInfoBtn"
               onmouseenter="_tdShowPopover()" onmouseleave="_tdHidePopoverDelayed()" onclick="_tdTapModal(event)"
               title="Today's Details" aria-label="Today's Details">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+              <span>Customize</span>
             </button>
           </div>
           <div id="rcKpiGroup" style="display:flex;flex-direction:column;align-items:center;width:100%;gap:8px">
@@ -4124,7 +4145,19 @@
   <!-- ── Today's Details popover (desktop) ── -->
   <div class="td-popover" id="tdPopover" onmouseenter="_tdCancelHide()" onmouseleave="_tdHidePopoverDelayed()">
     <div class="td-pop-head">
-      <span class="td-pop-title">Today's Details</span>
+      <span class="td-pop-title">Today</span>
+      <div class="td-plan-select" id="tdPlanSelectPop">
+        <button type="button" class="td-plan-trigger" id="tdPlanTriggerPop" onclick="_tdPlanToggle('Pop', event)">
+          <span id="tdPlanLabelPop">Full Day</span>
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <div class="td-plan-menu" id="tdPlanMenuPop">
+          <button type="button" class="td-plan-item" data-plan="fullday" onclick="_tdPlanSelect('fullday','Pop')">Full Day</button>
+          <button type="button" class="td-plan-item" data-plan="halfday" onclick="_tdPlanSelect('halfday','Pop')">Half Day</button>
+          <button type="button" class="td-plan-item" data-plan="leave" onclick="_tdPlanSelect('leave','Pop')">Leave</button>
+          <button type="button" class="td-plan-item" data-plan="holiday" onclick="_tdPlanSelect('holiday','Pop')">Holiday</button>
+        </div>
+      </div>
     </div>
     <div class="td-body" id="tdPopoverBody"></div>
   </div>
@@ -4133,10 +4166,24 @@
   <div class="overlay" id="tdOverlay" onclick="if(event.target===this)closeTodayDetails()">
     <div class="dialog" style="max-width:320px">
       <div class="dialog-head" style="display:flex;align-items:center;justify-content:space-between">
-        <div class="dialog-title">Today's Details</div>
-        <button class="btn-icon" onclick="closeTodayDetails()" title="Close" style="margin:-4px -4px -4px 0;flex-shrink:0">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-        </button>
+        <div class="dialog-title">Today</div>
+        <div style="display:flex;align-items:center;gap:6px">
+          <div class="td-plan-select" id="tdPlanSelectModal">
+            <button type="button" class="td-plan-trigger" id="tdPlanTriggerModal" onclick="_tdPlanToggle('Modal', event)">
+              <span id="tdPlanLabelModal">Full Day</span>
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+            <div class="td-plan-menu" id="tdPlanMenuModal">
+              <button type="button" class="td-plan-item" data-plan="fullday" onclick="_tdPlanSelect('fullday','Modal')">Full Day</button>
+              <button type="button" class="td-plan-item" data-plan="halfday" onclick="_tdPlanSelect('halfday','Modal')">Half Day</button>
+              <button type="button" class="td-plan-item" data-plan="leave" onclick="_tdPlanSelect('leave','Modal')">Leave</button>
+              <button type="button" class="td-plan-item" data-plan="holiday" onclick="_tdPlanSelect('holiday','Modal')">Holiday</button>
+            </div>
+          </div>
+          <button class="btn-icon" onclick="closeTodayDetails()" title="Close" style="margin:-4px -4px -4px 0;flex-shrink:0">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
       </div>
       <div class="dialog-body" id="tdModalBody" style="padding-bottom:20px"></div>
     </div>
@@ -5886,6 +5933,7 @@
       clearTimeout(_tdHoverTimer);
       const pop = el('tdPopover');
       el('tdPopoverBody').innerHTML = _tdBuildContent();
+      _tdPlanSyncLabel('Pop');
       const btn = el('rcInfoBtn'), refRect = btn.getBoundingClientRect();
       const GAP = 8, mW = 280, pad = 8;
       let top = refRect.bottom + GAP;
@@ -5909,18 +5957,82 @@
       if (!_tdIsMobile()) return;
       if (event) { event.stopPropagation(); event.preventDefault(); }
       el('tdModalBody').innerHTML = _tdBuildContent();
+      _tdPlanSyncLabel('Modal');
       el('tdOverlay').classList.add('open');
     }
 
     function closeTodayDetails() {
       el('tdPopover')?.classList.remove('open');
       el('tdOverlay')?.classList.remove('open');
+      document.querySelectorAll('.td-plan-menu.open').forEach(m => m.classList.remove('open'));
     }
 
     function openIgnoreTodayConfirm() {
       closeTodayDetails();
       el('tdIgnoreConfirmOverlay')?.classList.add('open');
     }
+
+    // ── Today plan dropdown (Full Day / Half Day / Leave / Holiday) ──
+    const _TD_PLAN_LABELS = { fullday: 'Full Day', halfday: 'Half Day', leave: 'Leave', holiday: 'Holiday' };
+
+    function _tdCurrentPlan() {
+      const ov = dayLog(todayKey())?.override;
+      return ov === 'halfday' || ov === 'leave' || ov === 'holiday' ? ov : 'fullday';
+    }
+
+    function _tdPlanSyncLabel(suffix) {
+      const plan = _tdCurrentPlan();
+      const lbl = el('tdPlanLabel' + suffix);
+      if (lbl) lbl.textContent = _TD_PLAN_LABELS[plan];
+      el('tdPlanMenu' + suffix)?.querySelectorAll('.td-plan-item').forEach(b => {
+        b.classList.toggle('active', b.dataset.plan === plan);
+      });
+    }
+
+    function _tdPlanToggle(suffix, event) {
+      event?.stopPropagation();
+      const menu = el('tdPlanMenu' + suffix);
+      if (!menu) return;
+      const willOpen = !menu.classList.contains('open');
+      document.querySelectorAll('.td-plan-menu.open').forEach(m => m.classList.remove('open'));
+      if (willOpen) { _tdPlanSyncLabel(suffix); menu.classList.add('open'); }
+    }
+
+    // Selecting Half Day is an instant trigger — it just halves today's effective
+    // target (todayTargetH), same mechanism as "Ignore Today", so it takes effect
+    // immediately whether a session is running, ended, or not started yet. Leave and
+    // Holiday route through the existing Day Edit modal instead, since those already
+    // have the note-taking screen this feature is meant to reuse, not duplicate.
+    function _tdPlanSelect(type, suffix) {
+      document.querySelectorAll('.td-plan-menu.open').forEach(m => m.classList.remove('open'));
+      const tk = todayKey(), ex = dayLog(tk) || {};
+      if (type === _tdCurrentPlan()) return;
+
+      if (type === 'fullday') {
+        const u = { ...ex };
+        delete u.override; delete u.todayTargetH;
+        saveDayLogAndSync(tk, u);
+        _tdPlanSyncLabel(suffix);
+        if (loginDate) render(); else renderEmptyState();
+        return;
+      }
+      if (type === 'halfday') {
+        saveDayLogAndSync(tk, { ...ex, override: 'halfday', todayTargetH: cfg().dailyH / 2 });
+        _tdPlanSyncLabel(suffix);
+        if (loginDate) render(); else renderEmptyState();
+        return;
+      }
+      // leave / holiday — reuse the existing Notes-enabled Day Edit screen for today,
+      // pre-selecting the chosen override so the user just adds a note and taps Update.
+      closeTodayDetails();
+      openDayEditModal(null, true);
+      setDeOverride(type);
+    }
+
+    document.addEventListener('click', e => {
+      if (e.target.closest('.td-plan-select')) return;
+      document.querySelectorAll('.td-plan-menu.open').forEach(m => m.classList.remove('open'));
+    });
 
     function _tdConfirmIgnoreToday() {
       const tk = todayKey(), ex = dayLog(tk) || {};

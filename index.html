@@ -7324,6 +7324,7 @@
       el('rcBody')?.classList.remove('weekend-mode', 'ns-times', 'ns-progress', 'past-day');
       const c = cfg();
       const now = new Date(), eff = effSecs();
+      const _loginSnapshot = loginDate; // survives the target-reached pause nulling loginDate mid-tick
       const worked  = Math.max(0, Math.floor((now - loginDate) / 1000)) + _sessionAccSecs;
       swapText('rcElapsedLabel', 'Elapsed');
       if (Math.floor(Date.now()/1000) % 30 === 0) persistSession(); // every 30s
@@ -7439,8 +7440,9 @@
       // Split button stays in its current running/ended state — End Session is in the dropdown
       // Guard: never show the target modal for an auto-stopped session — the ASR modal
       // already handles it, and render() is still called while loginDate is set for display.
-      if (isDone && !wasDone && !autoStopped) {
+      if (isDone && !wasDone && !autoStopped && !_dtrSeen(todayKey())) {
         wasDone = true;
+        _dtrMarkSeen(todayKey());
         // When Recommend Timings is OFF, pause the session and show the target modal.
         // The counter stops — gap while modal is open is not counted as work time.
         if (cfg().recommendTimings === false) {
@@ -7448,6 +7450,7 @@
           // Freeze accumulated seconds at the exact moment target was reached
           _sessionAccSecs += Math.floor((now - loginDate) / 1000);
           loginDate = null; // session paused
+          persistSession(); // clears the stored session so a reload can't resurrect the pre-pause loginDate
           el('dailyTargetHours').textContent = dur(_sessionAccSecs);
           el('dailyTargetReachedOverlay').classList.add('open');
         }
@@ -7455,8 +7458,8 @@
 
       const tk = todayKey(), ex = dayLog(tk) || {};
       saveDayLog(tk, { ...ex,
-        loginTime:    `${loginDate.getHours()}:${loginDate.getMinutes()}:${loginDate.getSeconds()}`,
-        loginDisplay: short(loginDate),
+        loginTime:    `${_loginSnapshot.getHours()}:${_loginSnapshot.getMinutes()}:${_loginSnapshot.getSeconds()}`,
+        loginDisplay: short(_loginSnapshot),
         hoursWorked:  worked / 3600,
         lastUpdated:  now.toISOString(),
         sessionTag:   ex.sessionTag || 'realtime'
@@ -10944,6 +10947,16 @@ ${sig}`
     function _asrSeen(k)    { try { return localStorage.getItem('wh_asr_seen_' + k); } catch { return false; } }
     function _asrMarkSeen(k){ if (k) { try { localStorage.setItem('wh_asr_seen_' + k, '1'); } catch {} } }
 
+    // Daily Target Reached modal — persisted per-day, separate from the in-memory
+    // `wasDone` flag. `wasDone` resets to false on every script reload (module load),
+    // but on mobile a PWA gets backgrounded/killed and reopened constantly. Once the
+    // user has resolved the modal (Keep Going or End Session) for a day, `worked` stays
+    // >= target for the rest of that day's overtime — so on the next reload `isDone`
+    // is true again with a fresh `wasDone === false`, and without this flag the modal
+    // (and its ticker-pausing side effect) would re-fire every single reopen.
+    function _dtrSeen(k)    { try { return localStorage.getItem('wh_dtr_seen_' + k) === '1'; } catch { return false; } }
+    function _dtrMarkSeen(k){ if (k) { try { localStorage.setItem('wh_dtr_seen_' + k, '1'); } catch {} } }
+
     // Open the recovery modal. dayKey omitted → demo mode (dev trigger).
     function openAutoStopRecovery(dayKey) {
       _asrDayKey = dayKey || null;
@@ -11478,6 +11491,7 @@ ${sig}`
       // "Keep Going" — resume session from this moment; gap while modal was open is not counted
       el('dailyTargetReachedOverlay').classList.remove('open');
       loginDate = new Date();
+      persistSession(); // save the new post-pause loginDate so a reload restores overtime, not the stale pre-pause session
       if (ticker) clearInterval(ticker);
       ticker = setInterval(render, 1000);
     });
@@ -11498,6 +11512,7 @@ ${sig}`
       persist();
       _sessionAccSecs = 0; _sessionCheckoutTime = null;
       loginDate = null; autoStopped = false; wasDone = false;
+      persistSession(); // clears the stored session — otherwise a reload restores the ended session as still running
       setCalcBtnState('start');
       el('shiftInputRow').classList.remove('active-state', 'hidden');
       el('shiftActiveLabel').textContent = '—';

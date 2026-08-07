@@ -625,19 +625,24 @@
     #homeCard .home-divider { margin: 12px -16px 0; }
     /* ── Ongoing-session-elsewhere banner ── sits between #homeCard and
        #homeBottomSpacer in #homeMain's own flex flow, so #homeMain's gap:16px
-       already spaces it from its neighbours — no margin of its own needed. */
+       already spaces it from its neighbours — no margin of its own needed.
+       Neutral card chrome (matches the app's default surfaces) — only the dot
+       carries color, so the banner reads as informational, not a warning. */
     #rcRunningElsewhere { width: 100%; }
     .rc-running-elsewhere-card { display: flex; align-items: center; justify-content: space-between;
-      gap: 10px; padding: 10px 12px; background: var(--warning-bg);
-      border: 1px solid var(--warning-border); border-radius: 10px; width: 100%;
+      gap: 10px; padding: 10px 12px; background: var(--muted);
+      border: 1px solid var(--border); border-radius: 10px; width: 100%;
       box-sizing: border-box; }
     .rc-running-elsewhere-text { display: flex; align-items: center; gap: 8px;
-      font-size: 12px; font-weight: 600; color: var(--warning); min-width: 0; }
+      font-size: 12px; font-weight: 600; color: var(--foreground); min-width: 0; }
     .rc-running-elsewhere-dot { width: 7px; height: 7px; border-radius: 50%;
-      background: var(--warning); flex-shrink: 0; animation: rc-pulse-dot 1.6s ease-in-out infinite; }
+      background: var(--blue); flex-shrink: 0; animation: rc-pulse-dot 1.6s ease-in-out infinite; }
     @keyframes rc-pulse-dot { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
     @media (prefers-reduced-motion: reduce) { .rc-running-elsewhere-dot { animation: none; } }
-    .rc-running-elsewhere-actions { display: flex; gap: 6px; flex-shrink: 0; }
+    .rc-running-elsewhere-close { display: flex; align-items: center; justify-content: center;
+      width: 24px; height: 24px; flex-shrink: 0; padding: 0; border: none; border-radius: 6px;
+      background: transparent; color: var(--muted-fg); cursor: pointer; transition: background .12s, color .12s; }
+    .rc-running-elsewhere-close:hover { background: var(--btn-secondary-hover); color: var(--foreground); }
     /* Lock scroll on the home view — nav is sticky so body must not scroll */
     html:has(#viewHome.active), body:has(#viewHome.active) { overflow: hidden !important; }
     /* 3-zone layout: nav top · content center · input bottom.
@@ -2630,17 +2635,18 @@
            tucked inside a card region that can itself be hidden by weekend/past-day
            layout switches. Shown whenever a session is running AND the user is
            browsing a day other than Today (past, future, or weekend), so it's never
-           possible to lose track of a live session while looking at history. -->
+           possible to lose track of a live session while looking at history.
+           Dismissing (X) silences it only until the user returns to Today —
+           navigating away again after that re-arms it. -->
       <div id="rcRunningElsewhere" style="display:none">
         <div class="rc-running-elsewhere-card">
           <div class="rc-running-elsewhere-text">
             <span class="rc-running-elsewhere-dot"></span>
             <span id="rcRunningElsewhereLabel">Session running</span>
           </div>
-          <div class="rc-running-elsewhere-actions">
-            <button class="btn-secondary" onclick="_dismissRunningElsewhereBanner()" style="height:32px;padding:0 12px;font-size:12px">Keep Going</button>
-            <button class="btn-ghost-destructive" onclick="_endSessionFromElsewhere()" style="height:32px;padding:0 12px;font-size:12px">End</button>
-          </div>
+          <button class="rc-running-elsewhere-close" onclick="_dismissRunningElsewhereBanner()" title="Dismiss" aria-label="Dismiss">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
         </div>
       </div>
 
@@ -6223,30 +6229,29 @@
     }
 
     // ── ONGOING SESSION ELSEWHERE BANNER ──────────────
-    // Day key the banner was last dismissed for — "Keep Going" only silences it while
-    // still browsing that specific day; switching days (or a fresh session) re-arms it.
-    let _runningElsewhereDismissedKey = null;
+    // Dismissing silences the banner globally, not per-day — it only re-arms once the
+    // user is back on Today (see the reset below), matching "won't pop up again until
+    // you're back on today; leaving today again after that shows it again".
+    let _runningElsewhereDismissed = false;
 
     function _updateRunningElsewhereBanner() {
       const wrap = el('rcRunningElsewhere');
       if (!wrap) return;
+      if (selectedDayKey === todayKey()) _runningElsewhereDismissed = false;
       const show = !!loginDate && !!selectedDayKey && selectedDayKey !== todayKey()
-        && _runningElsewhereDismissedKey !== selectedDayKey;
+        && !_runningElsewhereDismissed;
       wrap.style.display = show ? '' : 'none';
       if (show) {
         const lbl = el('rcRunningElsewhereLabel');
-        if (lbl) lbl.textContent = 'Session running · Started at ' + short(loginDate);
+        if (lbl) {
+          const leaveDate = new Date(loginDate.getTime() + effSecs() * 1000);
+          lbl.textContent = 'Session running · Leave by ' + short(leaveDate);
+        }
       }
     }
 
     function _dismissRunningElsewhereBanner() {
-      _runningElsewhereDismissedKey = selectedDayKey;
-      _updateRunningElsewhereBanner();
-    }
-
-    function _endSessionFromElsewhere() {
-      _runningElsewhereDismissedKey = null;
-      if (cfg().breakTime !== false) endSession(); else confirmEndSession();
+      _runningElsewhereDismissed = true;
       _updateRunningElsewhereBanner();
     }
 

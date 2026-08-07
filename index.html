@@ -2503,10 +2503,10 @@
               <button class="rc-pair-tab" onclick="_rcSwitchPair('progress',this)">Progress</button>
             </div>
             <button class="rc-info-btn" id="rcInfoBtn"
-              onmouseenter="_tdShowPopover()" onmouseleave="_tdHidePopoverDelayed()" onclick="_tdTapModal(event)"
+              onclick="_tdToggle(event)"
               title="Today's Details" aria-label="Today's Details">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-              <span>Customize</span>
+              <span>Info</span>
             </button>
           </div>
           <div id="rcKpiGroup" style="display:flex;flex-direction:column;align-items:center;width:100%;gap:8px">
@@ -4143,7 +4143,7 @@
   </div>
 
   <!-- ── Today's Details popover (desktop) ── -->
-  <div class="td-popover" id="tdPopover" onmouseenter="_tdCancelHide()" onmouseleave="_tdHidePopoverDelayed()">
+  <div class="td-popover" id="tdPopover">
     <div class="td-pop-head">
       <span class="td-pop-title">Today</span>
       <div class="td-plan-select" id="tdPlanSelectPop">
@@ -5925,13 +5925,18 @@
 
     function _tdIsMobile() { return window.matchMedia('(max-width: 640px)').matches; }
 
-    let _tdHoverTimer = null;
-
-    // Desktop: hover the info button shows the popover
-    function _tdShowPopover() {
-      if (_tdIsMobile()) return;
-      clearTimeout(_tdHoverTimer);
+    // Click the info button — mobile opens the full modal; desktop toggles the
+    // small anchored popover (open again closes it, matching a standard menu button).
+    function _tdToggle(event) {
+      if (event) { event.stopPropagation(); event.preventDefault(); }
+      if (_tdIsMobile()) {
+        el('tdModalBody').innerHTML = _tdBuildContent();
+        _tdPlanSyncLabel('Modal');
+        el('tdOverlay').classList.add('open');
+        return;
+      }
       const pop = el('tdPopover');
+      if (pop.classList.contains('open')) { closeTodayDetails(); return; }
       el('tdPopoverBody').innerHTML = _tdBuildContent();
       _tdPlanSyncLabel('Pop');
       const btn = el('rcInfoBtn'), refRect = btn.getBoundingClientRect();
@@ -5944,22 +5949,14 @@
       pop.classList.add('open');
     }
 
-    // Small delay so moving the cursor from the button into the popover doesn't close it
-    function _tdHidePopoverDelayed() {
-      if (_tdIsMobile()) return;
-      _tdHoverTimer = setTimeout(() => el('tdPopover')?.classList.remove('open'), 150);
-    }
-
-    function _tdCancelHide() { clearTimeout(_tdHoverTimer); }
-
-    // Mobile: tap the info button opens the modal
-    function _tdTapModal(event) {
-      if (!_tdIsMobile()) return;
-      if (event) { event.stopPropagation(); event.preventDefault(); }
-      el('tdModalBody').innerHTML = _tdBuildContent();
-      _tdPlanSyncLabel('Modal');
-      el('tdOverlay').classList.add('open');
-    }
+    // Click-outside closes the desktop popover (the mobile modal already closes via
+    // its own backdrop onclick handler).
+    document.addEventListener('click', e => {
+      const pop = el('tdPopover');
+      if (!pop || !pop.classList.contains('open')) return;
+      if (pop.contains(e.target) || e.target.closest('#rcInfoBtn')) return;
+      closeTodayDetails();
+    });
 
     function closeTodayDetails() {
       el('tdPopover')?.classList.remove('open');

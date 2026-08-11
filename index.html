@@ -5995,6 +5995,14 @@
       if (willOpen) { _tdPlanSyncLabel(suffix); menu.classList.add('open'); }
     }
 
+    // Rebuild the Worked Duration / Remaining / Overtime rows in whichever panel
+    // (popover or modal) is currently open — render()/renderEmptyState() only
+    // refresh the live card behind it, not this panel's own cached innerHTML.
+    function _tdRefreshBody(suffix) {
+      const body = el('td' + (suffix === 'Modal' ? 'Modal' : 'Popover') + 'Body');
+      if (body) body.innerHTML = _tdBuildContent();
+    }
+
     // Selecting Half Day is an instant trigger — it just halves today's effective
     // target (todayTargetH), same mechanism as "Ignore Today", so it takes effect
     // immediately whether a session is running, ended, or not started yet. Leave and
@@ -6010,12 +6018,14 @@
         delete u.override; delete u.todayTargetH;
         saveDayLogAndSync(tk, u);
         _tdPlanSyncLabel(suffix);
+        _tdRefreshBody(suffix);
         if (loginDate) render(); else renderEmptyState();
         return;
       }
       if (type === 'halfday') {
         saveDayLogAndSync(tk, { ...ex, override: 'halfday', todayTargetH: cfg().dailyH / 2 });
         _tdPlanSyncLabel(suffix);
+        _tdRefreshBody(suffix);
         if (loginDate) render(); else renderEmptyState();
         return;
       }

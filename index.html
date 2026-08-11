@@ -997,7 +997,12 @@
     .tz-select-trigger-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .tz-select-trigger svg { color: var(--muted-fg); flex-shrink: 0; transition: transform .15s; }
     .tz-select.open .tz-select-trigger svg { transform: rotate(180deg); }
-    .tz-select-menu { position: absolute; top: calc(100% + 6px); right: 0; z-index: 60; width: 320px;
+    /* position:fixed (not absolute) — Advanced is a collapsible section that uses
+       overflow:hidden on its own body to animate max-height, which clips any
+       absolutely-positioned descendant regardless of z-index. Fixed positioning
+       with JS-computed coordinates (see _tzToggle) escapes that clipping, same
+       technique the Today's Details popover already uses. */
+    .tz-select-menu { position: fixed; z-index: 250; width: 320px;
       max-width: calc(100vw - 32px); max-height: 320px; overflow-y: auto;
       background: var(--card); border: 1px solid var(--border); border-radius: 12px;
       box-shadow: 0 12px 32px rgba(0,0,0,.24); padding: 6px; opacity: 0; transform: translateY(-4px) scale(.98);
@@ -9090,12 +9095,34 @@
 
     function _tzToggle(event) {
       event?.stopPropagation();
-      const wrap = el('tzSelect'), menu = el('tzSelectMenu');
-      if (!wrap || !menu) return;
+      const wrap = el('tzSelect'), menu = el('tzSelectMenu'), trigger = el('tzSelectTrigger');
+      if (!wrap || !menu || !trigger) return;
       _populateTimezoneSelect();
       const willOpen = !menu.classList.contains('open');
       wrap.classList.toggle('open', willOpen);
       menu.classList.toggle('open', willOpen);
+      if (!willOpen) return;
+      // Fixed positioning computed from the trigger's own rect, same as
+      // _tdShowPopover — right-aligned below the trigger, clamped to the
+      // viewport, flipped above when there isn't enough room below.
+      const GAP = 6, mW = 320, pad = 16;
+      const r = trigger.getBoundingClientRect();
+      let left = r.right - mW;
+      if (left < pad) left = pad;
+      if (left + mW > window.innerWidth - pad) left = window.innerWidth - mW - pad;
+      const spaceBelow = window.innerHeight - r.bottom - GAP - pad;
+      const spaceAbove = r.top - GAP - pad;
+      let top, maxH;
+      if (spaceBelow >= 160 || spaceBelow >= spaceAbove) {
+        top = r.bottom + GAP;
+        maxH = Math.max(120, Math.min(320, spaceBelow));
+      } else {
+        maxH = Math.max(120, Math.min(320, spaceAbove));
+        top = r.top - GAP - maxH;
+      }
+      menu.style.left = left + 'px';
+      menu.style.top = top + 'px';
+      menu.style.maxHeight = maxH + 'px';
     }
 
     // isAuto: true when the clicked entry is also the device's real zone — picking

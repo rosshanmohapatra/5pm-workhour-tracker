@@ -6386,7 +6386,7 @@
       if (_otOverlayTimer) { clearTimeout(_otOverlayTimer); _otOverlayTimer = null; }
     }
     // Cached values set each render so pair-switch can re-display without a full re-render
-    let _rcCache = { loginStr:'—', logoutStr:'—', elapsedStr:'0m', rightStr:'—', rightClass:'', pct:0, barClass:'', descLeft:'', descRight:'' };
+    let _rcCache = { loginStr:'—', logoutStr:'—', elapsedStr:'0m', rightStr:'—', rightClass:'', pct:0, barClass:'', descLeft:'', descRightTimes:'', descRightProgress:'' };
 
     function _rcSwitchPair(pair, btn) {
       _rcCurrentPair = pair;
@@ -6403,7 +6403,7 @@
         }
         el('rcTarget').textContent = c.isDone ? c.rightStr : c.logoutStr;
         el('rcTarget').style.color = c.isDone ? (c.rightClass === 'warn' ? 'var(--warning)' : 'var(--muted-fg)') : '';
-        _rcSetDesc(c.descRight);
+        _rcSetDesc(c.descRightTimes);
       } else {
         if (c.notStarted) {
           if (_body) { _body.classList.remove('ns-times'); _body.classList.add('ns-progress'); }
@@ -6415,7 +6415,7 @@
         }
         el('rcTarget').textContent = c.rightStr;
         el('rcTarget').style.color = c.rightClass === 'ok' ? 'var(--success)' : c.rightClass === 'warn' ? 'var(--warning)' : c.rightClass === 'muted' ? 'var(--muted-fg)' : '';
-        _rcSetDesc(c.descRight);
+        _rcSetDesc(c.descRightProgress);
       }
     }
 
@@ -6560,7 +6560,7 @@
       const _projLogout = eff > 0 ? short(new Date(Date.now() + eff * 1000)) : '—';
       _rcCache = { loginStr: '—', logoutStr: _projLogout, elapsedStr: '0m',
         rightStr: dur(eff), rightClass: 'muted', pct: 0, barClass: '',
-        descLeft: '', descRight: '', notStarted: true };
+        descLeft: '', descRightTimes: '', descRightProgress: '', notStarted: true };
       const _body = el('rcBody');
       if (_body) _body.classList.remove('ns-times', 'ns-progress', 'rc-starting');
       const _tabsRow = el('rcPairTabsRow'); if (_tabsRow) _tabsRow.style.display = 'none';
@@ -7469,7 +7469,7 @@
       const _loginStr  = short(loginDate);
       const _logoutStr = short(leaveDate);
       const _elapsedStr = durWorked(worked);
-      let _rightStr, _rightClass, _barClass, _descRight;
+      let _rightStr, _rightClass, _barClass, _descRightTimes, _descRightProgress;
 
       el('otBanner').classList.remove('show'); // never show — overtime shown inline
       let _otFrac = 0;
@@ -7479,7 +7479,10 @@
         _rightStr   = remText;
         _rightClass = '';
         _barClass   = 'running';
-        _descRight  = '<span class="rc-desc-chip">leave by ' + _logoutStr + '</span>';
+        // Time tab keeps the countdown chip; Progress tab shows the leave-by clock time
+        // instead, since the leave time is already the Time tab's own right KPI.
+        _descRightTimes    = '<span class="rc-desc-chip">' + _rcRemainingFmt(rem) + ' remaining</span>';
+        _descRightProgress = '<span class="rc-desc-chip">leave by ' + _logoutStr + '</span>';
         _otOverlayReset();
       } else if (isDone) {
         const ot = worked - eff;
@@ -7492,7 +7495,8 @@
         // No "Done for today" chip here — the doneBanner below the input ("You're
         // done. Head out!") already says that; this row only earns its keep once
         // there's a number worth reporting.
-        _descRight  = ot > 60 ? '<span class="rc-desc-chip warn">' + _rcRemainingFmt(ot) + ' overtime</span>' : '';
+        _descRightTimes = _descRightProgress =
+          ot > 60 ? '<span class="rc-desc-chip warn">' + _rcRemainingFmt(ot) + ' overtime</span>' : '';
         // Delay the overlay's first appearance ~650ms so it reads as a deliberate
         // reveal rather than snapping in the instant the target's crossed.
         if (!_otOverlayArmed && !_otOverlayTimer) {
@@ -7508,14 +7512,15 @@
         _rightStr   = '—';
         _rightClass = 'muted';
         _barClass   = 'running';
-        _descRight  = '';
+        _descRightTimes = _descRightProgress = '';
         _otOverlayReset();
       }
 
       // Cache for pair-switching without full re-render
       _rcCache = { loginStr: _loginStr, logoutStr: _logoutStr, elapsedStr: _elapsedStr,
         rightStr: _rightStr, rightClass: _rightClass, pct: eff > 0 ? worked / eff : 1,
-        barClass: _barClass, descLeft: _loginStr + ' → ' + _logoutStr, descRight: _descRight,
+        barClass: _barClass, descLeft: _loginStr + ' → ' + _logoutStr,
+        descRightTimes: _descRightTimes, descRightProgress: _descRightProgress,
         isDone: isDone };
 
       // Hover tooltip on the right KPI — Remaining time, same on both Time/Progress tabs
@@ -7535,7 +7540,7 @@
         el('rcTarget').style.color = _rightClass === 'warn' ? 'var(--warning)' : _rightClass === 'muted' ? 'var(--muted-fg)' : '';
         if (eff > 0) animateDuration('rcTarget', _rightStr); else el('rcTarget').textContent = _rightStr;
       }
-      _rcSetDesc(_descRight);
+      _rcSetDesc(_currentPairIs('times') ? _descRightTimes : _descRightProgress);
 
       _rcSetProgress(eff > 0 ? worked / eff : 1, _barClass, _otFrac);
       // "Leave at" badge: prefer personal Out Time target if set

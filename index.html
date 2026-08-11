@@ -9095,28 +9095,28 @@
       _tzSyncTrigger();
     }
 
-    // Fixed positioning computed from the trigger's own rect. Left-aligned to
-    // the trigger (menu's top-left corner sits 8px below the trigger's
-    // bottom-left when there's room; otherwise its bottom-left corner sits
-    // 8px above the trigger's top-left) and re-run on scroll/resize while
+    // Fixed positioning computed from the trigger's own rect. Right-aligned to
+    // the trigger (menu's top-right corner sits 8px below the trigger's
+    // bottom-right when there's room; otherwise its bottom-right corner sits
+    // 8px above the trigger's top-right) and re-run on scroll/resize while
     // open (see _tzClose/_tzToggle) so it stays anchored as the page scrolls.
     function _tzPositionMenu() {
       const menu = el('tzSelectMenu'), trigger = el('tzSelectTrigger');
       if (!menu || !trigger) return;
       const GAP = 8, mW = 320, pad = 16;
       const r = trigger.getBoundingClientRect();
-      let left = r.left;
+      let left = r.right - mW;
       if (left < pad) left = pad;
       if (left + mW > window.innerWidth - pad) left = window.innerWidth - mW - pad;
       const spaceBelow = window.innerHeight - r.bottom - GAP - pad;
       const spaceAbove = r.top - GAP - pad;
       let top, maxH;
       if (spaceBelow >= 160 || spaceBelow >= spaceAbove) {
-        top = r.bottom + GAP;               // bottom-left of trigger
+        top = r.bottom + GAP;               // bottom-right of trigger
         maxH = Math.max(120, Math.min(320, spaceBelow));
       } else {
         maxH = Math.max(120, Math.min(320, spaceAbove));
-        top = r.top - GAP - maxH;           // top-left of trigger
+        top = r.top - GAP - maxH;           // top-right of trigger
       }
       menu.style.left = left + 'px';
       menu.style.top = top + 'px';

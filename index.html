@@ -9144,9 +9144,12 @@
       // still re-anchors the menu, since scroll events don't bubble to window.
       window.addEventListener('scroll', _tzPositionMenu, true);
       window.addEventListener('resize', _tzPositionMenu);
-      // Open already centred on the current selection instead of always the top.
+      // Open with the current selection as the first visible row, not centred —
+      // set the menu's own scrollTop directly (never scrollIntoView(), which can
+      // walk up past a position:fixed element and drag the page's own scroll
+      // along with it — the exact "modal moves the page" bug being fixed here).
       const active = menu.querySelector('.tz-item.active');
-      if (active) active.scrollIntoView({ block: 'center' });
+      if (active) menu.scrollTop = Math.max(0, active.offsetTop - 6);
     }
 
     // isAuto: true when the clicked entry is also the device's real zone — picking

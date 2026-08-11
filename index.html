@@ -985,6 +985,34 @@
       cursor: pointer; transition: background .15s, color .15s; white-space: nowrap; }
     .st-tab.active { background: var(--card); color: var(--foreground); box-shadow: 0 1px 3px rgba(0,0,0,.08); }
     .dark .st-tab.active { background: var(--muted); }
+    /* ── Clock Timezone custom dropdown (Settings > Advanced) ──
+       Replaces a native <select> — native option-list styling can't be themed,
+       which is exactly what looked "generic" against the app's dark UI. */
+    .tz-select { position: relative; flex-shrink: 0; max-width: 190px; }
+    .tz-select-trigger { display: flex; align-items: center; justify-content: space-between; gap: 8px;
+      width: 100%; padding: 8px 12px; font-family: var(--font); font-size: 12.5px; font-weight: 600;
+      color: var(--foreground); background: var(--background); border: 1px solid var(--border);
+      border-radius: 8px; cursor: pointer; transition: background .15s, border-color .15s; }
+    .tz-select-trigger:hover { background: var(--muted); }
+    .tz-select-trigger-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .tz-select-trigger svg { color: var(--muted-fg); flex-shrink: 0; transition: transform .15s; }
+    .tz-select.open .tz-select-trigger svg { transform: rotate(180deg); }
+    .tz-select-menu { position: absolute; top: calc(100% + 6px); right: 0; z-index: 60; width: 320px;
+      max-width: calc(100vw - 32px); max-height: 320px; overflow-y: auto;
+      background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+      box-shadow: 0 12px 32px rgba(0,0,0,.24); padding: 6px; opacity: 0; transform: translateY(-4px) scale(.98);
+      pointer-events: none; transition: opacity .12s ease, transform .12s ease; }
+    .tz-select-menu.open { opacity: 1; transform: translateY(0) scale(1); pointer-events: all; }
+    .tz-item { display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%;
+      padding: 9px 10px; font-family: var(--font); font-size: 12.5px; font-weight: 500; line-height: 1.35;
+      color: var(--foreground); background: transparent; border: none; border-radius: 8px; cursor: pointer;
+      text-align: left; }
+    .tz-item:hover { background: var(--muted); }
+    .tz-item-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .tz-item-right { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+    .tz-item-auto { color: var(--muted-fg); font-weight: 600; font-size: 10.5px; white-space: nowrap; }
+    .tz-item.active .tz-item-auto { color: inherit; }
+    .tz-item-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--foreground); flex-shrink: 0; }
     .st-panel { margin-top: 12px; }
     .st-panel-label { font-size: 11px; font-weight: 600; color: var(--muted-fg); letter-spacing: .04em; text-transform: uppercase; margin-bottom: 6px; }
     .callout { display: flex; align-items: flex-start; gap: 8px;
@@ -1348,13 +1376,6 @@
       line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .sel-day-clock { font-size: 16px; line-height: 24px; font-weight: 600; letter-spacing: normal;
       color: var(--foreground); font-variant-numeric: tabular-nums; white-space: nowrap; }
-    /* Analogue: the element holds an SVG face instead of text, so drop the text
-       line-height that would otherwise add phantom space under it. */
-    .sel-day-clock.analogue { line-height: 0; }
-    .sel-day-clock.analogue .ana-clock { display: block; }
-    /* No transition on the hands: angles wrap 359°→0° every hour, and a tween across
-       that boundary animates the hand backwards a full turn. They update every
-       second anyway, so the motion is already fine-grained. */
 
     /* ── Session tags ── */
     .tag-pill { display: inline-flex; align-items: center; font-size: 9px; font-weight: 700;
@@ -2959,26 +2980,21 @@
               </label>
             </div>
 
-            <!-- Clock Style (Digital / Analogue) -->
+            <!-- Clock Timezone -->
             <div class="form-field">
               <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
                 <div>
-                  <div class="form-label">Clock Style</div>
-                  <div class="form-sub">How the clock above your day card is displayed.</div>
+                  <div class="form-label">Clock Timezone</div>
+                  <div class="form-sub">Show the clock in another timezone. Your tracked hours still follow this device.</div>
                 </div>
-                <div class="st-tabs" id="clockStyleTabs">
-                  <button type="button" class="st-tab" id="clkTabDigital" onclick="switchClockStyle('digital')">Digital</button>
-                  <button type="button" class="st-tab" id="clkTabAnalogue" onclick="switchClockStyle('analogue')">Analogue</button>
+                <div class="tz-select" id="tzSelect">
+                  <button type="button" class="tz-select-trigger" id="tzSelectTrigger" onclick="_tzToggle(event)">
+                    <span class="tz-select-trigger-label" id="tzSelectLabel">Device timezone</span>
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                  </button>
+                  <div class="tz-select-menu" id="tzSelectMenu"></div>
                 </div>
               </div>
-            </div>
-
-            <!-- Clock Timezone -->
-            <div class="form-field">
-              <div class="form-label">Clock Timezone</div>
-              <div class="form-sub">Show the clock in another timezone. Your tracked hours still follow this device.</div>
-              <select class="field-input" id="inpTimezone" onchange="onTimezoneChange()"
-                      style="height:38px;font-size:13px;margin-top:8px;cursor:pointer"></select>
             </div>
 
             <!-- Recommend Timings Toggle + expandable block -->
@@ -4380,7 +4396,7 @@
     }
 
     // ── CONFIG ─────────────────────────────────────────
-    const CFG_DEF = { dailyH:9, weeklyH:45, weeklyOn:true, lateDays:[], earlyLeaveEntries:[], lateEntries:[], notifOn:false, notifTarget:true, notifKickstart:true, notifOvertime:true, name:'', position:'', targetDay:null, autoStopBuf:2, tzOffset:330, shiftType:'morning', workDays:5, recommendTimings:true, breakTime:true, use24h:false, clockStyle:'digital', tzName:'', dismissed:[], qsShortcut:{ mod:'ctrl', key:'s' } };
+    const CFG_DEF = { dailyH:9, weeklyH:45, weeklyOn:true, lateDays:[], earlyLeaveEntries:[], lateEntries:[], notifOn:false, notifTarget:true, notifKickstart:true, notifOvertime:true, name:'', position:'', targetDay:null, autoStopBuf:2, tzOffset:330, shiftType:'morning', workDays:5, recommendTimings:true, breakTime:true, use24h:false, tzName:'', dismissed:[], qsShortcut:{ mod:'ctrl', key:'s' } };
     function cfg() { const r=Store.getCfg(); return r?{...CFG_DEF,...r}:{...CFG_DEF}; }
 
     // ── PUSH USER ID ───────────────────────────────────
@@ -5065,34 +5081,6 @@
 
     function _clockNow() { return _tzNow((cfg().tzName || '').trim(), nowTz()); }
 
-    // ── Analogue clock face ───────────────────────────
-    // Pre-Material-You Google Clock styling: a hairline ring, no ticks, no numerals,
-    // two plain hands and a thin accent second hand. Face is built once; ticking only
-    // rotates the hands, so we're not rebuilding SVG markup every second.
-    function _analogueFaceHtml() {
-      const C = 32, R = 27;
-      // Hands are drawn pointing at 12 and rotated into place by _renderAnalogueClock.
-      return `<svg class="ana-clock" width="64" height="64" viewBox="0 0 64 64" fill="none">
-        <circle cx="${C}" cy="${C}" r="${R}" stroke="var(--border)" stroke-width="1.25"/>
-        <line class="ana-h" x1="${C}" y1="${C}" x2="${C}" y2="${C - 13}" stroke="var(--foreground)" stroke-width="2" stroke-linecap="round"/>
-        <line class="ana-m" x1="${C}" y1="${C}" x2="${C}" y2="${C - 19}" stroke="var(--foreground)" stroke-width="2" stroke-linecap="round"/>
-        <line class="ana-s" x1="${C}" y1="${C}" x2="${C}" y2="${C - 21}" stroke="var(--destructive)" stroke-width="1" stroke-linecap="round"/>
-        <circle cx="${C}" cy="${C}" r="1.75" fill="var(--foreground)"/>
-      </svg>`;
-    }
-
-    function _renderAnalogueClock(host, d) {
-      if (!host.querySelector('svg.ana-clock')) host.innerHTML = _analogueFaceHtml();
-      const h = d.getHours() % 12, m = d.getMinutes(), s = d.getSeconds();
-      const spin = (sel, ang) => {
-        const n = host.querySelector(sel);
-        if (n) n.setAttribute('transform', `rotate(${ang.toFixed(2)} 32 32)`);
-      };
-      spin('.ana-h', (h + m / 60) * 30);
-      spin('.ana-m', (m + s / 60) * 6);
-      spin('.ana-s', s * 6);
-    }
-
     function tickHeader() {
       const n = nowTz();
       const timeStr = clock(n);
@@ -5100,18 +5088,7 @@
       el('dayDate').textContent  = `${MONTHS[n.getMonth()]} ${n.getDate()}`;
       el('dayClock').textContent = timeStr;
       const clkEl = el('selDayClock');
-      if (clkEl) {
-        const cd = _clockNow();
-        if ((cfg().clockStyle || 'digital') === 'analogue') {
-          clkEl.classList.add('analogue');
-          clkEl.title = clock(cd);
-          _renderAnalogueClock(clkEl, cd);
-        } else {
-          clkEl.classList.remove('analogue');
-          clkEl.title = '';
-          clkEl.textContent = clock(cd);
-        }
-      }
+      if (clkEl) clkEl.textContent = clock(_clockNow());
       _setTodayDateChip();
     }
 
@@ -8668,13 +8645,8 @@
       if (btToggle) { btToggle.checked = c.breakTime !== false; }
       const h24Toggle = el('inp24h');
       if (h24Toggle) { h24Toggle.checked = c.use24h === true; }
-      // Clock style + timezone (Advanced)
-      const _isAna = (c.clockStyle || 'digital') === 'analogue';
-      el('clkTabDigital')?.classList.toggle('active', !_isAna);
-      el('clkTabAnalogue')?.classList.toggle('active', _isAna);
+      // Clock timezone (Advanced)
       _populateTimezoneSelect();
-      const _tzSel = el('inpTimezone');
-      if (_tzSel) _tzSel.value = c.tzName || '';
       const recBlock = el('recommendTimingsBlock');
       if (recBlock) {
         const recOn = c.recommendTimings !== false;
@@ -8940,42 +8912,208 @@
       }
     }
 
-    // ── Clock settings (Advanced) ─────────────────────
-    function switchClockStyle(style) {
-      const isAna = style === 'analogue';
-      el('clkTabDigital')?.classList.toggle('active', !isAna);
-      el('clkTabAnalogue')?.classList.toggle('active', isAna);
-      saveCfg({ ...cfg(), clockStyle: isAna ? 'analogue' : 'digital' });
-      const clkEl = el('selDayClock');
-      if (clkEl && !isAna) clkEl.innerHTML = ''; // drop the SVG before switching to text
-      tickHeader(); // repaint immediately rather than waiting for the next second
+    // ── Clock settings (Advanced) ──────────────────────
+    // Classic UTC-offset + region-name list (the same set most OS/scheduling apps
+    // use) instead of raw IANA ids like "Asia/Kolkata" — matches the reference the
+    // feature was requested against. `offset` is each zone's STANDARD (non-DST)
+    // UTC offset in hours, shown in the label; `iana` is what actually gets passed
+    // to Intl for rendering the clock and for matching the device's real zone.
+    const TZ_LIST = [
+      { offset: -12,   label: 'International Date Line West', iana: 'Etc/GMT+12' },
+      { offset: -11,   label: 'Coordinated Universal Time-11', iana: 'Etc/GMT+11' },
+      { offset: -10,   label: 'Aleutian Islands', iana: 'America/Adak' },
+      { offset: -10,   label: 'Hawaii', iana: 'Pacific/Honolulu' },
+      { offset: -9.5,  label: 'Marquesas Islands', iana: 'Pacific/Marquesas' },
+      { offset: -9,    label: 'Alaska', iana: 'America/Anchorage' },
+      { offset: -9,    label: 'Coordinated Universal Time-09', iana: 'Etc/GMT+9' },
+      { offset: -8,    label: 'Baja California', iana: 'America/Tijuana' },
+      { offset: -8,    label: 'Coordinated Universal Time-08', iana: 'Etc/GMT+8' },
+      { offset: -8,    label: 'Pacific Time (US & Canada)', iana: 'America/Los_Angeles' },
+      { offset: -7,    label: 'Arizona', iana: 'America/Phoenix' },
+      { offset: -7,    label: 'La Paz, Mazatlan', iana: 'America/Mazatlan' },
+      { offset: -7,    label: 'Mountain Time (US & Canada)', iana: 'America/Denver' },
+      { offset: -6,    label: 'Central America', iana: 'America/Guatemala' },
+      { offset: -6,    label: 'Central Time (US & Canada)', iana: 'America/Chicago' },
+      { offset: -6,    label: 'Guadalajara, Mexico City, Monterrey', iana: 'America/Mexico_City' },
+      { offset: -6,    label: 'Saskatchewan', iana: 'America/Regina' },
+      { offset: -5,    label: 'Bogota, Lima, Quito, Rio Branco', iana: 'America/Bogota' },
+      { offset: -5,    label: 'Chetumal', iana: 'America/Cancun' },
+      { offset: -5,    label: 'Eastern Time (US & Canada)', iana: 'America/New_York' },
+      { offset: -5,    label: 'Indiana (East)', iana: 'America/Indiana/Indianapolis' },
+      { offset: -4,    label: 'Asuncion', iana: 'America/Asuncion' },
+      { offset: -4,    label: 'Atlantic Time (Canada)', iana: 'America/Halifax' },
+      { offset: -4,    label: 'Caracas', iana: 'America/Caracas' },
+      { offset: -4,    label: 'Cuiaba', iana: 'America/Cuiaba' },
+      { offset: -4,    label: 'Georgetown, La Paz, Manaus, San Juan', iana: 'America/La_Paz' },
+      { offset: -4,    label: 'Santiago', iana: 'America/Santiago' },
+      { offset: -3.5,  label: 'Newfoundland', iana: 'America/St_Johns' },
+      { offset: -3,    label: 'Brasilia', iana: 'America/Sao_Paulo' },
+      { offset: -3,    label: 'Buenos Aires', iana: 'America/Argentina/Buenos_Aires' },
+      { offset: -3,    label: 'Cayenne, Fortaleza', iana: 'America/Cayenne' },
+      { offset: -3,    label: 'Greenland', iana: 'America/Godthab' },
+      { offset: -3,    label: 'Montevideo', iana: 'America/Montevideo' },
+      { offset: -3,    label: 'Salvador', iana: 'America/Bahia' },
+      { offset: -2,    label: 'Coordinated Universal Time-02', iana: 'Etc/GMT+2' },
+      { offset: -1,    label: 'Azores', iana: 'Atlantic/Azores' },
+      { offset: -1,    label: 'Cabo Verde Is.', iana: 'Atlantic/Cape_Verde' },
+      { offset: 0,     label: 'Casablanca', iana: 'Africa/Casablanca' },
+      { offset: 0,     label: 'Coordinated Universal Time', iana: 'Etc/UTC' },
+      { offset: 0,     label: 'Dublin, Edinburgh, Lisbon, London', iana: 'Europe/London' },
+      { offset: 0,     label: 'Monrovia, Reykjavik', iana: 'Africa/Monrovia' },
+      { offset: 1,     label: 'Amsterdam, Berlin, Bern, Rome, Stockholm, Vienna', iana: 'Europe/Berlin' },
+      { offset: 1,     label: 'Belgrade, Bratislava, Budapest, Ljubljana, Prague', iana: 'Europe/Budapest' },
+      { offset: 1,     label: 'Brussels, Copenhagen, Madrid, Paris', iana: 'Europe/Paris' },
+      { offset: 1,     label: 'Sarajevo, Skopje, Warsaw, Zagreb', iana: 'Europe/Warsaw' },
+      { offset: 1,     label: 'West Central Africa', iana: 'Africa/Lagos' },
+      { offset: 2,     label: 'Amman', iana: 'Asia/Amman' },
+      { offset: 2,     label: 'Athens, Bucharest', iana: 'Europe/Bucharest' },
+      { offset: 2,     label: 'Beirut', iana: 'Asia/Beirut' },
+      { offset: 2,     label: 'Cairo', iana: 'Africa/Cairo' },
+      { offset: 2,     label: 'Damascus', iana: 'Asia/Damascus' },
+      { offset: 2,     label: 'Harare, Pretoria', iana: 'Africa/Johannesburg' },
+      { offset: 2,     label: 'Helsinki, Kyiv, Riga, Sofia, Tallinn, Vilnius', iana: 'Europe/Kiev' },
+      { offset: 2,     label: 'Jerusalem', iana: 'Asia/Jerusalem' },
+      { offset: 2,     label: 'Kaliningrad', iana: 'Europe/Kaliningrad' },
+      { offset: 3,     label: 'Baghdad', iana: 'Asia/Baghdad' },
+      { offset: 3,     label: 'Istanbul', iana: 'Europe/Istanbul' },
+      { offset: 3,     label: 'Kuwait, Riyadh', iana: 'Asia/Riyadh' },
+      { offset: 3,     label: 'Minsk', iana: 'Europe/Minsk' },
+      { offset: 3,     label: 'Moscow, St. Petersburg', iana: 'Europe/Moscow' },
+      { offset: 3,     label: 'Nairobi', iana: 'Africa/Nairobi' },
+      { offset: 3.5,   label: 'Tehran', iana: 'Asia/Tehran' },
+      { offset: 4,     label: 'Abu Dhabi, Muscat', iana: 'Asia/Dubai' },
+      { offset: 4,     label: 'Baku', iana: 'Asia/Baku' },
+      { offset: 4,     label: 'Port Louis', iana: 'Indian/Mauritius' },
+      { offset: 4,     label: 'Tbilisi', iana: 'Asia/Tbilisi' },
+      { offset: 4,     label: 'Yerevan', iana: 'Asia/Yerevan' },
+      { offset: 4.5,   label: 'Kabul', iana: 'Asia/Kabul' },
+      { offset: 5,     label: 'Ashgabat, Tashkent', iana: 'Asia/Tashkent' },
+      { offset: 5,     label: 'Ekaterinburg', iana: 'Asia/Yekaterinburg' },
+      { offset: 5,     label: 'Islamabad, Karachi', iana: 'Asia/Karachi' },
+      { offset: 5.5,   label: 'Chennai, Kolkata, Mumbai, New Delhi', iana: 'Asia/Kolkata' },
+      { offset: 5.5,   label: 'Sri Jayawardenepura', iana: 'Asia/Colombo' },
+      { offset: 5.75,  label: 'Kathmandu', iana: 'Asia/Kathmandu' },
+      { offset: 6,     label: 'Astana', iana: 'Asia/Almaty' },
+      { offset: 6,     label: 'Dhaka', iana: 'Asia/Dhaka' },
+      { offset: 6.5,   label: 'Yangon (Rangoon)', iana: 'Asia/Yangon' },
+      { offset: 7,     label: 'Bangkok, Hanoi, Jakarta', iana: 'Asia/Bangkok' },
+      { offset: 7,     label: 'Novosibirsk', iana: 'Asia/Novosibirsk' },
+      { offset: 8,     label: 'Beijing, Chongqing, Hong Kong, Urumqi', iana: 'Asia/Shanghai' },
+      { offset: 8,     label: 'Krasnoyarsk', iana: 'Asia/Krasnoyarsk' },
+      { offset: 8,     label: 'Kuala Lumpur, Singapore', iana: 'Asia/Singapore' },
+      { offset: 8,     label: 'Perth', iana: 'Australia/Perth' },
+      { offset: 8,     label: 'Taipei', iana: 'Asia/Taipei' },
+      { offset: 8,     label: 'Ulaanbaatar', iana: 'Asia/Ulaanbaatar' },
+      { offset: 9,     label: 'Irkutsk', iana: 'Asia/Irkutsk' },
+      { offset: 9,     label: 'Osaka, Sapporo, Tokyo', iana: 'Asia/Tokyo' },
+      { offset: 9,     label: 'Seoul', iana: 'Asia/Seoul' },
+      { offset: 9.5,   label: 'Adelaide', iana: 'Australia/Adelaide' },
+      { offset: 9.5,   label: 'Darwin', iana: 'Australia/Darwin' },
+      { offset: 10,    label: 'Brisbane', iana: 'Australia/Brisbane' },
+      { offset: 10,    label: 'Canberra, Melbourne, Sydney', iana: 'Australia/Sydney' },
+      { offset: 10,    label: 'Guam, Port Moresby', iana: 'Pacific/Guam' },
+      { offset: 10,    label: 'Hobart', iana: 'Australia/Hobart' },
+      { offset: 10,    label: 'Yakutsk', iana: 'Asia/Yakutsk' },
+      { offset: 11,    label: 'Solomon Is., New Caledonia', iana: 'Pacific/Guadalcanal' },
+      { offset: 11,    label: 'Vladivostok', iana: 'Asia/Vladivostok' },
+      { offset: 12,    label: 'Auckland, Wellington', iana: 'Pacific/Auckland' },
+      { offset: 12,    label: 'Coordinated Universal Time+12', iana: 'Etc/GMT-12' },
+      { offset: 12,    label: 'Fiji', iana: 'Pacific/Fiji' },
+      { offset: 12,    label: 'Magadan', iana: 'Asia/Magadan' },
+      { offset: 13,    label: "Nuku'alofa", iana: 'Pacific/Tongatapu' },
+      { offset: 13,    label: 'Samoa', iana: 'Pacific/Apia' },
+      { offset: 14,    label: 'Kiritimati Island', iana: 'Pacific/Kiritimati' },
+    ];
+
+    function _tzOffsetLabel(offsetHours) {
+      if (offsetHours === 0) return '(UTC)';
+      const sign = offsetHours < 0 ? '-' : '+';
+      const abs = Math.abs(offsetHours);
+      const h = Math.floor(abs);
+      const m = Math.round((abs - h) * 60);
+      return `(UTC${sign}${p2(h)}:${p2(m)})`;
     }
 
-    function _tzOptions() {
-      try {
-        if (typeof Intl.supportedValuesOf === 'function') return Intl.supportedValuesOf('timeZone');
-      } catch {}
-      // Older engines don't expose the full zone list — cover the common ones.
-      return ['UTC','Asia/Kolkata','Asia/Dubai','Asia/Singapore','Asia/Tokyo','Asia/Shanghai',
-              'Europe/London','Europe/Berlin','Europe/Paris','Europe/Madrid',
-              'America/New_York','America/Chicago','America/Denver','America/Los_Angeles',
-              'America/Sao_Paulo','Australia/Sydney','Pacific/Auckland'];
+    function _tzEntryLabel(entry) { return `${_tzOffsetLabel(entry.offset)} ${entry.label}`; }
+
+    // Finds which TZ_LIST entry represents this device's real zone — exact IANA
+    // match first, falling back to a live (DST-aware) UTC-offset match since the
+    // curated list can't cover every IANA id a browser might report.
+    function _tzDeviceEntry() {
+      let sysTz = '';
+      try { sysTz = Intl.DateTimeFormat().resolvedOptions().timeZone || ''; } catch {}
+      if (!sysTz) return null;
+      const exact = TZ_LIST.find(e => e.iana === sysTz);
+      if (exact) return exact;
+      const deviceOffsetMin = -new Date().getTimezoneOffset();
+      const liveOffsetMin = (iana) => {
+        try {
+          const part = new Intl.DateTimeFormat('en-US', { timeZone: iana, timeZoneName: 'shortOffset' })
+            .formatToParts(new Date()).find(p => p.type === 'timeZoneName')?.value || '';
+          const m = part.match(/GMT([+-]\d+)(?::(\d+))?/);
+          if (!m) return null;
+          const sign = m[1].startsWith('-') ? -1 : 1;
+          return parseInt(m[1], 10) * 60 + sign * parseInt(m[2] || '0', 10);
+        } catch { return null; }
+      };
+      return TZ_LIST.find(e => liveOffsetMin(e.iana) === deviceOffsetMin) || null;
+    }
+
+    function _tzCurrentEntry() {
+      const tzName = (cfg().tzName || '').trim();
+      if (!tzName) return _tzDeviceEntry();
+      return TZ_LIST.find(e => e.iana === tzName) || null;
+    }
+
+    function _tzSyncTrigger() {
+      const lbl = el('tzSelectLabel');
+      if (!lbl) return;
+      const entry = _tzCurrentEntry();
+      lbl.textContent = entry ? _tzEntryLabel(entry) : 'Device timezone';
     }
 
     function _populateTimezoneSelect() {
-      const sel = el('inpTimezone');
-      if (!sel || sel.options.length) return; // build once
-      let sysTz = '';
-      try { sysTz = Intl.DateTimeFormat().resolvedOptions().timeZone || ''; } catch {}
-      const opts = [`<option value="">Device timezone${sysTz ? ` (${sysTz})` : ''}</option>`]
-        .concat(_tzOptions().map(z => `<option value="${z}">${z.replace(/_/g, ' ')}</option>`));
-      sel.innerHTML = opts.join('');
+      const menu = el('tzSelectMenu');
+      if (!menu) return;
+      const deviceEntry = _tzDeviceEntry();
+      const tzName = (cfg().tzName || '').trim();
+      menu.innerHTML = TZ_LIST.map(e => {
+        const isAuto = deviceEntry && e.iana === deviceEntry.iana;
+        const isActive = tzName ? e.iana === tzName : !!isAuto;
+        return `<button type="button" class="tz-item${isActive ? ' active' : ''}" onclick="_tzSelectEntry('${e.iana}', ${isAuto ? 'true' : 'false'})">
+          <span class="tz-item-label">${_tzEntryLabel(e)}</span>
+          <span class="tz-item-right">${isAuto ? '<span class="tz-item-auto">Auto Detect</span>' : ''}${isActive ? '<span class="tz-item-dot"></span>' : ''}</span>
+        </button>`;
+      }).join('');
+      _tzSyncTrigger();
     }
 
-    function onTimezoneChange() {
-      saveCfg({ ...cfg(), tzName: el('inpTimezone')?.value || '' });
+    function _tzToggle(event) {
+      event?.stopPropagation();
+      const wrap = el('tzSelect'), menu = el('tzSelectMenu');
+      if (!wrap || !menu) return;
+      _populateTimezoneSelect();
+      const willOpen = !menu.classList.contains('open');
+      wrap.classList.toggle('open', willOpen);
+      menu.classList.toggle('open', willOpen);
+    }
+
+    // isAuto: true when the clicked entry is also the device's real zone — picking
+    // it stores '' (follow device) rather than pinning its iana, so the clock keeps
+    // tracking the device if the user's actual timezone ever changes (e.g. travel).
+    function _tzSelectEntry(iana, isAuto) {
+      saveCfg({ ...cfg(), tzName: isAuto ? '' : iana });
+      _populateTimezoneSelect();
+      el('tzSelect')?.classList.remove('open');
+      el('tzSelectMenu')?.classList.remove('open');
       tickHeader();
     }
+
+    document.addEventListener('click', e => {
+      if (e.target.closest('#tzSelect')) return;
+      el('tzSelect')?.classList.remove('open');
+      el('tzSelectMenu')?.classList.remove('open');
+    });
 
     function switchStTab(tab) {
       const isWeekly = tab === 'weekly';
@@ -9126,9 +9264,9 @@
       saveCfg({ dailyH: daily, weeklyH, weeklyOn: on, lateDays, earlyLeaveDays, notifOn, notifTarget, notifKickstart, notifOvertime, name, company, position,
                 targetDay, shiftType, shiftStart, shiftEnd, tzOffset, workDays, recommendTimings, breakTime, use24h,
                 autoStopBuf: cfg().autoStopBuf ?? 2, dismissed: cfg().dismissed ?? [],
-                // Clock settings persist via their own handlers — carry them through,
-                // otherwise saving any unrelated setting would silently reset them.
-                clockStyle: cfg().clockStyle || 'digital', tzName: cfg().tzName || '',
+                // Clock timezone persists via its own handler — carry it through,
+                // otherwise saving any unrelated setting would silently reset it.
+                tzName: cfg().tzName || '',
                 qsShortcut: _qsShortcut });
       // If session is running, refresh button state to reflect break-time change
       if (loginDate) setCalcBtnState('running');

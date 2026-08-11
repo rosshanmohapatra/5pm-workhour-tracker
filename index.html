@@ -9423,7 +9423,21 @@
         v.classList.remove('slide-from-right', 'slide-from-left');
         v.classList.toggle('active', isActive);
         if (isActive && oldIdx !== newIdx) {
-          v.classList.add(newIdx > oldIdx ? 'slide-from-right' : 'slide-from-left');
+          const slideClass = newIdx > oldIdx ? 'slide-from-right' : 'slide-from-left';
+          v.classList.add(slideClass);
+          // .slide-from-right/left use animation-fill-mode:both, which keeps
+          // `transform` applied at rest even once the .22s animation finishes
+          // (translateX(0) still counts as a set transform, not none). That
+          // silently creates a new containing block for every position:fixed
+          // descendant of this view — any popover/dropdown opened afterward
+          // (e.g. the timezone dropdown) renders relative to this view's box
+          // instead of the real viewport. Strip the class once the animation
+          // ends so transform reverts to none and stops intercepting them.
+          v.addEventListener('animationend', function _cleanup(e) {
+            if (e.target !== v) return;
+            v.classList.remove(slideClass);
+            v.removeEventListener('animationend', _cleanup);
+          });
         }
       });
       // scrollTo(0,0) is universally supported and instant (no scroll-behavior:smooth set).

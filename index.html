@@ -8448,6 +8448,12 @@
       const btn = el('calcBtn'), chev = el('calcBtnChevron'),
             dd  = el('calcBtnDropdown'), wrap = el('calcBtnWrap');
       if (!btn) return;
+      // Every session start/pause/end path calls this to update the button, so it's
+      // the one reliable choke point for keeping the "session running elsewhere"
+      // banner in sync too — without it, ending a session while browsing a past/
+      // future day left the banner stuck showing "Session running" forever, since
+      // none of checkout()/doAutoStop()/endSession() refreshed it themselves.
+      _updateRunningElsewhereBanner();
       btn.classList.remove('end-shift', 'pause-shift', 'resume-shift');
       btn.disabled = false;
       btn.dataset.state = state;
@@ -10925,7 +10931,7 @@ ${sig}`
         el('deErr').classList.remove('show');
         persist();
         closeDayEditModal();
-        renderHistory(); renderDaySelector();
+        renderHistory(); renderDaySelector(); renderPenalties(); renderSurplusCircles();
         selectDay(key);
         return;
       } else {
@@ -10966,6 +10972,8 @@ ${sig}`
       closeDayEditModal();
       renderHistory();
       renderDaySelector();
+      renderPenalties();
+      renderSurplusCircles();
       // Always refresh the overview when editing today, regardless of session state
       if (key === todayKey()) {
         selectDay(key); // also removes weekend-mode if override was cleared

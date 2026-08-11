@@ -6501,12 +6501,19 @@
       const _isPlannedDay = _todayOv === 'holiday' || _todayOv === 'leave' || _todayOv === 'halfday';
       el('rcBody')?.classList.toggle('weekend-mode', wknd || _isPlannedDay);
       if (wknd) {
+        // Coming back from a past/future day leaves #rcBody.past-day set, which forces
+        // align-items:center — that shrinks #weekendView to its content width and
+        // centers it instead of stretching full-width, squeezing the card from both
+        // sides. Must be cleared here since this branch returns before the shared
+        // _rcShowPastMode(false) call below ever runs.
+        _rcShowPastMode(false);
         selectedDayKey = todayKey();
         renderWeekendState(todayKey(), 'weekend');
         _updateDayNavBtns();
         return;
       }
       if (_isPlannedDay) {
+        _rcShowPastMode(false); // same past-day-class leak as the weekend branch above
         selectedDayKey = todayKey();
         _setShiftCtaVisible(_todayOv === 'halfday');
         el('resultCard').style.display = '';
@@ -7298,7 +7305,9 @@
       _setShiftCtaVisible(false);
       el('rcUpdateEntryBtn')?.classList.remove('visible');
       el('leaveChip').style.display = 'none';
-      // Activate weekend mode
+      // Activate weekend mode — clear any leftover past-day state first (same
+      // align-items:center leak fixed in selectDay()/renderEmptyState()).
+      _rcShowPastMode(false);
       el('rcBody')?.classList.add('weekend-mode');
       _hideSkeleton();
       renderWeekendState();
@@ -7903,6 +7912,11 @@
         : _ovSel === 'leave'   ? 'leave'
         : _ovSel === 'halfday' ? 'halfday' : null;
       if (_infoType) {
+        // A previously-selected past/future day leaves #rcBody.past-day set (align-
+        // items:center), which shrinks #weekendView to its content width instead of
+        // stretching full-width — must clear it before rendering this weekend/override
+        // card, same leak as the renderEmptyState() branches above.
+        _rcShowPastMode(false);
         _syncOffsetFromKey(key);
         _setShiftCtaVisible(false);
         // Past _infoType days get Update Entry; today doesn't need it (editable inline)
@@ -7962,6 +7976,8 @@
 
       // Future weekend day → weekend info card (not the work-day planner)
       if (isWeekendKey(key)) {
+        // Same past-day-class leak as selectDay()/selectWeekendView() — clear before render.
+        _rcShowPastMode(false);
         _syncOffsetFromKey(key);
         updateSelDayHeader(key); // sets rcDayLabel to day name ("Saturday") — not "Today"
         _setShiftCtaVisible(false);

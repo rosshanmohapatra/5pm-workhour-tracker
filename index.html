@@ -991,7 +991,7 @@
     .tz-select { position: relative; flex-shrink: 0; max-width: 190px; }
     .tz-select-trigger { display: flex; align-items: center; justify-content: space-between; gap: 8px;
       width: 100%; padding: 8px 12px; font-family: var(--font); font-size: 12.5px; font-weight: 600;
-      color: var(--foreground); background: var(--background); border: 1px solid var(--border);
+      color: var(--foreground); background: var(--input-bg); border: 1px solid var(--border);
       border-radius: 8px; cursor: pointer; transition: background .15s, border-color .15s; }
     .tz-select-trigger:hover { background: var(--muted); }
     .tz-select-trigger-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -2913,8 +2913,10 @@
 
             <!-- Shift Type -->
             <div class="form-field">
-              <div class="form-label">Shift Type</div>
-              <div class="form-sub">We'll notify you by the end of your daily target.</div>
+              <div>
+                <div class="form-label">Shift Type</div>
+                <div class="form-sub">We'll notify you by the end of your daily target.</div>
+              </div>
               <div style="display:flex;align-items:center;gap:8px">
                 <div class="time-input-wrap" style="flex:1">
                   <input type="text" id="inpShiftStart" placeholder="From  09:00 AM" autocomplete="off"
@@ -9093,18 +9095,14 @@
       _tzSyncTrigger();
     }
 
-    function _tzToggle(event) {
-      event?.stopPropagation();
-      const wrap = el('tzSelect'), menu = el('tzSelectMenu'), trigger = el('tzSelectTrigger');
-      if (!wrap || !menu || !trigger) return;
-      _populateTimezoneSelect();
-      const willOpen = !menu.classList.contains('open');
-      wrap.classList.toggle('open', willOpen);
-      menu.classList.toggle('open', willOpen);
-      if (!willOpen) return;
-      // Fixed positioning computed from the trigger's own rect, same as
-      // _tdShowPopover — right-aligned below the trigger, clamped to the
-      // viewport, flipped above when there isn't enough room below.
+    // Fixed positioning computed from the trigger's own rect, same as
+    // _tdShowPopover — right-aligned below the trigger, clamped to the
+    // viewport, flipped above when there isn't enough room below. Re-run on
+    // scroll/resize while open (see _tzClose/_tzToggle) so the menu stays
+    // anchored to the trigger instead of drifting once the page scrolls.
+    function _tzPositionMenu() {
+      const menu = el('tzSelectMenu'), trigger = el('tzSelectTrigger');
+      if (!menu || !trigger) return;
       const GAP = 6, mW = 320, pad = 16;
       const r = trigger.getBoundingClientRect();
       let left = r.right - mW;
@@ -9125,21 +9123,45 @@
       menu.style.maxHeight = maxH + 'px';
     }
 
+    function _tzClose() {
+      el('tzSelect')?.classList.remove('open');
+      el('tzSelectMenu')?.classList.remove('open');
+      window.removeEventListener('scroll', _tzPositionMenu, true);
+      window.removeEventListener('resize', _tzPositionMenu);
+    }
+
+    function _tzToggle(event) {
+      event?.stopPropagation();
+      const wrap = el('tzSelect'), menu = el('tzSelectMenu');
+      if (!wrap || !menu) return;
+      _populateTimezoneSelect();
+      const willOpen = !menu.classList.contains('open');
+      if (!willOpen) { _tzClose(); return; }
+      wrap.classList.add('open');
+      menu.classList.add('open');
+      _tzPositionMenu();
+      // capture:true so scrolling on any scrollable ancestor (not just window)
+      // still re-anchors the menu, since scroll events don't bubble to window.
+      window.addEventListener('scroll', _tzPositionMenu, true);
+      window.addEventListener('resize', _tzPositionMenu);
+      // Open already centred on the current selection instead of always the top.
+      const active = menu.querySelector('.tz-item.active');
+      if (active) active.scrollIntoView({ block: 'center' });
+    }
+
     // isAuto: true when the clicked entry is also the device's real zone — picking
     // it stores '' (follow device) rather than pinning its iana, so the clock keeps
     // tracking the device if the user's actual timezone ever changes (e.g. travel).
     function _tzSelectEntry(iana, isAuto) {
       saveCfg({ ...cfg(), tzName: isAuto ? '' : iana });
       _populateTimezoneSelect();
-      el('tzSelect')?.classList.remove('open');
-      el('tzSelectMenu')?.classList.remove('open');
+      _tzClose();
       tickHeader();
     }
 
     document.addEventListener('click', e => {
       if (e.target.closest('#tzSelect')) return;
-      el('tzSelect')?.classList.remove('open');
-      el('tzSelectMenu')?.classList.remove('open');
+      _tzClose();
     });
 
     function switchStTab(tab) {

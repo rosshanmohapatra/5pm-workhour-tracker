@@ -1015,8 +1015,7 @@
     .tz-item:hover { background: var(--muted); }
     .tz-item-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .tz-item-right { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
-    .tz-item-auto { color: var(--muted-fg); font-weight: 600; font-size: 10.5px; white-space: nowrap; }
-    .tz-item.active .tz-item-auto { color: inherit; }
+    .tz-item-auto { display: flex; align-items: center; color: var(--success); flex-shrink: 0; }
     .tz-item-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--foreground); flex-shrink: 0; }
     .st-panel { margin-top: 12px; }
     .st-panel-label { font-size: 11px; font-weight: 600; color: var(--muted-fg); letter-spacing: .04em; text-transform: uppercase; margin-bottom: 6px; }
@@ -9089,7 +9088,7 @@
         const isActive = tzName ? e.iana === tzName : !!isAuto;
         return `<button type="button" class="tz-item${isActive ? ' active' : ''}" onclick="_tzSelectEntry('${e.iana}', ${isAuto ? 'true' : 'false'})">
           <span class="tz-item-label">${_tzEntryLabel(e)}</span>
-          <span class="tz-item-right">${isAuto ? '<span class="tz-item-auto">Auto Detect</span>' : ''}${isActive ? '<span class="tz-item-dot"></span>' : ''}</span>
+          <span class="tz-item-right">${isAuto ? '<span class="tz-item-auto" title="Auto Detect"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>' : ''}${isActive ? '<span class="tz-item-dot"></span>' : ''}</span>
         </button>`;
       }).join('');
       _tzSyncTrigger();

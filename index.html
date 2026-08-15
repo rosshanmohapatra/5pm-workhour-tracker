@@ -1323,8 +1323,13 @@
     .sc-total-val { font-size: 15px; font-weight: 700; color: var(--success); }
 
     /* Penalty rows */
-    /* overflow:hidden so a row flying off to the right can't push out the page width */
-    .penalty-list { display: flex; flex-direction: column; padding: 12px; gap: 2px; overflow: hidden; }
+    /* Capped height + vertical scroll once the list outgrows it — previously
+       unbounded, so a long list just grew the whole page instead of scrolling
+       within the card. overflow-x stays hidden so a row flying off to the
+       right on dismiss can't push out the page width; overflow-y:auto is what
+       actually makes it scrollable. */
+    .penalty-list { display: flex; flex-direction: column; padding: 12px; gap: 2px;
+      max-height: 320px; overflow-y: auto; overflow-x: hidden; }
     /* transform/opacity carry the swipe-away; touch-action:pan-y keeps vertical
        page scrolling native while horizontal drags are ours to handle. */
     .penalty-row { border-radius: 8px; cursor: pointer;

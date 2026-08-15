@@ -605,7 +605,13 @@
     /* ── Home view layout ── */
     /* homeCard: week selector + divider + today card unified */
     #homeCard { background: var(--card); border: 1.5px solid var(--border);
-      border-radius: var(--radius-lg); box-shadow: var(--shadow-xs); overflow: hidden; padding: 16px; }
+      border-radius: var(--radius-lg); box-shadow: var(--shadow-xs); overflow: hidden; padding: 16px;
+      /* Never let flexbox squeeze the card below its own content. It clips with
+         overflow:hidden (needed for the rounded corners), so being shrunk crops
+         whatever sits at the bottom — e.g. the weekend view's View Stats button.
+         Holding natural height instead lets #homeMain's overflow-y:auto scroll
+         when the content genuinely doesn't fit the viewport. */
+      flex-shrink: 0; }
     /* Strip card chrome from week wrap and today card (inside homeCard) */
     .this-week-wrap { background: transparent !important; border: none !important;
       box-shadow: none !important; border-radius: 0 !important; }
@@ -1305,7 +1311,12 @@
     .penalty-list { display: flex; flex-direction: column; padding: 12px; gap: 2px; }
     .penalty-row { border-radius: 8px; cursor: pointer; transition: background .12s; }
     .penalty-row:hover { background: var(--muted); }
-    .penalty-discard-btn:hover { color: var(--destructive) !important; background: var(--muted) !important; border-color: var(--border) !important; }
+    /* Discard sits quieter than Email at rest (muted text), but hovers exactly
+       like it — same --border wash, same foreground text. The old rule turned it
+       red on hover, which read as a different kind of control entirely. Colour
+       lives here rather than inline so the hover needs no !important to win. */
+    .penalty-discard-btn { color: var(--muted-fg); transition: background .14s, color .14s; }
+    .penalty-discard-btn:hover { background: var(--border); color: var(--foreground); }
     .penalty-row-main { display: flex; align-items: center; justify-content: space-between;
       padding: 9px 10px; }
     .penalty-info { display: flex; flex-direction: column; gap: 2px; }
@@ -1854,8 +1865,6 @@
       .ob-btn-ghost:hover { background: var(--muted); color: var(--foreground); }
       .ob-btn-ghost:active { background: var(--muted); color: var(--foreground); }
 
-      .penalty-discard-btn:hover { color: var(--destructive) !important; background: var(--muted) !important; }
-      .penalty-discard-btn:active { color: var(--destructive) !important; background: var(--muted) !important; }
     }
 
     /* ── Pull-to-refresh indicator ── */
@@ -9812,7 +9821,7 @@
           </div>
           <div style="display:flex;gap:6px;flex-shrink:0">
             <button class="btn-sm" onclick="event.stopPropagation();openEmailModal('${p.key}')">Email</button>
-            <button class="btn-sm penalty-discard-btn" style="color:var(--muted-fg)" onclick="event.stopPropagation();discardPenalty('${p.key}')">Discard</button>
+            <button class="btn-sm penalty-discard-btn" onclick="event.stopPropagation();discardPenalty('${p.key}')">Discard</button>
           </div>
         </div>
       </div>`;

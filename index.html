@@ -605,7 +605,11 @@
     /* ── Home view layout ── */
     /* homeCard: week selector + divider + today card unified */
     #homeCard { background: var(--card); border: 1.5px solid var(--border);
-      border-radius: var(--radius-lg); box-shadow: var(--shadow-xs); overflow: hidden; padding: 16px; }
+      border-radius: var(--radius-lg); box-shadow: var(--shadow-xs); overflow: hidden; padding: 16px;
+      /* Hug the content: the card clips with overflow:hidden for its rounded
+         corners, so letting flexbox shrink it crops whatever sits at the bottom
+         (the weekend view's View Stats button). The page scrolls instead. */
+      flex-shrink: 0; }
     /* Strip card chrome from week wrap and today card (inside homeCard) */
     .this-week-wrap { background: transparent !important; border: none !important;
       box-shadow: none !important; border-radius: 0 !important; }
@@ -643,8 +647,12 @@
       width: 24px; height: 24px; flex-shrink: 0; padding: 0; border: none; border-radius: 6px;
       background: transparent; color: var(--muted-fg); cursor: pointer; transition: background .12s, color .12s; }
     .rc-running-elsewhere-close:hover { background: var(--btn-secondary-hover); color: var(--foreground); }
-    /* Lock scroll on the home view — nav is sticky so body must not scroll */
-    html:has(#viewHome.active), body:has(#viewHome.active) { overflow: hidden !important; }
+    /* Home view: never scroll sideways, but let the page scroll vertically when
+       the card genuinely outgrows the viewport (short window, tall weekend card).
+       Clamping this to overflow:hidden is what forced #homeCard to shrink and
+       clip its own contents — the navbar is position:sticky and already carries
+       a .stuck style, so ordinary page scroll is what it's built for. */
+    html:has(#viewHome.active), body:has(#viewHome.active) { overflow-x: hidden !important; }
     /* 3-zone layout: nav top · content center · input bottom.
        .sel-day-ctx and #homeBottomSpacer are both flex:1 — equal growable
        regions above and below #homeCard, which locks the card exactly centered
@@ -652,8 +660,11 @@
        region (align-items/justify-content:center on .sel-day-ctx), so it's
        flexibly placed between the navbar and the card instead of hugging
        either one. */
-    #viewHome .page { height: calc(100dvh - 24px - 52px - 16px); overflow: hidden; gap: 0; padding-bottom: 24px; }
-    #homeMain { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 16px; padding: 8px 0 8px; overflow-y: auto; }
+    /* min-height, not height: fills the viewport so the spacers can centre the
+       card in the normal case, but grows (and lets the page scroll) instead of
+       squeezing the card when content is taller than the screen. */
+    #viewHome .page { min-height: calc(100dvh - 24px - 52px - 16px); gap: 0; padding-bottom: 24px; }
+    #homeMain { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 16px; padding: 8px 0 8px; }
     #homeBottomSpacer { flex: 1; }
     #todayLoginSection { padding-top: 0; }
     /* ── Not-started single-KPI layout ── */

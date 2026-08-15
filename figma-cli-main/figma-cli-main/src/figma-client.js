@@ -6,7 +6,7 @@
  */
 
 import WebSocket from 'ws';
-import { getCdpPort } from './figma-patch.js';
+import { getCdpPort, isFigmaUrl } from './figma-patch.js';
 
 export class FigmaClient {
   constructor() {
@@ -27,7 +27,7 @@ export class FigmaClient {
     const response = await fetch(`http://localhost:${port}/json`);
     const pages = await response.json();
     return pages
-      .filter(p => p.url && p.url.includes('figma.com'))
+      .filter(p => isFigmaUrl(p.url))
       .map(p => ({ title: p.title, id: p.id, url: p.url, wsUrl: p.webSocketDebuggerUrl }));
   }
 
@@ -39,7 +39,7 @@ export class FigmaClient {
       const port = getCdpPort();
       const response = await fetch(`http://localhost:${port}/json`);
       const pages = await response.json();
-      return pages.some(p => p.url && p.url.includes('figma.com'));
+      return pages.some(p => isFigmaUrl(p.url));
     } catch {
       return false;
     }

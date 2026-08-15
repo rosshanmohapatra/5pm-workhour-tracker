@@ -8,6 +8,18 @@
 import { readFileSync, writeFileSync, accessSync, constants } from 'fs';
 import { execSync } from 'child_process';
 
+// Matches the hostname exactly, not just any substring of the URL, so
+// "notfigma.com" or "figma.com.evil.tld" can't spoof a match.
+export function isFigmaUrl(url) {
+  if (!url) return false;
+  try {
+    const { hostname } = new URL(url);
+    return hostname === 'figma.com' || hostname.endsWith('.figma.com');
+  } catch {
+    return false;
+  }
+}
+
 // CDP port used to connect to Figma's remote-debugging endpoint.
 // Resolution order:
 //   1. FIGMA_CDP_PORT environment variable  (manual override)
@@ -52,7 +64,7 @@ export async function detectCdpPort() {
       const resp = await fetch(`http://localhost:${port}/json`, { signal: controller.signal });
       clearTimeout(timeout);
       const pages = await resp.json();
-      if (Array.isArray(pages) && pages.some(p => p.url?.includes('figma.com'))) {
+      if (Array.isArray(pages) && pages.some(p => isFigmaUrl(p.url))) {
         _resolvedPort = port;
         return port;
       }

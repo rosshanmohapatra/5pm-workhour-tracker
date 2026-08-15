@@ -1155,7 +1155,7 @@ v.setValueForMode(modeId, figmaValue);
 ` : ''}
 return 'Created ${type.toLowerCase()} variable: ${name}';
 })()`;
-    figmaUse(`eval "${code.replace(/"/g, '\\"').replace(/\n/g, ' ')}"`, { silent: false });
+    figmaUse(`eval "${code.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, ' ')}"`, { silent: false });
   });
 
 variables
@@ -1809,7 +1809,7 @@ return 'Created ' + count + ' color variables in ${options.collection}';
 })()`;
 
     try {
-      const result = figmaUse(`eval "${code.replace(/"/g, '\\"').replace(/\n/g, ' ')}"`, { silent: true });
+      const result = figmaUse(`eval "${code.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, ' ')}"`, { silent: true });
       spinner.succeed(result?.trim() || 'Created Tailwind palette');
     } catch (error) {
       spinner.fail('Failed to create palette');
@@ -2113,7 +2113,7 @@ return 'Created ' + count + ' shadcn color variables in ${options.collection}';
 })()`;
 
     try {
-      const result = figmaUse(`eval "${code.replace(/"/g, '\\"').replace(/\n/g, ' ')}"`, { silent: true });
+      const result = figmaUse(`eval "${code.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, ' ')}"`, { silent: true });
       spinner.succeed(result?.trim() || 'Created shadcn primitives (231 colors)');
     } catch (error) {
       spinner.fail('Failed to create shadcn colors');
@@ -2157,7 +2157,7 @@ return 'Created ' + count + ' spacing variables';
 })()`;
 
     try {
-      const result = figmaUse(`eval "${code.replace(/"/g, '\\"').replace(/\n/g, ' ')}"`, { silent: true });
+      const result = figmaUse(`eval "${code.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, ' ')}"`, { silent: true });
       spinner.succeed(result?.trim() || 'Created spacing scale');
     } catch (error) {
       spinner.fail('Failed to create spacing scale');
@@ -2198,7 +2198,7 @@ return 'Created ' + count + ' radius variables';
 `;
 
     try {
-      const result = figmaUse(`eval "${code.replace(/"/g, '\\"').replace(/\n/g, ' ')}"`, { silent: true });
+      const result = figmaUse(`eval "${code.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, ' ')}"`, { silent: true });
       spinner.succeed(result?.trim() || 'Created border radii');
     } catch (error) {
       spinner.fail('Failed to create radii');
@@ -2289,7 +2289,7 @@ return 'Imported ' + count + ' tokens into ' + collectionName;
 })()`;
 
     try {
-      const result = figmaUse(`eval "${code.replace(/"/g, '\\"').replace(/\n/g, ' ')}"`, { silent: true });
+      const result = figmaUse(`eval "${code.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, ' ')}"`, { silent: true });
       spinner.succeed(result?.trim() || 'Tokens imported');
     } catch (error) {
       spinner.fail('Failed to import tokens');
@@ -2373,7 +2373,7 @@ for (const [colorName, shades] of Object.entries(colors)) {
 return count;
 })()`;
     try {
-      const result = figmaUse(`eval "${primitivesCode.replace(/"/g, '\\"').replace(/\n/g, ' ')}"`, { silent: true });
+      const result = figmaUse(`eval "${primitivesCode.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, ' ')}"`, { silent: true });
       spinner.succeed(`Color - Primitives (${result?.trim() || '33'} variables)`);
     } catch { spinner.fail('Color - Primitives failed'); }
 
@@ -2402,7 +2402,7 @@ for (const [name, hex] of Object.entries(colors)) {
 return count;
 })()`;
     try {
-      const result = figmaUse(`eval "${semanticCode.replace(/"/g, '\\"').replace(/\n/g, ' ')}"`, { silent: true });
+      const result = figmaUse(`eval "${semanticCode.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, ' ')}"`, { silent: true });
       spinner.succeed(`Color - Semantic (${result?.trim() || '13'} variables)`);
     } catch { spinner.fail('Color - Semantic failed'); }
 
@@ -2427,7 +2427,7 @@ for (const [name, value] of Object.entries(spacings)) {
 return count;
 })()`;
     try {
-      const result = figmaUse(`eval "${spacingCode.replace(/"/g, '\\"').replace(/\n/g, ' ')}"`, { silent: true });
+      const result = figmaUse(`eval "${spacingCode.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, ' ')}"`, { silent: true });
       spinner.succeed(`Spacing (${result?.trim() || '7'} variables)`);
     } catch { spinner.fail('Spacing failed'); }
 
@@ -2452,7 +2452,7 @@ for (const [name, value] of Object.entries(typography)) {
 return count;
 })()`;
     try {
-      const result = figmaUse(`eval "${typographyCode.replace(/"/g, '\\"').replace(/\n/g, ' ')}"`, { silent: true });
+      const result = figmaUse(`eval "${typographyCode.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, ' ')}"`, { silent: true });
       spinner.succeed(`Typography (${result?.trim() || '12'} variables)`);
     } catch { spinner.fail('Typography failed'); }
 
@@ -2477,7 +2477,7 @@ for (const [name, value] of Object.entries(radii)) {
 return count;
 })()`;
     try {
-      const result = figmaUse(`eval "${radiiCode.replace(/"/g, '\\"').replace(/\n/g, ' ')}"`, { silent: true });
+      const result = figmaUse(`eval "${radiiCode.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, ' ')}"`, { silent: true });
       spinner.succeed(`Border Radii (${result?.trim() || '6'} variables)`);
     } catch { spinner.fail('Border Radii failed'); }
 
@@ -2531,7 +2531,7 @@ figma.currentPage.children.forEach(n => {
 removed
 `;
     try {
-      const removed = figmaUse(`eval "${cleanupCode.replace(/"/g, '\\"').replace(/\n/g, ' ')}"`, { silent: true });
+      const removed = figmaUse(`eval "${cleanupCode.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, ' ')}"`, { silent: true });
       spinner.succeed(`Cleaned up ${removed?.trim() || '0'} old elements`);
     } catch { spinner.succeed('Ready'); }
 
@@ -2601,7 +2601,7 @@ if (f) {
 }
 `;
       try {
-        figmaUse(`eval "${convertSingle.replace(/"/g, '\\"').replace(/\n/g, ' ')}"`, { silent: true });
+        figmaUse(`eval "${convertSingle.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, ' ')}"`, { silent: true });
         if (comp.row === 0) row0X += comp.width + gap;
         else row1X += comp.width + 24;
       } catch {}
@@ -2660,7 +2660,7 @@ return 'Created ' + type.toLowerCase() + ' token: ${name}';
 })()`;
 
     try {
-      const result = figmaUse(`eval "${code.replace(/"/g, '\\"').replace(/\n/g, ' ')}"`, { silent: true });
+      const result = figmaUse(`eval "${code.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, ' ')}"`, { silent: true });
       console.log(chalk.green(result?.trim() || `✓ Created token: ${name}`));
     } catch (error) {
       console.log(chalk.red(`✗ Failed to create token: ${name}`));
@@ -2855,7 +2855,7 @@ create
 `;
 
     try {
-      const result = figmaUse(`eval "${code.replace(/"/g, '\\"').replace(/\n/g, ' ')}"`, { silent: true });
+      const result = figmaUse(`eval "${code.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, ' ')}"`, { silent: true });
       spinner.succeed('Image created from URL');
       if (result) console.log(chalk.gray(result.trim()));
     } catch (e) {
@@ -2934,7 +2934,7 @@ program
 })()
 `;
 
-      const result = figmaUse(`eval "${code.replace(/"/g, '\\"').replace(/\n/g, ' ')}"`, { silent: true });
+      const result = figmaUse(`eval "${code.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, ' ')}"`, { silent: true });
       spinner.succeed('Screenshot imported into Figma');
       if (result) console.log(chalk.gray(result.trim()));
 
@@ -3316,7 +3316,7 @@ ${[...fonts].map(f => {
         const fontStyle = getFontStyle(el.fontWeight, el.fontFamily);
 
         if (el.type === 'heading' || el.type === 'text') {
-          const text = (el.text || '').replace(/"/g, '\\"').replace(/\n/g, '\\n');
+          const text = (el.text || '').replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, '\\n');
           if (!text) return;
           figmaCode += `
   // ${el.type}: ${text.slice(0, 30)}
@@ -3330,7 +3330,7 @@ ${[...fonts].map(f => {
   main.appendChild(t${i});
 `;
         } else if (el.type === 'button') {
-          const text = (el.text || '').replace(/"/g, '\\"').replace(/\n/g, ' ').trim();
+          const text = (el.text || '').replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, ' ').trim();
           if (!text) return;
           figmaCode += `
   // Button: ${text.slice(0, 30)}
@@ -3354,7 +3354,7 @@ ${[...fonts].map(f => {
   main.appendChild(btn${i});
 `;
         } else if (el.type === 'input') {
-          const placeholder = (el.placeholder || 'Enter text...').replace(/"/g, '\\"');
+          const placeholder = (el.placeholder || 'Enter text...').replace(/\\/g, '\\\\').replace(/"/g, '\\"');
           figmaCode += `
   // Input
   const input${i} = figma.createFrame();
@@ -3506,7 +3506,7 @@ program
 })()
 `;
 
-      const result = figmaUse(`eval "${code.replace(/"/g, '\\"').replace(/\n/g, ' ')}"`, { silent: true });
+      const result = figmaUse(`eval "${code.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, ' ')}"`, { silent: true });
 
       if (result && result.includes('Error:')) {
         spinner.fail(result.trim());
@@ -3731,7 +3731,7 @@ else if (sel.length === 1) {
   'Component created from ' + sel.length + ' elements: ' + comp.name;
 }
 `;
-    figmaUse(`eval "${code.replace(/"/g, '\\"').replace(/\n/g, ' ')}"`, { silent: false });
+    figmaUse(`eval "${code.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, ' ')}"`, { silent: false });
   });
 
 create
@@ -3750,7 +3750,7 @@ else {
   'Grouped ' + sel.length + ' elements';
 }
 `;
-    figmaUse(`eval "${code.replace(/"/g, '\\"').replace(/\n/g, ' ')}"`, { silent: false });
+    figmaUse(`eval "${code.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, ' ')}"`, { silent: false });
   });
 
 create
@@ -3833,7 +3833,7 @@ if (children.length === 0) {
   }, null, 2);
 }
 })()`;
-    figmaUse(`eval "${code.replace(/"/g, '\\"').replace(/\n/g, ' ')}"`, { silent: false });
+    figmaUse(`eval "${code.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, ' ')}"`, { silent: false });
   });
 
 canvas
@@ -3860,7 +3860,7 @@ if (children.length === 0) {
   `}
 }
 `;
-    figmaUse(`eval "${code.replace(/"/g, '\\"').replace(/\n/g, ' ')}"`, { silent: false });
+    figmaUse(`eval "${code.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, ' ')}"`, { silent: false });
   });
 
 // ============ BIND (Variables) ============
@@ -3892,7 +3892,7 @@ nodes.forEach(n => {
 });
 return 'Bound ' + v.name + ' to fill on ' + nodes.length + ' elements';
 })()`;
-    figmaUse(`eval "${code.replace(/"/g, '\\"').replace(/\n/g, ' ')}"`, { silent: false });
+    figmaUse(`eval "${code.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, ' ')}"`, { silent: false });
   });
 
 bind
@@ -3919,7 +3919,7 @@ nodes.forEach(n => {
 });
 return 'Bound ' + v.name + ' to stroke on ' + nodes.length + ' elements';
 })()`;
-    figmaUse(`eval "${code.replace(/"/g, '\\"').replace(/\n/g, ' ')}"`, { silent: false });
+    figmaUse(`eval "${code.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, ' ')}"`, { silent: false });
   });
 
 bind
@@ -3942,7 +3942,7 @@ nodes.forEach(n => {
 });
 return 'Bound ' + v.name + ' to radius on ' + nodes.length + ' elements';
 })()`;
-    figmaUse(`eval "${code.replace(/"/g, '\\"').replace(/\n/g, ' ')}"`, { silent: false });
+    figmaUse(`eval "${code.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, ' ')}"`, { silent: false });
   });
 
 bind
@@ -3965,7 +3965,7 @@ nodes.forEach(n => {
 });
 return 'Bound ' + v.name + ' to gap on ' + nodes.length + ' elements';
 })()`;
-    figmaUse(`eval "${code.replace(/"/g, '\\"').replace(/\n/g, ' ')}"`, { silent: false });
+    figmaUse(`eval "${code.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, ' ')}"`, { silent: false });
   });
 
 bind
@@ -3993,7 +3993,7 @@ nodes.forEach(n => {
 });
 return 'Bound ' + v.name + ' to padding on ' + nodes.length + ' elements';
 })()`;
-    figmaUse(`eval "${code.replace(/"/g, '\\"').replace(/\n/g, ' ')}"`, { silent: false });
+    figmaUse(`eval "${code.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, ' ')}"`, { silent: false });
   });
 
 bind
@@ -4007,7 +4007,7 @@ const vars = await figma.variables.getLocalVariablesAsync();
 const filtered = vars${options.type ? `.filter(v => v.resolvedType === '${options.type.toUpperCase()}')` : ''};
 return filtered.map(v => v.resolvedType.padEnd(8) + ' ' + v.name).join('\\n') || 'No variables';
 })()`;
-    figmaUse(`eval "${code.replace(/"/g, '\\"').replace(/\n/g, ' ')}"`, { silent: false });
+    figmaUse(`eval "${code.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, ' ')}"`, { silent: false });
   });
 
 // ============ SIZING ============
@@ -4034,7 +4034,7 @@ else {
   'Set hug on ' + nodes.length + ' elements';
 }
 `;
-    figmaUse(`eval "${code.replace(/"/g, '\\"').replace(/\n/g, ' ')}"`, { silent: false });
+    figmaUse(`eval "${code.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, ' ')}"`, { silent: false });
   });
 
 sizing
@@ -4054,7 +4054,7 @@ else {
   'Set fill on ' + nodes.length + ' elements';
 }
 `;
-    figmaUse(`eval "${code.replace(/"/g, '\\"').replace(/\n/g, ' ')}"`, { silent: false });
+    figmaUse(`eval "${code.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, ' ')}"`, { silent: false });
   });
 
 sizing
@@ -4075,7 +4075,7 @@ else {
   'Set fixed ${width}x${h} on ' + nodes.length + ' elements';
 }
 `;
-    figmaUse(`eval "${code.replace(/"/g, '\\"').replace(/\n/g, ' ')}"`, { silent: false });
+    figmaUse(`eval "${code.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, ' ')}"`, { silent: false });
   });
 
 // ============ LAYOUT SHORTCUTS ============
@@ -4103,7 +4103,7 @@ else {
   'Set padding on ' + nodes.length + ' elements';
 }
 `;
-    figmaUse(`eval "${code.replace(/"/g, '\\"').replace(/\n/g, ' ')}"`, { silent: false });
+    figmaUse(`eval "${code.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, ' ')}"`, { silent: false });
   });
 
 program
@@ -4119,7 +4119,7 @@ else {
   'Set gap ${value} on ' + nodes.length + ' elements';
 }
 `;
-    figmaUse(`eval "${code.replace(/"/g, '\\"').replace(/\n/g, ' ')}"`, { silent: false });
+    figmaUse(`eval "${code.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, ' ')}"`, { silent: false });
   });
 
 program
@@ -4140,7 +4140,7 @@ else {
   'Aligned ' + nodes.length + ' elements to ${alignment}';
 }
 `;
-    figmaUse(`eval "${code.replace(/"/g, '\\"').replace(/\n/g, ' ')}"`, { silent: false });
+    figmaUse(`eval "${code.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, ' ')}"`, { silent: false });
   });
 
 // ============ SELECT ============
@@ -4166,14 +4166,14 @@ program
 const node = await figma.getNodeByIdAsync('${nodeId}');
 if (node) { node.remove(); return 'Deleted: ${nodeId}'; } else { return 'Node not found: ${nodeId}'; }
 })()`;
-      figmaUse(`eval "${code.replace(/"/g, '\\"').replace(/\n/g, ' ')}"`, { silent: false });
+      figmaUse(`eval "${code.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, ' ')}"`, { silent: false });
     } else {
       let code = `
 const sel = figma.currentPage.selection;
 if (sel.length === 0) 'No selection';
 else { const count = sel.length; sel.forEach(n => n.remove()); 'Deleted ' + count + ' elements'; }
 `;
-      figmaUse(`eval "${code.replace(/"/g, '\\"').replace(/\n/g, ' ')}"`, { silent: false });
+      figmaUse(`eval "${code.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, ' ')}"`, { silent: false });
     }
   });
 
@@ -4191,14 +4191,14 @@ program
 const node = await figma.getNodeByIdAsync('${nodeId}');
 if (node) { const clone = node.clone(); clone.x += ${options.offset}; clone.y += ${options.offset}; figma.currentPage.selection = [clone]; return 'Duplicated: ' + clone.id; } else { return 'Node not found'; }
 })()`;
-      figmaUse(`eval "${code.replace(/"/g, '\\"').replace(/\n/g, ' ')}"`, { silent: false });
+      figmaUse(`eval "${code.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, ' ')}"`, { silent: false });
     } else {
       let code = `
 const sel = figma.currentPage.selection;
 if (sel.length === 0) 'No selection';
 else { const clones = sel.map(n => { const c = n.clone(); c.x += ${options.offset}; c.y += ${options.offset}; return c; }); figma.currentPage.selection = clones; 'Duplicated ' + clones.length + ' elements'; }
 `;
-      figmaUse(`eval "${code.replace(/"/g, '\\"').replace(/\n/g, ' ')}"`, { silent: false });
+      figmaUse(`eval "${code.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, ' ')}"`, { silent: false });
     }
   });
 
@@ -4249,7 +4249,7 @@ set
         nodes.forEach(n => { if ('fills' in n) n.fills = [{ type: 'SOLID', color: { r: ${r}, g: ${g}, b: ${b} } }]; });
         return 'Fill set on ' + nodes.length + ' elements';
       })()`;
-      figmaUse(`eval "${code.replace(/"/g, '\\"').replace(/\n/g, ' ')}"`, { silent: false });
+      figmaUse(`eval "${code.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, ' ')}"`, { silent: false });
     }
   });
 
@@ -4295,7 +4295,7 @@ set
         nodes.forEach(n => { if ('strokes' in n) { n.strokes = [{ type: 'SOLID', color: { r: ${r}, g: ${g}, b: ${b} } }]; n.strokeWeight = ${options.weight}; } });
         return 'Stroke set on ' + nodes.length + ' elements';
       })()`;
-      figmaUse(`eval "${code.replace(/"/g, '\\"').replace(/\n/g, ' ')}"`, { silent: false });
+      figmaUse(`eval "${code.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, ' ')}"`, { silent: false });
     }
   });
 
@@ -4313,7 +4313,7 @@ ${nodeSelector}
 if (nodes.length === 0) 'No node found';
 else { nodes.forEach(n => { if ('cornerRadius' in n) n.cornerRadius = ${value}; }); 'Radius set on ' + nodes.length + ' elements'; }
 `;
-    figmaUse(`eval "${code.replace(/"/g, '\\"').replace(/\n/g, ' ')}"`, { silent: false });
+    figmaUse(`eval "${code.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, ' ')}"`, { silent: false });
   });
 
 set
@@ -4330,7 +4330,7 @@ ${nodeSelector}
 if (nodes.length === 0) 'No node found';
 else { nodes.forEach(n => { if ('resize' in n) n.resize(${width}, ${height}); }); 'Size set on ' + nodes.length + ' elements'; }
 `;
-    figmaUse(`eval "${code.replace(/"/g, '\\"').replace(/\n/g, ' ')}"`, { silent: false });
+    figmaUse(`eval "${code.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, ' ')}"`, { silent: false });
   });
 
 set
@@ -4348,7 +4348,7 @@ ${nodeSelector}
 if (nodes.length === 0) 'No node found';
 else { nodes.forEach(n => { n.x = ${x}; n.y = ${y}; }); 'Position set on ' + nodes.length + ' elements'; }
 `;
-    figmaUse(`eval "${code.replace(/"/g, '\\"').replace(/\n/g, ' ')}"`, { silent: false });
+    figmaUse(`eval "${code.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, ' ')}"`, { silent: false });
   });
 
 set
@@ -4365,7 +4365,7 @@ ${nodeSelector}
 if (nodes.length === 0) 'No node found';
 else { nodes.forEach(n => { if ('opacity' in n) n.opacity = ${value}; }); 'Opacity set on ' + nodes.length + ' elements'; }
 `;
-    figmaUse(`eval "${code.replace(/"/g, '\\"').replace(/\n/g, ' ')}"`, { silent: false });
+    figmaUse(`eval "${code.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, ' ')}"`, { silent: false });
   });
 
 set
@@ -4382,7 +4382,7 @@ ${nodeSelector}
 if (nodes.length === 0) 'No node found';
 else { nodes.forEach(n => { n.name = '${name}'; }); 'Renamed ' + nodes.length + ' elements to ${name}'; }
 `;
-    figmaUse(`eval "${code.replace(/"/g, '\\"').replace(/\n/g, ' ')}"`, { silent: false });
+    figmaUse(`eval "${code.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, ' ')}"`, { silent: false });
   });
 
 set
@@ -4410,7 +4410,7 @@ else {
   'Auto-layout applied to ' + sel.length + ' frames';
 }
 `;
-    figmaUse(`eval "${code.replace(/"/g, '\\"').replace(/\n/g, ' ')}"`, { silent: false });
+    figmaUse(`eval "${code.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, ' ')}"`, { silent: false });
   });
 
 // ============ ARRANGE ============
@@ -4446,7 +4446,7 @@ else {
   'Arranged ' + frames.length + ' frames';
 }
 `;
-    figmaUse(`eval "${code.replace(/"/g, '\\"').replace(/\n/g, ' ')}"`, { silent: false });
+    figmaUse(`eval "${code.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, ' ')}"`, { silent: false });
   });
 
 // ============ GET ============
@@ -4481,7 +4481,7 @@ return JSON.stringify({
   children: node.children?.length
 }, null, 2);
 })()`;
-    figmaUse(`eval "${code.replace(/"/g, '\\"').replace(/\n/g, ' ')}"`, { silent: false });
+    figmaUse(`eval "${code.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, ' ')}"`, { silent: false });
   });
 
 // ============ FIND ============
@@ -4507,7 +4507,7 @@ function search(node) {
 search(figma.currentPage);
 return results.length === 0 ? 'No nodes found matching "${name}"' : results.slice(0, ${options.limit}).map(r => r.id + ' [' + r.type + '] ' + r.name).join('\\n');
 })()`;
-    figmaUse(`eval "${code.replace(/"/g, '\\"').replace(/\n/g, ' ')}"`, { silent: false });
+    figmaUse(`eval "${code.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, ' ')}"`, { silent: false });
   });
 
 // ============ RENDER ============
@@ -4943,7 +4943,7 @@ const css = vars.map(v => {
 }).join('\\n');
 return ':root {\\n' + css + '\\n}';
 })()`;
-    const result = figmaUse(`eval "${code.replace(/"/g, '\\"').replace(/\n/g, ' ')}"`, { silent: true });
+    const result = figmaUse(`eval "${code.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, ' ')}"`, { silent: true });
     console.log(result);
   });
 
@@ -4969,7 +4969,7 @@ colorVars.forEach(v => {
 });
 return JSON.stringify({ theme: { extend: { colors } } }, null, 2);
 })()`;
-    const result = figmaUse(`eval "${code.replace(/"/g, '\\"').replace(/\n/g, ' ')}"`, { silent: true });
+    const result = figmaUse(`eval "${code.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, ' ')}"`, { silent: true });
     console.log(result);
   });
 
@@ -5041,7 +5041,7 @@ program
         }
       } else {
         // Fallback to sync path
-        figmaUse(`eval "${code.replace(/"/g, '\\"')}"`);
+        figmaUse(`eval "${code.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`);
       }
     } catch (e) {
       console.log(chalk.red('✗ ' + e.message));

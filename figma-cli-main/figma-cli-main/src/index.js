@@ -3658,7 +3658,7 @@ create
   await figma.loadFontAsync({ family: '${options.font}', style: '${fontStyle}' });
   const text = figma.createText();
   text.fontName = { family: '${options.font}', style: '${fontStyle}' };
-  text.characters = '${content.replace(/'/g, "\\'")}';
+  text.characters = '${content.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}';
   text.fontSize = ${options.size};
   ${fillCode.code}
   text.x = smartX;

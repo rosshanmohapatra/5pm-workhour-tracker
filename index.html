@@ -5980,9 +5980,15 @@
     // Rebuild the Worked Duration / Remaining / Overtime rows in whichever panel
     // (popover or modal) is currently open — render()/renderEmptyState() only
     // refresh the live card behind it, not this panel's own cached innerHTML.
-    function _tdRefreshBody(suffix) {
-      const body = el('td' + (suffix === 'Modal' ? 'Modal' : 'Popover') + 'Body');
-      if (body) body.innerHTML = _tdBuildContent();
+    // Refreshes by open-state rather than a caller-passed suffix, so a mismatch
+    // can never leave stale numbers sitting on screen.
+    function _tdRefreshBody() {
+      if (el('tdPopover')?.classList.contains('open')) {
+        el('tdPopoverBody').innerHTML = _tdBuildContent();
+      }
+      if (el('tdOverlay')?.classList.contains('open')) {
+        el('tdModalBody').innerHTML = _tdBuildContent();
+      }
     }
 
     // Selecting Half Day is an instant trigger — it just halves today's effective
@@ -6000,15 +6006,16 @@
         delete u.override; delete u.todayTargetH;
         saveDayLogAndSync(tk, u);
         _tdPlanSyncLabel(suffix);
-        _tdRefreshBody(suffix);
+        // Refresh after render() — it can settle session state the panel reads.
         if (loginDate) render(); else renderEmptyState();
+        _tdRefreshBody();
         return;
       }
       if (type === 'halfday') {
         saveDayLogAndSync(tk, { ...ex, override: 'halfday', todayTargetH: cfg().dailyH / 2 });
         _tdPlanSyncLabel(suffix);
-        _tdRefreshBody(suffix);
         if (loginDate) render(); else renderEmptyState();
+        _tdRefreshBody();
         return;
       }
       // leave / holiday — reuse the existing Notes-enabled Day Edit screen for today,
@@ -7424,6 +7431,9 @@
     function render() {
       if (!loginDate) return;
       _hideSkeleton();
+      // The Dashboard's live row ticks regardless of which day Home is showing,
+      // so this sits above the past/future early-return below.
+      if (activeView === 'analytics') _tickWkLiveRow();
       // When browsing a past/future day, only refresh the day-selector dots silently.
       // Without this guard the live ticker overwrites past-day content every second.
       if (selectedDayKey && selectedDayKey !== todayKey()) {
@@ -8241,12 +8251,54 @@
       return parts[0] >= 10; // after 10 AM considered late
     }
 
+    // Week-card totals excluding the live (still-running) session, so the
+    // per-second tick can add just the live part back without re-summing.
+    let _wkBaseSecs = 0, _wkBaseSurplus = 0;
+
+    function _renderWkFooter(totalSecs, totalSurplusSecs) {
+      const c2 = cfg(), wk2 = week(analyticsWeekOffset);
+      const adjTarget = adjustedWeeklyTarget(wk2);
+      const adjH = (adjTarget / 3600).toFixed(1).replace(/\.0$/, '');
+      const totalEl = el('wkTotal');
+      if (totalEl) totalEl.textContent = c2.weeklyOn
+        ? `${durWorked(totalSecs)} / ${adjH}h`
+        : durWorked(totalSecs);
+
+      const surpEl = el('wkSurplus');
+      if (surpEl) {
+        if (totalSurplusSecs > 60) {
+          surpEl.textContent = '+' + durWorked(totalSurplusSecs);
+          surpEl.style.color = 'var(--success)';
+        } else {
+          surpEl.textContent = '0m';
+          surpEl.style.color = 'var(--muted-fg)';
+        }
+      }
+      const surpLblEl = el('wkSurplusLabel');
+      if (surpLblEl) surpLblEl.textContent = _surplusLabel();
+    }
+
+    // Live-tick the week card's today row + footer while a session runs and the
+    // Dashboard is the visible tab. renderHistory() rebuilds every row plus the
+    // notification list — far too much to redo every second — so this rewrites
+    // only the two values that actually change.
+    function _tickWkLiveRow() {
+      if (!loginDate) return;
+      const pill = document.querySelector('#wkRows .wk-row.today .wk-pill.live');
+      if (!pill) return; // today isn't in the week being viewed
+      const worked = _sessionAccSecs + Math.max(0, Math.floor((new Date() - loginDate) / 1000));
+      pill.innerHTML = `<span class="dot-live"></span>${durWorked(worked)}`;
+      _renderWkFooter(_wkBaseSecs + worked,
+                      _wkBaseSurplus + Math.max(0, worked - cfg().dailyH * 3600));
+    }
+
     function renderHistory() {
       const c = cfg(), wk = week(analyticsWeekOffset), tk = todayKey();
       const rows = el('wkRows');
       if (!rows) return;
       rows.innerHTML = '';
       let totalSecs = 0, totalSurplusSecs = 0;
+      let liveSecs = 0, liveSurplus = 0;
 
       const OV_CFG = {
         holiday: { label: 'Holiday',  color: '#a855f7', bg: 'rgba(168,85,247,.12)', border: 'rgba(168,85,247,.3)' },
@@ -8295,12 +8347,18 @@
           pill.className = 'wk-pill'; pill.textContent = '–';
           rightWrap.appendChild(pill);
         } else if (isToday && loginDate) {
-          const ds = Math.max(0, Math.floor((new Date() - loginDate) / 1000));
+          // _sessionAccSecs holds every earlier segment of today's session (a
+          // pause/resume parks time there and restarts loginDate), so counting
+          // only now−loginDate under-reports — and reads as a stuck "0h 00m"
+          // right after a resume.
+          const ds = _sessionAccSecs + Math.max(0, Math.floor((new Date() - loginDate) / 1000));
           const pill = document.createElement('div');
           pill.className = 'wk-pill live';
-          pill.innerHTML = `<span class="dot-live"></span>${dur(ds)}`;
+          pill.innerHTML = `<span class="dot-live"></span>${durWorked(ds)}`;
+          liveSecs = ds;
+          liveSurplus = Math.max(0, ds - c.dailyH * 3600);
           totalSecs += ds;
-          totalSurplusSecs += Math.max(0, ds - c.dailyH * 3600);
+          totalSurplusSecs += liveSurplus;
           rightWrap.appendChild(pill);
         } else if (log?.hoursWorked != null && (!isToday || log?.checkoutDisplay)) {
           const diff = wSecs - c.dailyH * 3600;
@@ -8309,9 +8367,9 @@
           if (diff > 120) {
             const surpH = Math.floor(diff / 3600), surpM = Math.floor((diff % 3600) / 60);
             const surpStr = surpH > 0 ? `+${surpH}h${surpM > 0 ? ' ' + surpM + 'm' : ''}` : `+${Math.floor(diff/60)}m`;
-            pill.innerHTML = `${dur(wSecs)} <span style="color:var(--success);font-weight:600">${surpStr}</span>`;
+            pill.innerHTML = `${durWorked(wSecs)} <span style="color:var(--success);font-weight:600">${surpStr}</span>`;
             totalSurplusSecs += diff;
-          } else { pill.textContent = dur(wSecs); }
+          } else { pill.textContent = durWorked(wSecs); }
           totalSecs += wSecs;
           rightWrap.appendChild(pill);
         } else if (isPastDay) {
@@ -8336,26 +8394,11 @@
         rows.appendChild(row);
       }
 
-      const c2 = cfg(), wk2 = week(analyticsWeekOffset);
-      const adjTarget = adjustedWeeklyTarget(wk2);
-      const adjH = (adjTarget / 3600).toFixed(1).replace(/\.0$/, '');
-      el('wkTotal').textContent = c2.weeklyOn
-        ? `${dur(totalSecs)} / ${adjH}h`
-        : dur(totalSecs);
-
-      const surpEl = el('wkSurplus');
-      if (surpEl) {
-        if (totalSurplusSecs > 60) {
-          const sh = Math.floor(totalSurplusSecs / 3600), sm = Math.floor((totalSurplusSecs % 3600) / 60);
-          surpEl.textContent = sm > 0 ? `+${sh}h ${sm}m` : `+${sh}h`;
-          surpEl.style.color = 'var(--success)';
-        } else {
-          surpEl.textContent = '0m';
-          surpEl.style.color = 'var(--muted-fg)';
-        }
-      }
-      const surpLblEl = el('wkSurplusLabel');
-      if (surpLblEl) surpLblEl.textContent = _surplusLabel();
+      // Remember the non-live portion so _tickWkLiveRow() can recompute the
+      // footer each second without re-summing every day.
+      _wkBaseSecs    = totalSecs - liveSecs;
+      _wkBaseSurplus = totalSurplusSecs - liveSurplus;
+      _renderWkFooter(totalSecs, totalSurplusSecs);
 
       renderNotifs();
       // Refresh day-selector dots when history changes
@@ -8436,6 +8479,11 @@
       // future day left the banner stuck showing "Session running" forever, since
       // none of checkout()/doAutoStop()/endSession() refreshed it themselves.
       _updateRunningElsewhereBanner();
+      // Same reasoning for the Dashboard's week card: starting/pausing/ending a
+      // session changes today's row, but none of those paths rebuild it, so it
+      // kept a stale live pill until the next tab switch. Only when the
+      // Dashboard is actually on screen — no cost during init or Home usage.
+      if (activeView === 'analytics') renderHistory();
       btn.classList.remove('end-shift', 'pause-shift', 'resume-shift');
       btn.disabled = false;
       btn.dataset.state = state;
@@ -9673,7 +9721,7 @@
         }
         container.innerHTML = visibleDaily.map(p => {
             const dateStr = `${FULL_DAYS_EN[p.date.getDay()]}, ${MONTHS[p.date.getMonth()]} ${p.date.getDate()}`;
-            return penaltyRowHtml(p, dateStr, `−${dur(p.deficit)} Short`);
+            return penaltyRowHtml(p, dateStr, `−${durWorked(p.deficit)}`);
           }).join('');
 
       } else {
@@ -9749,7 +9797,7 @@
         container.innerHTML = visibleWeekly.map(p => {
             const dateStr = `Week of ${p.rangeStr}`;
             const adjH = ((adjustedWeeklyTarget(p.wkDays.map(d=>({key:dateKey(d),date:d}))))/3600).toFixed(1).replace(/\.0$/,'');
-            const desc = `−${dur(p.deficit)} Short`;
+            const desc = `−${durWorked(p.deficit)}`;
             return penaltyRowHtml(p, dateStr, desc, true);
           }).join('');
       }
@@ -9763,13 +9811,8 @@
             ${shortDesc ? `<span class="penalty-delta">${shortDesc}</span>` : ''}
           </div>
           <div style="display:flex;gap:6px;flex-shrink:0">
-            <button class="btn-sm" onclick="event.stopPropagation();openEmailModal('${p.key}')">
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="none"><path fill-rule="evenodd" clip-rule="evenodd" d="M23 6V18C23 19.6523 21.6523 21 20 21H4C2.34772 21 1 19.6523 1 18V6C1 4.34315 2.34315 3 4 3H20C21.6569 3 23 4.34315 23 6ZM3.10658 5.55395C3.27196 5.22692 3.61204 5 4 5H20C20.388 5 20.728 5.22692 20.8934 5.55395L12 11.7793L3.10658 5.55395ZM3 7.92066L10.8531 13.4178C11.5417 13.8999 12.4583 13.8999 13.1469 13.4178L21 7.92066V18C21 18.5477 20.5477 19 20 19H4C3.45228 19 3 18.5477 3 18V7.92066Z" fill="currentColor"/></svg>
-              Email
-            </button>
-            <button class="btn-sm penalty-discard-btn" style="color:var(--muted-fg);width:30px;padding:0;justify-content:center" onclick="event.stopPropagation();discardPenalty('${p.key}')" title="Discard">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
-            </button>
+            <button class="btn-sm" onclick="event.stopPropagation();openEmailModal('${p.key}')">Email</button>
+            <button class="btn-sm penalty-discard-btn" style="color:var(--muted-fg)" onclick="event.stopPropagation();discardPenalty('${p.key}')">Discard</button>
           </div>
         </div>
       </div>`;

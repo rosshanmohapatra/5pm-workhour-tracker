@@ -1336,13 +1336,21 @@
     @media (prefers-reduced-motion: reduce) {
       .penalty-row { transition: background .12s, opacity .24s ease; }
     }
-    /* Discard sits quieter than Email at rest (muted text), but hovers exactly
-       like it — same --border wash, same foreground text. The old rule turned it
-       red on hover, which read as a different kind of control entirely. Colour
-       lives here rather than inline so the hover needs no !important to win. */
-    .penalty-discard-btn { color: var(--muted-fg); transition: background .14s, color .14s;
+    .penalty-discard-btn { color: var(--muted-fg); transition: background .14s, color .14s, opacity .14s;
       width: 30px; padding: 0; justify-content: center; flex-shrink: 0; }
-    .penalty-discard-btn:hover { background: var(--border); color: var(--foreground); }
+    /* Desktop: invisible at rest, revealed only once the row is hovered (or
+       focused, for keyboard users) — the row itself is the primary hover target,
+       not the button. Its own hover then reads as a distinct, lighter highlight
+       ON TOP of the row's --muted wash: mixing toward white is guaranteed
+       lighter than --muted in both themes, unlike a fixed token (e.g. --border
+       is *darker* than --muted in light theme, which read as a dimming, not a
+       highlight, on this control specifically). */
+    @media (hover: hover) {
+      .penalty-discard-btn { opacity: 0; pointer-events: none; }
+      .penalty-row:hover .penalty-discard-btn,
+      .penalty-row:focus-within .penalty-discard-btn { opacity: 1; pointer-events: auto; }
+      .penalty-discard-btn:hover { background: color-mix(in srgb, var(--muted), white 15%); color: var(--foreground); }
+    }
     .penalty-row-main { display: flex; align-items: center; justify-content: space-between;
       padding: 9px 10px; }
     .penalty-info { display: flex; flex-direction: column; gap: 2px; }
@@ -1891,6 +1899,13 @@
       .ob-btn-ghost:hover { background: var(--muted); color: var(--foreground); }
       .ob-btn-ghost:active { background: var(--muted); color: var(--foreground); }
 
+      /* Touch: always visible (just the icon, no hover reveal — there's no
+         hover to reveal it with), fills with Clear All's own resting colour
+         while actually pressed, same "hover mirrors active" pattern as every
+         other control in this block. */
+      .penalty-discard-btn { opacity: 1; transition: none; }
+      .penalty-discard-btn:hover { background: transparent; color: var(--muted-fg); }
+      .penalty-discard-btn:active { background: var(--btn-secondary-bg); color: var(--foreground); }
     }
 
     /* ── Pull-to-refresh indicator ── */

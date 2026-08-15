@@ -1322,14 +1322,26 @@
     .sc-total-val { font-size: 15px; font-weight: 700; color: var(--success); }
 
     /* Penalty rows */
-    .penalty-list { display: flex; flex-direction: column; padding: 12px; gap: 2px; }
-    .penalty-row { border-radius: 8px; cursor: pointer; transition: background .12s; }
+    /* overflow:hidden so a row flying off to the right can't push out the page width */
+    .penalty-list { display: flex; flex-direction: column; padding: 12px; gap: 2px; overflow: hidden; }
+    /* transform/opacity carry the swipe-away; touch-action:pan-y keeps vertical
+       page scrolling native while horizontal drags are ours to handle. */
+    .penalty-row { border-radius: 8px; cursor: pointer;
+      transition: background .12s, transform .28s cubic-bezier(.4,0,.2,1), opacity .24s ease;
+      touch-action: pan-y; }
     .penalty-row:hover { background: var(--muted); }
+    /* While a finger is down the row tracks it 1:1 — easing here would feel laggy */
+    .penalty-row.swiping { transition: background .12s; }
+    .penalty-row.dismissing { pointer-events: none; }
+    @media (prefers-reduced-motion: reduce) {
+      .penalty-row { transition: background .12s, opacity .24s ease; }
+    }
     /* Discard sits quieter than Email at rest (muted text), but hovers exactly
        like it — same --border wash, same foreground text. The old rule turned it
        red on hover, which read as a different kind of control entirely. Colour
        lives here rather than inline so the hover needs no !important to win. */
-    .penalty-discard-btn { color: var(--muted-fg); transition: background .14s, color .14s; }
+    .penalty-discard-btn { color: var(--muted-fg); transition: background .14s, color .14s;
+      width: 30px; padding: 0; justify-content: center; flex-shrink: 0; }
     .penalty-discard-btn:hover { background: var(--border); color: var(--foreground); }
     .penalty-row-main { display: flex; align-items: center; justify-content: space-between;
       padding: 9px 10px; }
@@ -9660,6 +9672,85 @@
       localStorage.setItem('wh_discarded_penalties', JSON.stringify([..._discardedPenalties]));
       renderPenalties();
     }
+
+    // Fly a penalty row off to the right, then clear it. Shared by the X button,
+    // the touch swipe and Clear All so every dismissal looks the same. Animates
+    // from wherever the row currently sits, so a half-finished drag continues
+    // from the finger's position instead of snapping back to 0 first.
+    // `settle` runs once the row is gone — Clear All passes a no-op because it
+    // persists and re-renders the whole list itself.
+    function _dismissPenaltyRow(row, settle) {
+      if (!row || row.dataset.dismissing) return;
+      row.dataset.dismissing = '1';
+      const key = row.dataset.penaltyKey;
+      row.classList.remove('swiping');   // re-enable the eased transition
+      row.classList.add('dismissing');   // stop it swallowing further taps
+      void row.offsetWidth;              // lock in the current position first
+      row.style.transform = 'translateX(110%)';
+      row.style.opacity = '0';
+      let fired = false;
+      const finish = () => {
+        if (fired) return;
+        fired = true;
+        if (settle) settle(); else discardPenalty(key);
+      };
+      row.addEventListener('transitionend', finish, { once: true });
+      setTimeout(finish, 420); // fallback if transitionend never lands
+    }
+
+    // Swipe-right-to-dismiss on touch devices (phone + tablet). Mouse users have
+    // the X button; this listens for touch only, so it simply never engages on
+    // a desktop pointer.
+    let _penSwipe = null;
+    function _initPenaltySwipe() {
+      const list = el('penaltiesList');
+      if (!list || list.dataset.swipeInit) return;
+      list.dataset.swipeInit = '1'; // delegated once — survives list re-renders
+
+      list.addEventListener('touchstart', e => {
+        const row = e.target.closest('.penalty-row');
+        if (!row || row.dataset.dismissing || e.touches.length !== 1) return;
+        const t = e.touches[0];
+        _penSwipe = { row, x0: t.clientX, y0: t.clientY, dx: 0, axis: null };
+      }, { passive: true });
+
+      list.addEventListener('touchmove', e => {
+        if (!_penSwipe) return;
+        const t = e.touches[0];
+        const dx = t.clientX - _penSwipe.x0, dy = t.clientY - _penSwipe.y0;
+        // Decide once whether this gesture is a horizontal swipe or a vertical
+        // scroll, then stick with it — otherwise the row jitters mid-scroll.
+        if (!_penSwipe.axis) {
+          if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
+          if (Math.abs(dy) >= Math.abs(dx)) { _penSwipe = null; return; } // let the page scroll
+          _penSwipe.axis = 'x';
+          _penSwipe.row.classList.add('swiping');
+        }
+        _penSwipe.dx = Math.max(0, dx); // right-only, like a notification shade
+        const w = _penSwipe.row.offsetWidth || 320;
+        _penSwipe.row.style.transform = `translateX(${_penSwipe.dx}px)`;
+        _penSwipe.row.style.opacity = String(Math.max(0.15, 1 - _penSwipe.dx / w));
+        e.preventDefault(); // we own this gesture now
+      }, { passive: false });
+
+      const endSwipe = () => {
+        if (!_penSwipe) return;
+        const { row, dx, axis } = _penSwipe;
+        _penSwipe = null;
+        if (axis !== 'x') return;
+        const w = row.offsetWidth || 320;
+        if (dx > Math.min(120, w * 0.3)) {
+          _dismissPenaltyRow(row);
+        } else {
+          row.classList.remove('swiping'); // spring back under the eased transition
+          row.style.transform = '';
+          row.style.opacity = '';
+        }
+      };
+      list.addEventListener('touchend', endSwipe);
+      list.addEventListener('touchcancel', endSwipe);
+    }
+
     function clearAllPenalties() {
       const visible = _penaltyData.filter(p => !_discardedPenalties.has(p.key));
       if (!visible.length) {
@@ -9670,9 +9761,15 @@
         btn.addEventListener('animationend', () => btn.classList.remove('ios-shake'), { once: true });
         return;
       }
+      // Persist up front so a re-render mid-animation can't resurrect the rows.
       visible.forEach(p => _discardedPenalties.add(p.key));
       localStorage.setItem('wh_discarded_penalties', JSON.stringify([..._discardedPenalties]));
-      renderPenalties();
+      const rows = [...document.querySelectorAll('#penaltiesList .penalty-row')];
+      if (!rows.length) { renderPenalties(); return; }
+      // Stagger so they cascade off rather than leaving in one block.
+      const STEP = 60;
+      rows.forEach((row, i) => setTimeout(() => _dismissPenaltyRow(row, () => {}), i * STEP));
+      setTimeout(renderPenalties, rows.length * STEP + 340);
     }
 
     // ── Helper: get all Mon–Fri days in a given month up to today ──
@@ -9712,6 +9809,10 @@
       const c = cfg();
       const now = new Date();
       const container = el('penaltiesList');
+      // Delegated + idempotent, so binding it once here (rather than after every
+      // return path below) covers the whole function regardless of which branch
+      // returns early, and survives innerHTML rebuilds since it's on the container.
+      _initPenaltySwipe();
 
       const tenDaysAgo = new Date(now); tenDaysAgo.setDate(tenDaysAgo.getDate() - 10); tenDaysAgo.setHours(0,0,0,0);
 
@@ -9827,14 +9928,17 @@
     }
 
     function penaltyRowHtml(p, dateStr, shortDesc, isWeekly) {
-      return `<div class="penalty-row" onclick="openEmailModal('${p.key}')">
+      return `<div class="penalty-row" data-penalty-key="${p.key}" onclick="openEmailModal('${p.key}')">
         <div class="penalty-row-main">
           <div class="penalty-info">
             <span class="penalty-date">${dateStr}</span>
             ${shortDesc ? `<span class="penalty-delta">${shortDesc}</span>` : ''}
           </div>
           <div style="display:flex;gap:6px;flex-shrink:0">
-            <button class="btn-sm penalty-discard-btn" onclick="event.stopPropagation();discardPenalty('${p.key}')">Discard</button>
+            <button class="btn-sm penalty-discard-btn" title="Dismiss" aria-label="Dismiss"
+              onclick="event.stopPropagation();_dismissPenaltyRow(this.closest('.penalty-row'))">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
           </div>
         </div>
       </div>`;

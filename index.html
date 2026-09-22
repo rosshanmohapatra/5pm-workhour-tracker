@@ -3233,7 +3233,7 @@
         <div class="settings-section-divider"></div>
 
         <!-- ── Manage Devices ── -->
-        <div class="settings-section settings-section--has-desc" id="devSection">
+        <div class="settings-section settings-section--has-desc">
           <div class="settings-section-header">Manage Devices</div>
           <div class="form-sub" style="margin-bottom:14px">Devices signed in to your account. Rename any of them for your own reference — the grey line underneath never changes, so you can always tell which is which.</div>
           <div id="devList" class="settings-group">
@@ -11115,9 +11115,6 @@ ${sig}`
           .on('postgres_changes',
               { event: '*', schema: 'public', table: 'work_logs', filter: 'user_id=eq.' + uid },
               _onRemoteWorkLog)
-          .on('postgres_changes',
-              { event: '*', schema: 'public', table: 'user_devices', filter: 'user_id=eq.' + uid },
-              _onRemoteDevice)
           .subscribe();
       });
     }
@@ -11125,6 +11122,8 @@ ${sig}`
     // Apply a settings change pushed from another device into UI state
     function _onRemoteSettings(payload) {
       const row = payload.new || {};
+      // user_kv carries both the config blob and the devices map.
+      if (row.key === 'devices') { _onRemoteDevices(row); return; }
       if (row.key !== 'config' || !row.value) return;
       if (row.value.src === SbSync._clientId) return;       // ignore our own echo
       const remoteCfg = row.value.cfg;
@@ -13222,23 +13221,30 @@ ${sig}`
     // MANAGE DEVICES
     // ══════════════════════════════════════════════════════
     //
-    // One row per (user, browser profile), keyed by a stable id in
-    // localStorage. Each device carries two identities on purpose:
-    //   name     — user-facing, renameable, seeded from DEVICE_NAMES
-    //   platform — "Chrome on Windows", never editable, so a renamed
-    //              device stays recognisable
+    // Stored in the existing user_kv table under key='devices' as one JSONB
+    // map { deviceId: { n, p, r, s } }. No new table, so no migration: user_kv
+    // already carries own-rows-only RLS, the right grants, Realtime and
+    // REPLICA IDENTITY FULL.
     //
-    // Revoking another device sets revoked_at; that device signs itself out
-    // over Realtime, or on its next launch if it was offline. The client SDK
-    // has no API to kill one specific remote session, so a device that is
-    // closed stays technically signed in until it next opens.
-    // "Log out others" is the exception — auth.signOut({ scope: 'others' })
-    // revokes those refresh tokens server-side, immediately.
+    // Each device carries two identities on purpose:
+    //   n (name)     — user-facing, renameable, seeded from DEVICE_NAMES
+    //   p (platform) — "Chrome on Windows", never editable, so a renamed
+    //                  device stays recognisable
+    //   r (revoked)  — ISO timestamp, or null while active
+    //   s (seen)     — last launch/resume
+    //
+    // Revoking another device sets r; that device signs itself out over
+    // Realtime, or on its next launch if it was offline. The client SDK has no
+    // API to kill one specific remote session, so a closed device stays
+    // technically signed in until it next opens. "Log out others" is the
+    // exception — auth.signOut({ scope: 'others' }) revokes those refresh
+    // tokens server-side, immediately.
 
     const DEVICE_NAMES = ['Orange Cat', 'Little Peanut', 'Lemon Squeezy', 'Cozy Couch',
       'Work Bunny', 'Nerdy Glasses', 'Sleepy Owl', 'Water Baby', 'Coffee Bean',
       'Desk Potato', 'Sleepy Bunny', 'Tiny Intern', 'Busy Baddie'];
 
+    const DEV_KV_KEY    = 'devices';
     const DEV_ID_KEY    = 'wh_device_id';   // survives logout — identifies the browser, not the account
     const DEV_SINCE_KEY = 'wh_dev_since';   // when this browser last signed in
 
@@ -13280,98 +13286,94 @@ ${sig}`
     }
 
     const Devices = {
-      // Upsert this device's row, and decide whether it has been kicked.
+      async _read() {
+        const uid = await SbSync._uid();
+        if (!uid) return { uid: null, map: {} };
+        const { data, error } = await window._sbClient
+          .from('user_kv').select('value').eq('user_id', uid).eq('key', DEV_KV_KEY).maybeSingle();
+        if (error) throw error;
+        return { uid, map: data?.value?.d || {} };
+      },
+
+      // ponytail: read-modify-write of a single JSONB blob, so two devices
+      // writing at the same instant is last-write-wins. Fine for a handful of
+      // devices doing occasional heartbeats; give each device its own row if
+      // that stops being true.
+      async _write(uid, map) {
+        const { error } = await window._sbClient.from('user_kv').upsert(
+          { user_id: uid, key: DEV_KV_KEY, value: { d: map, src: SbSync._clientId },
+            updated_at: new Date().toISOString() },
+          { onConflict: 'user_id,key' }
+        );
+        if (error) throw error;
+      },
+
+      // Fresh read immediately before the write narrows the clobber window.
+      async _mutate(fn) {
+        const { uid, map } = await this._read();
+        if (!uid) throw new Error('Not signed in.');
+        fn(map);
+        await this._write(uid, map);
+        return map;
+      },
+
+      // Record this device, and decide whether it has been kicked.
       async register() {
         try {
-          const uid = await SbSync._uid();
+          const { uid, map } = await this._read();
           if (!uid) return;
-          const id = _deviceId();
-          const { data: rows, error } = await window._sbClient
-            .from('user_devices').select('*').eq('user_id', uid);
-          if (error) { console.warn('[Devices] register:', error.message); return; }
-
-          const mine  = (rows || []).find(r => r.device_id === id);
+          const id    = _deviceId();
+          const mine  = map[id];
           const since = Number(localStorage.getItem(DEV_SINCE_KEY) || 0);
-          const now   = new Date().toISOString();
-
-          if (!mine) {
-            localStorage.setItem(DEV_SINCE_KEY, String(Date.now()));
-            await window._sbClient.from('user_devices').insert({
-              user_id: uid, device_id: id,
-              name: _pickDeviceName(new Set((rows || []).map(r => r.name))),
-              platform: _devicePlatform(), last_seen_at: now,
-            });
-            return;
-          }
-
-          if (!since) {
-            // Fresh sign-in on this browser: adopt now as the session start and
-            // clear any stale revocation — the user just proved identity.
-            localStorage.setItem(DEV_SINCE_KEY, String(Date.now()));
-            await window._sbClient.from('user_devices')
-              .update({ revoked_at: null, last_seen_at: now, platform: _devicePlatform() })
-              .eq('user_id', uid).eq('device_id', id);
-            return;
-          }
 
           // Revoked after this session began → this device has been pulled.
-          if (mine.revoked_at && Date.parse(mine.revoked_at) > since) { _kickThisDevice(); return; }
+          if (since && mine?.r && Date.parse(mine.r) > since) { _kickThisDevice(); return; }
 
-          await window._sbClient.from('user_devices')
-            .update({ last_seen_at: now })
-            .eq('user_id', uid).eq('device_id', id);
+          // No local session stamp means a fresh sign-in on this browser: adopt
+          // now as the start, which also clears any stale revocation below.
+          if (!since) localStorage.setItem(DEV_SINCE_KEY, String(Date.now()));
+
+          map[id] = {
+            n: mine?.n || _pickDeviceName(new Set(Object.values(map).map(d => d.n))),
+            p: _devicePlatform(),
+            r: null,
+            s: new Date().toISOString(),
+          };
+          await this._write(uid, map);
         } catch (e) { console.warn('[Devices] register failed:', e); }
       },
 
       async list() {
-        const uid = await SbSync._uid();
-        if (!uid) return [];
-        const { data, error } = await window._sbClient
-          .from('user_devices').select('*').eq('user_id', uid)
-          .order('last_seen_at', { ascending: false });
-        if (error) throw error;
-        return data || [];
+        const { map } = await this._read();
+        return Object.entries(map)
+          .map(([device_id, d]) => ({ device_id, name: d.n, platform: d.p, revoked_at: d.r, last_seen_at: d.s }))
+          .sort((a, b) => String(b.last_seen_at || '').localeCompare(String(a.last_seen_at || '')));
       },
 
-      async rename(deviceId, name) {
-        const uid = await SbSync._uid();
-        if (!uid) throw new Error('Not signed in.');
-        const { error } = await window._sbClient.from('user_devices')
-          .update({ name }).eq('user_id', uid).eq('device_id', deviceId);
-        if (error) throw error;
+      rename(deviceId, name) {
+        return this._mutate(m => { if (m[deviceId]) m[deviceId].n = name; });
       },
 
       // Cooperative revoke: the target signs itself out and wipes its cache.
-      async revoke(deviceId) {
-        const uid = await SbSync._uid();
-        if (!uid) throw new Error('Not signed in.');
-        const { error } = await window._sbClient.from('user_devices')
-          .update({ revoked_at: new Date().toISOString() })
-          .eq('user_id', uid).eq('device_id', deviceId);
-        if (error) throw error;
+      revoke(deviceId) {
+        return this._mutate(m => { if (m[deviceId]) m[deviceId].r = new Date().toISOString(); });
       },
 
-      // True server-side revocation. The row updates are so those devices also
+      // True server-side revocation. The map update is so those devices also
       // wipe their local cache when they next open.
       async revokeOthers() {
-        const uid = await SbSync._uid();
-        if (!uid) throw new Error('Not signed in.');
         const { error } = await window._sbClient.auth.signOut({ scope: 'others' });
         if (error) throw error;
-        await window._sbClient.from('user_devices')
-          .update({ revoked_at: new Date().toISOString() })
-          .eq('user_id', uid).neq('device_id', _deviceId());
+        const me = _deviceId(), now = new Date().toISOString();
+        await this._mutate(m => { Object.keys(m).forEach(k => { if (k !== me) m[k].r = now; }); });
       },
 
       // Explicit logout on this device: hide it from the list without losing
       // the user's rename. register() clears this on the next sign-in.
       async markSignedOut() {
         try {
-          const uid = await SbSync._uid();
-          if (!uid) return;
-          await window._sbClient.from('user_devices')
-            .update({ revoked_at: new Date().toISOString() })
-            .eq('user_id', uid).eq('device_id', _deviceId());
+          const me = _deviceId();
+          await this._mutate(m => { if (m[me]) m[me].r = new Date().toISOString(); });
         } catch (_) { /* best-effort — never block sign-out */ }
       },
     };
@@ -13405,7 +13407,7 @@ ${sig}`
       const othersWrap = el('devOthersWrap');
       list.innerHTML = '<div style="font-size:13px;color:var(--muted-fg)">Loading…</div>';
       try {
-        // Revoked rows stay in the table (so a rename survives) but are hidden —
+        // Revoked entries stay in the map (so a rename survives) but are hidden —
         // they come back when that device signs in again.
         const rows = (await Devices.list()).filter(r => !r.revoked_at);
         const me = _deviceId();
@@ -13419,17 +13421,10 @@ ${sig}`
         rows.forEach(r => list.appendChild(_devBuildRow(r, r.device_id === me)));
         if (othersWrap) othersWrap.style.display = rows.some(r => r.device_id !== me) ? '' : 'none';
       } catch (e) {
-        if (_devTableMissing(e)) { el('devSection')?.style.setProperty('display', 'none'); return; }
         list.innerHTML = '<div style="font-size:13px;color:var(--muted-fg)">Couldn\'t load devices.</div>';
         if (othersWrap) othersWrap.style.display = 'none';
       }
     }
-
-    // PostgREST reports an absent table as 42P01, or PGRST205 when it is just
-    // missing from the schema cache.
-    const _devTableMissing = e =>
-      e?.code === '42P01' || e?.code === 'PGRST205' ||
-      /does not exist|schema cache/i.test(e?.message || '');
 
     function _devBuildRow(row, isCurrent) {
       const rowEl = document.createElement('div');
@@ -13532,18 +13527,13 @@ ${sig}`
       }
     }
 
-    // A device row changing elsewhere: sign out immediately if it's this one,
-    // otherwise just keep the Settings list honest.
-    function _onRemoteDevice(payload) {
-      const row = payload.new || payload.old || {};
-      if (row.device_id === _deviceId()) {
-        const since = Number(localStorage.getItem(DEV_SINCE_KEY) || 0);
-        const rev = payload.new?.revoked_at;
-        if (payload.eventType === 'DELETE' || (rev && Date.parse(rev) > since)) {
-          _kickThisDevice();
-          return;
-        }
-      }
+    // The devices map changing elsewhere: sign out immediately if this device
+    // was revoked, otherwise just keep the Settings list honest. Absence is not
+    // treated as a revoke — a device simply may not have registered yet.
+    function _onRemoteDevices(row) {
+      const mine  = row?.value?.d?.[_deviceId()];
+      const since = Number(localStorage.getItem(DEV_SINCE_KEY) || 0);
+      if (since && mine?.r && Date.parse(mine.r) > since) { _kickThisDevice(); return; }
       if (el('viewSettings')?.classList.contains('active')) renderDevices();
     }
 
@@ -13571,7 +13561,7 @@ ${sig}`
         // in next on this device — even the same person — starts from a clean
         // pull instead of silently inheriting this account's local cache.
         // wh_device_id is kept: it identifies the browser, not the account, so
-        // signing back in reuses the same device row (and its rename).
+        // signing back in reuses the same entry (and its rename).
         Object.keys(localStorage)
           .filter(k => k.startsWith('wh_') && k !== 'wh_theme' && k !== DEV_ID_KEY)
           .forEach(k => localStorage.removeItem(k));
@@ -13797,7 +13787,7 @@ ${sig}`
       // Hydrate the profile card and sign-in methods — auth data first, then cfg overlay when pullSettings resolves
       hydrateProfileCard();
       hydrateSignInMethods();
-      // Register this device (may seed its row), then paint the list.
+      // Register this device (may seed its entry), then paint the list.
       Devices.register().then(renderDevices);
 
       // Restore last active tab (persisted in sessionStorage across reloads)

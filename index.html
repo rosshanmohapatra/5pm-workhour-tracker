@@ -1102,6 +1102,31 @@
     .sim-status.not-set { color:var(--muted-fg); }
     .sim-status.muted { color:var(--muted-fg); font-weight:400; }
 
+    /* ── Manage Devices ── */
+    .dev-row { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+    .dev-left { display:flex; align-items:center; gap:10px; min-width:0; flex:1; }
+    .dev-icon { width:32px; height:32px; border-radius:8px; border:1px solid var(--border);
+      display:flex; align-items:center; justify-content:center; flex-shrink:0;
+      background:var(--muted); color:var(--muted-fg); }
+    .dev-info { min-width:0; flex:1; }
+    /* Primary title. An input that reads as plain text until hovered/focused —
+       the rename affordance without a separate edit mode. */
+    .dev-name { width:100%; font-size:13px; font-weight:500; color:var(--foreground);
+      font-family:var(--font); background:transparent; border:none; outline:none;
+      padding:2px 6px; margin:-2px -6px; border-radius:6px;
+      text-overflow:ellipsis; transition:background .12s, box-shadow .15s; }
+    .dev-name:hover { background:var(--muted); }
+    .dev-name:focus { background:var(--input-bg); box-shadow:inset 0 0 0 2px rgba(9,9,11,.10); }
+    .dark .dev-name:focus { box-shadow:inset 0 0 0 2px rgba(250,250,250,.10); }
+    /* Secondary title: the platform's own view. Never editable, so a renamed
+       device is still identifiable. */
+    .dev-sub { font-size:11px; color:var(--muted-fg); margin-top:1px;
+      overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .dev-actions { display:flex; align-items:center; gap:8px; flex-shrink:0; }
+    .dev-chip { font-size:10px; font-weight:600; letter-spacing:.04em; text-transform:uppercase;
+      background:var(--success-bg); color:var(--success); border:1px solid var(--success-border);
+      border-radius:4px; padding:2px 7px; white-space:nowrap; }
+
     /* ── Authenticator (MFA) modal ── */
     .mfa-qr { width:176px; height:176px; margin:2px auto 0; display:block; border-radius:10px; background:#fff; padding:8px; }
     .mfa-secret { display:flex; align-items:center; justify-content:space-between; gap:8px; background:var(--muted); border:1px solid var(--border); border-radius:8px; padding:8px 12px; font-family:monospace; font-size:13px; letter-spacing:.04em; color:var(--foreground); word-break:break-all; }
@@ -3202,6 +3227,27 @@
           <div class="form-sub" style="margin-bottom:14px">Connect multiple ways to access your account.</div>
           <div id="simList" class="settings-group">
             <!-- populated by hydrateSignInMethods() -->
+          </div>
+        </div>
+
+        <div class="settings-section-divider"></div>
+
+        <!-- ── Manage Devices ── -->
+        <div class="settings-section settings-section--has-desc" id="devSection">
+          <div class="settings-section-header">Manage Devices</div>
+          <div class="form-sub" style="margin-bottom:14px">Devices signed in to your account. Rename any of them for your own reference — the grey line underneath never changes, so you can always tell which is which.</div>
+          <div id="devList" class="settings-group">
+            <!-- populated by renderDevices() -->
+          </div>
+          <div id="devOthersWrap" style="display:none;margin-top:16px">
+            <div class="settings-section-divider" style="margin-bottom:16px"></div>
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+              <div>
+                <div class="form-label">Log Out Everywhere Else</div>
+                <div class="form-sub">Ends every session except this device, right away.</div>
+              </div>
+              <button class="btn-ghost-destructive" id="devRevokeOthersBtn" onclick="devRevokeOthers()">Log Out Others</button>
+            </div>
           </div>
         </div>
 
@@ -11069,6 +11115,9 @@ ${sig}`
           .on('postgres_changes',
               { event: '*', schema: 'public', table: 'work_logs', filter: 'user_id=eq.' + uid },
               _onRemoteWorkLog)
+          .on('postgres_changes',
+              { event: '*', schema: 'public', table: 'user_devices', filter: 'user_id=eq.' + uid },
+              _onRemoteDevice)
           .subscribe();
       });
     }
@@ -13169,6 +13218,335 @@ ${sig}`
         showToast("Couldn't Send Reset Link", 'error', e.message || 'Please try again.');
       }
     }
+    // ══════════════════════════════════════════════════════
+    // MANAGE DEVICES
+    // ══════════════════════════════════════════════════════
+    //
+    // One row per (user, browser profile), keyed by a stable id in
+    // localStorage. Each device carries two identities on purpose:
+    //   name     — user-facing, renameable, seeded from DEVICE_NAMES
+    //   platform — "Chrome on Windows", never editable, so a renamed
+    //              device stays recognisable
+    //
+    // Revoking another device sets revoked_at; that device signs itself out
+    // over Realtime, or on its next launch if it was offline. The client SDK
+    // has no API to kill one specific remote session, so a device that is
+    // closed stays technically signed in until it next opens.
+    // "Log out others" is the exception — auth.signOut({ scope: 'others' })
+    // revokes those refresh tokens server-side, immediately.
+
+    const DEVICE_NAMES = ['Orange Cat', 'Little Peanut', 'Lemon Squeezy', 'Cozy Couch',
+      'Work Bunny', 'Nerdy Glasses', 'Sleepy Owl', 'Water Baby', 'Coffee Bean',
+      'Desk Potato', 'Sleepy Bunny', 'Tiny Intern', 'Busy Baddie'];
+
+    const DEV_ID_KEY    = 'wh_device_id';   // survives logout — identifies the browser, not the account
+    const DEV_SINCE_KEY = 'wh_dev_since';   // when this browser last signed in
+
+    function _deviceId() {
+      let id = null;
+      try { id = localStorage.getItem(DEV_ID_KEY); } catch {}
+      if (!id) {
+        id = window.crypto?.randomUUID?.() || ('d' + Math.random().toString(36).slice(2) + Date.now().toString(36));
+        try { localStorage.setItem(DEV_ID_KEY, id); } catch {}
+      }
+      return id;
+    }
+
+    // Short tail of the device id — enough to separate two identically-named devices.
+    const _devShortId = id => '#' + String(id).replace(/-/g, '').slice(-6);
+
+    function _devicePlatform() {
+      const ua = navigator.userAgent || '';
+      const browser = /Edg\//.test(ua)        ? 'Edge'
+                    : /OPR\/|Opera/.test(ua)  ? 'Opera'
+                    : /Firefox\//.test(ua)    ? 'Firefox'
+                    : /Chrome\//.test(ua)     ? 'Chrome'
+                    : /Safari\//.test(ua)     ? 'Safari'
+                    : 'Browser';
+      const os      = /Windows/.test(ua)              ? 'Windows'
+                    : /iPhone|iPad|iPod/.test(ua)     ? 'iOS'
+                    : /Android/.test(ua)              ? 'Android'
+                    : /Mac OS X|Macintosh/.test(ua)   ? 'macOS'
+                    : /Linux/.test(ua)                ? 'Linux'
+                    : 'Unknown OS';
+      return browser + ' on ' + os;
+    }
+
+    // Prefer a name this account isn't already using.
+    function _pickDeviceName(taken) {
+      const free = DEVICE_NAMES.filter(n => !taken.has(n));
+      const pool = free.length ? free : DEVICE_NAMES;
+      return pool[Math.floor(Math.random() * pool.length)];
+    }
+
+    const Devices = {
+      // Upsert this device's row, and decide whether it has been kicked.
+      async register() {
+        try {
+          const uid = await SbSync._uid();
+          if (!uid) return;
+          const id = _deviceId();
+          const { data: rows, error } = await window._sbClient
+            .from('user_devices').select('*').eq('user_id', uid);
+          if (error) { console.warn('[Devices] register:', error.message); return; }
+
+          const mine  = (rows || []).find(r => r.device_id === id);
+          const since = Number(localStorage.getItem(DEV_SINCE_KEY) || 0);
+          const now   = new Date().toISOString();
+
+          if (!mine) {
+            localStorage.setItem(DEV_SINCE_KEY, String(Date.now()));
+            await window._sbClient.from('user_devices').insert({
+              user_id: uid, device_id: id,
+              name: _pickDeviceName(new Set((rows || []).map(r => r.name))),
+              platform: _devicePlatform(), last_seen_at: now,
+            });
+            return;
+          }
+
+          if (!since) {
+            // Fresh sign-in on this browser: adopt now as the session start and
+            // clear any stale revocation — the user just proved identity.
+            localStorage.setItem(DEV_SINCE_KEY, String(Date.now()));
+            await window._sbClient.from('user_devices')
+              .update({ revoked_at: null, last_seen_at: now, platform: _devicePlatform() })
+              .eq('user_id', uid).eq('device_id', id);
+            return;
+          }
+
+          // Revoked after this session began → this device has been pulled.
+          if (mine.revoked_at && Date.parse(mine.revoked_at) > since) { _kickThisDevice(); return; }
+
+          await window._sbClient.from('user_devices')
+            .update({ last_seen_at: now })
+            .eq('user_id', uid).eq('device_id', id);
+        } catch (e) { console.warn('[Devices] register failed:', e); }
+      },
+
+      async list() {
+        const uid = await SbSync._uid();
+        if (!uid) return [];
+        const { data, error } = await window._sbClient
+          .from('user_devices').select('*').eq('user_id', uid)
+          .order('last_seen_at', { ascending: false });
+        if (error) throw error;
+        return data || [];
+      },
+
+      async rename(deviceId, name) {
+        const uid = await SbSync._uid();
+        if (!uid) throw new Error('Not signed in.');
+        const { error } = await window._sbClient.from('user_devices')
+          .update({ name }).eq('user_id', uid).eq('device_id', deviceId);
+        if (error) throw error;
+      },
+
+      // Cooperative revoke: the target signs itself out and wipes its cache.
+      async revoke(deviceId) {
+        const uid = await SbSync._uid();
+        if (!uid) throw new Error('Not signed in.');
+        const { error } = await window._sbClient.from('user_devices')
+          .update({ revoked_at: new Date().toISOString() })
+          .eq('user_id', uid).eq('device_id', deviceId);
+        if (error) throw error;
+      },
+
+      // True server-side revocation. The row updates are so those devices also
+      // wipe their local cache when they next open.
+      async revokeOthers() {
+        const uid = await SbSync._uid();
+        if (!uid) throw new Error('Not signed in.');
+        const { error } = await window._sbClient.auth.signOut({ scope: 'others' });
+        if (error) throw error;
+        await window._sbClient.from('user_devices')
+          .update({ revoked_at: new Date().toISOString() })
+          .eq('user_id', uid).neq('device_id', _deviceId());
+      },
+
+      // Explicit logout on this device: hide it from the list without losing
+      // the user's rename. register() clears this on the next sign-in.
+      async markSignedOut() {
+        try {
+          const uid = await SbSync._uid();
+          if (!uid) return;
+          await window._sbClient.from('user_devices')
+            .update({ revoked_at: new Date().toISOString() })
+            .eq('user_id', uid).eq('device_id', _deviceId());
+        } catch (_) { /* best-effort — never block sign-out */ }
+      },
+    };
+
+    // Local sign-out forced by a revoke. Mirrors confirmLogout's wipe so no
+    // cached work data is left on a device the user has cut off.
+    let _kicking = false;
+    function _kickThisDevice() {
+      if (_kicking) return;
+      _kicking = true;
+      if (ticker) { clearInterval(ticker); ticker = null; }
+      const t = el('signingOutTitle'); if (t) t.textContent = 'Signed Out';
+      el('signingOutOverlay')?.classList.add('open');
+      const delay = new Promise(r => setTimeout(r, 1200));
+      Promise.all([_sbSignOut(), delay]).finally(() => {
+        localStorage.removeItem('wh_auth');
+        Object.keys(localStorage)
+          .filter(k => k.startsWith('wh_') && k !== 'wh_theme' && k !== DEV_ID_KEY)
+          .forEach(k => localStorage.removeItem(k));
+        window.location.href = 'login.html';
+      });
+    }
+
+    const _devIcon = p => /iOS|Android/.test(p || '')
+      ? '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="2" width="12" height="20" rx="2"/><path d="M11 18h2"/></svg>'
+      : '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M2 20h20"/></svg>';
+
+    async function renderDevices() {
+      const list = el('devList');
+      if (!list) return;
+      const othersWrap = el('devOthersWrap');
+      list.innerHTML = '<div style="font-size:13px;color:var(--muted-fg)">Loading…</div>';
+      try {
+        // Revoked rows stay in the table (so a rename survives) but are hidden —
+        // they come back when that device signs in again.
+        const rows = (await Devices.list()).filter(r => !r.revoked_at);
+        const me = _deviceId();
+        list.innerHTML = '';
+        if (!rows.length) {
+          list.innerHTML = '<div style="font-size:13px;color:var(--muted-fg)">No devices yet.</div>';
+          if (othersWrap) othersWrap.style.display = 'none';
+          return;
+        }
+        rows.sort((a, b) => (b.device_id === me) - (a.device_id === me)); // current device first
+        rows.forEach(r => list.appendChild(_devBuildRow(r, r.device_id === me)));
+        if (othersWrap) othersWrap.style.display = rows.some(r => r.device_id !== me) ? '' : 'none';
+      } catch (e) {
+        if (_devTableMissing(e)) { el('devSection')?.style.setProperty('display', 'none'); return; }
+        list.innerHTML = '<div style="font-size:13px;color:var(--muted-fg)">Couldn\'t load devices.</div>';
+        if (othersWrap) othersWrap.style.display = 'none';
+      }
+    }
+
+    // PostgREST reports an absent table as 42P01, or PGRST205 when it is just
+    // missing from the schema cache.
+    const _devTableMissing = e =>
+      e?.code === '42P01' || e?.code === 'PGRST205' ||
+      /does not exist|schema cache/i.test(e?.message || '');
+
+    function _devBuildRow(row, isCurrent) {
+      const rowEl = document.createElement('div');
+      rowEl.className = 'dev-row';
+
+      const left = document.createElement('div');
+      left.className = 'dev-left';
+      const icon = document.createElement('div');
+      icon.className = 'dev-icon';
+      icon.innerHTML = _devIcon(row.platform);
+      const info = document.createElement('div');
+      info.className = 'dev-info';
+
+      // Primary title — editable in place.
+      const nameInput = document.createElement('input');
+      nameInput.className = 'dev-name';
+      nameInput.type = 'text';
+      nameInput.value = row.name || 'Device';
+      nameInput.maxLength = 40;
+      nameInput.spellcheck = false;
+      nameInput.setAttribute('aria-label', 'Device name');
+      nameInput.setAttribute('autocomplete', 'off');
+      nameInput.setAttribute('data-lpignore', 'true');
+      nameInput.setAttribute('data-1p-ignore', 'true');
+      let last = nameInput.value;
+      const save = async () => {
+        const v = nameInput.value.trim().slice(0, 40);
+        if (!v) { nameInput.value = last; return; }
+        if (v === last) { nameInput.value = v; return; }
+        nameInput.value = v;
+        try {
+          await Devices.rename(row.device_id, v);
+          last = v;
+          showToast('Device Renamed', 'success');
+        } catch (e) {
+          nameInput.value = last;
+          showToast("Couldn't Rename Device", 'error', e.message || 'Please try again.');
+        }
+      };
+      nameInput.addEventListener('blur', save);
+      nameInput.addEventListener('keydown', e => {
+        if (e.key === 'Enter')  { e.preventDefault(); nameInput.blur(); }
+        if (e.key === 'Escape') { nameInput.value = last; nameInput.blur(); }
+      });
+
+      // Secondary title — the platform's view. Not editable.
+      const sub = document.createElement('div');
+      sub.className = 'dev-sub';
+      sub.textContent = (row.platform || 'Unknown device') + ' · ' + _devShortId(row.device_id);
+
+      info.appendChild(nameInput);
+      info.appendChild(sub);
+      left.appendChild(icon);
+      left.appendChild(info);
+      rowEl.appendChild(left);
+
+      const actions = document.createElement('div');
+      actions.className = 'dev-actions';
+      if (isCurrent) {
+        const chip = document.createElement('span');
+        chip.className = 'dev-chip';
+        chip.textContent = 'This device';
+        actions.appendChild(chip);
+      } else {
+        const btn = document.createElement('button');
+        btn.className = 'btn-ghost-destructive';
+        btn.style.cssText = 'flex-shrink:0;font-size:12px;height:30px;padding:0 12px';
+        btn.textContent = 'Log Out';
+        btn.addEventListener('click', () => devRevoke(row.device_id, row.name, btn));
+        actions.appendChild(btn);
+      }
+      rowEl.appendChild(actions);
+      return rowEl;
+    }
+
+    async function devRevoke(deviceId, name, btn) {
+      if (btn) { btn.disabled = true; btn.textContent = 'Logging Out…'; btn.style.opacity = '.7'; }
+      try {
+        await Devices.revoke(deviceId);
+        showToast('Device Logged Out', 'success',
+          (name || 'That device') + ' will sign out and clear its local data.');
+        renderDevices();
+      } catch (e) {
+        if (btn) { btn.disabled = false; btn.textContent = 'Log Out'; btn.style.opacity = ''; }
+        showToast("Couldn't Log Out Device", 'error', e.message || 'Please try again.');
+      }
+    }
+
+    async function devRevokeOthers() {
+      const btn = el('devRevokeOthersBtn');
+      if (btn) { btn.disabled = true; btn.textContent = 'Logging Out…'; btn.style.opacity = '.7'; }
+      try {
+        await Devices.revokeOthers();
+        showToast('Other Devices Logged Out', 'success', 'Every session except this one has ended.');
+        renderDevices();
+      } catch (e) {
+        showToast("Couldn't Log Out Others", 'error', e.message || 'Please try again.');
+      } finally {
+        if (btn) { btn.disabled = false; btn.textContent = 'Log Out Others'; btn.style.opacity = ''; }
+      }
+    }
+
+    // A device row changing elsewhere: sign out immediately if it's this one,
+    // otherwise just keep the Settings list honest.
+    function _onRemoteDevice(payload) {
+      const row = payload.new || payload.old || {};
+      if (row.device_id === _deviceId()) {
+        const since = Number(localStorage.getItem(DEV_SINCE_KEY) || 0);
+        const rev = payload.new?.revoked_at;
+        if (payload.eventType === 'DELETE' || (rev && Date.parse(rev) > since)) {
+          _kickThisDevice();
+          return;
+        }
+      }
+      if (el('viewSettings')?.classList.contains('active')) renderDevices();
+    }
+
     // ── Supabase sign-out (window._sbClient is always ready — init'd in <head>) ──
     async function _sbSignOut() {
       try { await window._sbClient.auth.signOut(); } catch (_) { /* best-effort */ }
@@ -13185,13 +13563,17 @@ ${sig}`
       el('signingOutOverlay').classList.add('open');
       // Run sign-out and the 2 s animation delay in parallel; navigate when both finish
       const delay = new Promise(r => setTimeout(r, 2000));
-      Promise.all([_sbSignOut(), delay]).finally(() => {
+      // markSignedOut must run while the session is still valid, so it is
+      // chained ahead of the sign-out rather than run alongside it.
+      Promise.all([Devices.markSignedOut().then(_sbSignOut), delay]).finally(() => {
         localStorage.removeItem('wh_auth');
         // Clear cached account data (day logs, session, config) so whoever signs
         // in next on this device — even the same person — starts from a clean
         // pull instead of silently inheriting this account's local cache.
+        // wh_device_id is kept: it identifies the browser, not the account, so
+        // signing back in reuses the same device row (and its rename).
         Object.keys(localStorage)
-          .filter(k => k.startsWith('wh_') && k !== 'wh_theme')
+          .filter(k => k.startsWith('wh_') && k !== 'wh_theme' && k !== DEV_ID_KEY)
           .forEach(k => localStorage.removeItem(k));
         window.location.href = 'login.html';
       });
@@ -13415,6 +13797,8 @@ ${sig}`
       // Hydrate the profile card and sign-in methods — auth data first, then cfg overlay when pullSettings resolves
       hydrateProfileCard();
       hydrateSignInMethods();
+      // Register this device (may seed its row), then paint the list.
+      Devices.register().then(renderDevices);
 
       // Restore last active tab (persisted in sessionStorage across reloads)
       const savedTab = (function(){ try { return sessionStorage.getItem('wh_active_tab'); } catch { return null; } })();

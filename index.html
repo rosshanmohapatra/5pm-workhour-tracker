@@ -3235,7 +3235,7 @@
         <!-- ── Manage Devices ── -->
         <div class="settings-section settings-section--has-desc">
           <div class="settings-section-header">Manage Devices</div>
-          <div class="form-sub" style="margin-bottom:14px">Devices signed in to your account. Rename any of them for your own reference — the grey line underneath never changes, so you can always tell which is which.</div>
+          <div class="form-sub" style="margin-bottom:14px">Devices signed in to your account. Rename any of them for your own reference — the code underneath never changes, so you can always tell which is which.</div>
           <div id="devList" class="settings-group">
             <!-- populated by renderDevices() -->
           </div>
@@ -13258,6 +13258,45 @@ ${sig}`
       return id;
     }
 
+    // Base-24 alphabet with no A-F, so a code can never read as a hex colour,
+    // and no I/O/L/U, so it can't be misread aloud.
+    const _DEV_ALPHABET = 'GHJKMNPQRSTVWXYZ23456789';
+
+    // Deterministic short code derived from the device id (FNV-1a, then base-24).
+    // Derived rather than stored: stable forever, nothing extra to persist.
+    function _devCode(id) {
+      let h = 0x811c9dc5;
+      const str = String(id);
+      for (let i = 0; i < str.length; i++) {
+        h ^= str.charCodeAt(i);
+        h = Math.imul(h, 0x01000193) >>> 0;
+      }
+      let out = '';
+      for (let i = 0; i < 6; i++) { out = _DEV_ALPHABET[h % 24] + out; h = Math.floor(h / 24); }
+      return out;
+    }
+
+    // Form factor, stored per device so other devices render the right icon.
+    // iPadOS reports itself as Macintosh, hence the touch-point check.
+    function _deviceKind(ua) {
+      ua = ua || '';
+      if (/iPad/.test(ua) || (/Android/.test(ua) && !/Mobile/.test(ua))) return 'tablet';
+      if (/Macintosh/.test(ua) && (navigator.maxTouchPoints || 0) > 1)   return 'tablet';
+      if (/iPhone|iPod|Android|Mobile/.test(ua))                         return 'mobile';
+      return 'desktop';
+    }
+
+    function _devAgo(iso) {
+      if (!iso) return '';
+      const secs = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
+      if (!isFinite(secs) || secs < 0) return '';
+      const unit = (n, word) => n + ' ' + word + (n === 1 ? '' : 's') + ' ago';
+      if (secs < 60)    return 'just now';
+      if (secs < 3600)  return unit(Math.floor(secs / 60), 'min');
+      if (secs < 86400) return unit(Math.floor(secs / 3600), 'hr');
+      return unit(Math.floor(secs / 86400), 'day');
+    }
+
     function _devicePlatform() {
       const ua = navigator.userAgent || '';
       const browser = /Edg\//.test(ua)        ? 'Edge'
@@ -13333,6 +13372,7 @@ ${sig}`
           map[id] = {
             n: mine?.n || _pickDeviceName(new Set(Object.values(map).map(d => d.n))),
             p: _devicePlatform(),
+            k: _deviceKind(navigator.userAgent),
             r: null,
             s: new Date().toISOString(),
           };
@@ -13343,7 +13383,7 @@ ${sig}`
       async list() {
         const { map } = await this._read();
         return Object.entries(map)
-          .map(([device_id, d]) => ({ device_id, name: d.n, platform: d.p, revoked_at: d.r, last_seen_at: d.s }))
+          .map(([device_id, d]) => ({ device_id, name: d.n, platform: d.p, kind: d.k, revoked_at: d.r, last_seen_at: d.s }))
           .sort((a, b) => String(b.last_seen_at || '').localeCompare(String(a.last_seen_at || '')));
       },
 
@@ -13399,9 +13439,21 @@ ${sig}`
       });
     }
 
-    const _devIcon = p => /iOS|Android/.test(p || '')
-      ? '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="2" width="12" height="20" rx="2"/><path d="M11 18h2"/></svg>'
-      : '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M2 20h20"/></svg>';
+    const _DEV_ICONS = {
+      // monitor
+      desktop: '<rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/>',
+      // tablet — wider body than the phone, same proportions otherwise
+      tablet:  '<rect x="5" y="2" width="14" height="20" rx="2"/><path d="M12 18h.01"/>',
+      // phone
+      mobile:  '<rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/>',
+    };
+    // kind is stored per device; entries written before that existed fall back
+    // to a guess from the platform string.
+    const _devIcon = (kind, platform) => {
+      const k = _DEV_ICONS[kind] ? kind : (/iOS|Android/.test(platform || '') ? 'mobile' : 'desktop');
+      return '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" '
+           + 'stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' + _DEV_ICONS[k] + '</svg>';
+    };
 
     async function renderDevices() {
       const list = el('devList');
@@ -13436,7 +13488,7 @@ ${sig}`
       left.className = 'dev-left';
       const icon = document.createElement('div');
       icon.className = 'dev-icon';
-      icon.innerHTML = _devIcon(row.platform);
+      icon.innerHTML = _devIcon(row.kind, row.platform);
       const info = document.createElement('div');
       info.className = 'dev-info';
 
@@ -13475,7 +13527,11 @@ ${sig}`
       // Secondary title — the platform's view. Not editable.
       const sub = document.createElement('div');
       sub.className = 'dev-sub';
-      sub.textContent = row.platform || 'Unknown device';
+      sub.textContent = [
+        row.platform || 'Unknown device',
+        _devCode(row.device_id),
+        isCurrent ? 'active now' : _devAgo(row.last_seen_at),
+      ].filter(Boolean).join(' · ');
 
       info.appendChild(nameInput);
       info.appendChild(sub);

@@ -1,6 +1,6 @@
 {
   "name": "5pm-work-tracker",
-  "version": "1.0.0",
+  "version": "1.2.0",
   "description": "Work hour tracker with Web Push notifications",
   "private": true,
   "engines": {

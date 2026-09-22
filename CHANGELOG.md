@@ -2,6 +2,24 @@
 Changelog
 
 
+v1.2.0
+
+New
+- Manage Devices. Every device signed in to your account, now in one place in Settings. Rename any of them, see when each was last active, and sign out the ones you no longer use.
+- Sign out everywhere else in a single tap, without signing out here.
+
+Improved
+- Your latest hours now load every time you open 5pm or come back to it, not only on a cold start.
+- Reloading no longer stops to ask whether you meant it. A running session survives the refresh either way.
+- The theme button now reads Switch Theme.
+
+Fixed
+- Signing out now saves any unsynced changes before clearing this device's copy. An edit made moments earlier could previously be lost.
+- A device signed out from somewhere else now clears its cached hours the next time it is opened, instead of leaving them on that machine.
+- The penalties list scrolls again once it grows past the height of its card.
+- Resolved 59 security alerts raised by code scanning.
+
+
 v1.1.0
 
 New

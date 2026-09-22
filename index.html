@@ -98,7 +98,20 @@
         }
         _revealApp(session);
       } else if (event === 'INITIAL_SESSION' && !location.search.includes('code=')) {
-        // No session and no OAuth code being processed — send to login
+        // No valid session. This is also the only signal a device gets when it
+        // was signed out from elsewhere: "Log out others" kills the refresh
+        // token server-side, so this page can never read the devices map to
+        // find its own revoke flag, and _kickThisDevice() never runs. Clear the
+        // cached account data here instead, or a full copy of the user's hours
+        // sits in localStorage in plain text on a device they already cut off.
+        // NOTE: 'wh_device_id' must stay in step with DEV_ID_KEY in the main
+        // script. It identifies the browser rather than the account, so like
+        // wh_theme it survives sign-out.
+        try {
+          Object.keys(localStorage)
+            .filter(function(k) { return k.indexOf('wh_') === 0 && k !== 'wh_theme' && k !== 'wh_device_id'; })
+            .forEach(function(k) { localStorage.removeItem(k); });
+        } catch (e) {}
         window.location.replace('/login.html');
       } else if (event === 'SIGNED_OUT') {
         try { sessionStorage.removeItem('wh_mfa_ok'); } catch (e) {}
@@ -3529,7 +3542,7 @@
   <a href="https://github.com/rosshanmohapatra/5pm-workhour-tracker/releases" target="_blank" rel="noopener" class="version-pill">
     <span style="font-size:11px;font-weight:600;color:var(--muted-fg);letter-spacing:.01em">5pm</span>
     <span style="font-size:10px;font-weight:600;letter-spacing:.05em;
-      background:var(--muted);color:var(--muted-fg);padding:4px 7px;border-radius:100px">v1.1.0</span>
+      background:var(--muted);color:var(--muted-fg);padding:4px 7px;border-radius:100px">v1.2.0</span>
   </a>
 
   <!-- ── Weekly Report Modal ── -->
@@ -4450,7 +4463,7 @@
 
   <script>
 
-    const APP_VERSION = '1.1.0';
+    const APP_VERSION = '1.2.0';
     localStorage.setItem('wh_ver', APP_VERSION);
 
     // ── HELPERS ─────────────────────────────────────────
@@ -13430,7 +13443,10 @@ ${sig}`
       const t = el('signingOutTitle'); if (t) t.textContent = 'Signed Out';
       el('signingOutOverlay')?.classList.add('open');
       const delay = new Promise(r => setTimeout(r, 1200));
-      Promise.all([_sbSignOut(), delay]).finally(() => {
+      // Same rule as confirmLogout: flush while the session still works, then
+      // sign out, then wipe.
+      const work = _flushSync({ silent: true }).catch(() => {}).then(_sbSignOut);
+      Promise.all([work, delay]).finally(() => {
         localStorage.removeItem('wh_auth');
         Object.keys(localStorage)
           .filter(k => k.startsWith('wh_') && k !== 'wh_theme' && k !== DEV_ID_KEY)
@@ -13611,9 +13627,16 @@ ${sig}`
       el('signingOutOverlay').classList.add('open');
       // Run sign-out and the 2 s animation delay in parallel; navigate when both finish
       const delay = new Promise(r => setTimeout(r, 2000));
-      // markSignedOut must run while the session is still valid, so it is
-      // chained ahead of the sign-out rather than run alongside it.
-      Promise.all([Devices.markSignedOut().then(_sbSignOut), delay]).finally(() => {
+      // Ordering matters and every step needs the session to still be valid:
+      // push anything unsynced FIRST, because the wipe below clears the very
+      // localStorage entries _flushSync reads from (it skips any day whose
+      // Store.getDay() comes back empty), then mark this device signed out,
+      // then end the session.
+      const work = _flushSync({ silent: true })
+        .catch(() => {})   // a failed push must not strand the user mid-logout
+        .then(() => Devices.markSignedOut())
+        .then(_sbSignOut);
+      Promise.all([work, delay]).finally(() => {
         localStorage.removeItem('wh_auth');
         // Clear cached account data (day logs, session, config) so whoever signs
         // in next on this device — even the same person — starts from a clean

@@ -886,7 +886,7 @@
        both themes. This was hardcoded white with an identical .dark override, so
        light theme drew white text on the white card: 1.00:1 contrast, invisible. */
     .rc-worked { font-size: 16px; font-weight: 600; letter-spacing: -.3px; line-height: 1.2;
-      color: color-mix(in srgb, var(--foreground) 35%, transparent); }
+      color: color-mix(in srgb, var(--foreground) 45%, transparent); }
     .rc-elapsed-label { font-size: 11px; font-weight: 600; letter-spacing: .08em;
       text-transform: uppercase; color: var(--muted-fg); margin-top: 2px; }
     .rc-meta { display: flex; gap: 16px; flex-wrap: wrap; }
@@ -8433,21 +8433,6 @@
       if (analyticsWeekOffset === 0) renderDaySelector();
     }
 
-    function buildDropdown(day, log) {
-      const startVal = log?.loginDisplay || '';
-      const endVal   = log?.checkoutDisplay || '';
-      return `<div class="wk-dropdown-inner">
-        <button class="wk-edit-btn" onclick="setDayOverride('${day.key}','halfday')">Half Day</button>
-        <button class="wk-edit-btn" onclick="setDayOverride('${day.key}','holiday')">Holiday</button>
-        <button class="wk-edit-btn" onclick="setDayOverride('${day.key}','leave')">Full Day Leave</button>
-        <div class="wk-time-inputs">
-          <input type="text" class="wk-time-input" placeholder="Start" id="dStart-${day.key}" value="${startVal}" autocomplete="off">
-          <span>–</span>
-          <input type="text" class="wk-time-input" placeholder="End" id="dEnd-${day.key}" value="${endVal}" autocomplete="off">
-          <button class="wk-edit-btn" onclick="saveDayEdit('${day.key}')">Save</button>
-        </div>
-      </div>`;
-    }
 
     function setDayOverride(key, type) {
       const c = cfg();

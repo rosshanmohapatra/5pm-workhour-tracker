@@ -16,6 +16,8 @@ Improved
 Fixed
 - Signing out now saves any unsynced changes before clearing this device's copy. An edit made moments earlier could previously be lost.
 - A device signed out from somewhere else now clears its cached hours the next time it is opened, instead of leaving them on that machine.
+- The hours figure on the Today card is readable in light theme again. It was being drawn in white on the white card.
+- The dismiss button on a notification can now be reached on touch devices, where there is no hover to reveal it.
 - The penalties list scrolls again once it grows past the height of its card.
 - Resolved 59 security alerts raised by code scanning.
 

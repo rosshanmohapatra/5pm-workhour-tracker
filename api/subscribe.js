@@ -1,3 +1,19 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// NOT CURRENTLY WIRED UP. Nothing in the app calls this endpoint.
+//
+// Notifications today are client-side: setTimeout + showNotification, which
+// only fire while the browser is open. This file is the server half of Web
+// Push, the one mechanism that can notify you with the app fully closed.
+//
+// Still missing before push would work:
+//   1. a "push" event listener in sw.js (nothing receives a delivered push)
+//   2. a scheduler to call /api/notify at the right time (cron or QStash)
+//   3. client code to register a subscription via /api/subscribe
+//   4. NOTIFY_SECRET set in the Vercel environment
+//
+// This half is complete and correctly secured: it verifies the Supabase JWT
+// server-side and keys by the verified user id, never one from the body.
+// ─────────────────────────────────────────────────────────────────────────────
 // Saves a Web Push subscription object to Vercel KV, keyed by the verified user ID.
 // The caller must supply a valid Supabase JWT in the Authorization header.
 import { kv } from '@vercel/kv';

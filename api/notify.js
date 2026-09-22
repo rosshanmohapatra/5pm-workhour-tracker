@@ -1,7 +1,35 @@
-// QStash callback — sends the Web Push notification to the user's device.
-// Protected by a shared secret set at schedule time.
+// ─────────────────────────────────────────────────────────────────────────────
+// NOT CURRENTLY WIRED UP. Nothing in the app calls this endpoint.
+//
+// Notifications today are client-side: setTimeout + showNotification, which
+// only fire while the browser is open. This file is the server half of Web
+// Push, the one mechanism that can notify you with the app fully closed.
+//
+// Still missing before push would work:
+//   1. a "push" event listener in sw.js (nothing receives a delivered push)
+//   2. a scheduler to call /api/notify at the right time (cron or QStash)
+//   3. client code to register a subscription via /api/subscribe
+//   4. NOTIFY_SECRET set in the Vercel environment
+//
+// Kept deliberately: this is the harder half to rebuild. Safe as-is, it
+// rejects every request while NOTIFY_SECRET is unset.
+// ─────────────────────────────────────────────────────────────────────────────
+// Scheduler callback: sends the Web Push notification to the user's device.
+// Protected by a shared secret supplied by the caller.
+import { timingSafeEqual } from 'crypto';
 import { kv } from '@vercel/kv';
 import webpush from 'web-push';
+
+// Constant-time comparison, so a wrong secret cannot be narrowed by timing the
+// response. Lengths are checked first because timingSafeEqual throws on buffers
+// of different sizes. Returns false when either side is missing, which is what
+// keeps this endpoint closed while NOTIFY_SECRET is unset.
+function secretMatches(token, expected) {
+  if (!token || !expected) return false;
+  const a = Buffer.from(String(token));
+  const b = Buffer.from(String(expected));
+  return a.length === b.length && timingSafeEqual(a, b);
+}
 
 webpush.setVapidDetails(
   process.env.VAPID_SUBJECT,       // e.g. mailto:you@yourapp.com
@@ -36,7 +64,7 @@ export default async function handler(req, res) {
   // Authenticate via Authorization header — secret never travels in the logged request body
   const authHeader = req.headers['authorization'] || '';
   const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
-  if (!token || token !== process.env.NOTIFY_SECRET) {
+  if (!secretMatches(token, process.env.NOTIFY_SECRET)) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
 

@@ -13350,8 +13350,13 @@ ${sig}`
           .sort((a, b) => String(b.last_seen_at || '').localeCompare(String(a.last_seen_at || '')));
       },
 
+      // Clamp here, not just in the input: user_kv has no CHECK constraint, so
+      // this method is the only thing standing between any caller and a stored
+      // name that breaks the row layout.
       rename(deviceId, name) {
-        return this._mutate(m => { if (m[deviceId]) m[deviceId].n = name; });
+        const n = String(name ?? '').trim().slice(0, 40);
+        if (!n) throw new Error('Device name cannot be empty.');
+        return this._mutate(m => { if (m[deviceId]) m[deviceId].n = n; });
       },
 
       // Cooperative revoke: the target signs itself out and wipes its cache.

@@ -13258,9 +13258,6 @@ ${sig}`
       return id;
     }
 
-    // Short tail of the device id — enough to separate two identically-named devices.
-    const _devShortId = id => '#' + String(id).replace(/-/g, '').slice(-6);
-
     function _devicePlatform() {
       const ua = navigator.userAgent || '';
       const browser = /Edg\//.test(ua)        ? 'Edge'
@@ -13478,7 +13475,7 @@ ${sig}`
       // Secondary title — the platform's view. Not editable.
       const sub = document.createElement('div');
       sub.className = 'dev-sub';
-      sub.textContent = (row.platform || 'Unknown device') + ' · ' + _devShortId(row.device_id);
+      sub.textContent = row.platform || 'Unknown device';
 
       info.appendChild(nameInput);
       info.appendChild(sub);

@@ -371,12 +371,6 @@
       color: var(--foreground); transition: background .14s; display: inline-flex;
       align-items: center; gap: 5px; }
     .btn-sm:hover { background: var(--border); }
-    /* Danger Zone button variants */
-    .btn-danger { height: 36px; padding: 0 16px; font-size: 13px; font-weight: 600;
-      border-radius: var(--radius-md); font-family: var(--font); display: inline-flex; align-items: center;
-      background: var(--destructive); color: #fff; border: none; cursor: pointer;
-      transition: filter .14s; white-space: nowrap; flex-shrink: 0; }
-    .btn-danger:hover { filter: brightness(.9); }
     .btn-ghost-danger { height: 36px; padding: 0 16px; font-size: 13px; font-weight: 600;
       border-radius: var(--radius-md); font-family: var(--font); display: inline-flex; align-items: center;
       background: var(--destructive-bg); color: var(--destructive); border: none;
@@ -444,11 +438,6 @@
       border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-xs); }
     .dark .card { box-shadow: none; }
 
-    /* ── Badge ── */
-    .badge { display: inline-flex; align-items: center; gap: 4px;
-      font-size: 11px; font-weight: 500; padding: 2px 8px; border-radius: 6px; white-space: nowrap; }
-    .badge-neutral { background: var(--muted); color: var(--muted-fg); border: 1px solid var(--border); }
-
     /* ── Toggle switch ── */
     .toggle { position: relative; width: 38px; height: 22px; flex-shrink: 0; display: inline-block; }
     .toggle input { opacity: 0; width: 0; height: 0; position: absolute; }
@@ -463,11 +452,6 @@
 
     /* ── Day picker ── */
     .day-picker { display: flex; gap: 6px; }
-    .day-btn { width: 36px; height: 36px; border-radius: var(--radius-md);
-      border: none; font-size: 12px; font-weight: 600;
-      color: var(--muted-fg); background: var(--muted); transition: background .14s, color .14s; }
-    .day-btn:hover { background: var(--border); color: var(--foreground); }
-    .day-btn.selected { background: var(--foreground); color: var(--background); }
 
     /* ── Live dot ── */
     .dot-live { width: 6px; height: 6px; border-radius: 50%; background: var(--success);
@@ -516,7 +500,10 @@
       border-radius: 5px; border: none; background: transparent; color: var(--muted-fg);
       display: none; align-items: center; justify-content: center;
       transition: background .12s; cursor: pointer; }
-    .notif-item:hover .notif-dismiss { display: flex; }
+    /* Reveal on hover for pointer devices; always visible on touch, where there
+       is no hover to reveal it with. Mirrors .penalty-discard-btn. */
+    @media (hover: hover) { .notif-item:hover .notif-dismiss { display: flex; } }
+    @media (hover: none)  { .notif-dismiss { display: flex; } }
     .notif-dismiss:hover { background: var(--muted); color: var(--foreground); }
     .notif-empty { padding: 16px; font-size: 13px; color: var(--muted-fg); text-align: center; }
     /* iOS-style "nothing to clear" shake */
@@ -867,12 +854,11 @@
        left-to-right as overtime accrues toward Auto Stop. Low-opacity flat tint only:
        no glow, shadow, or pulse. The track's own overflow:hidden + border-radius clip
        it to the same rounded shape, so it never needs its own radius. */
-    .rc-progress-fill-ot { position: absolute; inset: 0; width: 0%;
-      background: var(--success); opacity: .2; transition: width .6s ease-out; pointer-events: none; }
-    .rc-progress-fill.dim  { background: var(--muted-fg); opacity: .5; }
     .rc-progress-fill-ot { position: absolute; top: 0; height: 100%; left: 100%; width: 0;
-      background: var(--warning); border-radius: 0 100px 100px 0;
+      background: var(--warning); opacity: .2; border-radius: 0 100px 100px 0;
+      pointer-events: none;
       transition: left .5s cubic-bezier(.4,0,.2,1), width .5s cubic-bezier(.4,0,.2,1); }
+    .rc-progress-fill.dim  { background: var(--muted-fg); opacity: .5; }
     /* ── Description row ── */
     .rc-desc-row { display: flex; justify-content: center; align-items: center; min-height: 20px; padding: 32px 0; }
     .rc-desc-right { font-size: 12px; font-weight: 500; color: var(--muted-fg);
@@ -896,8 +882,11 @@
     .rc-rem-sep { font-size: 11px; color: var(--muted-fg); opacity: 0.45; font-weight: 700; line-height: 1; }
     .rc-rem-inline { font-size: 11px; font-weight: 600; letter-spacing: .04em; line-height: 1; }
     .rc-rem-text { font-size: 11px; font-weight: 600; color: var(--muted-fg); letter-spacing: .06em; text-transform: uppercase; line-height: 1; }
-    .rc-worked { font-size: 16px; font-weight: 600; letter-spacing: -.3px; line-height: 1.2; color: rgba(255,255,255,0.35); }
-    .dark .rc-worked { color: rgba(255,255,255,0.35); }
+    /* 35% of the theme's OWN foreground, so the dimmed resting state works in
+       both themes. This was hardcoded white with an identical .dark override, so
+       light theme drew white text on the white card: 1.00:1 contrast, invisible. */
+    .rc-worked { font-size: 16px; font-weight: 600; letter-spacing: -.3px; line-height: 1.2;
+      color: color-mix(in srgb, var(--foreground) 35%, transparent); }
     .rc-elapsed-label { font-size: 11px; font-weight: 600; letter-spacing: .08em;
       text-transform: uppercase; color: var(--muted-fg); margin-top: 2px; }
     .rc-meta { display: flex; gap: 16px; flex-wrap: wrap; }
@@ -922,8 +911,6 @@
     .wk-head-left { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
     .wk-range { font-size: 11px; font-weight: 600; color: var(--foreground);
       text-transform: uppercase; letter-spacing: .08em; }
-    .wk-chip { font-size: 11px; font-weight: 600; background: var(--border);
-      border-radius: 20px; padding: 2px 8px; color: var(--foreground); display: none; }
     .wk-minimize-btn { width: 28px; height: 28px; border-radius: 6px; border: none;
       background: transparent; color: var(--muted-fg); cursor: pointer;
       display: flex; align-items: center; justify-content: center; transition: background .12s, color .12s; }
@@ -952,7 +939,6 @@
     .wk-footer-val { font-size: 13px; color: var(--foreground); font-weight: 500; }
 
     /* Day edit dropdown (analytics row expand) */
-    .wk-dropdown { display: none; }
     .wk-row-actions { display: flex; align-items: center; gap: 8px; justify-self: end; }
     .wk-edit-icon-btn { width: 28px; height: 28px; border-radius: 6px; border: none;
       background: var(--muted); color: var(--muted-fg); display: flex; align-items: center;
@@ -1052,10 +1038,6 @@
     .tz-item-auto { display: flex; align-items: center; color: var(--foreground); flex-shrink: 0; }
     .st-panel { margin-top: 12px; }
     .st-panel-label { font-size: 11px; font-weight: 600; color: var(--muted-fg); letter-spacing: .04em; text-transform: uppercase; margin-bottom: 6px; }
-    .callout { display: flex; align-items: flex-start; gap: 8px;
-      font-size: 12px; color: var(--muted-fg); line-height: 1.6;
-      padding: 10px 12px; background: var(--muted); border-radius: var(--radius); }
-    .callout-icon { flex-shrink: 0; margin-top: 1px; opacity: .7; }
     /* Info icon button + tooltip */
     .info-icon-btn { display:inline-flex; align-items:center; justify-content:center; width:20px; height:20px; border-radius:50%; border:none; background:transparent; color:var(--muted-fg); cursor:pointer; padding:0; flex-shrink:0; }
     .info-icon-btn:hover { color:var(--foreground); }
@@ -1212,9 +1194,6 @@
       display: flex; align-items: center; justify-content: center;
       padding: max(env(safe-area-inset-top, 0px), 16px) 16px max(env(safe-area-inset-bottom, 0px), 16px);
       opacity: 0; pointer-events: none; transition: opacity .2s; }
-    @media (max-width: 600px) {
-      .overlay { align-items: center; }
-    }
     .overlay.open { opacity: 1; pointer-events: all; }
     .dialog { position: relative; background: var(--card); border: 1px solid var(--border);
       border-radius: var(--radius-xl); width: 100%;
@@ -1344,14 +1323,6 @@
       content: ''; position: absolute; bottom: calc(100% + 1px); left: 50%; transform: translateX(-50%);
       border: 5px solid transparent; border-top-color: var(--foreground); pointer-events: none; z-index: 100;
     }
-    .sc-dot { width: 52px; height: 52px; border-radius: 50%; display: flex; align-items: center;
-      justify-content: center; font-size: 12px; font-weight: 700; letter-spacing: -.01em; }
-    .sc-dot.neutral { background: var(--muted); color: var(--muted-fg); border: 1px solid var(--border); }
-    .sc-dot.surplus { background: var(--success-bg); color: var(--success); border: 1px solid var(--success-border); }
-    .sc-dot.deficit { background: var(--destructive-bg); color: var(--destructive); border: 1px solid var(--destructive-border); }
-    .sc-dot.normal  { background: var(--muted); color: var(--foreground); border: 1px solid var(--border); }
-    .sc-dot.early   { background: var(--blue-bg); color: var(--blue); border: 1px solid var(--blue-border); }
-    .sc-dot.live    { background: var(--success-bg); color: var(--success); border: 1px solid var(--success-border); animation: blink 1.6s ease-in-out infinite; }
     .sc-day-label { font-size: 10px; font-weight: 600; color: var(--muted-fg);
       text-transform: capitalize; letter-spacing: .01em; text-align: center; }
     .sc-total-row { display: flex; align-items: center; justify-content: space-between;
@@ -1468,14 +1439,6 @@
       line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .sel-day-clock { font-size: 16px; line-height: 24px; font-weight: 600; letter-spacing: normal;
       color: var(--foreground); font-variant-numeric: tabular-nums; white-space: nowrap; }
-
-    /* ── Session tags ── */
-    .tag-pill { display: inline-flex; align-items: center; font-size: 9px; font-weight: 700;
-      letter-spacing: .07em; text-transform: uppercase; padding: 2px 6px; border-radius: 4px;
-      margin-left: 6px; vertical-align: middle; }
-    .tag-realtime  { background: var(--success-bg); color: var(--success); border: 1px solid var(--success-border); }
-    .tag-edited    { background: var(--blue-bg); color: var(--blue); border: 1px solid var(--blue-border); }
-    .tag-autostop  { background: var(--warning-bg); color: var(--warning); border: 1px solid var(--warning-border); }
 
     /* ── Missing data pill ── */
     .wk-pill.missing { color: var(--muted-fg);
@@ -2819,57 +2782,7 @@
             </button>
           </div>
         </div>
-        <div class="wk-rows" id="wkRows"><div class="wk-row" data-day-key="2026-04-13"><div class="wk-day">Monday</div><div class="wk-pill deficit">0h 00m</div></div><div class="wk-dropdown" id="drop-2026-04-13"><div class="wk-dropdown-inner">
-        <button class="wk-edit-btn" onclick="setDayOverride(&#39;2026-04-13&#39;,&#39;halfday&#39;)">Half Day</button>
-        <button class="wk-edit-btn" onclick="setDayOverride(&#39;2026-04-13&#39;,&#39;holiday&#39;)">Holiday</button>
-        <button class="wk-edit-btn" onclick="setDayOverride(&#39;2026-04-13&#39;,&#39;leave&#39;)">On Leave</button>
-        <div class="wk-time-inputs">
-          <input type="text" class="wk-time-input" placeholder="Start" id="dStart-2026-04-13" value="" autocomplete="off">
-          <span>–</span>
-          <input type="text" class="wk-time-input" placeholder="End" id="dEnd-2026-04-13" value="" autocomplete="off">
-          <button class="wk-edit-btn" onclick="saveDayEdit(&#39;2026-04-13&#39;)">Save</button>
-        </div>
-      </div></div><div class="wk-row" data-day-key="2026-04-14"><div class="wk-day">Tuesday</div><div class="wk-pill surplus">14h 57m</div></div><div class="wk-dropdown" id="drop-2026-04-14"><div class="wk-dropdown-inner">
-        <button class="wk-edit-btn" onclick="setDayOverride(&#39;2026-04-14&#39;,&#39;halfday&#39;)">Half Day</button>
-        <button class="wk-edit-btn" onclick="setDayOverride(&#39;2026-04-14&#39;,&#39;holiday&#39;)">Holiday</button>
-        <button class="wk-edit-btn" onclick="setDayOverride(&#39;2026-04-14&#39;,&#39;leave&#39;)">On Leave</button>
-        <div class="wk-time-inputs">
-          <input type="text" class="wk-time-input" placeholder="Start" id="dStart-2026-04-14" value="09:00 AM" autocomplete="off">
-          <span>–</span>
-          <input type="text" class="wk-time-input" placeholder="End" id="dEnd-2026-04-14" value="11:49 PM" autocomplete="off">
-          <button class="wk-edit-btn" onclick="saveDayEdit(&#39;2026-04-14&#39;)">Save</button>
-        </div>
-      </div></div><div class="wk-row today" data-day-key="2026-04-15"><div class="wk-day">Wednesday (Today)</div><div class="wk-pill">–</div></div><div class="wk-dropdown" id="drop-2026-04-15"><div class="wk-dropdown-inner">
-        <button class="wk-edit-btn" onclick="setDayOverride(&#39;2026-04-15&#39;,&#39;halfday&#39;)">Half Day</button>
-        <button class="wk-edit-btn" onclick="setDayOverride(&#39;2026-04-15&#39;,&#39;holiday&#39;)">Holiday</button>
-        <button class="wk-edit-btn" onclick="setDayOverride(&#39;2026-04-15&#39;,&#39;leave&#39;)">On Leave</button>
-        <div class="wk-time-inputs">
-          <input type="text" class="wk-time-input" placeholder="Start" id="dStart-2026-04-15" value="" autocomplete="off">
-          <span>–</span>
-          <input type="text" class="wk-time-input" placeholder="End" id="dEnd-2026-04-15" value="" autocomplete="off">
-          <button class="wk-edit-btn" onclick="saveDayEdit(&#39;2026-04-15&#39;)">Save</button>
-        </div>
-      </div></div><div class="wk-row" data-day-key="2026-04-16"><div class="wk-day">Thursday</div><div class="wk-pill">–</div></div><div class="wk-dropdown" id="drop-2026-04-16"><div class="wk-dropdown-inner">
-        <button class="wk-edit-btn" onclick="setDayOverride(&#39;2026-04-16&#39;,&#39;halfday&#39;)">Half Day</button>
-        <button class="wk-edit-btn" onclick="setDayOverride(&#39;2026-04-16&#39;,&#39;holiday&#39;)">Holiday</button>
-        <button class="wk-edit-btn" onclick="setDayOverride(&#39;2026-04-16&#39;,&#39;leave&#39;)">On Leave</button>
-        <div class="wk-time-inputs">
-          <input type="text" class="wk-time-input" placeholder="Start" id="dStart-2026-04-16" value="" autocomplete="off">
-          <span>–</span>
-          <input type="text" class="wk-time-input" placeholder="End" id="dEnd-2026-04-16" value="" autocomplete="off">
-          <button class="wk-edit-btn" onclick="saveDayEdit(&#39;2026-04-16&#39;)">Save</button>
-        </div>
-      </div></div><div class="wk-row" data-day-key="2026-04-17"><div class="wk-day">Friday</div><div class="wk-pill">–</div></div><div class="wk-dropdown" id="drop-2026-04-17"><div class="wk-dropdown-inner">
-        <button class="wk-edit-btn" onclick="setDayOverride(&#39;2026-04-17&#39;,&#39;halfday&#39;)">Half Day</button>
-        <button class="wk-edit-btn" onclick="setDayOverride(&#39;2026-04-17&#39;,&#39;holiday&#39;)">Holiday</button>
-        <button class="wk-edit-btn" onclick="setDayOverride(&#39;2026-04-17&#39;,&#39;leave&#39;)">On Leave</button>
-        <div class="wk-time-inputs">
-          <input type="text" class="wk-time-input" placeholder="Start" id="dStart-2026-04-17" value="" autocomplete="off">
-          <span>–</span>
-          <input type="text" class="wk-time-input" placeholder="End" id="dEnd-2026-04-17" value="" autocomplete="off">
-          <button class="wk-edit-btn" onclick="saveDayEdit(&#39;2026-04-17&#39;)">Save</button>
-        </div>
-      </div></div></div>
+        <div class="wk-rows" id="wkRows"><!-- filled by renderHistory() --></div>
         <div class="wk-footer" id="wkFooter">
           <div class="wk-footer-row">
             <span class="section-label">Total Hours</span>
@@ -6503,7 +6416,7 @@
           if (_body) { _body.classList.remove('ns-progress'); _body.classList.add('ns-times'); }
         } else {
           el('rcWorked').textContent = c.loginStr;
-          el('rcWorked').style.color = (c.rightClass === 'muted' || c.rightClass === 'warn') ? 'var(--muted-fg)' : '#fafafa';
+          el('rcWorked').style.color = (c.rightClass === 'muted' || c.rightClass === 'warn') ? 'var(--muted-fg)' : 'var(--foreground)';
         }
         el('rcTarget').textContent = c.isDone ? c.rightStr : c.logoutStr;
         el('rcTarget').style.color = c.isDone ? (c.rightClass === 'warn' ? 'var(--warning)' : 'var(--muted-fg)') : '';
@@ -6515,7 +6428,7 @@
           el('rcWorked').style.color = 'var(--muted-fg)';
         } else {
           el('rcWorked').textContent = c.elapsedStr;
-          el('rcWorked').style.color = (c.rightClass === 'muted' || c.rightClass === 'warn') ? 'var(--muted-fg)' : '#fafafa';
+          el('rcWorked').style.color = (c.rightClass === 'muted' || c.rightClass === 'warn') ? 'var(--muted-fg)' : 'var(--foreground)';
         }
         el('rcTarget').textContent = c.rightStr;
         el('rcTarget').style.color = c.rightClass === 'ok' ? 'var(--success)' : c.rightClass === 'warn' ? 'var(--warning)' : c.rightClass === 'muted' ? 'var(--muted-fg)' : '';
@@ -7636,14 +7549,14 @@
 
       if (_currentPairIs('times')) {
         el('rcWorked').textContent = _loginStr;
-        el('rcWorked').style.color = isDone ? 'var(--muted-fg)' : '#fafafa';
+        el('rcWorked').style.color = isDone ? 'var(--muted-fg)' : 'var(--foreground)';
         // Once the target's hit, "Leave by" is stale info (that time already passed) —
         // show overtime worked instead, same as the Progress tab's right KPI.
         el('rcTarget').textContent = isDone ? _rightStr : _logoutStr;
         el('rcTarget').style.color = isDone ? (_rightClass === 'warn' ? 'var(--warning)' : 'var(--muted-fg)') : '';
       } else {
         animateDuration('rcWorked', _elapsedStr);
-        el('rcWorked').style.color = isDone ? 'var(--muted-fg)' : '#fafafa';
+        el('rcWorked').style.color = isDone ? 'var(--muted-fg)' : 'var(--foreground)';
         el('rcTarget').style.color = _rightClass === 'warn' ? 'var(--warning)' : _rightClass === 'muted' ? 'var(--muted-fg)' : '';
         if (eff > 0) animateDuration('rcTarget', _rightStr); else el('rcTarget').textContent = _rightStr;
       }

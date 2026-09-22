@@ -10569,15 +10569,20 @@ ${sig}`
         // Accept both v2 structured and legacy flat formats
         const days = snap.tracking?.days || snap.days || snap;
         if (typeof days !== 'object' || Array.isArray(days)) return false;
-        // Validate at least one day entry looks right
-        const dayVals = Object.values(days);
-        if (dayVals.length > 0) {
-          const sample = dayVals[0];
-          if (typeof sample !== 'object' || Array.isArray(sample)) return false;
-        }
+        // Keep only well-formed entries. Previously just the FIRST value was
+        // sampled and everything else written raw, so a hand-edited backup could
+        // put arbitrary junk into storage and pushAll() would sync it to
+        // Supabase. Filtering rather than rejecting keeps legacy flat exports
+        // working, where day keys sit alongside metadata keys like "meta" and
+        // "workConfig". It also drops __proto__-style keys.
+        const entries = Object.entries(days).filter(([k, v]) =>
+          /^\d{4}-\d{2}-\d{2}$/.test(k) && v && typeof v === 'object' && !Array.isArray(v));
+        // No recognisable days means this is not a backup we should act on. The
+        // old code fell through here and wiped every existing log.
+        if (!entries.length) return false;
         // Wipe existing day logs
         this.keys(KEY.day).forEach(k => this.remove(k));
-        Object.entries(days).forEach(([dk, v]) => this.set(KEY.day + dk, v));
+        entries.forEach(([dk, v]) => this.set(KEY.day + dk, v));
         // Restore config — prefer structured workConfig, fallback to cfg
         const wc = snap.workConfig;
         const legacyCfg = snap.cfg;

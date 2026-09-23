@@ -1118,8 +1118,8 @@
        device is still identifiable. */
     .dev-sub { font-size:11px; color:var(--muted-fg); margin-top:1px;
       overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-    .dev-actions { display:flex; flex-direction:column; align-items:flex-end; gap:6px; flex-shrink:0; }
-    .dev-seen { font-size:11px; color:var(--muted-fg); white-space:nowrap; line-height:1; }
+    .dev-actions { display:flex; align-items:center; gap:8px; flex-shrink:0; }
+    .dev-seen { font-size:11px; color:var(--muted-fg); white-space:nowrap; margin-top:2px; }
     .dev-chip { font-size:10px; font-weight:600; letter-spacing:.04em; text-transform:uppercase;
       background:var(--success-bg); color:var(--success); border:1px solid var(--success-border);
       border-radius:4px; padding:2px 7px; white-space:nowrap; }
@@ -1419,13 +1419,13 @@
     .email-field-wrap:hover .email-copy-hover,
     .email-copy-hover:focus-within { opacity: 1; pointer-events: all; }
     @media (min-width: 641px) {
-      #emailModalOverlay { align-items: center !important; padding: 20px; }
-      #emailModalOverlay .email-modal {
+      #emailModalOverlay, #devModalOverlay { align-items: center !important; padding: 20px; }
+      #emailModalOverlay .email-modal, #devModalOverlay .email-modal {
         border-radius: var(--radius-xl) !important;
         border-bottom: 1px solid var(--border) !important;
         max-width: 480px; max-height: none; overflow-y: visible;
         transform: scale(.95); transition: transform .2s cubic-bezier(.32,1,.54,1) !important; }
-      #emailModalOverlay.open .email-modal { transform: scale(1); }
+      #emailModalOverlay.open .email-modal, #devModalOverlay.open .email-modal { transform: scale(1); }
       #emailModalOverlay .email-textarea { resize: none; }
     }
 
@@ -3160,31 +3160,19 @@
 
         <div class="settings-section-divider"></div>
 
-        <!-- ── Manage Devices ── -->
-        <div class="settings-section settings-section--has-desc">
-          <div class="settings-section-header">Manage Devices</div>
-          <div class="form-sub" style="margin-bottom:14px">All devices signed in to your account.</div>
-          <div id="devList" class="settings-group">
-            <!-- populated by renderDevices() -->
-          </div>
-          <div id="devOthersWrap" style="display:none;margin-top:16px">
-            <div class="settings-section-divider" style="margin-bottom:16px"></div>
-            <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
-              <div>
-                <div class="form-label">Log Out Everywhere Else</div>
-                <div class="form-sub">Ends every session except this device, right away.</div>
-              </div>
-              <button class="btn-ghost-destructive" id="devRevokeOthersBtn" onclick="devRevokeOthers()">Log Out Others</button>
-            </div>
-          </div>
-        </div>
-
-        <div class="settings-section-divider"></div>
-
         <!-- ── Account (System + Danger Zone) ── -->
         <div class="settings-section">
           <div class="settings-section-header">Account</div>
           <div class="settings-group">
+
+            <!-- Manage Devices -->
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+              <div>
+                <div class="form-label">Manage Devices</div>
+                <div class="form-sub">All devices signed in to your account.</div>
+              </div>
+              <button class="btn-secondary" onclick="openDevicesModal()">Manage</button>
+            </div>
 
             <!-- Manage Data -->
             <div class="form-field">
@@ -3994,6 +3982,32 @@
   </div>
 
   <!-- Toast -->
+  <!-- ── Manage Devices ── bottom sheet on mobile, centred dialog on desktop,
+       reusing the .email-modal component rather than adding a fourth modal system -->
+  <div class="email-modal-overlay" id="devModalOverlay" onclick="if(event.target===this)closeDevicesModal()">
+    <div class="email-modal" style="position:relative">
+      <div class="email-modal-head">
+        <div>
+          <div class="email-modal-title">Manage Devices</div>
+          <div class="email-modal-date">All devices signed in to your account.</div>
+        </div>
+        <button class="email-modal-close" onclick="closeDevicesModal()" aria-label="Close">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="email-modal-sep"></div>
+      <div id="devList" class="settings-group">
+        <!-- populated by renderDevices() -->
+      </div>
+      <div id="devOthersWrap" style="display:none">
+        <div class="email-modal-sep"></div>
+        <div style="display:flex;justify-content:flex-end">
+          <button class="btn-ghost-destructive" id="devRevokeOthersBtn" onclick="devRevokeOthers()">Log Out Other Devices</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div class="wh-toast" id="ieToast">
     <svg class="wh-toast-icon" id="toastIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"></svg>
     <div class="wh-toast-body">
@@ -9968,6 +9982,14 @@ ${sig}`
       el('emailModalOverlay').classList.add('open');
     }
 
+    function openDevicesModal() {
+      el('devModalOverlay').classList.add('open');
+      renderDevices();   // always a fresh read when it opens
+    }
+    function closeDevicesModal() {
+      el('devModalOverlay').classList.remove('open');
+    }
+
     function closeEmailModal() {
       el('emailModalOverlay').classList.remove('open');
     }
@@ -13472,6 +13494,14 @@ ${sig}`
 
       info.appendChild(nameInput);
       info.appendChild(sub);
+      // Last activity sits under the platform line. Only for other devices:
+      // on the one you are using it is self-evident.
+      if (!isCurrent) {
+        const seen = document.createElement('div');
+        seen.className = 'dev-seen';
+        seen.textContent = _devAgo(row.last_seen_at);
+        if (seen.textContent) info.appendChild(seen);
+      }
       left.appendChild(icon);
       left.appendChild(info);
       rowEl.appendChild(left);
@@ -13490,14 +13520,6 @@ ${sig}`
         btn.textContent = 'Log Out';
         btn.addEventListener('click', () => devRevoke(row.device_id, row.name, btn));
         actions.appendChild(btn);
-      }
-      // Last seen only under other devices. Recent activity describes a session
-      // you are not in; on the current one it is self-evident and just noise.
-      if (!isCurrent) {
-        const seen = document.createElement('div');
-        seen.className = 'dev-seen';
-        seen.textContent = _devAgo(row.last_seen_at);
-        if (seen.textContent) actions.appendChild(seen);
       }
       rowEl.appendChild(actions);
       return rowEl;
@@ -13537,7 +13559,7 @@ ${sig}`
       const mine  = row?.value?.d?.[_deviceId()];
       const since = Number(localStorage.getItem(DEV_SINCE_KEY) || 0);
       if (since && mine?.r && Date.parse(mine.r) > since) { _kickThisDevice(); return; }
-      if (el('viewSettings')?.classList.contains('active')) renderDevices();
+      if (el('devModalOverlay')?.classList.contains('open')) renderDevices();
     }
 
     // ── Supabase sign-out (window._sbClient is always ready — init'd in <head>) ──
@@ -13797,8 +13819,8 @@ ${sig}`
       // Hydrate the profile card and sign-in methods — auth data first, then cfg overlay when pullSettings resolves
       hydrateProfileCard();
       hydrateSignInMethods();
-      // Register this device (may seed its entry), then paint the list.
-      Devices.register().then(renderDevices);
+      // Register this device. The list paints when the modal is opened.
+      Devices.register();
 
       // Restore last active tab (persisted in sessionStorage across reloads)
       const savedTab = (function(){ try { return sessionStorage.getItem('wh_active_tab'); } catch { return null; } })();

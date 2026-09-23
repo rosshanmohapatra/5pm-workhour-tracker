@@ -13197,6 +13197,21 @@ ${sig}`
       return unit(Math.floor(secs / 86400), 'day');
     }
 
+    // Supabase puts a session_id claim in every access token. It identifies the
+    // login, not the browser, so it changes on each fresh sign-in and is what
+    // public.revoke_session() needs in order to end one specific session.
+    async function _sessionId() {
+      try {
+        const { data: { session } } = await window._sbClient.auth.getSession();
+        const jwt = session?.access_token;
+        if (!jwt) return null;
+        const body = jwt.split('.')[1];
+        if (!body) return null;
+        const claims = JSON.parse(atob(body.replace(/-/g, '+').replace(/_/g, '/')));
+        return claims.session_id || null;
+      } catch { return null; }
+    }
+
     function _devicePlatform() {
       const ua = navigator.userAgent || '';
       const browser = /Edg\//.test(ua)        ? 'Edge'
@@ -13273,6 +13288,9 @@ ${sig}`
             n: mine?.n || _pickDeviceName(new Set(Object.values(map).map(d => d.n))),
             p: _devicePlatform(),
             k: _deviceKind(navigator.userAgent),
+            // Refreshed on every launch: a new sign-in on this browser mints a
+            // new session, and a stale id would revoke nothing.
+            sid: (await _sessionId()) || mine?.sid || null,
             r: null,
             s: new Date().toISOString(),
           };
@@ -13296,9 +13314,29 @@ ${sig}`
         return this._mutate(m => { if (m[deviceId]) m[deviceId].n = n; });
       },
 
-      // Cooperative revoke: the target signs itself out and wipes its cache.
-      revoke(deviceId) {
-        return this._mutate(m => { if (m[deviceId]) m[deviceId].r = new Date().toISOString(); });
+      // Two halves, and both are needed.
+      //   1. public.revoke_session() deletes that device's row from
+      //      auth.sessions, which kills its refresh token for real.
+      //   2. The revoked flag, because deleting a session cannot reach into
+      //      that device's localStorage to clear the cached hours.
+      // Devices registered before session ids were recorded have no sid, and
+      // fall back to half 2 alone, exactly as before.
+      async revoke(deviceId) {
+        const { uid, map } = await this._read();
+        if (!uid) throw new Error('Not signed in.');
+        const sid = map[deviceId]?.sid;
+        if (sid) {
+          const { error } = await window._sbClient.rpc('revoke_session', { target_session: sid });
+          // PGRST202 means the function is not in the schema yet. Degrade to the
+          // cooperative flag rather than failing the whole action, so this works
+          // both before and after the migration is applied.
+          if (error && error.code !== 'PGRST202' && !/not find the function|does not exist/i.test(error.message || '')) {
+            throw error;
+          }
+          if (error) console.warn('[Devices] revoke_session unavailable, using flag only:', error.message);
+        }
+        map[deviceId] = { ...(map[deviceId] || {}), r: new Date().toISOString() };
+        await this._write(uid, map);
       },
 
       // True server-side revocation. The map update is so those devices also

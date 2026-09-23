@@ -386,9 +386,10 @@
     .btn-secondary:hover { background: var(--btn-secondary-hover); }
     .btn-ghost-destructive { height: 36px; padding: 0 16px; font-size: 13px; font-weight: 600;
       border-radius: var(--radius-md); font-family: var(--font); display: inline-flex; align-items: center;
-      background: var(--destructive-bg); color: var(--destructive); border: none;
-      cursor: pointer; transition: background .14s, filter .14s; white-space: nowrap; flex-shrink: 0; }
-    .btn-ghost-destructive:hover { filter: brightness(.92); }
+      background: color-mix(in srgb, var(--destructive) 8%, transparent);
+      color: var(--destructive); border: 1px solid var(--destructive);
+      cursor: pointer; transition: background .14s; white-space: nowrap; flex-shrink: 0; }
+    .btn-ghost-destructive:hover { background: color-mix(in srgb, var(--destructive) 14%, transparent); }
     .btn-ghost-destructive:disabled { opacity: .4; cursor: not-allowed; }
     .theme-icon-wrap { position: relative; display: inline-flex; width: 16px; height: 16px; }
     .theme-icon-wrap .theme-icon-solid { position: absolute; top: 0; left: 0; opacity: 0; transition: opacity .18s ease; }
@@ -1117,7 +1118,8 @@
        device is still identifiable. */
     .dev-sub { font-size:11px; color:var(--muted-fg); margin-top:1px;
       overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-    .dev-actions { display:flex; align-items:center; gap:8px; flex-shrink:0; }
+    .dev-actions { display:flex; flex-direction:column; align-items:flex-end; gap:6px; flex-shrink:0; }
+    .dev-seen { font-size:11px; color:var(--muted-fg); white-space:nowrap; line-height:1; }
     .dev-chip { font-size:10px; font-weight:600; letter-spacing:.04em; text-transform:uppercase;
       background:var(--success-bg); color:var(--success); border:1px solid var(--success-border);
       border-radius:4px; padding:2px 7px; white-space:nowrap; }
@@ -3161,7 +3163,7 @@
         <!-- ── Manage Devices ── -->
         <div class="settings-section settings-section--has-desc">
           <div class="settings-section-header">Manage Devices</div>
-          <div class="form-sub" style="margin-bottom:14px">Devices signed in to your account. Rename any of them for your own reference — the code underneath never changes, so you can always tell which is which.</div>
+          <div class="form-sub" style="margin-bottom:14px">All devices signed in to your account.</div>
           <div id="devList" class="settings-group">
             <!-- populated by renderDevices() -->
           </div>
@@ -13174,24 +13176,6 @@ ${sig}`
       return id;
     }
 
-    // Base-24 alphabet with no A-F, so a code can never read as a hex colour,
-    // and no I/O/L/U, so it can't be misread aloud.
-    const _DEV_ALPHABET = 'GHJKMNPQRSTVWXYZ23456789';
-
-    // Deterministic short code derived from the device id (FNV-1a, then base-24).
-    // Derived rather than stored: stable forever, nothing extra to persist.
-    function _devCode(id) {
-      let h = 0x811c9dc5;
-      const str = String(id);
-      for (let i = 0; i < str.length; i++) {
-        h ^= str.charCodeAt(i);
-        h = Math.imul(h, 0x01000193) >>> 0;
-      }
-      let out = '';
-      for (let i = 0; i < 6; i++) { out = _DEV_ALPHABET[h % 24] + out; h = Math.floor(h / 24); }
-      return out;
-    }
-
     // Form factor, stored per device so other devices render the right icon.
     // iPadOS reports itself as Macintosh, hence the touch-point check.
     function _deviceKind(ua) {
@@ -13446,11 +13430,7 @@ ${sig}`
       // Secondary title — the platform's view. Not editable.
       const sub = document.createElement('div');
       sub.className = 'dev-sub';
-      sub.textContent = [
-        row.platform || 'Unknown device',
-        _devCode(row.device_id),
-        isCurrent ? 'active now' : _devAgo(row.last_seen_at),
-      ].filter(Boolean).join(' · ');
+      sub.textContent = row.platform || 'Unknown device';
 
       info.appendChild(nameInput);
       info.appendChild(sub);
@@ -13473,6 +13453,11 @@ ${sig}`
         btn.addEventListener('click', () => devRevoke(row.device_id, row.name, btn));
         actions.appendChild(btn);
       }
+      // Last seen sits under whichever control this row got.
+      const seen = document.createElement('div');
+      seen.className = 'dev-seen';
+      seen.textContent = isCurrent ? 'active now' : _devAgo(row.last_seen_at);
+      if (seen.textContent) actions.appendChild(seen);
       rowEl.appendChild(actions);
       return rowEl;
     }

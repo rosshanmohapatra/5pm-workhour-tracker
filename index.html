@@ -13491,11 +13491,14 @@ ${sig}`
         btn.addEventListener('click', () => devRevoke(row.device_id, row.name, btn));
         actions.appendChild(btn);
       }
-      // Last seen sits under whichever control this row got.
-      const seen = document.createElement('div');
-      seen.className = 'dev-seen';
-      seen.textContent = isCurrent ? 'active now' : _devAgo(row.last_seen_at);
-      if (seen.textContent) actions.appendChild(seen);
+      // Last seen only under other devices. Recent activity describes a session
+      // you are not in; on the current one it is self-evident and just noise.
+      if (!isCurrent) {
+        const seen = document.createElement('div');
+        seen.className = 'dev-seen';
+        seen.textContent = _devAgo(row.last_seen_at);
+        if (seen.textContent) actions.appendChild(seen);
+      }
       rowEl.appendChild(actions);
       return rowEl;
     }

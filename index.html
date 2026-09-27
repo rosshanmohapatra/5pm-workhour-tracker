@@ -581,10 +581,6 @@
       font-family: var(--font); transition: background .1s; }
     .split-dropdown-item:hover { background: var(--destructive-bg); }
     /* Custom target chip in Log Out box */
-    .custom-target-chip { font-size: 10px; font-weight: 600; letter-spacing: .04em;
-      background: var(--blue-bg); color: var(--blue); border: 1px solid var(--blue-border);
-      border-radius: 4px; padding: 1px 5px; text-transform: uppercase; line-height: 1.4;
-      flex-shrink: 0; }
     .shift-combo-active-label { flex: 1; font-size: 13px; font-weight: 500;
       color: var(--muted-fg); display: none; }
     .shift-combo.active-state .shift-combo-active-label { display: none; }
@@ -5458,7 +5454,6 @@
           <div class="rc-io-label">${isDone ? 'Target Reached' : 'Target'}</div>
           <div class="rc-io-val-row">
             <span class="rc-io-val" id="metaTarget">${dur(eff)}</span>
-            ${!isDone && !hasCustomTarget && cfg().recommendTimings !== false ? `<span class="custom-target-chip">Recommended</span>` : ''}
             ${!isDone && hasCustomTarget ? `<button class="rc-io-edit-btn" title="Reset to recommended" onclick="event.stopPropagation();clearTodayTarget()" style="color:var(--muted-fg)">✕</button>` : ''}
           </div>
         </div>
@@ -6046,7 +6041,14 @@
       const overtimeReq = recOn ? Math.max(0, eff - daily) : 0;
       const onBreak = c.breakTime !== false && !loginDate && _sessionAccSecs > 0;
 
+      const hasCustomTarget = (dayLog(todayKey()) || {}).todayTargetH != null;
+
       let html = `<div class="td-row"><span class="td-row-label">Worked Duration</span><span class="td-row-val">${durWorked(worked)}</span></div>`;
+
+      // Worked, then what today is aiming at, then what is left.
+      if (recOn && !hasCustomTarget && eff > 0) {
+        html += `<div class="td-row"><span class="td-row-label">Recommended</span><span class="td-row-val">${dur(eff)}</span></div>`;
+      }
 
       if (eff > 0) {
         // Remaining always shows a plain number — 0 once overtime begins, never the

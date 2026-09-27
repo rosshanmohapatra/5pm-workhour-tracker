@@ -1440,18 +1440,18 @@
        flex:1 makes this an equal-height region to #homeBottomSpacer (locks
        #homeCard centered between them); justify-content:center floats the
        clock in the middle of that region instead of against the navbar. ── */
-    .sel-day-ctx { display: flex; flex-direction: column; align-items: center; justify-content: center;
+    .sel-day-ctx { display: flex; flex-direction: column; align-items: flex-start; justify-content: center;
       flex: 1; gap: 2px; }
-    .sel-day-left { display: flex; flex-direction: column; align-items: center; min-width: 0; }
+    .sel-day-left { display: flex; flex-direction: column; align-items: flex-start; min-width: 0; }
     .sel-day-date-str { font-size: 12px; color: var(--muted-fg); font-weight: 500; letter-spacing: .01em; }
     /* iOS large-title pairing: a quiet secondary line sitting above the thing
        that actually matters. The greeting is supporting text, so it steps back
        to medium weight; the clock takes the large title, bold and tracked tight
        the way iOS sets one. */
-    .sel-day-rel { font-size: 13px; font-weight: 500; color: var(--muted-fg);
+    .sel-day-rel { font-size: 15px; font-weight: 500; color: var(--muted-fg);
       letter-spacing: -.01em;
       line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .sel-day-clock { font-size: 34px; line-height: 1.1; font-weight: 700; letter-spacing: -.02em;
+    .sel-day-clock { font-size: 34px; line-height: 1.1; font-weight: 600; letter-spacing: -.02em;
       color: var(--foreground); font-variant-numeric: tabular-nums; white-space: nowrap; }
 
     /* ── Missing data pill ── */

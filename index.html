@@ -49,7 +49,7 @@
         var firstRun = localStorage.getItem(migrationKey) !== '1';
         if (mismatch || firstRun) {
           Object.keys(localStorage)
-            .filter(function(k) { return k.indexOf('wh_') === 0 && k !== 'wh_theme' && k !== migrationKey; })
+            .filter(function(k) { return k.indexOf('wh_') === 0 && k !== 'wh_theme' && k !== 'wh_ios_install_seen' && k !== migrationKey; })
             .forEach(function(k) { localStorage.removeItem(k); });
         }
         localStorage.setItem(migrationKey, '1');
@@ -109,7 +109,7 @@
         // wh_theme it survives sign-out.
         try {
           Object.keys(localStorage)
-            .filter(function(k) { return k.indexOf('wh_') === 0 && k !== 'wh_theme' && k !== 'wh_device_id'; })
+            .filter(function(k) { return k.indexOf('wh_') === 0 && k !== 'wh_theme' && k !== 'wh_device_id' && k !== 'wh_ios_install_seen'; })
             .forEach(function(k) { localStorage.removeItem(k); });
         } catch (e) {}
         window.location.replace('/login.html');
@@ -13334,6 +13334,7 @@ ${sig}`
 
     const DEV_KV_KEY    = 'devices';
     const DEV_ID_KEY    = 'wh_device_id';   // survives logout — identifies the browser, not the account
+    const IOS_SEEN_KEY  = 'wh_ios_install_seen'; // likewise: a choice about this browser, not the account
     const DEV_SINCE_KEY = 'wh_dev_since';   // when this browser last signed in
 
     function _deviceId() {
@@ -13544,7 +13545,7 @@ ${sig}`
       Promise.all([work, delay]).finally(() => {
         localStorage.removeItem('wh_auth');
         Object.keys(localStorage)
-          .filter(k => k.startsWith('wh_') && k !== 'wh_theme' && k !== DEV_ID_KEY)
+          .filter(k => k.startsWith('wh_') && k !== 'wh_theme' && k !== DEV_ID_KEY && k !== IOS_SEEN_KEY)
           .forEach(k => localStorage.removeItem(k));
         window.location.href = 'login.html';
       });
@@ -13743,7 +13744,7 @@ ${sig}`
         // wh_device_id is kept: it identifies the browser, not the account, so
         // signing back in reuses the same entry (and its rename).
         Object.keys(localStorage)
-          .filter(k => k.startsWith('wh_') && k !== 'wh_theme' && k !== DEV_ID_KEY)
+          .filter(k => k.startsWith('wh_') && k !== 'wh_theme' && k !== DEV_ID_KEY && k !== IOS_SEEN_KEY)
           .forEach(k => localStorage.removeItem(k));
         window.location.href = 'login.html';
       });
@@ -14366,6 +14367,8 @@ ${sig}`
     sheet.style.transition = 'transform .38s cubic-bezier(.32,0,.18,1)';
     sheet.style.transform = 'translateY(100%)';
     overlay.style.background = 'transparent';
+    overlay.style.backdropFilter = 'none';
+    overlay.style.webkitBackdropFilter = 'none';
     document.body.style.overflow = '';
     setTimeout(function () {
       overlay.style.display = 'none';

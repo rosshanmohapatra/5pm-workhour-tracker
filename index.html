@@ -1444,9 +1444,14 @@
       flex: 1; gap: 2px; }
     .sel-day-left { display: flex; flex-direction: column; align-items: center; min-width: 0; }
     .sel-day-date-str { font-size: 12px; color: var(--muted-fg); font-weight: 500; letter-spacing: .01em; }
-    .sel-day-rel { font-size: 13px; font-weight: 600; color: var(--muted-fg);
-      line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .sel-day-clock { font-size: 16px; line-height: 24px; font-weight: 600; letter-spacing: normal;
+    /* iOS large-title pairing: a quiet secondary line sitting above the thing
+       that actually matters. The greeting is supporting text, so it steps back
+       to medium weight; the clock takes the large title, bold and tracked tight
+       the way iOS sets one. */
+    .sel-day-rel { font-size: 13px; font-weight: 500; color: var(--muted-fg);
+      letter-spacing: -.01em;
+      line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .sel-day-clock { font-size: 34px; line-height: 1.1; font-weight: 700; letter-spacing: -.02em;
       color: var(--foreground); font-variant-numeric: tabular-nums; white-space: nowrap; }
 
     /* ── Missing data pill ── */
@@ -1808,6 +1813,7 @@
     @media (max-width: 640px) {
       .page { padding: 0 16px calc(80px + env(safe-area-inset-bottom)); gap: 16px; }
       .day-clock { font-size: 28px; }
+      .sel-day-clock { font-size: 30px; }
       .day-date { font-size: 14px; }
       .login-row { flex-wrap: wrap; }
       #tc-r7m2, #tc-r7m2-ph { min-width: 0; }
@@ -3157,9 +3163,8 @@
         <div class="settings-section-divider"></div>
 
         <!-- ── Sign-In Methods ── -->
-        <div class="settings-section settings-section--has-desc">
+        <div class="settings-section">
           <div class="settings-section-header">Sign-In Methods</div>
-          <div class="form-sub" style="margin-bottom:14px">Connect multiple ways to access your account.</div>
           <div id="simList" class="settings-group">
             <!-- populated by hydrateSignInMethods() -->
           </div>

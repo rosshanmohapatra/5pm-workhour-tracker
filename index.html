@@ -284,7 +284,13 @@
       /* 44pt interactive bar + status bar / Dynamic Island clearance */
       height:calc(44px + env(safe-area-inset-top));
       padding-top:env(safe-area-inset-top);
-      background:var(--background);border-bottom:1px solid var(--border);
+      /* Translucent, blurred backdrop so page content softens as it scrolls
+         underneath instead of vanishing behind an opaque bar. The bar's own
+         contents are its children, so the logo and icons paint crisply ON TOP
+         of this blur rather than being blurred by it. */
+      background:color-mix(in srgb, var(--background) 72%, transparent);
+      -webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);
+      border-bottom:1px solid var(--border);
       align-items:center;justify-content:space-between;padding-left:16px;padding-right:16px;
       z-index:200; }
     .mob-brand { font-size:15px;font-weight:700;color:var(--foreground);letter-spacing:-.02em; }
@@ -5304,6 +5310,28 @@
       return short(d);
     }
 
+    // The exit-side mirror of _loginDisplayFromLog. Days synced before the exit
+    // time was stored properly can arrive with no checkoutDisplay at all. Rather
+    // than render a bare dash, fall back to the stored checkoutTime, and failing
+    // that to login + hoursWorked, which is what the server row was derived from
+    // anyway. Login already had this fallback; exit never did, which is why a day
+    // could show its start but not its end.
+    function _checkoutDisplayFromLog(log) {
+      if (!log) return '—';
+      if (log.checkoutDisplay) return log.checkoutDisplay;
+      const atToday = (hms) => {
+        const p = String(hms).split(':').map(Number);
+        const d = new Date();
+        d.setHours(p[0] || 0, p[1] || 0, p[2] || 0, 0);
+        return d;
+      };
+      if (log.checkoutTime) return short(atToday(log.checkoutTime));
+      if (log.loginTime && log.hoursWorked) {
+        return short(new Date(atToday(log.loginTime).getTime() + Math.round(log.hoursWorked * 3600000)));
+      }
+      return '—';
+    }
+
     function buildTargetHtml(eff, isDone) {
       const tk = todayKey();
       const log = dayLog(tk) || {};
@@ -5332,7 +5360,7 @@
         </div>`;
       } else {
         // Session ended — show Duration card with actual login → logout times
-        const outVal = log.checkoutDisplay || '—';
+        const outVal = _checkoutDisplayFromLog(log);
         leftCardHtml = `
         <div class="rc-io-box" id="inTimeBox">
           <div class="rc-io-label">Duration</div>
@@ -6592,7 +6620,7 @@
         // whole tracker with the same static summary a past day shows: times worked,
         // duration, how it landed against target, and a way to correct it.
         const _loginStr  = _loginDisplayFromLog(_logE) || '—';
-        const _logoutStr = _logE.checkoutDisplay || '—';
+        const _logoutStr = _checkoutDisplayFromLog(_logE);
         const _tabsRowE  = el('rcPairTabsRow'); if (_tabsRowE)  _tabsRowE.style.display  = 'none';
         const _kpiGroupE = el('rcKpiGroup');    if (_kpiGroupE) _kpiGroupE.style.display = 'none';
         // eff === 0 means the weekly target was already met, so there's no meaningful
@@ -6672,7 +6700,7 @@
         return {
           day:        d.name,
           entry:      log.loginDisplay    || '—',
-          exit:       log.checkoutDisplay || '—',
+          exit:       _checkoutDisplayFromLog(log),
           attendance,
           penalty,
           totalHours: (hasLog && !skipPenalty) ? dur(worked) : '—',
@@ -8298,7 +8326,7 @@
       _setTodayDateChip();
       el('stayHint').style.display = 'none';
       const loginDisp = log.loginDisplay || _loginDisplayFromLog(log);
-      const outDisp   = log.checkoutDisplay || '—';
+      const outDisp   = _checkoutDisplayFromLog(log);
       el('rcToday').style.display = '';
       el('rcToday').innerHTML = targetRow + _pastDayKpiHtml(loginDisp, outDisp, worked, target);
     }
@@ -10575,9 +10603,24 @@ ${sig}`
           ld.setHours(pts[0]||0, pts[1]||0, pts[2]||0, 0);
           loginTimestamp = ld.toISOString();
         }
-        // Derive logout_time from login + hoursWorked when exit time is known
+        // Send the REAL exit time when we have it.
+        //
+        // This used to derive logout_time as login + hoursWorked, which is wrong
+        // twice over. On any day with a pause the gaps are excluded from
+        // hoursWorked, so the derived exit lands earlier than it happened. And
+        // the whole expression collapsed to null whenever checkoutDisplay was
+        // absent, which a pull then wrote back as "no logout", erasing the exit
+        // time locally. Once erased it could never come back, because the next
+        // push had nothing left to send. That is how days end up showing a bare
+        // dash forever.
         let logoutTimestamp = null;
-        if (loginTimestamp && entry.hoursWorked && entry.checkoutDisplay) {
+        if (entry.checkoutTime) {
+          const cp = entry.checkoutTime.split(':').map(Number);
+          const cd = new Date(dk + 'T00:00:00');
+          cd.setHours(cp[0] || 0, cp[1] || 0, cp[2] || 0, 0);
+          logoutTimestamp = cd.toISOString();
+        } else if (loginTimestamp && entry.hoursWorked && entry.checkoutDisplay) {
+          // Legacy entries recorded before checkoutTime survived a sync.
           logoutTimestamp = new Date(
             new Date(loginTimestamp).getTime() + Math.round(entry.hoursWorked * 3600000)
           ).toISOString();
@@ -10688,7 +10731,8 @@ ${sig}`
             Store.setDay(row.log_date, {
               ...(loginDt  ? { loginTime: `${loginDt.getHours()}:${loginDt.getMinutes()}:${loginDt.getSeconds()}`,
                                loginDisplay: short(loginDt) } : {}),
-              ...(logoutDt ? { checkoutDisplay: short(logoutDt) } : {}),
+              ...(logoutDt ? { checkoutDisplay: short(logoutDt),
+                               checkoutTime: `${p2(logoutDt.getHours())}:${p2(logoutDt.getMinutes())}:${p2(logoutDt.getSeconds())}` } : {}),
               hoursWorked: parseFloat(row.hours_worked) || 0,
               sessionTag:  row.status === 'auto_stopped' ? 'autostopped' : 'realtime',
               ...(_isFutureDay
@@ -11137,7 +11181,8 @@ ${sig}`
           Store.setDay(dk, {
             ...(loginDt  ? { loginTime: `${loginDt.getHours()}:${loginDt.getMinutes()}:${loginDt.getSeconds()}`,
                              loginDisplay: short(loginDt) } : {}),
-            ...(logoutDt ? { checkoutDisplay: short(logoutDt) } : {}),
+            ...(logoutDt ? { checkoutDisplay: short(logoutDt),
+                             checkoutTime: `${p2(logoutDt.getHours())}:${p2(logoutDt.getMinutes())}:${p2(logoutDt.getSeconds())}` } : {}),
             hoursWorked: parseFloat(newRow.hours_worked) || 0,
             sessionTag:  newRow.status === 'auto_stopped' ? 'autostopped' : 'realtime',
             ...(_isFutureDay

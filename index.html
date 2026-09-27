@@ -10988,8 +10988,23 @@ ${sig}`
         // If Supabase says today's session is ended (another device checked out)
         // but we still have a live local ticker running, force-stop silently —
         // no modals, no prompts. Whichever device has the latest timestamp wins.
+        //
+        // checkoutDisplay alone is NOT enough to conclude that. endSession()
+        // (Pause) writes it too, and Resume does not clear it, so a paused-then-
+        // resumed session sits there with a live loginDate AND a checkoutDisplay
+        // left over from the pause. This used to force-stop that session on the
+        // next resume-driven pull, which is every tab switch past the 30s
+        // throttle: the session appeared to pause itself a few seconds after
+        // being resumed, over and over.
+        //
+        // The discriminator is WHEN the checkout was recorded. A genuine remote
+        // end is stamped after our current session began; our own stale pause
+        // record is stamped before it. (Relies on the two devices' clocks being
+        // roughly in step, which is already true for everything else here.)
         const _pulled = Store.getDay(todayKey());
-        if (_pulled?.checkoutDisplay && loginDate) {
+        const _endedRemotely = !!_pulled?.checkoutDisplay && !!loginDate &&
+          !!_pulled.lastUpdated && Date.parse(_pulled.lastUpdated) > loginDate.getTime();
+        if (_endedRemotely) {
           cancelScheduledNotifications();
           if (ticker) { clearInterval(ticker); ticker = null; }
           _stopCheckpoint();

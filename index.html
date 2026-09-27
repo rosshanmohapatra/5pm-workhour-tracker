@@ -478,6 +478,16 @@
       overflow: hidden; transition: max-height .28s ease, opacity .2s; }
     .notif-panel.hidden { max-height: 0; opacity: 0; pointer-events: none; }
     .notif-panel.open   { max-height: 900px; opacity: 1; }
+    .notif-scrim { position: fixed; inset: 0; z-index: 39;
+      background: rgba(0,0,0,.28);
+      backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+      opacity: 0; pointer-events: none; transition: opacity .2s ease; }
+    .notif-scrim.open { opacity: 1; pointer-events: auto; }
+    /* A notification that leads somewhere is tappable as a whole card, rather
+       than hiding the action behind a small button. */
+    .notif-tappable { cursor: pointer; transition: background .12s; }
+    .notif-tappable:hover { background: var(--muted); }
+    .notif-tappable:active { background: var(--border); }
     .notif-card { background: color-mix(in srgb, var(--card) 90%, transparent); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); }
     .notif-head { padding: 12px; border-bottom: 1px solid var(--border);
       display: flex; align-items: center; justify-content: space-between; }
@@ -492,10 +502,6 @@
     .notif-body { flex: 1; min-width: 0; }
     .notif-text { font-size: 13px; color: var(--foreground); line-height: 1.45; }
     .notif-actions { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
-    .notif-cta { font-size: 12px; font-weight: 500; color: var(--foreground);
-      background: var(--muted); border: none; border-radius: var(--radius);
-      padding: 4px 10px; transition: background .14s; }
-    .notif-cta:hover { background: var(--border); }
     .notif-surplus { font-size: 13px; font-weight: 600; color: var(--success); }
     .notif-dismiss { position: absolute; top: 10px; right: 10px; width: 22px; height: 22px;
       border-radius: 5px; border: none; background: transparent; color: var(--muted-fg);
@@ -2460,6 +2466,7 @@
     </nav>
 
   <!-- Notification panel — fixed overlay -->
+  <div class="notif-scrim" id="notifScrim" onclick="closeNotifPanel()"></div>
   <div class="notif-panel hidden" id="notifPanel">
     <div class="notif-card">
       <div class="notif-head">
@@ -5235,15 +5242,18 @@
         // n.id and n.ctaWeekKey are internal keys (no user input), but escape defensively
         const safeId  = _escHtml(n.id || '');
         const safeCta = _escHtml(n.ctaWeekKey || '');
-        const actions = n.cta
-          ? `<div class="notif-actions"><button class="notif-cta" onclick="handleNotifCta('${safeId}','${safeCta}')">Check</button></div>`
-          : n.surplus
+        // Surplus is information, not an action, so it stays inline. The CTA is
+        // gone: the card itself carries the tap target now.
+        const actions = n.surplus
           ? `<div class="notif-actions"><span class="notif-surplus">${_escHtml(n.surplus)} saved</span></div>`
           : '';
-        return `<div class="notif-item" id="ni-${safeId}">
+        const tap = n.cta
+          ? ` onclick="handleNotifCta('${safeId}','${safeCta}')" role="button" tabindex="0"`
+          : '';
+        return `<div class="notif-item${n.cta ? ' notif-tappable' : ''}" id="ni-${safeId}"${tap}>
           <div class="notif-icon ${n.type}">${icon}</div>
           <div class="notif-body"><div class="notif-text">${_escHtml(n.text)}</div>${actions}</div>
-          <button class="notif-dismiss" onclick="dismissNotif('${safeId}')" title="Dismiss">
+          <button class="notif-dismiss" onclick="event.stopPropagation();dismissNotif('${safeId}')" title="Dismiss">
             <svg width="9" height="9" viewBox="0 0 24 24" fill="none"><path d="M4.70711 3.29289C4.31658 2.90237 3.68342 2.90237 3.29289 3.29289C2.90237 3.68342 2.90237 4.31658 3.29289 4.70711L10.5858 12L3.29289 19.2929C2.90237 19.6834 2.90237 20.3166 3.29289 20.7071C3.68342 21.0976 4.31658 21.0976 4.70711 20.7071L12 13.4142L19.2929 20.7071C19.6834 21.0976 20.3166 21.0976 20.7071 20.7071C21.0976 20.3166 21.0976 19.6834 20.7071 19.2929L13.4142 12L20.7071 4.70711C21.0976 4.31658 21.0976 3.68342 20.7071 3.29289C20.3166 2.90237 19.6834 2.90237 19.2929 3.29289L12 10.5858L4.70711 3.29289Z" fill="currentColor"/></svg>
           </button>
         </div>`;
@@ -5267,8 +5277,19 @@
       notifOpen = !notifOpen;
       el('notifPanel').className = 'notif-panel ' + (notifOpen ? 'open' : 'hidden');
       el('notifBtn').classList.toggle('notif-active', notifOpen);
+      el('notifScrim')?.classList.toggle('open', notifOpen);
       if (notifOpen) renderNotifs();
     }
+
+    // Outside click (the scrim) and Escape both dismiss the panel.
+    function closeNotifPanel() {
+      if (!notifOpen) return;
+      notifOpen = false;
+      el('notifPanel').className = 'notif-panel hidden';
+      el('notifBtn').classList.remove('notif-active');
+      el('notifScrim')?.classList.remove('open');
+    }
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') closeNotifPanel(); });
 
     // ── TARGET HTML ────────────────────────────────────
     // Derive a human-readable login time from a stored day log (works even when

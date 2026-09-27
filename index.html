@@ -3027,8 +3027,12 @@
               </label>
             </div>
 
-            <!-- Quick Shortcut (desktop only — .qs-shortcut-row is hidden under 640px) -->
-            <div class="qs-shortcut-row" style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+            <!-- Quick Shortcut (desktop only — .qs-shortcut-row is hidden under 640px).
+                 Shortcut and its error share one wrapper so the collapsed error
+                 does not sit in the group as a second, zero-height flex item
+                 claiming its own 16px gap. -->
+            <div class="qs-shortcut-row">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
               <div style="flex:1;min-width:0">
                 <div class="form-label">Quick Shortcut</div>
                 <div class="form-sub">Use this shortcut to start tracking instantly.</div>
@@ -3045,9 +3049,10 @@
                 </button>
               </div>
             </div>
-            <div id="qsShortcutError" class="qs-shortcut-row" style="max-height:0;overflow:hidden;color:var(--destructive);font-size:12px;margin-top:0;transition:max-height .2s ease,margin-top .2s ease">
+            <div id="qsShortcutError" style="max-height:0;overflow:hidden;color:var(--destructive);font-size:12px;margin-top:0;transition:max-height .2s ease,margin-top .2s ease">
               Shortcut must begin with Ctrl, Cmd, or Alt.
             </div>
+            </div><!-- /qs-shortcut-row -->
 
             <!-- Leave Early + Stay Late. Still driven by Recommend Timings:
                  onRecommendTimingsChange() shows and hides this block by id, so
@@ -3067,7 +3072,7 @@
                 </div>
               </div>
 
-              <div class="target-day-block" style="margin-top:16px">
+              <div class="target-day-block">
                 <div class="target-day-head">
                   <div class="form-label">Stay Late</div>
                   <div class="form-sub">Days you're likely to stay late.</div>
@@ -8840,7 +8845,6 @@
         const recOn = c.recommendTimings !== false;
         recBlock.style.maxHeight  = recOn ? '500px' : '0';
         recBlock.style.opacity    = recOn ? '1' : '0';
-        recBlock.style.marginTop  = recOn ? '16px' : '0';
       }
       switchStTab(c.weeklyOn ? 'weekly' : 'daily');
       document.querySelectorAll('.plan-btn[data-sday]').forEach(btn => {
@@ -9409,7 +9413,6 @@
       if (recBlock) {
         recBlock.style.maxHeight = checked ? '500px' : '0';
         recBlock.style.opacity   = checked ? '1' : '0';
-        recBlock.style.marginTop = checked ? '16px' : '0';
       }
       const wpBlock = el('wpRecommendBlock');
       if (wpBlock) wpBlock.style.display = checked ? '' : 'none';

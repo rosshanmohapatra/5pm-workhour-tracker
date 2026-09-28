@@ -25,6 +25,42 @@ pub fn notify(app: AppHandle, title: String, body: String) -> Result<(), String>
     .map_err(|e| e.to_string())
 }
 
+#[tauri::command]
+pub fn autostart_enabled(app: AppHandle) -> Result<bool, String> {
+  use tauri_plugin_autostart::ManagerExt;
+  app.autolaunch().is_enabled().map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn autostart_set(app: AppHandle, enabled: bool) -> Result<(), String> {
+  use tauri_plugin_autostart::ManagerExt;
+  let manager = app.autolaunch();
+  if enabled {
+    manager.enable().map_err(|e| e.to_string())
+  } else {
+    manager.disable().map_err(|e| e.to_string())
+  }
+}
+
+// Enabled once, on the first run after install. Touching the marker before
+// enabling means a failure here is not retried on every launch, and a user who
+// switches it off in Settings is never overridden.
+pub fn enable_autostart_on_first_run(app: &AppHandle) {
+  use tauri_plugin_autostart::ManagerExt;
+
+  let Ok(dir) = app.path().app_config_dir() else {
+    return;
+  };
+  let marker = dir.join("autostart-initialised");
+  if marker.exists() {
+    return;
+  }
+
+  let _ = std::fs::create_dir_all(&dir);
+  let _ = std::fs::write(&marker, "1");
+  let _ = app.autolaunch().enable();
+}
+
 pub fn show_main(app: &AppHandle) {
   if let Some(window) = app.get_webview_window("main") {
     let _ = window.show();

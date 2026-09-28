@@ -35,6 +35,10 @@ pub fn run() {
     .plugin(tauri_plugin_deep_link::init())
     .plugin(tauri_plugin_opener::init())
     .plugin(tauri_plugin_notification::init())
+    .plugin(tauri_plugin_autostart::init(
+      tauri_plugin_autostart::MacosLauncher::LaunchAgent,
+      None,
+    ))
     .manage(updater::UpdateState::default())
     .invoke_handler(tauri::generate_handler![
       updater::updater_check,
@@ -43,6 +47,8 @@ pub fn run() {
       updater::updater_install,
       oauth::oauth_listen,
       shell::notify,
+      shell::autostart_enabled,
+      shell::autostart_set,
       open_external
     ])
     .on_window_event(|window, event| {
@@ -53,6 +59,12 @@ pub fn run() {
     })
     .setup(|app| {
       shell::build_tray(app.handle())?;
+      shell::enable_autostart_on_first_run(app.handle());
+
+      // The window is configured hidden purely to avoid a blank flash while the
+      // webview loads; every launch, including one at boot, then shows it so the
+      // day can be started straight away.
+      shell::show_main(app.handle());
 
       // The installer registers fivepm:// on Windows. This covers `tauri dev`,
       // where no installer has run.

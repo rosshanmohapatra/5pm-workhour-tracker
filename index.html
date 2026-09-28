@@ -3138,6 +3138,26 @@
           </div>
         </div><!-- /Advanced section -->
 
+        <!-- ── Desktop — shown only inside the Tauri app ── -->
+        <div id="desktopSection" style="display:none">
+          <div class="settings-section-divider"></div>
+          <div class="settings-section">
+            <div class="settings-section-header">Desktop</div>
+            <div class="settings-group">
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;cursor:pointer" onclick="el('inpAutostart').click()">
+                <div>
+                  <div class="form-label">Start with Windows</div>
+                  <div class="form-sub">Opens in the tray when your PC starts, ready to track the day.</div>
+                </div>
+                <label class="toggle" onclick="event.stopPropagation()">
+                  <input type="checkbox" id="inpAutostart">
+                  <span class="toggle-track"></span>
+                </label>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div class="settings-section-divider"></div>
 
         <!-- ── Notifications ── -->
@@ -14813,6 +14833,32 @@ ${sig}`
 
     card.style.display = '';
     render();
+  })();
+
+  // ── Desktop settings ────────────────────────────────
+  // Autostart is Windows state, not app config, so it is read from and written
+  // to the OS rather than saved with the rest of Settings.
+  (function initDesktopSettings() {
+    const T = window.__TAURI__;
+    if (!T) return;
+
+    const section = document.getElementById('desktopSection');
+    const input   = document.getElementById('inpAutostart');
+    if (!section || !input) return;
+
+    section.style.display = '';
+    T.core.invoke('autostart_enabled')
+      .then(on => { input.checked = !!on; })
+      .catch(err => console.warn('[desktop] could not read autostart:', err));
+
+    input.addEventListener('change', () => {
+      const wanted = input.checked;
+      T.core.invoke('autostart_set', { enabled: wanted }).catch(err => {
+        // Snap back to what Windows actually holds rather than lying to the user.
+        input.checked = !wanted;
+        console.warn('[desktop] autostart change failed:', err);
+      });
+    });
   })();
 </script>
 

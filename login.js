@@ -22,7 +22,10 @@
 const _sb = window.supabase.createClient(
   window.__SB_URL,
   window.__SB_ANON_KEY,
-  { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } }
+  // Desktop returns through fivepm://, a scheme any app could claim, so it uses
+  // PKCE: the link then carries a single-use code instead of live tokens.
+  { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true,
+            ...(window.__TAURI__ ? { flowType: 'pkce' } : {}) } }
 );
 
 // ── 2. Theme helpers ──────────────────────────────────────────────────────────
@@ -197,8 +200,9 @@ async function handleOAuth(provider, evt) {
   try {
     const { error } = await _sb.auth.signInWithOAuth({
       provider: provider.toLowerCase(),
-      // After OAuth the provider redirects back here with ?code=
-      // index.html picks up the code via detectSessionInUrl:true
+      // Web: implicit flow, tokens arrive in the fragment and detectSessionInUrl
+      // picks them up on index.html. Desktop: PKCE, the code comes back through
+      // fivepm:// and lib/desktop-auth.js exchanges it.
       options: { redirectTo: window.__DESKTOP_AUTH_REDIRECT || (window.location.origin + '/index.html') }
     });
     if (error) throw error;

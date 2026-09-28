@@ -14,7 +14,10 @@
     window._sbClient = window.supabase.createClient(
       window.__SB_URL,
       window.__SB_ANON_KEY,
-      { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } }
+      // Desktop returns through fivepm://, a scheme any app could claim, so it uses
+      // PKCE: the link then carries a single-use code instead of live tokens.
+      { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true,
+                ...(window.__TAURI__ ? { flowType: 'pkce' } : {}) } }
     );
     // Replace the localStorage gate with Supabase's real session check.
     // onAuthStateChange fires immediately on load with the INITIAL_SESSION event.

@@ -1,0 +1,42 @@
+name: Desktop release
+
+# Tag a commit on the desktop branch to build it:
+#   git tag v1.2.1 && git push origin v1.2.1
+# The release is created as a DRAFT. Nothing reaches users until it is published
+# by hand in the GitHub UI.
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: './src-tauri -> target'
+
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: '5pm Desktop ${{ github.ref_name }}'
+          releaseBody: 'This update includes bug fixes & improvements.'
+          releaseDraft: true
+          includeUpdaterJson: true

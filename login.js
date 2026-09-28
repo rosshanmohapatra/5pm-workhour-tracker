@@ -199,7 +199,7 @@ async function handleOAuth(provider, evt) {
       provider: provider.toLowerCase(),
       // After OAuth the provider redirects back here with ?code=
       // index.html picks up the code via detectSessionInUrl:true
-      options: { redirectTo: window.location.origin + '/index.html' }
+      options: { redirectTo: window.__DESKTOP_AUTH_REDIRECT || (window.location.origin + '/index.html') }
     });
     if (error) throw error;
     // Browser navigates away to the OAuth provider — nothing else to do
@@ -247,7 +247,7 @@ async function startEmailRecovery() {
   btn.disabled = true;
   try {
     await _sb.auth.resetPasswordForEmail(email, {
-      redirectTo: window.location.origin + '/login.html'
+      redirectTo: window.__DESKTOP_AUTH_REDIRECT || (window.location.origin + '/login.html')
     });
     $('authFooter').style.display = 'none';
     showView('authSuccess');

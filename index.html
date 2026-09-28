@@ -119,6 +119,8 @@
       // SIGNED_OUT is handled by confirmLogout() / confirmDeleteProfile() below
     });
   </script>
+  <!-- Desktop-only auth bridge: no-op unless running inside the Tauri app -->
+  <script src="/lib/desktop-auth.js"></script>
   <!-- Apply theme before first paint to avoid flash -->
   <script>(function(){var s=localStorage.getItem('wh_theme');var p=window.matchMedia('(prefers-color-scheme:dark)').matches;if(s?s==='dark':p)document.documentElement.classList.add('dark');})()</script>
   <link rel="manifest" href="/manifest.json">
@@ -13065,7 +13067,7 @@ ${sig}`
       try {
         const { error } = await window._sbClient.auth.linkIdentity({
           provider,
-          options: { redirectTo: window.location.origin + window.location.pathname }
+          options: { redirectTo: window.__DESKTOP_AUTH_REDIRECT || (window.location.origin + window.location.pathname) }
         });
         if (error) throw error;
         // Page navigates away to OAuth provider — nothing else to do here
@@ -13331,7 +13333,7 @@ ${sig}`
         const email = userData?.user?.email;
         if (!email) throw new Error('Could not determine account email.');
         const { error } = await window._sbClient.auth.resetPasswordForEmail(email, {
-          redirectTo: window.location.origin + '/index.html',
+          redirectTo: window.__DESKTOP_AUTH_REDIRECT || (window.location.origin + '/index.html'),
         });
         if (error) throw error;
         el('upwdSentEmail').textContent = email;

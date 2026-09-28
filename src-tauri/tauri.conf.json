@@ -24,6 +24,11 @@
     }
   },
   "plugins": {
+    "deep-link": {
+      "desktop": {
+        "schemes": ["fivepm"]
+      }
+    },
     "updater": {
       "endpoints": [
         "https://github.com/rosshanmohapatra/5pm-workhour-tracker/releases/latest/download/latest.json"

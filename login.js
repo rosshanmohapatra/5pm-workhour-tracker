@@ -28,6 +28,10 @@ const _sb = window.supabase.createClient(
             ...(window.__TAURI__ ? { flowType: 'pkce' } : {}) } }
 );
 
+// index.html exposes its client under this name; match it so shared helpers
+// (lib/desktop-auth.js) can find a client whichever page they run on.
+window._sbClient = _sb;
+
 // ── 2. Theme helpers ──────────────────────────────────────────────────────────
 // isDark is the canonical theme state for this page.
 // The <head> inline IIFE already applied the CSS class; here we just keep

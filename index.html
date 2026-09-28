@@ -1101,11 +1101,13 @@
     .settings-section-divider { height: 1px; background: var(--border); }
 
     /* ── Desktop Update card — Tauri desktop only, stays hidden in web/PWA ── */
-    .update-row { display: flex; align-items: center; gap: 16px; }
+    .update-row { display: flex; align-items: flex-start; gap: 16px; }
     .update-text { flex: 1; min-width: 0; }
     .update-title { font-size: 15px; font-weight: 700; color: var(--foreground); line-height: 1.2; }
-    .update-desc { font-size: 12px; color: var(--muted-fg); margin-top: 3px; }
     .update-status { font-size: 12px; color: var(--muted-fg); margin-top: 6px; }
+    .update-notes { font-size: 12px; color: var(--muted-fg); text-decoration: underline;
+      text-underline-offset: 2px; cursor: pointer; margin-top: 4px; display: inline-block; }
+    .update-notes:hover { color: var(--foreground); }
     #updateBtn { flex-shrink: 0; }
     #updateBtn.busy #updateSpinner { animation: sync-spin .7s linear infinite; }
 
@@ -2875,8 +2877,8 @@
             <div class="update-row">
               <div class="update-text">
                 <div class="update-title" id="updateTitle">No Updates Available</div>
-                <div class="update-desc">This update includes bug fixes &amp; improvements.</div>
                 <div class="update-status" id="updateStatus">—</div>
+                <span class="update-notes" id="updateNotes" role="link" tabindex="0"></span>
               </div>
               <button type="button" class="btn-secondary" id="updateBtn" style="gap:6px">
                 <svg id="updateSpinner" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
@@ -14649,7 +14651,11 @@ ${sig}`
     const spinner  = byId('updateSpinner');
     const track    = byId('updateProgressTrack');
     const fill     = byId('updateProgressFill');
+    const notes = byId('updateNotes');
     if (!card) return;
+
+    const RELEASES = 'https://github.com/rosshanmohapatra/5pm-workhour-tracker/releases/tag/v';
+    let currentVersion = null;
 
     const LAST_UPDATED_KEY = '5pm.desktop.lastUpdated';
     const LAST_CHECKED_KEY = '5pm.desktop.lastChecked';
@@ -14678,6 +14684,18 @@ ${sig}`
       return checked ? 'Last checked ' + checked : 'Not checked yet';
     }
 
+    // The link always points at the version the card is talking about: the
+    // installed one when nothing is pending, the offered one otherwise.
+    function renderNotes() {
+      const version = (state === 'idle' || state === 'checking')
+        ? currentVersion
+        : (pending && pending.version);
+      if (!version) { notes.style.display = 'none'; return; }
+      notes.style.display = '';
+      notes.textContent = 'v' + version + ' release notes';
+      notes.dataset.url = RELEASES + version;
+    }
+
     function render() {
       const busy = state === 'checking';
       spinner.style.display = busy ? '' : 'none';
@@ -14701,6 +14719,8 @@ ${sig}`
         statusEl.textContent = 'Download Complete';
         btnLabel.textContent = 'Install';
       }
+
+      renderNotes();
     }
 
     function fail(message) {
@@ -14778,6 +14798,16 @@ ${sig}`
     });
 
     T.event.listen('updater://error', ev => fail('Download failed. ' + ev.payload));
+
+    function openNotes() {
+      if (notes.dataset.url) T.core.invoke('open_external', { url: notes.dataset.url });
+    }
+    notes.addEventListener('click', openNotes);
+    notes.addEventListener('keydown', ev => {
+      if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); openNotes(); }
+    });
+
+    T.app.getVersion().then(v => { currentVersion = v; renderNotes(); }).catch(() => {});
 
     card.style.display = '';
     render();

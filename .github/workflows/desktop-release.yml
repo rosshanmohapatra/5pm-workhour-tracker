@@ -37,6 +37,8 @@ jobs:
         with:
           tagName: ${{ github.ref_name }}
           releaseName: '5pm Desktop ${{ github.ref_name }}'
-          releaseBody: 'This update includes bug fixes & improvements.'
+          # Left empty on purpose. The app's "release notes" link opens this
+          # release page, so write the notes in the draft before publishing.
+          # GitHub's "Generate release notes" button fills it from the commits.
           releaseDraft: true
           includeUpdaterJson: true

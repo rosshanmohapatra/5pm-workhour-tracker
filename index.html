@@ -6043,12 +6043,12 @@
 
       const hasCustomTarget = (dayLog(todayKey()) || {}).todayTargetH != null;
 
-      let html = `<div class="td-row"><span class="td-row-label">Worked Duration</span><span class="td-row-val">${durWorked(worked)}</span></div>`;
+      // What today is aiming at leads, then the running totals beneath it.
+      let html = (recOn && !hasCustomTarget && eff > 0)
+        ? `<div class="td-row"><span class="td-row-label">Recommended</span><span class="td-row-val">${dur(eff)}</span></div>`
+        : '';
 
-      // Worked, then what today is aiming at, then what is left.
-      if (recOn && !hasCustomTarget && eff > 0) {
-        html += `<div class="td-row"><span class="td-row-label">Recommended</span><span class="td-row-val">${dur(eff)}</span></div>`;
-      }
+      html += `<div class="td-row"><span class="td-row-label">Worked Duration</span><span class="td-row-val">${durWorked(worked)}</span></div>`;
 
       if (eff > 0) {
         // Remaining always shows a plain number — 0 once overtime begins, never the

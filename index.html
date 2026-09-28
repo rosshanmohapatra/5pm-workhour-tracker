@@ -124,6 +124,8 @@
   </script>
   <!-- Desktop-only auth bridge: no-op unless running inside the Tauri app -->
   <script src="/lib/desktop-auth.js"></script>
+  <!-- Defines window.Notification for the desktop app; no-op in the browser -->
+  <script src="/lib/desktop-notify.js"></script>
   <!-- Apply theme before first paint to avoid flash -->
   <script>(function(){var s=localStorage.getItem('wh_theme');var p=window.matchMedia('(prefers-color-scheme:dark)').matches;if(s?s==='dark':p)document.documentElement.classList.add('dark');})()</script>
   <link rel="manifest" href="/manifest.json">

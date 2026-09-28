@@ -1,4 +1,5 @@
 mod oauth;
+mod shell;
 mod updater;
 
 // Sign-in belongs in the real browser, where the user's Google session already
@@ -25,10 +26,7 @@ pub fn run() {
   #[cfg(any(target_os = "windows", target_os = "linux"))]
   {
     builder = builder.plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
-      use tauri::Manager;
-      if let Some(window) = app.get_webview_window("main") {
-        let _ = window.set_focus();
-      }
+      shell::show_main(app);
     }));
   }
 
@@ -36,6 +34,7 @@ pub fn run() {
     .plugin(tauri_plugin_updater::Builder::new().build())
     .plugin(tauri_plugin_deep_link::init())
     .plugin(tauri_plugin_opener::init())
+    .plugin(tauri_plugin_notification::init())
     .manage(updater::UpdateState::default())
     .invoke_handler(tauri::generate_handler![
       updater::updater_check,
@@ -43,9 +42,18 @@ pub fn run() {
       updater::updater_cancel,
       updater::updater_install,
       oauth::oauth_listen,
+      shell::notify,
       open_external
     ])
+    .on_window_event(|window, event| {
+      if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+        api.prevent_close();
+        let _ = window.hide();
+      }
+    })
     .setup(|app| {
+      shell::build_tray(app.handle())?;
+
       // The installer registers fivepm:// on Windows. This covers `tauri dev`,
       // where no installer has run.
       #[cfg(desktop)]

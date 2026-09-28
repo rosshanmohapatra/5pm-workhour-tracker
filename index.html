@@ -1095,6 +1095,15 @@
     .settings-section .settings-group { gap: 16px; }
     .settings-section-divider { height: 1px; background: var(--border); }
 
+    /* ── Desktop Update card — Tauri desktop only, stays hidden in web/PWA ── */
+    .update-row { display: flex; align-items: center; gap: 16px; }
+    .update-text { flex: 1; min-width: 0; }
+    .update-title { font-size: 15px; font-weight: 700; color: var(--foreground); line-height: 1.2; }
+    .update-desc { font-size: 12px; color: var(--muted-fg); margin-top: 3px; }
+    .update-status { font-size: 12px; color: var(--muted-fg); margin-top: 6px; }
+    #updateBtn { flex-shrink: 0; }
+    #updateBtn.busy #updateSpinner { animation: sync-spin .7s linear infinite; }
+
     /* ── Sign-In Methods ── */
     .sim-row { display:flex;align-items:center;justify-content:space-between;gap:12px; }
     .sim-provider { display:flex;align-items:center;gap:10px;min-width:0; }
@@ -2853,6 +2862,26 @@
             <span id="syncBtnLabel">Sync</span>
           </button>
           </div><!-- /sync row -->
+        </div>
+
+        <!-- Desktop Update card — shown only inside the Tauri desktop app -->
+        <div class="settings-card-merged" id="updateCard" style="display:none">
+          <div class="settings-section">
+            <div class="update-row">
+              <div class="update-text">
+                <div class="update-title" id="updateTitle">No Updates Available</div>
+                <div class="update-desc">This update includes bug fixes &amp; improvements.</div>
+                <div class="update-status" id="updateStatus">—</div>
+              </div>
+              <button type="button" class="btn-secondary" id="updateBtn" style="gap:6px">
+                <svg id="updateSpinner" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+                <span id="updateBtnLabel">Check for Update</span>
+              </button>
+            </div>
+            <div class="rc-progress-track" id="updateProgressTrack" style="display:none;margin-top:14px">
+              <div class="rc-progress-fill running" id="updateProgressFill" style="width:0%"></div>
+            </div>
+          </div>
         </div>
 
         <!-- Profile + User Details card (combined) -->
@@ -14590,6 +14619,156 @@ ${sig}`
       if (pulling) { pulling = false; snapBack(); }
       startY = 0; atTop = false;
     }, { passive: true });
+  })();
+
+  // ── Desktop Update card ────────────────────────────
+  // Only runs inside the Tauri desktop app. In the browser and the PWA there is
+  // no window.__TAURI__, so the card stays display:none and nothing below binds.
+  (function initDesktopUpdater() {
+    const T = window.__TAURI__;
+    if (!T) return;
+
+    const byId     = id => document.getElementById(id);
+    const card     = byId('updateCard');
+    const titleEl  = byId('updateTitle');
+    const statusEl = byId('updateStatus');
+    const btn      = byId('updateBtn');
+    const btnLabel = byId('updateBtnLabel');
+    const spinner  = byId('updateSpinner');
+    const track    = byId('updateProgressTrack');
+    const fill     = byId('updateProgressFill');
+    if (!card) return;
+
+    const LAST_UPDATED_KEY = '5pm.desktop.lastUpdated';
+    const LAST_CHECKED_KEY = '5pm.desktop.lastChecked';
+
+    let state   = 'idle';   // idle | checking | available | downloading | ready
+    let pending = null;     // { version } of the update the backend is holding
+
+    // Local to the desktop card: the shared timeAgo() tops out at days, and the
+    // update card wants weeks/months for installs that are a while back.
+    function ago(iso) {
+      if (!iso) return null;
+      const s = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
+      if (s < 60) return 'just now';
+      const unit = (n, word) => n + ' ' + word + (n === 1 ? '' : 's') + ' ago';
+      if (s < 3600)    return unit(Math.floor(s / 60), 'minute');
+      if (s < 86400)   return unit(Math.floor(s / 3600), 'hour');
+      if (s < 604800)  return unit(Math.floor(s / 86400), 'day');
+      if (s < 2592000) return unit(Math.floor(s / 604800), 'week');
+      return unit(Math.floor(s / 2592000), 'month');
+    }
+
+    function idleStatus() {
+      const updated = ago(localStorage.getItem(LAST_UPDATED_KEY));
+      if (updated) return 'Last Updated ' + updated;
+      const checked = ago(localStorage.getItem(LAST_CHECKED_KEY));
+      return checked ? 'Last checked ' + checked : 'Not checked yet';
+    }
+
+    function render() {
+      const busy = state === 'checking';
+      spinner.style.display = busy ? '' : 'none';
+      btn.classList.toggle('busy', busy);
+      btn.disabled = busy;
+      track.style.display = state === 'downloading' ? '' : 'none';
+
+      if (state === 'idle' || state === 'checking') {
+        titleEl.textContent  = 'No Updates Available';
+        statusEl.textContent = state === 'checking' ? 'Checking for updates…' : idleStatus();
+        btnLabel.textContent = state === 'checking' ? 'Checking…' : 'Check for Update';
+      } else if (state === 'available') {
+        titleEl.textContent  = 'Update Is Available';
+        statusEl.textContent = 'Version ' + pending.version + ' available';
+        btnLabel.textContent = 'Update';
+      } else if (state === 'downloading') {
+        titleEl.textContent  = 'Update Is Available';
+        btnLabel.textContent = 'Cancel Download';
+      } else if (state === 'ready') {
+        titleEl.textContent  = 'Ready to Install';
+        statusEl.textContent = 'Download Complete';
+        btnLabel.textContent = 'Install';
+      }
+    }
+
+    function fail(message) {
+      state = 'idle';
+      render();
+      statusEl.textContent = message;
+    }
+
+    async function check() {
+      state = 'checking';
+      render();
+      try {
+        const found = await T.core.invoke('updater_check');
+        localStorage.setItem(LAST_CHECKED_KEY, new Date().toISOString());
+        if (found) { pending = found; state = 'available'; } else { state = 'idle'; }
+        render();
+      } catch (e) {
+        fail('Update check failed. ' + e);
+      }
+    }
+
+    async function download() {
+      state = 'downloading';
+      fill.style.width = '0%';
+      statusEl.textContent = 'Downloading 0%';
+      render();
+      try {
+        await T.core.invoke('updater_download');
+      } catch (e) {
+        fail('Download failed. ' + e);
+      }
+    }
+
+    async function cancel() {
+      try { await T.core.invoke('updater_cancel'); } catch (e) { /* already gone */ }
+      state = 'available';
+      fill.style.width = '0%';
+      render();
+    }
+
+    async function install() {
+      btn.disabled = true;
+      btnLabel.textContent = 'Installing…';
+      // Record before handing off: install() restarts the app, so nothing runs after it.
+      localStorage.setItem(LAST_UPDATED_KEY, new Date().toISOString());
+      try {
+        await T.core.invoke('updater_install');
+      } catch (e) {
+        localStorage.removeItem(LAST_UPDATED_KEY);
+        btn.disabled = false;
+        fail('Install failed. ' + e);
+      }
+    }
+
+    btn.addEventListener('click', () => {
+      if (state === 'idle')             check();
+      else if (state === 'available')   download();
+      else if (state === 'downloading') cancel();
+      else if (state === 'ready')       install();
+    });
+
+    T.event.listen('updater://progress', ev => {
+      if (state !== 'downloading') return;
+      const { downloaded, total } = ev.payload;
+      if (!total) { statusEl.textContent = 'Downloading…'; return; }
+      const pct = Math.min(100, Math.round((downloaded / total) * 100));
+      fill.style.width = pct + '%';
+      statusEl.textContent = 'Downloading ' + pct + '%';
+    });
+
+    T.event.listen('updater://ready', () => {
+      state = 'ready';
+      fill.style.width = '100%';
+      render();
+    });
+
+    T.event.listen('updater://error', ev => fail('Download failed. ' + ev.payload));
+
+    card.style.display = '';
+    render();
   })();
 </script>
 

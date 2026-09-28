@@ -4,10 +4,12 @@
   "version": "1.2.0",
   "identifier": "com.5pm.app",
   "build": {
-    "frontendDist": "https://whtracker.vercel.app",
-    "devUrl": "https://whtracker.vercel.app"
+    "frontendDist": "dist",
+    "beforeDevCommand": "node ../scripts/build-desktop-dist.js",
+    "beforeBuildCommand": "node ../scripts/build-desktop-dist.js"
   },
   "app": {
+    "withGlobalTauri": true,
     "windows": [
       {
         "title": "5pm",
@@ -21,9 +23,21 @@
       "csp": null
     }
   },
+  "plugins": {
+    "updater": {
+      "endpoints": [
+        "https://github.com/rosshanmohapatra/5pm-workhour-tracker/releases/latest/download/latest.json"
+      ],
+      "pubkey": "",
+      "windows": {
+        "installMode": "passive"
+      }
+    }
+  },
   "bundle": {
     "active": true,
     "targets": ["nsis"],
+    "createUpdaterArtifacts": true,
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",

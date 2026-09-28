@@ -198,14 +198,20 @@ async function handleOAuth(provider, evt) {
   btn.style.opacity = '.5';
   _clearAuthError();
   try {
-    const { error } = await _sb.auth.signInWithOAuth({
+    const { data, error } = await _sb.auth.signInWithOAuth({
       provider: provider.toLowerCase(),
       // Web: implicit flow, tokens arrive in the fragment and detectSessionInUrl
       // picks them up on index.html. Desktop: PKCE, the code comes back through
       // fivepm:// and lib/desktop-auth.js exchanges it.
-      options: { redirectTo: window.__DESKTOP_AUTH_REDIRECT || (window.location.origin + '/index.html') }
+      options: {
+        redirectTo: window.__DESKTOP_AUTH_REDIRECT || (window.location.origin + '/index.html'),
+        skipBrowserRedirect: !!window.__TAURI__
+      }
     });
     if (error) throw error;
+    if (window.__TAURI__ && data?.url) {
+      await window.__TAURI__.core.invoke('open_external', { url: data.url });
+    }
     // Browser navigates away to the OAuth provider — nothing else to do
   } catch (err) {
     btn.disabled = false;

@@ -13068,12 +13068,19 @@ ${sig}`
 
     async function _connectProvider(provider) {
       try {
-        const { error } = await window._sbClient.auth.linkIdentity({
+        const { data, error } = await window._sbClient.auth.linkIdentity({
           provider,
-          options: { redirectTo: window.__DESKTOP_AUTH_REDIRECT || (window.location.origin + window.location.pathname) }
+          options: {
+            redirectTo: window.__DESKTOP_AUTH_REDIRECT || (window.location.origin + window.location.pathname),
+            skipBrowserRedirect: !!window.__TAURI__
+          }
         });
         if (error) throw error;
-        // Page navigates away to OAuth provider — nothing else to do here
+        // Web navigates away to the provider. Desktop hands the URL to the real
+        // browser and waits for the fivepm:// callback instead.
+        if (window.__TAURI__ && data?.url) {
+          await window.__TAURI__.core.invoke('open_external', { url: data.url });
+        }
       } catch(e) {
         showToast('Connection Failed', 'error', e.message || 'Could not connect ' + provider + '. Please try again.');
       }

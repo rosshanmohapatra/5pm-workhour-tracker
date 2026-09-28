@@ -5,8 +5,8 @@
   "identifier": "com.5pm.app",
   "build": {
     "frontendDist": "dist",
-    "beforeDevCommand": "node ../scripts/build-desktop-dist.js",
-    "beforeBuildCommand": "node ../scripts/build-desktop-dist.js"
+    "beforeDevCommand": "node scripts/build-desktop-dist.js",
+    "beforeBuildCommand": "node scripts/build-desktop-dist.js"
   },
   "app": {
     "withGlobalTauri": true,

@@ -1,3 +1,4 @@
+mod oauth;
 mod updater;
 
 // Sign-in belongs in the real browser, where the user's Google session already
@@ -41,6 +42,7 @@ pub fn run() {
       updater::updater_download,
       updater::updater_cancel,
       updater::updater_install,
+      oauth::oauth_listen,
       open_external
     ])
     .setup(|app| {

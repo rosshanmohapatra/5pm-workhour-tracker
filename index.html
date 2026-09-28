@@ -13071,15 +13071,15 @@ ${sig}`
         const { data, error } = await window._sbClient.auth.linkIdentity({
           provider,
           options: {
-            redirectTo: window.__DESKTOP_AUTH_REDIRECT || (window.location.origin + window.location.pathname),
+            redirectTo: window.__DESKTOP_OAUTH_REDIRECT || (window.location.origin + window.location.pathname),
             skipBrowserRedirect: !!window.__TAURI__
           }
         });
         if (error) throw error;
         // Web navigates away to the provider. Desktop hands the URL to the real
-        // browser and waits for the fivepm:// callback instead.
-        if (window.__TAURI__ && data?.url) {
-          await window.__TAURI__.core.invoke('open_external', { url: data.url });
+        // browser and waits on the loopback port instead.
+        if (window.__desktopStartOAuth && data?.url) {
+          await window.__desktopStartOAuth(data.url);
         }
       } catch(e) {
         showToast('Connection Failed', 'error', e.message || 'Could not connect ' + provider + '. Please try again.');

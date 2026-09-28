@@ -204,13 +204,13 @@ async function handleOAuth(provider, evt) {
       // picks them up on index.html. Desktop: PKCE, the code comes back through
       // fivepm:// and lib/desktop-auth.js exchanges it.
       options: {
-        redirectTo: window.__DESKTOP_AUTH_REDIRECT || (window.location.origin + '/index.html'),
+        redirectTo: window.__DESKTOP_OAUTH_REDIRECT || (window.location.origin + '/index.html'),
         skipBrowserRedirect: !!window.__TAURI__
       }
     });
     if (error) throw error;
-    if (window.__TAURI__ && data?.url) {
-      await window.__TAURI__.core.invoke('open_external', { url: data.url });
+    if (window.__desktopStartOAuth && data?.url) {
+      await window.__desktopStartOAuth(data.url);
     }
     // Browser navigates away to the OAuth provider — nothing else to do
   } catch (err) {

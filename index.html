@@ -1683,9 +1683,14 @@
     .day-selector::-webkit-scrollbar { display: none; }
     /* Hide nav arrows — scroll replaces them */
     .this-week-nav { display: none; }
-    /* Desktop: crosshair via JS scrollLeft — scrollbar hidden, user scroll blocked by JS wheel handler */
+    /* Desktop: the crosshair drives this row through scrollLeft, so it does not
+       need to be a wheel-scrollable container. It must not be one either: a
+       horizontally scrollable element consumes vertical wheel events and turns
+       them into sideways scrolling of itself, which silently stopped the page
+       scrolling whenever the pointer sat over this row. overflow-x:hidden still
+       allows scrollLeft, so the crosshair is unaffected. */
     @media (hover: hover) and (min-width: 641px) {
-      .day-selector { overflow-x: scroll; scrollbar-width: none; -ms-overflow-style: none; }
+      .day-selector { overflow-x: hidden; scrollbar-width: none; -ms-overflow-style: none; }
       .day-selector::-webkit-scrollbar { display: none; }
     }
     /* 5.2 cards across (5 full + 0.1 peek each side); 5 gaps of 8px reserved → 40px */
@@ -14115,15 +14120,11 @@ ${sig}`
       _tpInitWheels();
       _tpSegInit();
       _setTodayDateChip();
-      // Block user wheel scroll on the day-selector on desktop (crosshair navigates via JS only)
-      const _dsRow = el('daySelectorRow');
-      if (_dsRow) _dsRow.addEventListener('wheel', e => {
-        // Only swallow sideways gestures, which would scroll the row itself.
-        // Blocking every wheel also ate vertical scrolling whenever the pointer
-        // happened to be over this row, which is most of the time.
-        if (Math.abs(e.deltaX) <= Math.abs(e.deltaY)) return;
-        if (window.matchMedia('(hover:hover) and (min-width:641px)').matches) e.preventDefault();
-      }, { passive: false });
+      // The day-selector used to cancel every wheel event here so its crosshair
+      // stayed the only way to move it. That also cancelled page scrolling
+      // whenever the pointer sat over the row, and narrowing it to sideways
+      // gestures still caught trackpad swipes with any drift. Letting the row
+      // scroll sideways on a wheel is ordinary behaviour and costs nothing.
       setInterval(tickHeader, 1000);
       tickHeader();
 

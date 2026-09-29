@@ -1665,9 +1665,14 @@
     .day-selector::-webkit-scrollbar { display: none; }
     /* Hide nav arrows — scroll replaces them */
     .this-week-nav { display: none; }
-    /* Desktop: crosshair via JS scrollLeft — scrollbar hidden, user scroll blocked by JS wheel handler */
+    /* Desktop: the crosshair drives this row through scrollLeft, so it does not
+       need to be a wheel-scrollable container. It must not be one either: a
+       horizontally scrollable element consumes vertical wheel events and turns
+       them into sideways scrolling of itself, which silently stopped the page
+       scrolling whenever the pointer sat over this row. overflow-x:hidden still
+       allows scrollLeft, so the crosshair is unaffected. */
     @media (hover: hover) and (min-width: 641px) {
-      .day-selector { overflow-x: scroll; scrollbar-width: none; -ms-overflow-style: none; }
+      .day-selector { overflow-x: hidden; scrollbar-width: none; -ms-overflow-style: none; }
       .day-selector::-webkit-scrollbar { display: none; }
     }
     /* 5.2 cards across (5 full + 0.1 peek each side); 5 gaps of 8px reserved → 40px */

@@ -484,32 +484,39 @@
        runtime from nodes already on the page, so turning the flag off restores
        the original layout exactly. */
     body.shell-new .nav-tabs { display: none !important; }
+    body.shell-new #settingsLastSaved { display: none !important; }
 
-    .hdr-icon { width: 34px; height: 34px; border: none; background: transparent;
+    .hdr-icon { display: inline-flex; align-items: center; justify-content: center;
+      width: 34px; height: 34px; border: none; background: transparent;
       border-radius: var(--radius-md); color: var(--muted-fg); cursor: pointer;
-      display: grid; place-items: center; flex-shrink: 0; position: relative;
-      transition: background .15s, color .15s; }
-    .hdr-icon:hover { background: var(--muted); color: var(--foreground); }
-    .hdr-icon.active { color: var(--foreground); }
+      flex-shrink: 0; position: relative; transition: background .15s, color .15s, box-shadow .15s; }
+    .hdr-icon:hover { box-shadow: 0 0 0 1px var(--border); color: var(--foreground); }
+    /* Same treatment the notifications button uses when it is on. */
+    .hdr-icon.active { background: var(--card); color: var(--foreground); box-shadow: var(--shadow-xs); }
+    .dark .hdr-icon.active { background: var(--muted); color: var(--foreground); box-shadow: none; }
     .back-btn { display: inline-flex; align-items: center; justify-content: center;
       width: 30px; height: 30px; margin-right: 8px; border: none; background: transparent;
       border-radius: var(--radius); color: var(--muted-fg); cursor: pointer; flex-shrink: 0; }
     .back-btn:hover { background: var(--muted); color: var(--foreground); }
 
-    /* Settings tabs */
+    /* Overview sets gap:0 for its own stack, so the cards moved in from the
+       dashboard carry their own spacing instead. */
+    body.shell-new #viewHome .page > .merged-block { margin-top: 24px; }
+
     body.shell-new .set-tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border);
       margin-bottom: 16px; }
-    body.shell-new .set-tab { display: inline-flex; align-items: center; gap: 7px;
-      padding: 0 12px 10px; border: none; background: transparent; cursor: pointer;
-      font-family: var(--font); font-size: 13px; font-weight: 500; color: var(--muted-fg);
-      white-space: nowrap; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+    body.shell-new .set-tab { flex: 1; display: inline-flex; align-items: center;
+      justify-content: center; gap: 7px; padding: 0 8px 10px; border: none; background: transparent;
+      cursor: pointer; font-family: var(--font); font-size: 13px; font-weight: 500;
+      color: var(--muted-fg); white-space: nowrap; border-bottom: 2px solid transparent;
+      margin-bottom: -1px; }
     body.shell-new .set-tab:hover { color: var(--foreground); }
     body.shell-new .set-tab.active { color: var(--foreground); font-weight: 600;
       border-bottom-color: var(--foreground); }
     body.shell-new .set-panel { display: none; }
     body.shell-new .set-panel.active { display: flex; flex-direction: column; gap: 14px; }
 
-    /* Every tab's content sits in a card, and nothing collapses any more. */
+    /* Every tab content sits in a card, and nothing collapses any more. */
     body.shell-new .set-panel > .settings-section,
     body.shell-new .set-panel > .settings-card-merged {
       background: var(--card); border: 1px solid var(--border);
@@ -520,21 +527,18 @@
     body.shell-new .set-panel .settings-section-header { cursor: default; }
     body.shell-new .settings-section-divider { display: none !important; }
 
-    /* Notifications: no blur behind it, and never a sliver of a panel. */
-    body.shell-new .notif-scrim { backdrop-filter: none; -webkit-backdrop-filter: none;
-      background: rgba(0,0,0,.18); }
-    body.shell-new .notif-card { backdrop-filter: none; -webkit-backdrop-filter: none;
-      background: var(--card); }
     body.shell-new .notif-panel.open { min-height: 400px; }
 
-    /* Overlay scrollbar: no track, no reserved space, fades out when idle. */
-    body.shell-new { scrollbar-width: thin; scrollbar-color: transparent transparent; }
-    body.shell-new.scrolling { scrollbar-color: var(--border) transparent; }
-    body.shell-new::-webkit-scrollbar { width: 10px; height: 10px; }
-    body.shell-new::-webkit-scrollbar-track { background: transparent; }
-    body.shell-new::-webkit-scrollbar-thumb { background: transparent; border-radius: 999px;
+    /* Overlay scrollbar on the viewport itself. Scoped to html, not body:
+       styling body only dresses a scrollbar the page does not use, leaving the
+       real one untouched and permanently visible. */
+    html.shell-new { scrollbar-width: thin; scrollbar-color: transparent transparent; }
+    html.shell-new.scrolling { scrollbar-color: var(--muted-fg) transparent; }
+    html.shell-new::-webkit-scrollbar { width: 10px; height: 10px; }
+    html.shell-new::-webkit-scrollbar-track { background: transparent; }
+    html.shell-new::-webkit-scrollbar-thumb { background: transparent; border-radius: 999px;
       border: 3px solid transparent; background-clip: content-box; transition: background .25s; }
-    body.shell-new.scrolling::-webkit-scrollbar-thumb { background: var(--muted-fg);
+    html.shell-new.scrolling::-webkit-scrollbar-thumb { background: var(--muted-fg);
       background-clip: content-box; }
 
     .notif-panel { position: fixed; top: calc(24px + 52px + 8px); left: 50%; transform: translateX(-50%);
@@ -14243,6 +14247,8 @@ ${sig}`
       if (localStorage.getItem('wh_shell') !== 'new') return;
 
       document.body.classList.add('shell-new');
+      // The viewport scrollbar belongs to <html>, so the class goes there too.
+      document.documentElement.classList.add('shell-new');
 
       const svg = d => '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' + d + '</svg>';
       const I = {
@@ -14262,7 +14268,12 @@ ${sig}`
       if (home && analytics) {
         const target = home.querySelector('.page') || home;
         const source = analytics.querySelector('.page') || analytics;
-        while (source.firstChild) target.appendChild(source.firstChild);
+        while (source.firstChild) {
+          const node = source.firstChild;
+          // Overview's stack sets gap:0, so each moved card brings its own.
+          if (node.nodeType === 1) node.classList.add('merged-block');
+          target.appendChild(node);
+        }
         analytics.remove();
       }
 
@@ -14291,9 +14302,9 @@ ${sig}`
       // ── Scrollbar that fades when idle ────────────────
       let idle;
       addEventListener('scroll', () => {
-        document.body.classList.add('scrolling');
+        document.documentElement.classList.add('scrolling');
         clearTimeout(idle);
-        idle = setTimeout(() => document.body.classList.remove('scrolling'), 900);
+        idle = setTimeout(() => document.documentElement.classList.remove('scrolling'), 900);
       }, { passive: true });
 
       // ── Settings ──────────────────────────────────────
@@ -14400,6 +14411,15 @@ ${sig}`
       wrap.querySelectorAll('.settings-section-divider').forEach(d => d.remove());
       wrap.querySelectorAll('.settings-section.collapsed, .settings-card.collapsed')
         .forEach(s => s.classList.remove('collapsed'));
+
+      // Anything still sitting directly under the panel would render between the
+      // tabs and the tab content: wrappers left hollow once their sections moved
+      // out, and loose cards like the developer one.
+      [...wrap.children].forEach(node => {
+        if (node === header || node === bar || node.classList.contains('set-panel')) return;
+        if (!node.querySelector('*') && !node.textContent.trim()) { node.remove(); return; }
+        panels.About.appendChild(node);
+      });
     })();
 
   </script>

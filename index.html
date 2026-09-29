@@ -260,8 +260,16 @@
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: var(--font); background: var(--background); color: var(--foreground);
       -webkit-font-smoothing: antialiased; min-height: 100vh;
-      transition: background .2s, color .2s; line-height: 1.5;
-      overscroll-behavior-y: none; /* disable native Android pull-to-refresh */ }
+      transition: background .2s, color .2s; line-height: 1.5; }
+    /* overscroll-behavior on <body> propagates to the viewport. On desktop that
+       broke scrolling outright: the body is not itself a scroller, so a wheel
+       over the page background has to chain up to the viewport, and `none`
+       blocks exactly that chain. Events arrived, nothing cancelled them, and
+       the page stayed put. It is only here to suppress Android's native
+       pull-to-refresh, so it belongs on phones. */
+    @media (max-width: 640px) {
+      body { overscroll-behavior-y: none; }
+    }
     button { cursor: pointer; font-family: inherit; user-select: none; -webkit-user-select: none; }
     /* ── Global icon stroke weight: 1.5pt ── */
     /* CSS stroke-width overrides SVG presentation attributes, so this applies
@@ -14258,15 +14266,24 @@ ${sig}`
       }, 1200);
 
       // ── Scroll lock when any modal is open (prevents body scroll behind overlays) ──
-      const _scrollLockObserver = new MutationObserver(() => {
-        const anyOpen = !!(
-          document.querySelector('.overlay.open') ||
-          document.querySelector('.wp-picker-overlay.open') ||
-          document.querySelector('.ob-overlay[style*="block"]')
-        );
+      // Locking scroll is the kind of thing that strands a page: once html and
+      // body are overflow:hidden, wheel and touch stop working while scrollTo()
+      // still does, so it reads as "scrolling is broken" with no visible cause.
+      // Only lock for something actually on screen, and re-check on a timer so a
+      // missed mutation cannot leave the page stuck.
+      const _reallyVisible = n => {
+        if (!n) return false;
+        const s = getComputedStyle(n);
+        return s.display !== 'none' && s.visibility !== 'hidden' && n.getBoundingClientRect().height > 0;
+      };
+      const _syncScrollLock = () => {
+        const candidates = document.querySelectorAll('.overlay.open, .wp-picker-overlay.open, .ob-overlay');
+        const anyOpen = [...candidates].some(_reallyVisible);
         document.body.style.overflow = anyOpen ? 'hidden' : '';
         document.documentElement.style.overflow = anyOpen ? 'hidden' : '';
-      });
+      };
+      const _scrollLockObserver = new MutationObserver(_syncScrollLock);
+      setInterval(_syncScrollLock, 1000);
       document.querySelectorAll('.overlay, .wp-picker-overlay').forEach(o =>
         _scrollLockObserver.observe(o, { attributes: true, attributeFilter: ['class', 'style'] })
       );
@@ -14352,13 +14369,15 @@ ${sig}`
     // Dashboard become one scrolling page. Settings gains tabs, built by moving
     // nodes that are already on the page, so ids and handlers survive.
     //
-    // Turn on with ?shell=new, off with ?shell=old. The choice is remembered,
-    // because signing in bounces through login.html and would drop the query.
+    // On by default. ?shell=old falls back to the previous layout and is
+    // remembered, because signing in bounces through login.html and would drop
+    // the query; ?shell=new returns. The desktop app has no address bar, so a
+    // default-on shell is the only way it ever sees this.
     (function newShell() {
       const param = new URLSearchParams(location.search).get('shell');
-      if (param === 'new') localStorage.setItem('wh_shell', 'new');
-      if (param === 'old') localStorage.removeItem('wh_shell');
-      if (localStorage.getItem('wh_shell') !== 'new') return;
+      if (param === 'old') localStorage.setItem('wh_shell_off', '1');
+      if (param === 'new') localStorage.removeItem('wh_shell_off');
+      if (localStorage.getItem('wh_shell_off') === '1') return;
 
       document.body.classList.add('shell-new');
       // The viewport scrollbar belongs to <html>, so the class goes there too.
@@ -15027,7 +15046,18 @@ ${sig}`
       setTimeout(cleanup, 400); // iOS Safari transitionend fallback
     }
 
+    // Pull-to-refresh is a phone gesture, and its indicator is already gated to
+    // @media (max-width: 640px). The handlers were not, so on any desktop that
+    // reports touch — a touchscreen, or a touchpad whose driver sends touch
+    // events — a downward swipe near the top called preventDefault on the scroll
+    // and then reloaded the page. Scrolling looked broken and the position kept
+    // snapping to the top.
+    function ptrEnabled() {
+      return window.matchMedia('(max-width: 640px)').matches;
+    }
+
     document.addEventListener('touchstart', function (e) {
+      if (!ptrEnabled()) { atTop = false; startY = 0; return; }
       // Disable PTR when any modal/overlay is open — prevents scroll-lock inside modals
       if (document.querySelector('.overlay.open, .wp-picker-overlay.open')) {
         atTop = false; startY = 0; return;

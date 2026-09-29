@@ -506,9 +506,15 @@
       cursor: pointer; flex-shrink: 0; transition: background .15s, color .15s; }
     .back-btn:hover { background: var(--muted); color: var(--foreground); }
 
-    /* Overview ships gap:0 for its own stack. One rhythm across the whole page
-       instead, matching the settings cards. */
+    /* The home page was built to fill exactly one viewport: #homeMain is a
+       flex:1 item with min-height:0, which lets it shrink below its own content,
+       and #homeBottomSpacer eats whatever is left over. Once the dashboard cards
+       moved in, the content overflowed that fixed-height box instead of growing
+       the document, so the page could not scroll to the bottom.
+       Sizing to content instead, with one 24px rhythm throughout. */
     body.shell-new #viewHome .page { gap: 24px; }
+    body.shell-new #homeMain { flex: 0 0 auto; min-height: auto; gap: 24px; }
+    body.shell-new #homeBottomSpacer { display: none; }
 
     body.shell-new .set-tabs { position: relative; display: flex; gap: 4px;
       border-bottom: 1px solid var(--border); margin-bottom: 16px; }

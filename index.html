@@ -486,8 +486,10 @@
     body.shell-new .navbar { display: none !important; }
     body.shell-new #settingsLastSaved { display: none !important; }
 
-    /* Notifications and Settings, floating top right. Both are toggles. */
-    .hdr-cluster { position: fixed; top: 16px; right: 16px; z-index: 60; display: flex; gap: 6px; }
+    /* Notifications and Settings sit in the day-context header, top right.
+       They ride with the page rather than floating over it. */
+    body.shell-new .sel-day-ctx { position: relative; }
+    .hdr-cluster { position: absolute; top: 0; right: 0; z-index: 20; display: flex; gap: 6px; }
     .hdr-cluster .btn-icon, .hdr-icon { width: 34px; height: 34px; }
     .hdr-icon { display: inline-flex; align-items: center; justify-content: center;
       border: none; background: transparent; border-radius: var(--radius-md);
@@ -504,9 +506,9 @@
       cursor: pointer; flex-shrink: 0; transition: background .15s, color .15s; }
     .back-btn:hover { background: var(--muted); color: var(--foreground); }
 
-    /* Overview sets gap:0 for its own stack, so cards moved in from the
-       dashboard carry their own spacing instead. */
-    body.shell-new #viewHome .page > .merged-block { margin-top: 24px; }
+    /* Overview ships gap:0 for its own stack. One rhythm across the whole page
+       instead, matching the settings cards. */
+    body.shell-new #viewHome .page { gap: 24px; }
 
     body.shell-new .set-tabs { position: relative; display: flex; gap: 4px;
       border-bottom: 1px solid var(--border); margin-bottom: 16px; }
@@ -14312,7 +14314,8 @@ ${sig}`
       // keeps its badge and handler.
       const cluster = document.createElement('div');
       cluster.className = 'hdr-cluster';
-      document.body.appendChild(cluster);
+      // Lives in the day-context header, so it scrolls with the page.
+      (document.querySelector('.sel-day-ctx') || document.body).appendChild(cluster);
 
       const realNotif = el('notifBtn');
       if (realNotif) cluster.appendChild(realNotif);

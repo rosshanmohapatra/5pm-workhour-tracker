@@ -4943,6 +4943,29 @@
       _notifTimers = [];
     }
 
+    // ── SLEEP / WAKE ──────────────────────────────────────────────────────────
+    // Worked time is always recomputed from timestamps, so sleeping cannot make
+    // it drift. Scheduled alerts are the exception: a setTimeout sleeps with the
+    // machine and then fires late. Detect the jump and rebuild the schedule from
+    // the login time, which drops any alert whose moment has already passed.
+    (function watchForWake() {
+      const TICK = 30000;
+      const DRIFT_LIMIT = 120000; // treat a two minute gap as a sleep, not lag
+      let expected = Date.now() + TICK;
+
+      setInterval(() => {
+        const now = Date.now();
+        const drift = now - expected;
+        expected = now + TICK;
+        if (drift < DRIFT_LIMIT) return;
+        if (!loginDate) return;
+
+        cancelScheduledNotifications();
+        scheduleNotifications(loginDate.toISOString());
+        render();
+      }, TICK);
+    })();
+
     // ── MORNING REMINDER ───────────────────────────────────────────────────────
     // Fires once per day at 9am if the user hasn't logged in yet that day.
     // Skips weekends and respects notification permission.

@@ -25,6 +25,20 @@ pub fn notify(app: AppHandle, title: String, body: String) -> Result<(), String>
     .map_err(|e| e.to_string())
 }
 
+// Windows passes this when it launches 5pm at sign-in. That run stays in the
+// tray and starts the day's session by itself; every other launch is a person
+// opening the app.
+pub const AUTOSTART_FLAG: &str = "--autostart";
+
+pub fn launched_by_autostart() -> bool {
+  std::env::args().any(|arg| arg == AUTOSTART_FLAG)
+}
+
+#[tauri::command]
+pub fn launched_at_boot() -> bool {
+  launched_by_autostart()
+}
+
 #[tauri::command]
 pub fn autostart_enabled(app: AppHandle) -> Result<bool, String> {
   use tauri_plugin_autostart::ManagerExt;

@@ -14868,8 +14868,77 @@ ${sig}`
 
     T.app.getVersion().then(v => { currentVersion = v; renderNotes(); }).catch(() => {});
 
+    // Check once at launch and once a day after that. The card updates itself;
+    // the toast fires only the first time a given version shows up, so a
+    // machine left running for a week is not nagged daily about the same one.
+    const NOTIFIED_KEY = '5pm.desktop.updateNotified';
+    async function autoCheck() {
+      if (state !== 'idle') return;
+      await check();
+      if (state !== 'available') return;
+      if (localStorage.getItem(NOTIFIED_KEY) === pending.version) return;
+      localStorage.setItem(NOTIFIED_KEY, pending.version);
+      new Notification('Update available', {
+        body: 'Version ' + pending.version + ' is ready to install.'
+      });
+    }
+    setInterval(autoCheck, 24 * 60 * 60 * 1000);
+    autoCheck();
+
     card.style.display = '';
     render();
+  })();
+
+  // ── Start the day on a boot launch ──────────────────
+  // Only runs when Windows started 5pm at sign-in. A silent tray launch must
+  // never invent hours, so every guard below has to pass, and a session that
+  // does start always announces itself.
+  (function initBootSession() {
+    const T = window.__TAURI__;
+    if (!T) return;
+
+    function greeting(d) {
+      const h = d.getHours();
+      if (h < 12) return 'Good morning';
+      if (h < 17) return 'Good afternoon';
+      return 'Good evening';
+    }
+
+    function blockedReason(now) {
+      if (typeof loginDate !== 'undefined' && loginDate) return 'a session is already running';
+      if (typeof isWeekend === 'function' && isWeekend()) return 'today is not a work day';
+
+      // Any finished or partial work today means the person has already been
+      // here; starting again would double count.
+      const log = (typeof dayLog === 'function' && typeof todayKey === 'function')
+        ? dayLog(todayKey()) : null;
+      if (log && (log.checkoutTime || log.hoursWorked > 0)) return 'today already has tracked time';
+
+      // The app's own rule: logging in an hour or more before the shift.
+      if (typeof isOutsideShift === 'function' && isOutsideShift(now)) return 'it is before the shift starts';
+
+      // Booting late at night should not open a session that runs overnight.
+      const end = (typeof cfg === 'function' && typeof parse === 'function')
+        ? parse(cfg().shiftEnd || '') : null;
+      if (end && (now.getHours() * 60 + now.getMinutes()) > (end.getHours() * 60 + end.getMinutes())) {
+        return 'the shift has already ended for today';
+      }
+      return null;
+    }
+
+    T.core.invoke('launched_at_boot').then(atBoot => {
+      if (!atBoot) return;
+      // Let restore, recovery prompts and the cloud pull settle first, so the
+      // guards run against the real state of today rather than an empty one.
+      setTimeout(() => {
+        const now = new Date();
+        const blocked = blockedReason(now);
+        if (blocked) { console.info('[boot] session not started:', blocked); return; }
+
+        _startSession(now);
+        new Notification(greeting(now) + '!', { body: "It's " + short(now) + '.' });
+      }, 4000);
+    }).catch(err => console.warn('[boot] could not tell how 5pm was launched:', err));
   })();
 
   // ── Desktop settings ────────────────────────────────

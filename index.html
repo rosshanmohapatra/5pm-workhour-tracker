@@ -13133,6 +13133,7 @@ ${sig}`
           name: 'Google',
           // Which account, not just that there is one.
           status: googleId ? (googleId.identity_data?.email || 'Connected') : 'Not Connected',
+          statusClass: googleId && googleId.identity_data?.email ? 'muted' : undefined,
           connected: !!googleId,
           action: googleId ? 'Disconnect' : 'Connect',
           onAction: googleId
@@ -13151,6 +13152,7 @@ ${sig}`
                 return handle ? '@' + handle : 'Connected';
               })()
             : 'Not Connected',
+          statusClass: githubId ? 'muted' : undefined,
           connected: !!githubId,
           action: githubId ? 'Disconnect' : 'Connect',
           onAction: githubId

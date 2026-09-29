@@ -14050,15 +14050,11 @@ ${sig}`
       _tpInitWheels();
       _tpSegInit();
       _setTodayDateChip();
-      // Block user wheel scroll on the day-selector on desktop (crosshair navigates via JS only)
-      const _dsRow = el('daySelectorRow');
-      if (_dsRow) _dsRow.addEventListener('wheel', e => {
-        // Only swallow sideways gestures, which would scroll the row itself.
-        // Blocking every wheel also ate vertical scrolling whenever the pointer
-        // happened to be over this row, which is most of the time.
-        if (Math.abs(e.deltaX) <= Math.abs(e.deltaY)) return;
-        if (window.matchMedia('(hover:hover) and (min-width:641px)').matches) e.preventDefault();
-      }, { passive: false });
+      // The day-selector used to cancel every wheel event here so its crosshair
+      // stayed the only way to move it. That also cancelled page scrolling
+      // whenever the pointer sat over the row, and narrowing it to sideways
+      // gestures still caught trackpad swipes with any drift. Letting the row
+      // scroll sideways on a wheel is ordinary behaviour and costs nothing.
       setInterval(tickHeader, 1000);
       tickHeader();
 

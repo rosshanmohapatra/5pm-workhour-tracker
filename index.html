@@ -253,8 +253,16 @@
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: var(--font); background: var(--background); color: var(--foreground);
       -webkit-font-smoothing: antialiased; min-height: 100vh;
-      transition: background .2s, color .2s; line-height: 1.5;
-      overscroll-behavior-y: none; /* disable native Android pull-to-refresh */ }
+      transition: background .2s, color .2s; line-height: 1.5; }
+    /* overscroll-behavior on <body> propagates to the viewport. On desktop that
+       broke scrolling outright: the body is not itself a scroller, so a wheel
+       over the page background has to chain up to the viewport, and `none`
+       blocks exactly that chain. Events arrived, nothing cancelled them, and
+       the page stayed put. It is only here to suppress Android's native
+       pull-to-refresh, so it belongs on phones. */
+    @media (max-width: 640px) {
+      body { overscroll-behavior-y: none; }
+    }
     button { cursor: pointer; font-family: inherit; user-select: none; -webkit-user-select: none; }
     /* ── Global icon stroke weight: 1.5pt ── */
     /* CSS stroke-width overrides SVG presentation attributes, so this applies

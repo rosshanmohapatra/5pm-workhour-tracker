@@ -498,6 +498,12 @@
     .hdr-icon.active { background: var(--card); color: var(--foreground); box-shadow: var(--shadow-xs); }
     .dark .hdr-icon.active { background: var(--muted); color: var(--foreground); box-shadow: none; }
 
+    .back-btn { display: inline-flex; align-items: center; justify-content: center;
+      width: 30px; height: 30px; margin-right: 10px; border: 1px solid var(--border);
+      background: var(--card); border-radius: var(--radius-md); color: var(--muted-fg);
+      cursor: pointer; flex-shrink: 0; transition: background .15s, color .15s; }
+    .back-btn:hover { background: var(--muted); color: var(--foreground); }
+
     /* Overview sets gap:0 for its own stack, so cards moved in from the
        dashboard carry their own spacing instead. */
     body.shell-new #viewHome .page > .merged-block { margin-top: 24px; }
@@ -516,7 +522,8 @@
       border-radius: 2px; transition: left .24s cubic-bezier(.4,0,.2,1), width .24s cubic-bezier(.4,0,.2,1); }
 
     body.shell-new .set-panel { display: none; }
-    body.shell-new .set-panel.active { display: flex; flex-direction: column; gap: 14px; }
+    /* 24px, the same rhythm the home page cards use. */
+    body.shell-new .set-panel.active { display: flex; flex-direction: column; gap: 24px; }
     body.shell-new .set-panel.slide-right { animation: set-slide-right .24s cubic-bezier(.4,0,.2,1); }
     body.shell-new .set-panel.slide-left  { animation: set-slide-left  .24s cubic-bezier(.4,0,.2,1); }
     @keyframes set-slide-right { from { opacity: 0; transform: translateX(16px); } to { opacity: 1; transform: none; } }
@@ -14027,6 +14034,10 @@ ${sig}`
       // Block user wheel scroll on the day-selector on desktop (crosshair navigates via JS only)
       const _dsRow = el('daySelectorRow');
       if (_dsRow) _dsRow.addEventListener('wheel', e => {
+        // Only swallow sideways gestures, which would scroll the row itself.
+        // Blocking every wheel also ate vertical scrolling whenever the pointer
+        // happened to be over this row, which is most of the time.
+        if (Math.abs(e.deltaX) <= Math.abs(e.deltaY)) return;
         if (window.matchMedia('(hover:hover) and (min-width:641px)').matches) e.preventDefault();
       }, { passive: false });
       setInterval(tickHeader, 1000);

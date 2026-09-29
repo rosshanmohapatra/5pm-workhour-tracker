@@ -479,6 +479,55 @@
     .day-date { font-size: 18px; font-weight: 600; color: var(--foreground); }
 
     /* ── Notification panel — fixed overlay, never pushes content ── */
+    /* ══ New shell (opt-in via ?shell=new) ══════════════════════════════════
+       Additive only: the rail and settings tabs are built at runtime from the
+       existing nodes, so turning the flag off restores the original layout. */
+    .rail { position: fixed; left: 0; top: 0; bottom: 0; width: 232px; z-index: 45;
+      background: var(--card); border-right: 1px solid var(--border);
+      display: none; flex-direction: column; padding: 12px; gap: 3px;
+      transition: width .2s cubic-bezier(.4,0,.2,1); }
+    body.shell-new .rail { display: flex; }
+    body.shell-new { padding-left: 232px; transition: padding-left .2s cubic-bezier(.4,0,.2,1); }
+    body.shell-new.rail-collapsed { padding-left: 64px; }
+    body.shell-new.rail-collapsed .rail { width: 64px; }
+    body.shell-new .page-brand, body.shell-new .nav-tabs { display: none !important; }
+
+    .rail-brand { display: flex; align-items: center; height: 36px; margin-bottom: 12px; }
+    .rail-logo { margin-left: auto; display: flex; align-items: center; }
+    .rail-collapsed .rail-logo { display: none; }
+    .rail-toggle { width: 40px; height: 36px; border: none; background: transparent;
+      border-radius: var(--radius-md); color: var(--muted-fg); cursor: pointer;
+      display: grid; place-items: center; flex-shrink: 0; }
+    .rail-toggle:hover { background: var(--muted); color: var(--foreground); }
+    .rail-item { display: flex; align-items: center; gap: 10px; padding: 0 10px; height: 36px;
+      border: none; background: transparent; border-radius: var(--radius-md); cursor: pointer;
+      font-family: var(--font); font-size: 13px; font-weight: 500; color: var(--muted-fg);
+      width: 100%; text-align: left; position: relative; }
+    .rail-item:hover { background: var(--muted); color: var(--foreground); }
+    .rail-item.active { background: var(--muted); color: var(--foreground); font-weight: 600; }
+    .rail-collapsed .rail-item { width: 40px; padding: 0; justify-content: center; }
+    .rail-collapsed .rail-label { display: none; }
+    .rail-spacer { flex: 1; }
+    .rail-foot { display: flex; flex-direction: column; gap: 3px; width: 100%;
+      border-top: 1px solid var(--border); padding-top: 10px; margin-top: 10px; }
+
+    .set-tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border); margin-bottom: 18px; }
+    .set-tab { display: inline-flex; align-items: center; gap: 7px; padding: 0 12px 10px;
+      border: none; background: transparent; cursor: pointer; font-family: var(--font);
+      font-size: 13px; font-weight: 500; color: var(--muted-fg); white-space: nowrap;
+      border-bottom: 2px solid transparent; margin-bottom: -1px; }
+    .set-tab:hover { color: var(--foreground); }
+    .set-tab.active { color: var(--foreground); font-weight: 600; border-bottom-color: var(--foreground); }
+    .set-panel { display: none; }
+    .set-panel.active { display: flex; flex-direction: column; gap: 16px; }
+
+    /* Rail is desktop only; phones keep the existing top bar and bottom nav. */
+    @media (max-width: 640px) {
+      body.shell-new { padding-left: 0; }
+      body.shell-new .rail { display: none; }
+      body.shell-new .page-brand { display: revert !important; }
+    }
+
     .notif-panel { position: fixed; top: calc(24px + 52px + 8px); left: 50%; transform: translateX(-50%);
       width: calc(100% - 48px); max-width: 552px; z-index: 40; padding: 0 !important;
       overflow: hidden; transition: max-height .28s ease, opacity .2s; }
@@ -2409,6 +2458,9 @@
   <a href="/" class="page-brand" title="5pm">
     <img id="navLogo" src="brand-light.svg" alt="5pm" height="32" style="display:block;border-radius:7px;border:1px solid var(--border)">
   </a>
+
+  <!-- Left rail — populated and shown only by the new shell (?shell=new) -->
+  <nav class="rail" id="rail"></nav>
 
   <!-- ── App ── -->
   <div id="appWrap" style="max-width:600px;margin:0 auto;padding-top:24px;">
@@ -14169,6 +14221,183 @@ ${sig}`
     window.addEventListener('resize', function() {
       if (el('obOverlay') && el('obOverlay').style.display !== 'none') _sizeObIntroLogo();
     });
+
+    // ══ NEW SHELL (opt-in) ══════════════════════════════════════════════════
+    // Left rail plus tabbed Settings, built by moving the nodes that are
+    // already on the page. Nothing is re-rendered, so every id, handler and
+    // listener survives; with the flag off none of this runs.
+    //
+    // Turn on with ?shell=new, off with ?shell=old. The choice is remembered,
+    // because signing in bounces through login.html and would drop the query.
+    (function newShell() {
+      const param = new URLSearchParams(location.search).get('shell');
+      if (param === 'new') localStorage.setItem('wh_shell', 'new');
+      if (param === 'old') localStorage.removeItem('wh_shell');
+      if (localStorage.getItem('wh_shell') !== 'new') return;
+
+      document.body.classList.add('shell-new');
+
+      const icon = d => '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' + d + '</svg>';
+      const I = {
+        overview:  '<circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/>',
+        dashboard: '<line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>',
+        bell:      '<path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>',
+        gear:      '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6h.09A1.65 1.65 0 0 0 10.6 3V3a2 2 0 0 1 4 0v.09A1.65 1.65 0 0 0 15 4.6a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9v.09a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>',
+        sliders:   '<line x1="21" y1="4" x2="14" y2="4"/><line x1="10" y1="4" x2="3" y2="4"/><line x1="21" y1="12" x2="12" y2="12"/><line x1="8" y1="12" x2="3" y2="12"/><line x1="21" y1="20" x2="16" y2="20"/><line x1="12" y1="20" x2="3" y2="20"/><line x1="14" y1="2" x2="14" y2="6"/><line x1="8" y1="10" x2="8" y2="14"/><line x1="16" y1="18" x2="16" y2="22"/>',
+        shield:    '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>',
+        info:      '<circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>',
+        panel:     '<rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/>'
+      };
+
+      // ── Rail ──────────────────────────────────────────
+      const rail = el('rail');
+      const mk = (cls, html) => { const n = document.createElement('div'); n.className = cls; n.innerHTML = html; return n; };
+      rail.appendChild(mk('rail-brand',
+        '<button class="rail-toggle" id="railToggle" title="Toggle panel">' + icon(I.panel) + '</button>' +
+        '<div class="rail-logo"><img src="brand-light.svg" id="railLogo" alt="5pm" height="28" style="border-radius:7px;border:1px solid var(--border)"></div>'));
+
+      function railBtn(id, label, glyph) {
+        const b = document.createElement('button');
+        b.className = 'rail-item'; b.id = id; b.title = label;
+        b.innerHTML = icon(glyph) + '<span class="rail-label">' + label + '</span>';
+        return b;
+      }
+      const bOverview = railBtn('railOverview', 'Overview', I.overview);
+      const bDash     = railBtn('railDashboard', 'Dashboard', I.dashboard);
+      rail.appendChild(bOverview);
+      rail.appendChild(bDash);
+      rail.appendChild(mk('rail-spacer', ''));
+
+      const foot = mk('rail-foot', '');
+      const bNotif = railBtn('railNotif', 'Notifications', I.bell);
+      const bSet   = railBtn('railSettings', 'Settings', I.gear);
+      foot.appendChild(bNotif); foot.appendChild(bSet);
+      rail.appendChild(foot);
+
+      function setActive(which) {
+        [[bOverview,'home'],[bDash,'analytics'],[bSet,'settings']].forEach(([b, v]) =>
+          b.classList.toggle('active', v === which));
+      }
+      const go = view => { switchTab(view); setActive(view); };
+      bOverview.onclick = () => go('home');
+      bDash.onclick     = () => go('analytics');
+      bSet.onclick      = () => go('settings');
+      setActive(document.querySelector('.nav-tab.active')?.dataset.view || 'home');
+      // The mobile bar can still change views underneath the rail.
+      document.querySelectorAll('.mob-tab').forEach(t =>
+        t.addEventListener('click', () => setActive(t.dataset.view)));
+
+      el('railToggle').onclick = () => {
+        document.body.classList.toggle('rail-collapsed');
+        localStorage.setItem('wh_rail', document.body.classList.contains('rail-collapsed') ? 'closed' : 'open');
+      };
+      if (localStorage.getItem('wh_rail') === 'closed') document.body.classList.add('rail-collapsed');
+
+      // ── Notifications popover ─────────────────────────
+      // Beside the rail rather than centred over the page.
+      const panel = el('notifPanel');
+      function place() {
+        if (innerWidth <= 640) { panel.style.left = panel.style.top = panel.style.bottom = ''; return; }
+        const r = rail.getBoundingClientRect(), b = bNotif.getBoundingClientRect();
+        panel.style.left = (r.right + 8) + 'px';
+        panel.style.transform = 'none';
+        panel.style.width = '340px';
+        if (b.bottom - panel.offsetHeight >= 8) { panel.style.top = 'auto'; panel.style.bottom = (innerHeight - b.bottom) + 'px'; }
+        else { panel.style.bottom = 'auto'; panel.style.top = '8px'; }
+      }
+      bNotif.onclick = () => { toggleNotifPanel(); requestAnimationFrame(place); };
+      addEventListener('resize', () => { if (panel.classList.contains('open')) place(); });
+
+      // ── Settings tabs ─────────────────────────────────
+      // Sections are moved, never rebuilt, so their inputs keep working.
+      const wrap = document.querySelector('#viewSettings .settings-panel');
+      if (!wrap) return;
+
+      const sectionByName = name => [...wrap.querySelectorAll('.settings-section')].find(s =>
+        s.querySelector('.settings-section-header')?.textContent.trim() === name);
+      const rowOf = node => { let n = node; while (n && !n.parentElement?.classList.contains('settings-group')) n = n.parentElement; return n; };
+      const rowByLabel = (section, text) => {
+        const label = [...(section?.querySelectorAll('.form-label') || [])].find(l => l.textContent.trim() === text);
+        return label ? rowOf(label) : null;
+      };
+
+      const TABS = [
+        ['General',       I.gear],
+        ['Advanced',      I.sliders],
+        ['Notifications', I.bell],
+        ['Security',      I.shield],
+        ['About',         I.info]
+      ];
+      const bar = document.createElement('div'); bar.className = 'set-tabs';
+      const panels = {};
+      TABS.forEach(([name, glyph], i) => {
+        const t = document.createElement('button');
+        t.className = 'set-tab' + (i === 0 ? ' active' : '');
+        t.innerHTML = icon(glyph).replace('width="16" height="16"', 'width="15" height="15"') + name;
+        t.onclick = () => {
+          bar.querySelectorAll('.set-tab').forEach(x => x.classList.toggle('active', x === t));
+          Object.entries(panels).forEach(([n, p]) => p.classList.toggle('active', n === name));
+        };
+        bar.appendChild(t);
+        const p = document.createElement('div');
+        p.className = 'set-panel' + (i === 0 ? ' active' : '');
+        panels[name] = p;
+      });
+
+      const header = wrap.querySelector('.settings-header');
+      header.after(bar);
+      Object.values(panels).forEach(p => wrap.appendChild(p));
+
+      const prefs = sectionByName('Preferences');
+      const account = sectionByName('Account');
+      const about = sectionByName('About Developer');
+
+      // General: profile, Basic, the three app-level rows, sync, then log out.
+      const profile = wrap.querySelector('.settings-card-merged');
+      if (profile) panels.General.appendChild(profile);
+      const basic = sectionByName('Basic');
+      if (basic) panels.General.appendChild(basic);
+
+      const moved = document.createElement('div');
+      moved.className = 'settings-section';
+      const movedGroup = document.createElement('div');
+      movedGroup.className = 'settings-group';
+      moved.appendChild(movedGroup);
+      ['App Theme', '24-hour Clock', 'Timezone'].forEach(name => {
+        const row = rowByLabel(prefs, name);
+        if (row) movedGroup.appendChild(row);
+      });
+      // Sync is the button in the Settings header, not a row, so it gets a row
+      // built around it and the original button moved inside.
+      const syncBtn = el('syncBtn');
+      if (syncBtn) {
+        const row = document.createElement('div');
+        row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:12px';
+        row.innerHTML = '<div><div class="form-label">Sync</div>' +
+          '<div class="form-sub">Push anything still waiting to the cloud.</div></div>';
+        row.appendChild(syncBtn);
+        movedGroup.appendChild(row);
+      }
+      const logoutRow = rowByLabel(account, 'Log Out');
+      if (logoutRow) { logoutRow.style.borderTop = '8px solid var(--background)'; movedGroup.appendChild(logoutRow); }
+      if (movedGroup.children.length) panels.General.appendChild(moved);
+
+      // Advanced keeps whatever is left of Preferences.
+      if (prefs) {
+        const h = prefs.querySelector('.settings-section-header');
+        if (h) h.textContent = 'Advanced';
+        panels.Advanced.appendChild(prefs);
+      }
+      const notifs = sectionByName('Notifications');
+      if (notifs) panels.Notifications.appendChild(notifs);
+      const signin = sectionByName('Sign-In Methods');
+      if (signin) panels.Security.appendChild(signin);
+      if (account) panels.Security.appendChild(account);
+      if (about) panels.About.appendChild(about);
+
+      // Dividers belonged to the single long scroll.
+      wrap.querySelectorAll(':scope > .settings-section-divider').forEach(d => d.remove());
+    })();
   </script>
 
 <!-- ── ONBOARDING MODAL ── -->

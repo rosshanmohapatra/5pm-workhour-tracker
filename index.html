@@ -480,41 +480,51 @@
 
     /* ── Notification panel — fixed overlay, never pushes content ── */
     /* ══ New shell (opt-in via ?shell=new) ══════════════════════════════════
-       Additive only: the header buttons and settings tabs are assembled at
-       runtime from nodes already on the page, so turning the flag off restores
-       the original layout exactly. */
-    body.shell-new .nav-tabs { display: none !important; }
+       Additive only: the controls and settings tabs are assembled at runtime
+       from nodes already on the page, so turning the flag off restores the
+       original layout exactly. */
+    body.shell-new .navbar { display: none !important; }
     body.shell-new #settingsLastSaved { display: none !important; }
 
+    /* Notifications and Settings, floating top right. Both are toggles. */
+    .hdr-cluster { position: fixed; top: 16px; right: 16px; z-index: 60; display: flex; gap: 6px; }
+    .hdr-cluster .btn-icon, .hdr-icon { width: 34px; height: 34px; }
     .hdr-icon { display: inline-flex; align-items: center; justify-content: center;
-      width: 34px; height: 34px; border: none; background: transparent;
-      border-radius: var(--radius-md); color: var(--muted-fg); cursor: pointer;
-      flex-shrink: 0; position: relative; transition: background .15s, color .15s, box-shadow .15s; }
+      border: none; background: transparent; border-radius: var(--radius-md);
+      color: var(--muted-fg); cursor: pointer; flex-shrink: 0; position: relative;
+      transition: background .15s, color .15s, box-shadow .15s; }
     .hdr-icon:hover { box-shadow: 0 0 0 1px var(--border); color: var(--foreground); }
     /* Same treatment the notifications button uses when it is on. */
     .hdr-icon.active { background: var(--card); color: var(--foreground); box-shadow: var(--shadow-xs); }
     .dark .hdr-icon.active { background: var(--muted); color: var(--foreground); box-shadow: none; }
-    .back-btn { display: inline-flex; align-items: center; justify-content: center;
-      width: 30px; height: 30px; margin-right: 8px; border: none; background: transparent;
-      border-radius: var(--radius); color: var(--muted-fg); cursor: pointer; flex-shrink: 0; }
-    .back-btn:hover { background: var(--muted); color: var(--foreground); }
 
-    /* Overview sets gap:0 for its own stack, so the cards moved in from the
+    /* Overview sets gap:0 for its own stack, so cards moved in from the
        dashboard carry their own spacing instead. */
     body.shell-new #viewHome .page > .merged-block { margin-top: 24px; }
 
-    body.shell-new .set-tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border);
-      margin-bottom: 16px; }
+    body.shell-new .set-tabs { position: relative; display: flex; gap: 4px;
+      border-bottom: 1px solid var(--border); margin-bottom: 16px; }
     body.shell-new .set-tab { flex: 1; display: inline-flex; align-items: center;
       justify-content: center; gap: 7px; padding: 0 8px 10px; border: none; background: transparent;
       cursor: pointer; font-family: var(--font); font-size: 13px; font-weight: 500;
-      color: var(--muted-fg); white-space: nowrap; border-bottom: 2px solid transparent;
-      margin-bottom: -1px; }
+      color: var(--muted-fg); white-space: nowrap; border-bottom: none;
+      transition: color .18s; }
     body.shell-new .set-tab:hover { color: var(--foreground); }
-    body.shell-new .set-tab.active { color: var(--foreground); font-weight: 600;
-      border-bottom-color: var(--foreground); }
+    body.shell-new .set-tab.active { color: var(--foreground); font-weight: 600; }
+    /* One underline that slides, rather than a border appearing under each tab. */
+    .set-tab-ind { position: absolute; bottom: -1px; height: 2px; background: var(--foreground);
+      border-radius: 2px; transition: left .24s cubic-bezier(.4,0,.2,1), width .24s cubic-bezier(.4,0,.2,1); }
+
     body.shell-new .set-panel { display: none; }
     body.shell-new .set-panel.active { display: flex; flex-direction: column; gap: 14px; }
+    body.shell-new .set-panel.slide-right { animation: set-slide-right .24s cubic-bezier(.4,0,.2,1); }
+    body.shell-new .set-panel.slide-left  { animation: set-slide-left  .24s cubic-bezier(.4,0,.2,1); }
+    @keyframes set-slide-right { from { opacity: 0; transform: translateX(16px); } to { opacity: 1; transform: none; } }
+    @keyframes set-slide-left  { from { opacity: 0; transform: translateX(-16px); } to { opacity: 1; transform: none; } }
+    @media (prefers-reduced-motion: reduce) {
+      body.shell-new .set-panel.slide-right, body.shell-new .set-panel.slide-left { animation: none; }
+      .set-tab-ind { transition: none; }
+    }
 
     /* Every tab content sits in a card, and nothing collapses any more. */
     body.shell-new .set-panel > .settings-section,
@@ -527,11 +537,16 @@
     body.shell-new .set-panel .settings-section-header { cursor: default; }
     body.shell-new .settings-section-divider { display: none !important; }
 
+    /* Account's buttons were full size next to the compact ones the sign-in
+       rows build, so the Security tab had two button scales. */
+    body.shell-new .set-panel[data-panel="Security"] .btn-secondary,
+    body.shell-new .set-panel[data-panel="Security"] .btn-ghost-destructive {
+      height: 30px; font-size: 12px; padding: 0 12px; }
+
     body.shell-new .notif-panel.open { min-height: 400px; }
 
     /* Overlay scrollbar on the viewport itself. Scoped to html, not body:
-       styling body only dresses a scrollbar the page does not use, leaving the
-       real one untouched and permanently visible. */
+       styling body only dresses a scrollbar the page does not use. */
     html.shell-new { scrollbar-width: thin; scrollbar-color: transparent transparent; }
     html.shell-new.scrolling { scrollbar-color: var(--muted-fg) transparent; }
     html.shell-new::-webkit-scrollbar { width: 10px; height: 10px; }
@@ -540,6 +555,9 @@
       border: 3px solid transparent; background-clip: content-box; transition: background .25s; }
     html.shell-new.scrolling::-webkit-scrollbar-thumb { background: var(--muted-fg);
       background-clip: content-box; }
+
+    /* Phones keep their own top bar and bottom nav. */
+    @media (max-width: 640px) { .hdr-cluster { display: none; } }
 
     .notif-panel { position: fixed; top: calc(24px + 52px + 8px); left: 50%; transform: translateX(-50%);
       width: calc(100% - 48px); max-width: 552px; z-index: 40; padding: 0 !important;
@@ -14277,27 +14295,41 @@ ${sig}`
         analytics.remove();
       }
 
-      // ── Header buttons ────────────────────────────────
-      const navInner = document.querySelector('.nav-inner');
-      const actions = document.querySelector('.nav-actions');
-      const mkIcon = (id, label, glyph) => {
-        const b = document.createElement('button');
-        b.className = 'hdr-icon'; b.id = id; b.title = label; b.setAttribute('aria-label', label);
-        b.innerHTML = svg(glyph);
-        return b;
-      };
-      const bHome = mkIcon('hdrHome', 'Home', I.home);
-      const bSet  = mkIcon('hdrSettings', 'Settings', I.gear);
-      if (navInner) navInner.insertBefore(bHome, navInner.firstChild);
-      if (actions) actions.appendChild(bSet);
+      // ── Floating controls ─────────────────────────────
+      // The navbar is gone; notifications and settings sit top right and both
+      // toggle. The real notification button is moved rather than rebuilt so it
+      // keeps its badge and handler.
+      const cluster = document.createElement('div');
+      cluster.className = 'hdr-cluster';
+      document.body.appendChild(cluster);
 
-      const syncHeader = () => {
-        bHome.classList.toggle('active', activeView === 'home');
-        bSet.classList.toggle('active', activeView === 'settings');
-      };
-      bHome.onclick = () => { switchTab('home'); syncHeader(); };
-      bSet.onclick  = () => { switchTab('settings'); syncHeader(); };
+      const realNotif = el('notifBtn');
+      if (realNotif) cluster.appendChild(realNotif);
+
+      const bSet = document.createElement('button');
+      bSet.className = 'hdr-icon'; bSet.id = 'hdrSettings';
+      bSet.title = 'Settings'; bSet.setAttribute('aria-label', 'Settings');
+      bSet.innerHTML = svg(I.gear);
+      cluster.appendChild(bSet);
+
+      const syncHeader = () => bSet.classList.toggle('active', activeView === 'settings');
+      // Toggling: pressing Settings again returns to the page you came from.
+      bSet.onclick = () => { switchTab(activeView === 'settings' ? 'home' : 'settings'); syncHeader(); };
       syncHeader();
+
+      // The notification panel hangs below its button instead of centre screen.
+      const panel = el('notifPanel');
+      function placePanel() {
+        if (!panel || !realNotif || innerWidth <= 640) return;
+        const b = realNotif.getBoundingClientRect();
+        panel.style.left = 'auto';
+        panel.style.transform = 'none';
+        panel.style.top = (b.bottom + 8) + 'px';
+        panel.style.right = Math.max(8, innerWidth - b.right) + 'px';
+        panel.style.width = '380px';
+      }
+      if (realNotif) realNotif.addEventListener('click', () => requestAnimationFrame(placePanel));
+      addEventListener('resize', () => { if (panel && panel.classList.contains('open')) placePanel(); });
 
       // ── Scrollbar that fades when idle ────────────────
       let idle;
@@ -14341,21 +14373,53 @@ ${sig}`
                     ['Security', I.shield], ['About', I.info]];
       const bar = document.createElement('div'); bar.className = 'set-tabs';
       const panels = {};
+      const tabBtns = [];
+      let current = 0;
+
+      const ind = document.createElement('div');
+      ind.className = 'set-tab-ind';
+
+      function moveIndicator() {
+        const t = tabBtns[current];
+        if (!t || !t.offsetWidth) return; // hidden panel has no geometry yet
+        ind.style.left = t.offsetLeft + 'px';
+        ind.style.width = t.offsetWidth + 'px';
+      }
+
+      function show(index) {
+        if (index === current) return;
+        const name = TABS[index][0];
+        const dir = index > current ? 'slide-right' : 'slide-left';
+        current = index;
+        tabBtns.forEach((b, i) => b.classList.toggle('active', i === index));
+        Object.keys(panels).forEach(n => {
+          const p = panels[n];
+          p.classList.remove('slide-right', 'slide-left');
+          const on = n === name;
+          p.classList.toggle('active', on);
+          if (on) { void p.offsetWidth; p.classList.add(dir); } // restart the animation
+        });
+        moveIndicator();
+      }
+
       TABS.forEach(([name, glyph], i) => {
         const t = document.createElement('button');
         t.className = 'set-tab' + (i === 0 ? ' active' : '');
         t.innerHTML = svg(glyph).replace('width="17" height="17"', 'width="15" height="15"') + name;
-        t.onclick = () => {
-          bar.querySelectorAll('.set-tab').forEach(x => x.classList.toggle('active', x === t));
-          Object.keys(panels).forEach(n => panels[n].classList.toggle('active', n === name));
-        };
+        t.onclick = () => show(i);
         bar.appendChild(t);
+        tabBtns.push(t);
         const p = document.createElement('div');
         p.className = 'set-panel' + (i === 0 ? ' active' : '');
+        p.dataset.panel = name;
         panels[name] = p;
       });
+      bar.appendChild(ind);
       header.after(bar);
       Object.keys(panels).forEach(n => wrap.appendChild(panels[n]));
+      // Settings starts hidden, so the indicator has to be placed on first sight.
+      addEventListener('resize', moveIndicator);
+      bSet.addEventListener('click', () => setTimeout(moveIndicator, 30));
 
       const prefs = sectionByName('Preferences');
       const account = sectionByName('Account');
@@ -14393,7 +14457,13 @@ ${sig}`
         logoutRow.style.marginTop = '4px';
         movedGroup.appendChild(logoutRow);
       }
-      if (movedGroup.children.length) panels.General.appendChild(moved);
+      // Profile stays its own card; the targets and the app rows become one.
+      const basicGroup = basic && basic.querySelector('.settings-group');
+      if (basicGroup && movedGroup.children.length) {
+        while (movedGroup.firstChild) basicGroup.appendChild(movedGroup.firstChild);
+      } else if (movedGroup.children.length) {
+        panels.General.appendChild(moved);
+      }
 
       if (prefs) {
         const h = prefs.querySelector('.settings-section-header');

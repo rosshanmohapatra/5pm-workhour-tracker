@@ -120,7 +120,7 @@
     });
   </script>
   <!-- Apply theme before first paint to avoid flash -->
-  <script>(function(){var s=localStorage.getItem('wh_theme');var p=window.matchMedia('(prefers-color-scheme:dark)').matches;if(s?s==='dark':p)document.documentElement.classList.add('dark');})()</script>
+  <script>(function(){var s=localStorage.getItem('wh_theme');var p=window.matchMedia('(prefers-color-scheme:dark)').matches;if(s==='dark'||((!s||s==='auto')&&p))document.documentElement.classList.add('dark');})()</script>
   <link rel="manifest" href="/manifest.json">
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
@@ -2976,6 +2976,16 @@
         <div class="settings-section">
           <div class="settings-section-header">Preferences</div>
           <div class="settings-group">
+
+            <!-- App Theme -->
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+              <div class="form-label">App Theme</div>
+              <div class="st-tabs" id="themeTabs">
+                <button type="button" class="st-tab" id="themeTabAuto"  onclick="setAppTheme('auto')">Auto</button>
+                <button type="button" class="st-tab" id="themeTabLight" onclick="setAppTheme('light')">Light</button>
+                <button type="button" class="st-tab" id="themeTabDark"  onclick="setAppTheme('dark')">Dark</button>
+              </div>
+            </div>
 
             <!-- 24-hour Clock -->
             <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;cursor:pointer" onclick="el('inp24h').click()">
@@ -11791,7 +11801,10 @@ ${sig}`
     // ── THEME ──────────────────────────────────────────
     const _faviconLight = 'favicon-light.svg';
     const _faviconDark  = 'favicon-dark.svg';
-    function applyTheme(d) {
+    // pref is what gets remembered: 'auto', 'light' or 'dark'. It is passed
+    // explicitly when following the system, so a system-driven switch to dark
+    // is not recorded as the user choosing dark.
+    function applyTheme(d, pref) {
       dark = d;
       document.documentElement.classList.toggle('dark', d);
       el('sunIconWrap').style.display  = d ? 'none'  : 'inline-flex';
@@ -11799,7 +11812,8 @@ ${sig}`
       const mobSun = el('mobSunIconWrap'), mobMoon = el('mobMoonIconWrap');
       if (mobSun) mobSun.style.display = d ? 'none' : 'inline-flex';
       if (mobMoon) mobMoon.style.display = d ? 'inline-flex' : 'none';
-      localStorage.setItem('wh_theme', d ? 'dark' : 'light');
+      localStorage.setItem('wh_theme', pref || (d ? 'dark' : 'light'));
+      _renderThemeTabs();
       const fav = document.getElementById('favicon');
       if (fav) fav.href = d ? _faviconDark : _faviconLight;
       const logoSrc = d ? 'brand-dark.svg' : 'brand-light.svg';
@@ -11922,8 +11936,31 @@ ${sig}`
       }
     }
 
-    const _savedTheme = localStorage.getItem('wh_theme');
-    applyTheme(_savedTheme ? _savedTheme === 'dark' : window.matchMedia('(prefers-color-scheme:dark)').matches);
+    const _systemDark = window.matchMedia('(prefers-color-scheme:dark)');
+
+    function themePref() {
+      const stored = localStorage.getItem('wh_theme');
+      return stored === 'light' || stored === 'dark' ? stored : 'auto';
+    }
+
+    function _renderThemeTabs() {
+      const pref = themePref();
+      ['auto', 'light', 'dark'].forEach(p => {
+        const tab = el('themeTab' + p[0].toUpperCase() + p.slice(1));
+        if (tab) tab.classList.toggle('active', p === pref);
+      });
+    }
+
+    function setAppTheme(pref) {
+      applyTheme(pref === 'auto' ? _systemDark.matches : pref === 'dark', pref);
+    }
+
+    // Auto keeps tracking the OS while the app is open, not only at load.
+    _systemDark.addEventListener('change', ev => {
+      if (themePref() === 'auto') applyTheme(ev.matches, 'auto');
+    });
+
+    setAppTheme(themePref());
     el('themeBtn').addEventListener('click', _toggleThemeAnimated);
     initServiceWorker(); // register service worker for Web Push
     scheduleMorningReminder();  // schedule next-day 9am nudge if not yet logged in

@@ -14193,15 +14193,24 @@ ${sig}`
       }, 1200);
 
       // ── Scroll lock when any modal is open (prevents body scroll behind overlays) ──
-      const _scrollLockObserver = new MutationObserver(() => {
-        const anyOpen = !!(
-          document.querySelector('.overlay.open') ||
-          document.querySelector('.wp-picker-overlay.open') ||
-          document.querySelector('.ob-overlay[style*="block"]')
-        );
+      // Locking scroll is the kind of thing that strands a page: once html and
+      // body are overflow:hidden, wheel and touch stop working while scrollTo()
+      // still does, so it reads as "scrolling is broken" with no visible cause.
+      // Only lock for something actually on screen, and re-check on a timer so a
+      // missed mutation cannot leave the page stuck.
+      const _reallyVisible = n => {
+        if (!n) return false;
+        const s = getComputedStyle(n);
+        return s.display !== 'none' && s.visibility !== 'hidden' && n.getBoundingClientRect().height > 0;
+      };
+      const _syncScrollLock = () => {
+        const candidates = document.querySelectorAll('.overlay.open, .wp-picker-overlay.open, .ob-overlay');
+        const anyOpen = [...candidates].some(_reallyVisible);
         document.body.style.overflow = anyOpen ? 'hidden' : '';
         document.documentElement.style.overflow = anyOpen ? 'hidden' : '';
-      });
+      };
+      const _scrollLockObserver = new MutationObserver(_syncScrollLock);
+      setInterval(_syncScrollLock, 1000);
       document.querySelectorAll('.overlay, .wp-picker-overlay').forEach(o =>
         _scrollLockObserver.observe(o, { attributes: true, attributeFilter: ['class', 'style'] })
       );

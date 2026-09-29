@@ -14304,13 +14304,15 @@ ${sig}`
     // Dashboard become one scrolling page. Settings gains tabs, built by moving
     // nodes that are already on the page, so ids and handlers survive.
     //
-    // Turn on with ?shell=new, off with ?shell=old. The choice is remembered,
-    // because signing in bounces through login.html and would drop the query.
+    // On by default. ?shell=old falls back to the previous layout and is
+    // remembered, because signing in bounces through login.html and would drop
+    // the query; ?shell=new returns. The desktop app has no address bar, so a
+    // default-on shell is the only way it ever sees this.
     (function newShell() {
       const param = new URLSearchParams(location.search).get('shell');
-      if (param === 'new') localStorage.setItem('wh_shell', 'new');
-      if (param === 'old') localStorage.removeItem('wh_shell');
-      if (localStorage.getItem('wh_shell') !== 'new') return;
+      if (param === 'old') localStorage.setItem('wh_shell_off', '1');
+      if (param === 'new') localStorage.removeItem('wh_shell_off');
+      if (localStorage.getItem('wh_shell_off') === '1') return;
 
       document.body.classList.add('shell-new');
       // The viewport scrollbar belongs to <html>, so the class goes there too.

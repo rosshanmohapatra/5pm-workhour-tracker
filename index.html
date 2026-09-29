@@ -561,8 +561,7 @@
     /* The height belongs to the card, not the wrapper, or an empty list leaves
        a 400px hole under a small card. */
     body.shell-new .notif-panel.open .notif-card { min-height: 400px; display: flex; flex-direction: column; }
-    body.shell-new .notif-panel.open .notif-list,
-    body.shell-new .notif-panel.open .notif-empty { flex: 1; }
+    body.shell-new .notif-panel.open #notifList { flex: 1; display: flex; flex-direction: column; justify-content: center; }
 
     /* Overlay scrollbar on the viewport itself. Scoped to html, not body:
        styling body only dresses a scrollbar the page does not use. */

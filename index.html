@@ -15028,6 +15028,37 @@ ${sig}`
     }).catch(err => console.warn('[boot] could not tell how 5pm was launched:', err));
   })();
 
+  // ── Tray tooltip ────────────────────────────────────
+  // A Windows tooltip is plain text, so this is one short line: what is left of
+  // the day, or how far past it you are. Refreshed each minute, which is the
+  // finest granularity the text shows anyway.
+  (function initTrayTooltip() {
+    const T = window.__TAURI__;
+    if (!T) return;
+
+    function line() {
+      if (typeof loginDate === 'undefined' || !loginDate) return '5pm';
+      const worked = _sessionAccSecs + Math.max(0, Math.floor((Date.now() - loginDate) / 1000));
+      const target = effSecs();
+      if (!target) return '5pm — ' + durWorked(worked) + ' worked';
+      const left = target - worked;
+      return left > 0
+        ? durWorked(left) + ' left'
+        : 'Overtime ' + durWorked(-left);
+    }
+
+    let last = null;
+    function push() {
+      const text = line();
+      if (text === last) return; // nothing changed, leave the tray alone
+      last = text;
+      T.core.invoke('set_tray_tooltip', { text }).catch(() => {});
+    }
+
+    setInterval(push, 60000);
+    push();
+  })();
+
   // ── Desktop settings ────────────────────────────────
   // Autostart is Windows state, not app config, so it is read from and written
   // to the OS rather than saved with the rest of Settings.

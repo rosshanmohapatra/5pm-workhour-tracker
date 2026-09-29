@@ -39,6 +39,18 @@ pub fn launched_at_boot() -> bool {
   launched_by_autostart()
 }
 
+// The page pushes what the tray should say, because only it knows the target,
+// the breaks and what has been worked so far.
+#[tauri::command]
+pub fn set_tray_tooltip(app: AppHandle, text: String) -> Result<(), String> {
+  let Some(tray) = app.tray_by_id("main") else {
+    return Ok(()); // no tray on this platform, nothing to say
+  };
+  tray
+    .set_tooltip(Some(if text.is_empty() { "5pm".into() } else { text }))
+    .map_err(|e| e.to_string())
+}
+
 #[tauri::command]
 pub fn autostart_enabled(app: AppHandle) -> Result<bool, String> {
   use tauri_plugin_autostart::ManagerExt;

@@ -50,6 +50,7 @@ pub fn run() {
       shell::autostart_enabled,
       shell::autostart_set,
       shell::launched_at_boot,
+      shell::set_tray_tooltip,
       open_external
     ])
     .on_window_event(|window, event| {

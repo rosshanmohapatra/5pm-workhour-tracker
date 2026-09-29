@@ -14962,7 +14962,18 @@ ${sig}`
       setTimeout(cleanup, 400); // iOS Safari transitionend fallback
     }
 
+    // Pull-to-refresh is a phone gesture, and its indicator is already gated to
+    // @media (max-width: 640px). The handlers were not, so on any desktop that
+    // reports touch — a touchscreen, or a touchpad whose driver sends touch
+    // events — a downward swipe near the top called preventDefault on the scroll
+    // and then reloaded the page. Scrolling looked broken and the position kept
+    // snapping to the top.
+    function ptrEnabled() {
+      return window.matchMedia('(max-width: 640px)').matches;
+    }
+
     document.addEventListener('touchstart', function (e) {
+      if (!ptrEnabled()) { atTop = false; startY = 0; return; }
       // Disable PTR when any modal/overlay is open — prevents scroll-lock inside modals
       if (document.querySelector('.overlay.open, .wp-picker-overlay.open')) {
         atTop = false; startY = 0; return;

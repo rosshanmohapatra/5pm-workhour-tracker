@@ -486,6 +486,104 @@
     .day-date { font-size: 18px; font-weight: 600; color: var(--foreground); }
 
     /* ── Notification panel — fixed overlay, never pushes content ── */
+    /* ══ New shell (opt-in via ?shell=new) ══════════════════════════════════
+       Additive only: the controls and settings tabs are assembled at runtime
+       from nodes already on the page, so turning the flag off restores the
+       original layout exactly. */
+    body.shell-new .navbar { display: none !important; }
+    body.shell-new #settingsLastSaved { display: none !important; }
+
+    /* Notifications and Settings sit in the day-context header, top right.
+       They ride with the page rather than floating over it. */
+    body.shell-new .sel-day-ctx { position: relative; }
+    .hdr-cluster { position: absolute; top: 0; right: 0; z-index: 20; display: flex; gap: 6px; }
+    .hdr-cluster .btn-icon, .hdr-icon { width: 34px; height: 34px; }
+    .hdr-icon { display: inline-flex; align-items: center; justify-content: center;
+      border: none; background: transparent; border-radius: var(--radius-md);
+      color: var(--muted-fg); cursor: pointer; flex-shrink: 0; position: relative;
+      transition: background .15s, color .15s, box-shadow .15s; }
+    .hdr-icon:hover { box-shadow: 0 0 0 1px var(--border); color: var(--foreground); }
+    /* Same treatment the notifications button uses when it is on. */
+    .hdr-icon.active { background: var(--card); color: var(--foreground); box-shadow: var(--shadow-xs); }
+    .dark .hdr-icon.active { background: var(--muted); color: var(--foreground); box-shadow: none; }
+
+    .back-btn { display: inline-flex; align-items: center; justify-content: center;
+      width: 30px; height: 30px; margin-right: 10px; border: 1px solid var(--border);
+      background: var(--card); border-radius: var(--radius-md); color: var(--muted-fg);
+      cursor: pointer; flex-shrink: 0; transition: background .15s, color .15s; }
+    .back-btn:hover { background: var(--muted); color: var(--foreground); }
+
+    /* The home page was built to fill exactly one viewport: #homeMain is a
+       flex:1 item with min-height:0, which lets it shrink below its own content,
+       and #homeBottomSpacer eats whatever is left over. Once the dashboard cards
+       moved in, the content overflowed that fixed-height box instead of growing
+       the document, so the page could not scroll to the bottom.
+       Sizing to content instead, with one 24px rhythm throughout. */
+    body.shell-new #viewHome .page { gap: 24px; }
+    body.shell-new #homeMain { flex: 0 0 auto; min-height: auto; gap: 24px; }
+    body.shell-new #homeBottomSpacer { display: none; }
+
+    body.shell-new .set-tabs { position: relative; display: flex; gap: 4px;
+      border-bottom: 1px solid var(--border); margin-bottom: 16px; }
+    body.shell-new .set-tab { flex: 1; display: inline-flex; align-items: center;
+      justify-content: center; gap: 7px; padding: 0 8px 10px; border: none; background: transparent;
+      cursor: pointer; font-family: var(--font); font-size: 13px; font-weight: 500;
+      color: var(--muted-fg); white-space: nowrap; border-bottom: none;
+      transition: color .18s; }
+    body.shell-new .set-tab:hover { color: var(--foreground); }
+    body.shell-new .set-tab.active { color: var(--foreground); font-weight: 600; }
+    /* One underline that slides, rather than a border appearing under each tab. */
+    .set-tab-ind { position: absolute; bottom: -1px; height: 2px; background: var(--foreground);
+      border-radius: 2px; transition: left .24s cubic-bezier(.4,0,.2,1), width .24s cubic-bezier(.4,0,.2,1); }
+
+    body.shell-new .set-panel { display: none; }
+    /* 24px, the same rhythm the home page cards use. */
+    body.shell-new .set-panel.active { display: flex; flex-direction: column; gap: 24px; }
+    body.shell-new .set-panel.slide-right { animation: set-slide-right .24s cubic-bezier(.4,0,.2,1); }
+    body.shell-new .set-panel.slide-left  { animation: set-slide-left  .24s cubic-bezier(.4,0,.2,1); }
+    @keyframes set-slide-right { from { opacity: 0; transform: translateX(16px); } to { opacity: 1; transform: none; } }
+    @keyframes set-slide-left  { from { opacity: 0; transform: translateX(-16px); } to { opacity: 1; transform: none; } }
+    @media (prefers-reduced-motion: reduce) {
+      body.shell-new .set-panel.slide-right, body.shell-new .set-panel.slide-left { animation: none; }
+      .set-tab-ind { transition: none; }
+    }
+
+    /* Every tab content sits in a card, and nothing collapses any more. */
+    body.shell-new .set-panel > .settings-section,
+    body.shell-new .set-panel > .settings-card-merged {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: var(--radius-lg); box-shadow: var(--shadow-xs); padding: 16px; }
+    body.shell-new .set-panel > .settings-card-merged { padding: 0; }
+    body.shell-new .set-panel .settings-section-body-inner { max-height: none !important; opacity: 1 !important; }
+    body.shell-new .set-panel .settings-chevron { display: none !important; }
+    body.shell-new .set-panel .settings-section-header { cursor: default; }
+    body.shell-new .settings-section-divider { display: none !important; }
+
+    /* Account's buttons were full size next to the compact ones the sign-in
+       rows build, so the Security tab had two button scales. */
+    body.shell-new .set-panel[data-panel="Security"] .btn-secondary,
+    body.shell-new .set-panel[data-panel="Security"] .btn-ghost-destructive {
+      height: 30px; font-size: 12px; padding: 0 12px; }
+
+    /* The height belongs to the card, not the wrapper, or an empty list leaves
+       a 400px hole under a small card. */
+    body.shell-new .notif-panel.open .notif-card { min-height: 400px; display: flex; flex-direction: column; }
+    body.shell-new .notif-panel.open #notifList { flex: 1; display: flex; flex-direction: column; justify-content: center; }
+
+    /* Overlay scrollbar on the viewport itself. Scoped to html, not body:
+       styling body only dresses a scrollbar the page does not use. */
+    html.shell-new { scrollbar-width: thin; scrollbar-color: transparent transparent; }
+    html.shell-new.scrolling { scrollbar-color: var(--muted-fg) transparent; }
+    html.shell-new::-webkit-scrollbar { width: 10px; height: 10px; }
+    html.shell-new::-webkit-scrollbar-track { background: transparent; }
+    html.shell-new::-webkit-scrollbar-thumb { background: transparent; border-radius: 999px;
+      border: 3px solid transparent; background-clip: content-box; transition: background .25s; }
+    html.shell-new.scrolling::-webkit-scrollbar-thumb { background: var(--muted-fg);
+      background-clip: content-box; }
+
+    /* Phones keep their own top bar and bottom nav. */
+    @media (max-width: 640px) { .hdr-cluster { display: none; } }
+
     .notif-panel { position: fixed; top: calc(24px + 52px + 8px); left: 50%; transform: translateX(-50%);
       width: calc(100% - 48px); max-width: 552px; z-index: 40; padding: 0 !important;
       overflow: hidden; transition: max-height .28s ease, opacity .2s; }
@@ -2427,6 +2525,7 @@
   <a href="/" class="page-brand" title="5pm">
     <img id="navLogo" src="brand-light.svg" alt="5pm" height="32" style="display:block;border-radius:7px;border:1px solid var(--border)">
   </a>
+
 
   <!-- ── App ── -->
   <div id="appWrap" style="max-width:600px;margin:0 auto;padding-top:24px;">
@@ -13090,7 +13189,9 @@ ${sig}`
         list.appendChild(_simBuildRow({
           icon: `<svg width="15" height="15" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>`,
           name: 'Google',
-          status: googleId ? 'Connected' : 'Not Connected',
+          // Which account, not just that there is one.
+          status: googleId ? (googleId.identity_data?.email || 'Connected') : 'Not Connected',
+          statusClass: googleId && googleId.identity_data?.email ? 'muted' : undefined,
           connected: !!googleId,
           action: googleId ? 'Disconnect' : 'Connect',
           onAction: googleId
@@ -13103,7 +13204,13 @@ ${sig}`
         list.appendChild(_simBuildRow({
           icon: `<svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/></svg>`,
           name: 'GitHub',
-          status: githubId ? 'Connected' : 'Not Connected',
+          status: githubId
+            ? (() => {
+                const handle = githubId.identity_data?.user_name || githubId.identity_data?.preferred_username;
+                return handle ? '@' + handle : 'Connected';
+              })()
+            : 'Not Connected',
+          statusClass: githubId ? 'muted' : undefined,
           connected: !!githubId,
           action: githubId ? 'Disconnect' : 'Connect',
           onAction: githubId
@@ -14011,6 +14118,10 @@ ${sig}`
       // Block user wheel scroll on the day-selector on desktop (crosshair navigates via JS only)
       const _dsRow = el('daySelectorRow');
       if (_dsRow) _dsRow.addEventListener('wheel', e => {
+        // Only swallow sideways gestures, which would scroll the row itself.
+        // Blocking every wheel also ate vertical scrolling whenever the pointer
+        // happened to be over this row, which is most of the time.
+        if (Math.abs(e.deltaX) <= Math.abs(e.deltaY)) return;
         if (window.matchMedia('(hover:hover) and (min-width:641px)').matches) e.preventDefault();
       }, { passive: false });
       setInterval(tickHeader, 1000);
@@ -14234,6 +14345,249 @@ ${sig}`
     window.addEventListener('resize', function() {
       if (el('obOverlay') && el('obOverlay').style.display !== 'none') _sizeObIntroLogo();
     });
+
+    // ══ NEW SHELL (opt-in) ══════════════════════════════════════════════════
+    // Home, Notifications and Settings live in the floating header. Overview and
+    // Dashboard become one scrolling page. Settings gains tabs, built by moving
+    // nodes that are already on the page, so ids and handlers survive.
+    //
+    // Turn on with ?shell=new, off with ?shell=old. The choice is remembered,
+    // because signing in bounces through login.html and would drop the query.
+    (function newShell() {
+      const param = new URLSearchParams(location.search).get('shell');
+      if (param === 'new') localStorage.setItem('wh_shell', 'new');
+      if (param === 'old') localStorage.removeItem('wh_shell');
+      if (localStorage.getItem('wh_shell') !== 'new') return;
+
+      document.body.classList.add('shell-new');
+      // The viewport scrollbar belongs to <html>, so the class goes there too.
+      document.documentElement.classList.add('shell-new');
+
+      const svg = d => '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' + d + '</svg>';
+      const I = {
+        home:  '<path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/>',
+        gear:  '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6h.09A1.65 1.65 0 0 0 10.6 3V3a2 2 0 0 1 4 0v.09A1.65 1.65 0 0 0 15 4.6a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9v.09a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>',
+        back:  '<path d="M15 18l-6-6 6-6"/>',
+        sliders: '<line x1="21" y1="4" x2="14" y2="4"/><line x1="10" y1="4" x2="3" y2="4"/><line x1="21" y1="12" x2="12" y2="12"/><line x1="8" y1="12" x2="3" y2="12"/><line x1="21" y1="20" x2="16" y2="20"/><line x1="12" y1="20" x2="3" y2="20"/><line x1="14" y1="2" x2="14" y2="6"/><line x1="8" y1="10" x2="8" y2="14"/><line x1="16" y1="18" x2="16" y2="22"/>',
+        bell:  '<path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>',
+        shield:'<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>',
+        info:  '<circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>'
+      };
+
+      // ── One scrolling page ────────────────────────────
+      // Dashboard's content moves under Overview's, so there is nothing left to
+      // navigate between.
+      const home = el('viewHome'), analytics = el('viewAnalytics');
+      if (home && analytics) {
+        const target = home.querySelector('.page') || home;
+        const source = analytics.querySelector('.page') || analytics;
+        while (source.firstChild) {
+          const node = source.firstChild;
+          // Overview's stack sets gap:0, so each moved card brings its own.
+          if (node.nodeType === 1) node.classList.add('merged-block');
+          target.appendChild(node);
+        }
+        analytics.remove();
+      }
+
+      // ── Floating controls ─────────────────────────────
+      // The navbar is gone; notifications and settings sit top right and both
+      // toggle. The real notification button is moved rather than rebuilt so it
+      // keeps its badge and handler.
+      const cluster = document.createElement('div');
+      cluster.className = 'hdr-cluster';
+      // Lives in the day-context header, so it scrolls with the page.
+      (document.querySelector('.sel-day-ctx') || document.body).appendChild(cluster);
+
+      const realNotif = el('notifBtn');
+      if (realNotif) cluster.appendChild(realNotif);
+
+      const bSet = document.createElement('button');
+      bSet.className = 'hdr-icon'; bSet.id = 'hdrSettings';
+      bSet.title = 'Settings'; bSet.setAttribute('aria-label', 'Settings');
+      bSet.innerHTML = svg(I.gear);
+      cluster.appendChild(bSet);
+
+      const syncHeader = () => bSet.classList.toggle('active', activeView === 'settings');
+      // Toggling: pressing Settings again returns to the page you came from.
+      bSet.onclick = () => { switchTab(activeView === 'settings' ? 'home' : 'settings'); syncHeader(); };
+      syncHeader();
+
+      // The notification panel hangs below its button instead of centre screen.
+      const panel = el('notifPanel');
+      function placePanel() {
+        if (!panel || !realNotif || innerWidth <= 640) return;
+        const b = realNotif.getBoundingClientRect();
+        panel.style.left = 'auto';
+        panel.style.transform = 'none';
+        panel.style.top = (b.bottom + 8) + 'px';
+        panel.style.right = Math.max(8, innerWidth - b.right) + 'px';
+        panel.style.width = '380px';
+      }
+      if (realNotif) realNotif.addEventListener('click', () => requestAnimationFrame(placePanel));
+      addEventListener('resize', () => { if (panel && panel.classList.contains('open')) placePanel(); });
+
+      // ── Scrollbar that fades when idle ────────────────
+      let idle;
+      addEventListener('scroll', () => {
+        document.documentElement.classList.add('scrolling');
+        clearTimeout(idle);
+        idle = setTimeout(() => document.documentElement.classList.remove('scrolling'), 900);
+      }, { passive: true });
+
+      // ── Settings ──────────────────────────────────────
+      const wrap = document.querySelector('#viewSettings .settings-panel');
+      if (!wrap) return;
+
+      // Back button, to the left of the Settings title.
+      const header = wrap.querySelector('.settings-header');
+      const title = header && header.querySelector('.settings-title');
+      if (title) {
+        const back = document.createElement('button');
+        back.className = 'back-btn'; back.title = 'Back'; back.setAttribute('aria-label', 'Back');
+        back.innerHTML = svg(I.back);
+        back.onclick = () => { switchTab('home'); syncHeader(); };
+        title.parentElement.insertBefore(back, title);
+      }
+
+      const sectionByName = name => [...wrap.querySelectorAll('.settings-section')].find(s => {
+        const h = s.querySelector('.settings-section-header');
+        return h && h.textContent.trim() === name;
+      });
+      const rowOf = node => {
+        let n = node;
+        while (n && n.parentElement && !n.parentElement.classList.contains('settings-group')) n = n.parentElement;
+        return n;
+      };
+      const rowByLabel = (section, text) => {
+        const labels = section ? [...section.querySelectorAll('.form-label')] : [];
+        const label = labels.find(l => l.textContent.trim() === text);
+        return label ? rowOf(label) : null;
+      };
+
+      const TABS = [['General', I.gear], ['Advanced', I.sliders], ['Notifications', I.bell],
+                    ['Security', I.shield], ['About', I.info]];
+      const bar = document.createElement('div'); bar.className = 'set-tabs';
+      const panels = {};
+      const tabBtns = [];
+      let current = 0;
+
+      const ind = document.createElement('div');
+      ind.className = 'set-tab-ind';
+
+      function moveIndicator() {
+        const t = tabBtns[current];
+        if (!t || !t.offsetWidth) return; // hidden panel has no geometry yet
+        ind.style.left = t.offsetLeft + 'px';
+        ind.style.width = t.offsetWidth + 'px';
+      }
+
+      function show(index) {
+        if (index === current) return;
+        const name = TABS[index][0];
+        const dir = index > current ? 'slide-right' : 'slide-left';
+        current = index;
+        tabBtns.forEach((b, i) => b.classList.toggle('active', i === index));
+        Object.keys(panels).forEach(n => {
+          const p = panels[n];
+          p.classList.remove('slide-right', 'slide-left');
+          const on = n === name;
+          p.classList.toggle('active', on);
+          if (on) { void p.offsetWidth; p.classList.add(dir); } // restart the animation
+        });
+        moveIndicator();
+      }
+
+      TABS.forEach(([name, glyph], i) => {
+        const t = document.createElement('button');
+        t.className = 'set-tab' + (i === 0 ? ' active' : '');
+        t.innerHTML = svg(glyph).replace('width="17" height="17"', 'width="15" height="15"') + name;
+        t.onclick = () => show(i);
+        bar.appendChild(t);
+        tabBtns.push(t);
+        const p = document.createElement('div');
+        p.className = 'set-panel' + (i === 0 ? ' active' : '');
+        p.dataset.panel = name;
+        panels[name] = p;
+      });
+      bar.appendChild(ind);
+      header.after(bar);
+      Object.keys(panels).forEach(n => wrap.appendChild(panels[n]));
+      // Settings starts hidden, so the indicator has to be placed on first sight.
+      addEventListener('resize', moveIndicator);
+      bSet.addEventListener('click', () => setTimeout(moveIndicator, 30));
+
+      const prefs = sectionByName('Preferences');
+      const account = sectionByName('Account');
+      const about = sectionByName('About Developer');
+
+      const profile = wrap.querySelector('.settings-card-merged');
+      if (profile) panels.General.appendChild(profile);
+      const basic = sectionByName('Basic');
+      if (basic) panels.General.appendChild(basic);
+
+      const moved = document.createElement('div');
+      moved.className = 'settings-section';
+      const movedGroup = document.createElement('div');
+      movedGroup.className = 'settings-group';
+      moved.appendChild(movedGroup);
+      ['App Theme', '24-hour Clock', 'Timezone'].forEach(name => {
+        const row = rowByLabel(prefs, name);
+        if (row) movedGroup.appendChild(row);
+      });
+      // Sync is the button in the Settings header, not a row, so it gets a row
+      // built around it and the original button moved inside.
+      const syncBtn = el('syncBtn');
+      if (syncBtn) {
+        const row = document.createElement('div');
+        row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:12px';
+        row.innerHTML = '<div><div class="form-label">Sync</div>' +
+          '<div class="form-sub">Push anything still waiting to the cloud.</div></div>';
+        row.appendChild(syncBtn);
+        movedGroup.appendChild(row);
+      }
+      const logoutRow = rowByLabel(account, 'Log Out');
+      if (logoutRow) {
+        logoutRow.style.borderTop = '1px solid var(--border)';
+        logoutRow.style.paddingTop = '14px';
+        logoutRow.style.marginTop = '4px';
+        movedGroup.appendChild(logoutRow);
+      }
+      // Profile stays its own card; the targets and the app rows become one.
+      const basicGroup = basic && basic.querySelector('.settings-group');
+      if (basicGroup && movedGroup.children.length) {
+        while (movedGroup.firstChild) basicGroup.appendChild(movedGroup.firstChild);
+      } else if (movedGroup.children.length) {
+        panels.General.appendChild(moved);
+      }
+
+      if (prefs) {
+        const h = prefs.querySelector('.settings-section-header');
+        if (h) h.textContent = 'Advanced';
+        panels.Advanced.appendChild(prefs);
+      }
+      const notifs = sectionByName('Notifications');
+      if (notifs) panels.Notifications.appendChild(notifs);
+      const signin = sectionByName('Sign-In Methods');
+      if (signin) panels.Security.appendChild(signin);
+      if (account) panels.Security.appendChild(account);
+      if (about) panels.About.appendChild(about);
+
+      // Dividers and collapsing belonged to the single long scroll.
+      wrap.querySelectorAll('.settings-section-divider').forEach(d => d.remove());
+      wrap.querySelectorAll('.settings-section.collapsed, .settings-card.collapsed')
+        .forEach(s => s.classList.remove('collapsed'));
+
+      // Anything still sitting directly under the panel would render between the
+      // tabs and the tab content: wrappers left hollow once their sections moved
+      // out, and loose cards like the developer one.
+      [...wrap.children].forEach(node => {
+        if (node === header || node === bar || node.classList.contains('set-panel')) return;
+        if (!node.querySelector('*') && !node.textContent.trim()) { node.remove(); return; }
+        panels.About.appendChild(node);
+      });
+    })();
+
   </script>
 
 <!-- ── ONBOARDING MODAL ── -->

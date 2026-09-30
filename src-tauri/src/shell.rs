@@ -30,8 +30,34 @@ pub fn notify(app: AppHandle, title: String, body: String) -> Result<(), String>
 // opening the app.
 pub const AUTOSTART_FLAG: &str = "--autostart";
 
+static BOOT_LAUNCH: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+
 pub fn launched_by_autostart() -> bool {
-  std::env::args().any(|arg| arg == AUTOSTART_FLAG)
+  *BOOT_LAUNCH.get().unwrap_or(&std::env::args().any(|arg| arg == AUTOSTART_FLAG))
+}
+
+// The updater relaunches 5pm with the arguments it was running with, so an app
+// that booted into the tray would come back hidden after a Settings update.
+// updater_install leaves this marker; the relaunch that finds it is treated as
+// someone opening the app.
+const UPDATE_MARKER: &str = "update-relaunch";
+
+pub fn mark_update_relaunch(app: &AppHandle) {
+  if let Ok(dir) = app.path().app_config_dir() {
+    let _ = std::fs::create_dir_all(&dir);
+    let _ = std::fs::write(dir.join(UPDATE_MARKER), "1");
+  }
+}
+
+// Call once in setup, before anything reads launched_by_autostart().
+pub fn resolve_launch_kind(app: &AppHandle) {
+  let updated = app
+    .path()
+    .app_config_dir()
+    .map(|dir| std::fs::remove_file(dir.join(UPDATE_MARKER)).is_ok())
+    .unwrap_or(false);
+  let boot = !updated && std::env::args().any(|arg| arg == AUTOSTART_FLAG);
+  let _ = BOOT_LAUNCH.set(boot);
 }
 
 #[tauri::command]

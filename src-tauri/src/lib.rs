@@ -60,6 +60,7 @@ pub fn run() {
       }
     })
     .setup(|app| {
+      shell::resolve_launch_kind(app.handle());
       shell::build_tray(app.handle())?;
       shell::enable_autostart_on_first_run(app.handle());
 

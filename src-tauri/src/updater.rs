@@ -132,6 +132,7 @@ pub fn updater_install(app: AppHandle, state: State<'_, UpdateState>) -> Result<
     .take()
     .ok_or("update not downloaded")?;
 
+  crate::shell::mark_update_relaunch(&app);
   update.install(bytes).map_err(|e| e.to_string())?;
   app.restart();
 }

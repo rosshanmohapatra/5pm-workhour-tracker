@@ -44,6 +44,11 @@
     "active": true,
     "targets": ["nsis"],
     "createUpdaterArtifacts": true,
+    "windows": {
+      "nsis": {
+        "template": "installer/installer.nsi"
+      }
+    },
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",

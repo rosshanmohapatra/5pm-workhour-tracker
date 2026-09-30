@@ -8,7 +8,7 @@
   },
   "scripts": {
     "vapid": "node -e \"const wp=require('web-push');const k=wp.generateVAPIDKeys();console.log('VAPID_PUBLIC_KEY='+k.publicKey);console.log('VAPID_PRIVATE_KEY='+k.privateKey);\"",
-    "tauri": "npx --yes @tauri-apps/cli@latest"
+    "tauri": "npx --yes @tauri-apps/cli@2.12.0"
   },
   "dependencies": {
     "@vercel/kv": "^2.0.0",

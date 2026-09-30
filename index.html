@@ -5808,7 +5808,11 @@
       const _jtBtn = el('wpJumpTodayBtn');
       if (_jtBtn) _jtBtn.disabled = _wpContext === 'devDate'
         ? !_devDateOverride
-        : (!selectedDayKey || selectedDayKey === todayKey() || selectedDayKey === '__wknd__');
+        : _wpContext === 'analytics'
+          // The week card is browsing by week, so "Today" is only pointless on the current week
+          // (it used to read the day selector's selection and stay disabled in past weeks).
+          ? analyticsWeekOffset === 0
+          : (!selectedDayKey || selectedDayKey === '__wknd__' || (selectedDayKey === todayKey() && daySelectorWeekOffset === 0));
       const grid = el('wpPickerGrid');
       if (!grid) return;
       grid.innerHTML = '';

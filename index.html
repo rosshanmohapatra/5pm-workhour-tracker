@@ -14478,7 +14478,12 @@ ${sig}`
       const account = sectionByName('Account');
       const about = sectionByName('About Developer');
 
-      const profile = wrap.querySelector('.settings-card-merged');
+      // Update card (desktop only, hidden on web) first, then Profile. Both are
+      // .settings-card-merged, so picking "the first one" left Profile to fall
+      // through to About.
+      const updateCard = el('updateCard');
+      if (updateCard) panels.General.appendChild(updateCard);
+      const profile = el('profileCard')?.closest('.settings-card-merged');
       if (profile) panels.General.appendChild(profile);
       const basic = sectionByName('Basic');
       if (basic) panels.General.appendChild(basic);

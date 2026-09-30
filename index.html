@@ -5732,6 +5732,10 @@
 
     function openWeekPicker(triggerEl) {
       if (triggerEl?.classList.contains('picker-open')) { closeWeekPicker(); return; }
+      // Opening from another picker's trigger never passes through closeWeekPicker, so
+      // the previous context (e.g. 'analytics') leaked in and drove this calendar.
+      el('wkNavLabelBtn')?.classList.remove('picker-open');
+      _wpContext = null;
       triggerEl?.classList.add('picker-open');
       // Open at the month of the currently selected day
       const refDate = selectedDayKey && selectedDayKey !== '__wknd__'
@@ -5776,6 +5780,7 @@
 
     function openAnalyticsWeekPicker(triggerEl) {
       if (triggerEl?.classList.contains('picker-open')) { closeWeekPicker(); return; }
+      el('thisWeekLabel')?.classList.remove('picker-open');
       triggerEl?.classList.add('picker-open');
       _wpContext = 'analytics';
       const refKey = week(analyticsWeekOffset)[0]?.key;

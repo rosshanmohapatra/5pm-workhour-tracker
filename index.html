@@ -8673,8 +8673,10 @@
           pill.className = 'wk-pill';
           if (diff > 120) {
             const surpH = Math.floor(diff / 3600), surpM = Math.floor((diff % 3600) / 60);
-            const surpStr = surpH > 0 ? `+${surpH}h${surpM > 0 ? ' ' + surpM + 'm' : ''}` : `+${Math.floor(diff/60)}m`;
-            pill.innerHTML = `${durWorked(wSecs)} <span style="color:var(--success);font-weight:600">${surpStr}</span>`;
+            const surpStr = surpH > 0 ? `${surpH}h${surpM > 0 ? ' ' + surpM + 'm' : ''}` : `${Math.floor(diff/60)}m`;
+            // "9h 20m +5m" reads as 9h 25m. Say "over" and name the target so the number is a comparison, not an addition.
+            pill.title = `Target ${durWorked(c.dailyH * 3600)}`;
+            pill.innerHTML = `${durWorked(wSecs)} <span style="color:var(--success);font-weight:600">· ${surpStr} over</span>`;
             totalSurplusSecs += diff;
           } else { pill.textContent = durWorked(wSecs); }
           totalSecs += wSecs;

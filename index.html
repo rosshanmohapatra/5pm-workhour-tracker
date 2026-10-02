@@ -14302,6 +14302,11 @@ ${sig}`
     document.addEventListener('click', function(e) {
       if (!e.target.closest('.info-icon-btn')) _hideModalTip();
     });
+    // Tooltips are position:fixed, so a scroll would leave one floating over
+    // content it no longer describes. Capture catches modal and panel scrollers too.
+    document.addEventListener('scroll', function() {
+      document.querySelectorAll('.info-tooltip.visible').forEach(function(t) { t.classList.remove('visible'); });
+    }, { capture: true, passive: true });
 
     // Onboarding intro — keep the logo a perfect square equal to the title + description block height.
     // The logo is square (width follows height via aspect-ratio), so its height feeds back into the

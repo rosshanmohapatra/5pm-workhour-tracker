@@ -572,10 +572,13 @@
     body.shell-new .set-panel[data-panel="Security"] .btn-ghost-destructive {
       height: 30px; font-size: 12px; padding: 0 12px; }
 
-    /* The height belongs to the card, not the wrapper, or an empty list leaves
-       a 400px hole under a small card. */
-    body.shell-new .notif-panel.open .notif-card { min-height: 400px; display: flex; flex-direction: column; }
-    body.shell-new .notif-panel.open #notifList { flex: 1; display: flex; flex-direction: column; justify-content: center; }
+    /* The card hugs its notifications, top first, and scrolls past a cap:
+       350px on desktop, half the screen on phones. */
+    body.shell-new .notif-panel.open .notif-card { display: flex; flex-direction: column; max-height: 350px; }
+    body.shell-new .notif-panel.open #notifList { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+    @media (max-width: 640px) {
+      body.shell-new .notif-panel.open .notif-card { max-height: 50vh; max-height: 50dvh; }
+    }
 
     /* Overlay scrollbar on the viewport itself. Scoped to html, not body:
        styling body only dresses a scrollbar the page does not use. */
@@ -14501,12 +14504,14 @@ ${sig}`
       // Phones: swipe sideways on Settings to move between tabs. Fields keep
       // their own gestures (text selection, sliders).
       let swX = 0, swY = 0, swOn = false;
-      wrap.addEventListener('touchstart', e => {
-        swOn = e.touches.length === 1 && matchMedia('(max-width: 640px)').matches &&
-          !e.target.closest('input, textarea, select, [contenteditable]');
+      // On the document, so the page background counts too, not just the cards.
+      document.addEventListener('touchstart', e => {
+        swOn = activeView === 'settings' && e.touches.length === 1 &&
+          matchMedia('(max-width: 640px)').matches &&
+          !e.target.closest('input, textarea, select, [contenteditable], nav, .overlay, .notif-panel, .wp-picker-overlay');
         if (swOn) { swX = e.touches[0].clientX; swY = e.touches[0].clientY; }
       }, { passive: true });
-      wrap.addEventListener('touchend', e => {
+      document.addEventListener('touchend', e => {
         if (!swOn) return;
         swOn = false;
         const t = e.changedTouches[0], dx = t.clientX - swX, dy = t.clientY - swY;
@@ -14556,7 +14561,11 @@ ${sig}`
       // Profile stays its own card; the targets and the app rows become one.
       const basicGroup = basic && basic.querySelector('.settings-group');
       if (basicGroup && movedGroup.children.length) {
+        // App Theme leads the card; the other app rows follow the targets.
+        const themeRow = rowByLabel(moved, 'App Theme');
+        if (themeRow) basicGroup.prepend(themeRow);
         while (movedGroup.firstChild) basicGroup.appendChild(movedGroup.firstChild);
+        basic.querySelector('.settings-section-header')?.remove();
       } else if (movedGroup.children.length) {
         panels.General.appendChild(moved);
       }

@@ -113,8 +113,16 @@ pub fn enable_autostart_on_first_run(app: &AppHandle) {
   let _ = app.autolaunch().enable();
 }
 
+static SHOWN_ONCE: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
 pub fn show_main(app: &AppHandle) {
   if let Some(window) = app.get_webview_window("main") {
+    // Open full screen like a browser the first time the window appears in a
+    // run (launch, or first Open from the tray after a boot). Later shows keep
+    // whatever size the user left it at.
+    if !SHOWN_ONCE.swap(true, std::sync::atomic::Ordering::Relaxed) {
+      let _ = window.maximize();
+    }
     let _ = window.show();
     let _ = window.unminimize();
     let _ = window.set_focus();

@@ -526,12 +526,18 @@
 
     body.shell-new .set-tabs { position: relative; display: flex; gap: 4px;
       border-bottom: 1px solid var(--border); margin-bottom: 16px; }
-    body.shell-new .set-tab { flex: 1; display: inline-flex; align-items: center;
+    body.shell-new .set-tab { flex: 1 1 auto; min-width: 0; display: inline-flex; align-items: center;
       justify-content: center; gap: 7px; padding: 0 8px 10px; border: none; background: transparent;
       cursor: pointer; font-family: var(--font); font-size: 13px; font-weight: 500;
       color: var(--muted-fg); white-space: nowrap; border-bottom: none;
       transition: color .18s; }
     body.shell-new .set-tab:hover { color: var(--foreground); }
+    /* Phones: five labels only fit without their icons. */
+    @media (max-width: 640px) {
+      body.shell-new .set-tabs { gap: 0; }
+      body.shell-new .set-tab { padding: 0 4px 10px; font-size: 12px; }
+      body.shell-new .set-tab svg { display: none; }
+    }
     body.shell-new .set-tab.active { color: var(--foreground); font-weight: 600; }
     /* One underline that slides, rather than a border appearing under each tab. */
     .set-tab-ind { position: absolute; bottom: -1px; height: 2px; background: var(--foreground);
@@ -595,6 +601,10 @@
       backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
       opacity: 0; pointer-events: none; transition: opacity .2s ease; }
     .notif-scrim.open { opacity: 1; pointer-events: auto; }
+    /* Desktop keeps the page sharp behind the popover; the blur is a phone treatment. */
+    @media (min-width: 641px) {
+      .notif-scrim { backdrop-filter: none; -webkit-backdrop-filter: none; }
+    }
     /* A notification that leads somewhere is tappable as a whole card, rather
        than hiding the action behind a small button. */
     .notif-tappable { cursor: pointer; transition: background .12s; }
@@ -5202,7 +5212,7 @@
         const _fKey = 'wh_report_nudge_' + currentWeekId();
         if (!localStorage.getItem(_fKey)) {
           localStorage.setItem(_fKey, '1');
-          setTimeout(() => showToast('Check your weekly report', 'info', '', { label: 'Check', onClick: () => switchTab('analytics') }), 2500);
+          setTimeout(() => showToast('Check your weekly report', 'info', '', { label: 'Check', onClick: () => openWeekReport() }), 2500);
         }
       }
       // Reset state — clearLogin() is called inside closeCheckoutModal (rec-on),
@@ -7600,7 +7610,7 @@
       const _nudgeKey = 'wh_report_nudge_' + currentWeekId();
       if (!localStorage.getItem(_nudgeKey)) {
         localStorage.setItem(_nudgeKey, '1');
-        setTimeout(() => showToast('Check your weekly report', 'info', '', { label: 'Check', onClick: () => switchTab('analytics') }), 800);
+        setTimeout(() => showToast('Check your weekly report', 'info', '', { label: 'Check', onClick: () => openWeekReport() }), 800);
       }
       const hd = el('rcHeadDate'); if (hd) { hd.textContent = ''; hd.classList.remove('visible'); }
       // Show card, hide session-only elements
@@ -9752,6 +9762,10 @@
     }
     const VIEW_ORDER = ['home', 'analytics', 'settings'];
     function switchTab(name) {
+      // The new shell folds Dashboard into Home and removes its view, so anything
+      // still asking for 'analytics' (toasts, notification CTAs, a saved tab)
+      // used to land on a page with no view at all: a blank screen.
+      if (name === 'analytics' && !el('viewAnalytics')) { switchTab('home'); renderAnalytics(); return; }
       const oldIdx = VIEW_ORDER.indexOf(activeView);
       const newIdx = VIEW_ORDER.indexOf(name);
       activeView = name;
@@ -12256,8 +12270,9 @@ ${sig}`
       if (!devCard) return;
       devCard.addEventListener('click', (e) => {
         // Must be inside the collapsible body (created dynamically by initCollapsibleSettings)
-        const inner = devCard.querySelector('.settings-section-body-inner');
-        if (!inner || !inner.contains(e.target)) return;
+        // The new shell has no collapsible body (or header toggle), so the whole card counts there.
+        const inner = devCard.querySelector('.settings-section-body-inner') || devCard;
+        if (!inner.contains(e.target)) return;
         // Buttons and links have their own actions — don't count those either
         if (e.target.closest('button, a')) return;
         _devTaps++;
@@ -14353,6 +14368,11 @@ ${sig}`
           target.appendChild(node);
         }
         analytics.remove();
+        // Its tabs too: on phones the bottom bar still offered an empty Dashboard.
+        el('mobTabAnalytics')?.remove();
+        el('tabAnalytics')?.remove();
+        // init() runs first and may have restored a saved 'analytics' tab.
+        if (activeView === 'analytics') switchTab('analytics');
       }
 
       // ── Floating controls ─────────────────────────────
@@ -14477,6 +14497,23 @@ ${sig}`
       });
       bar.appendChild(ind);
       header.after(bar);
+
+      // Phones: swipe sideways on Settings to move between tabs. Fields keep
+      // their own gestures (text selection, sliders).
+      let swX = 0, swY = 0, swOn = false;
+      wrap.addEventListener('touchstart', e => {
+        swOn = e.touches.length === 1 && matchMedia('(max-width: 640px)').matches &&
+          !e.target.closest('input, textarea, select, [contenteditable]');
+        if (swOn) { swX = e.touches[0].clientX; swY = e.touches[0].clientY; }
+      }, { passive: true });
+      wrap.addEventListener('touchend', e => {
+        if (!swOn) return;
+        swOn = false;
+        const t = e.changedTouches[0], dx = t.clientX - swX, dy = t.clientY - swY;
+        if (Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy) * 1.5) return; // mostly vertical: a scroll
+        const next = current + (dx < 0 ? 1 : -1);
+        if (next >= 0 && next < TABS.length) show(next);
+      }, { passive: true });
       Object.keys(panels).forEach(n => wrap.appendChild(panels[n]));
       // Settings starts hidden, so the indicator has to be placed on first sight.
       addEventListener('resize', moveIndicator);
@@ -14505,17 +14542,10 @@ ${sig}`
         const row = rowByLabel(prefs, name);
         if (row) movedGroup.appendChild(row);
       });
-      // Sync is the button in the Settings header, not a row, so it gets a row
-      // built around it and the original button moved inside.
+      // No manual sync: changes already sync on their own. The button stays in
+      // the DOM, hidden, because the sync status code still updates its icons.
       const syncBtn = el('syncBtn');
-      if (syncBtn) {
-        const row = document.createElement('div');
-        row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:12px';
-        row.innerHTML = '<div><div class="form-label">Sync</div>' +
-          '<div class="form-sub">Push anything still waiting to the cloud.</div></div>';
-        row.appendChild(syncBtn);
-        movedGroup.appendChild(row);
-      }
+      if (syncBtn) syncBtn.style.display = 'none';
       const logoutRow = rowByLabel(account, 'Log Out');
       if (logoutRow) {
         logoutRow.style.borderTop = '1px solid var(--border)';

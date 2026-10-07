@@ -8232,7 +8232,10 @@
 
       // Weekend day, or a day marked Holiday / Full Day Leave → unified info card
       const _ovSel = dayLog(key)?.override;
-      const _infoType = isWeekendKey(key) ? 'weekend'
+      // A running session always gets the tracking view, weekend or not:
+      // the info card hides the controls, leaving no way to stop it.
+      const _infoType = (key === tk && loginDate) ? null
+        : isWeekendKey(key) ? 'weekend'
         : _ovSel === 'holiday' ? 'holiday'
         : _ovSel === 'leave'   ? 'leave'
         : _ovSel === 'halfday' ? 'halfday' : null;
@@ -14177,6 +14180,9 @@ ${sig}`
       else renderDaySelector();
 
       restoreSession();
+      // The weekend/off-day card above was chosen before the session was
+      // restored; a running session needs the tracking view and its End button.
+      if (loginDate && (isWeekend() || tl?.override) && (selectedDayKey === tk || selectedDayKey === '__wknd__')) selectDay(tk);
       // Start checkpoint timer if session is active (survives reload)
       if (loginDate) _startCheckpoint();
       // Recovery prompts. Auto-stop recovery runs even when loginDate is set

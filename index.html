@@ -3272,8 +3272,8 @@
             <div class="settings-group">
               <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;cursor:pointer" onclick="el('inpAutostart').click()">
                 <div>
-                  <div class="form-label">Start with Windows</div>
-                  <div class="form-sub">Opens in the tray when your PC starts, ready to track the day.</div>
+                  <div class="form-label">Open at Login</div>
+                  <div class="form-sub">5pm opens quietly in the tray when you sign in to Windows.</div>
                 </div>
                 <label class="toggle" onclick="event.stopPropagation()">
                   <input type="checkbox" id="inpAutostart">
@@ -3283,8 +3283,8 @@
               <!-- What a sign-in launch does. Only shown while autostart is on. -->
               <div id="bootModeRow" style="display:none;align-items:center;justify-content:space-between;gap:12px">
                 <div>
-                  <div class="form-label">On Startup</div>
-                  <div class="form-sub">Start Session only runs on your working days.</div>
+                  <div class="form-label">When 5pm Opens</div>
+                  <div class="form-sub">Start App waits for you. Start Session begins tracking on working days.</div>
                 </div>
                 <div class="st-tabs" id="bootModeTabs">
                   <button type="button" class="st-tab" data-boot="app">Start App</button>
@@ -14670,9 +14670,6 @@ ${sig}`
       // in a section of their own, which otherwise ended up swept into About.
       const desktopSec = sectionByName('Desktop');
       if (desktopSec) {
-        const startRow = [...desktopSec.querySelectorAll('.form-label')]
-          .find(l => l.textContent.trim() === 'Start with Windows');
-        if (startRow) startRow.textContent = 'Autostart on Startup';
         const from = desktopSec.querySelector('.settings-group');
         const into = prefs && prefs.querySelector('.settings-group');
         if (from && into) { while (from.firstChild) into.appendChild(from.firstChild); }

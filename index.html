@@ -3000,7 +3000,7 @@
           <div style="padding:16px;display:flex;flex-direction:column;gap:10px">
             <div style="display:flex;gap:12px">
               <div style="flex:1;display:flex;flex-direction:column;gap:6px">
-                <div class="form-label">Your Name</div>
+                <div class="form-label">Name</div>
                 <input type="text" class="field-input" id="inpDisplay" placeholder="Full Name" autocomplete="off" maxlength="40">
               </div>
               <div style="flex:1;display:flex;flex-direction:column;gap:6px">
@@ -3009,7 +3009,7 @@
               </div>
             </div>
             <div style="display:flex;flex-direction:column;gap:6px">
-              <div class="form-label">Position</div>
+              <div class="form-label">Role</div>
               <input type="text" class="field-input" id="inpPosition" placeholder="What do you do?" autocomplete="off" maxlength="60">
             </div>
           </div>
@@ -3030,8 +3030,8 @@
               <input type="number" id="inpWeeklyM" style="display:none" value="0">
               <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
                 <div>
-                  <div class="form-label" id="stTargetLabel">Daily Target</div>
-                  <div class="form-sub">Hours you're expected to work per day.</div>
+                  <div class="form-label" id="stTargetLabel">Work Hours</div>
+                  <div class="form-sub" id="stTargetSub">How long you work each day or week. 5pm counts down to it.</div>
                 </div>
                 <div class="st-tabs" id="stTabs">
                   <button type="button" class="st-tab" id="stTabDaily" onclick="switchStTab('daily')">Daily</button>
@@ -3055,8 +3055,8 @@
             <!-- Shift Type -->
             <div class="form-field">
               <div>
-                <div class="form-label">Shift Type</div>
-                <div class="form-sub">We'll notify you by the end of your daily target.</div>
+                <div class="form-label">Shift Hours</div>
+                <div class="form-sub">When your workday usually starts and ends.</div>
               </div>
               <div style="display:flex;align-items:center;gap:8px">
                 <div class="time-input-wrap" style="flex:1">
@@ -3095,7 +3095,7 @@
 
             <!-- App Theme -->
             <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
-              <div class="form-label">App Theme</div>
+              <div class="form-label">Appearance</div>
               <div class="st-tabs" id="themeTabs">
                 <button type="button" class="st-tab" id="themeTabAuto"  onclick="setAppTheme('auto', this)">Auto</button>
                 <button type="button" class="st-tab" id="themeTabLight" onclick="setAppTheme('light', this)">Light</button>
@@ -3105,7 +3105,7 @@
 
             <!-- 24-hour Clock -->
             <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;cursor:pointer" onclick="el('inp24h').click()">
-              <div class="form-label">24-hour Clock</div>
+              <div class="form-label">24-Hour Time</div>
               <label class="toggle" onclick="event.stopPropagation()">
                 <input type="checkbox" id="inp24h" onchange="onUse24hChange()">
                 <span class="toggle-track"></span>
@@ -3114,7 +3114,7 @@
 
             <!-- Timezone -->
             <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
-              <div class="form-label">Timezone</div>
+              <div class="form-label">Time Zone</div>
               <div class="tz-select" id="tzSelect">
                 <button type="button" class="tz-select-trigger" id="tzSelectTrigger" onclick="_tzToggle(event)">
                   <span class="tz-select-trigger-label" id="tzSelectLabel">Device timezone</span>
@@ -3129,8 +3129,8 @@
             <!-- Include Saturday -->
             <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;cursor:pointer" onclick="el('inpIncludeSat').click()">
               <div>
-                <div class="form-label">Include Saturday</div>
-                <div class="form-sub">Enable if Saturday is a working day for you.</div>
+                <div class="form-label">Work Saturdays</div>
+                <div class="form-sub">Count Saturday as a working day in your week.</div>
               </div>
               <label class="toggle" onclick="event.stopPropagation()">
                 <input type="checkbox" id="inpIncludeSat" onchange="toggleIncludeSaturday(this.checked)">
@@ -3142,8 +3142,8 @@
             <!-- Include Break Time -->
             <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;cursor:pointer" onclick="el('inpBreakTime').click()">
               <div>
-                <div class="form-label">Include Break Time</div>
-                <div class="form-sub">Adds a button to pause the count during break hours.</div>
+                <div class="form-label">Breaks</div>
+                <div class="form-sub">Pause the timer when you step away. Break time isn't counted.</div>
               </div>
               <label class="toggle" onclick="event.stopPropagation()">
                 <input type="checkbox" id="inpBreakTime" checked onchange="autoSaveSettings()">
@@ -3154,8 +3154,8 @@
             <!-- Recommend Timings -->
             <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;cursor:pointer" onclick="el('inpRecommendTimings').click()">
               <div>
-                <div class="form-label">Recommend Timings</div>
-                <div class="form-sub">Suggests when to stay late or leave early to hit your weekly target.</div>
+                <div class="form-label">Smart Timings</div>
+                <div class="form-sub">Suggests when to leave each day so your week lands on target.</div>
               </div>
               <label class="toggle" onclick="event.stopPropagation()">
                 <input type="checkbox" id="inpRecommendTimings" checked onchange="onRecommendTimingsChange(this.checked)">
@@ -3170,8 +3170,8 @@
             <div class="qs-shortcut-row">
             <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
               <div style="flex:1;min-width:0">
-                <div class="form-label">Quick Shortcut</div>
-                <div class="form-sub">Use this shortcut to start tracking instantly.</div>
+                <div class="form-label">Quick Start</div>
+                <div class="form-sub">Press this shortcut to start tracking in one step.</div>
               </div>
               <div id="qsShortcutInput" class="qs-shortcut-field" tabindex="0"
                    onclick="startQsRecording()" onblur="_qsOnBlur()"
@@ -3196,8 +3196,8 @@
             <div id="recommendTimingsBlock">
               <div class="target-day-block">
                 <div class="target-day-head">
-                  <div class="form-label">Leave Early</div>
-                  <div class="form-sub">Days you're likely to leave early.</div>
+                  <div class="form-label">Short Days</div>
+                  <div class="form-sub">Days you usually leave early. 5pm plans your week around them.</div>
                 </div>
                 <div class="target-day-picker" id="targetDayPicker">
                   <button type="button" class="plan-btn" data-tday="1">Monday</button>
@@ -3210,8 +3210,8 @@
 
               <div class="target-day-block">
                 <div class="target-day-head">
-                  <div class="form-label">Stay Late</div>
-                  <div class="form-sub">Days you're likely to stay late.</div>
+                  <div class="form-label">Long Days</div>
+                  <div class="form-sub">Days you usually stay late. Your other days get lighter.</div>
                 </div>
                 <div class="target-day-picker" id="dayPicker">
                   <button type="button" class="plan-btn" data-sday="0">Monday</button>
@@ -3237,8 +3237,8 @@
             <div style="display:flex;flex-direction:column;gap:0">
             <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;cursor:pointer" onclick="el('inpNotifOn').click()">
               <div>
-                <div class="form-label">Allow Notifications</div>
-                <div class="form-sub">Native push alerts for your shift milestones.</div>
+                <div class="form-label">Notifications</div>
+                <div class="form-sub">Get alerts on this device as your workday moves along.</div>
               </div>
               <label class="toggle" onclick="event.stopPropagation()">
                 <input type="checkbox" id="inpNotifOn" onchange="onNotifToggleChange()">
@@ -3252,8 +3252,8 @@
 
                 <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;cursor:pointer" onclick="el('inpNotifTarget').click()">
                   <div>
-                    <div class="form-label" style="font-size:13px">Daily Target</div>
-                    <div class="form-sub">When your daily target is complete.</div>
+                    <div class="form-label" style="font-size:13px">Target Reached</div>
+                    <div class="form-sub">When you've worked your hours for the day.</div>
                   </div>
                   <label class="toggle" style="flex-shrink:0;margin-top:2px" onclick="event.stopPropagation()">
                     <input type="checkbox" id="inpNotifTarget" onchange="autoSaveSettings()">
@@ -3263,8 +3263,8 @@
 
                 <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;cursor:pointer" onclick="el('inpNotifKickstart').click()">
                   <div>
-                    <div class="form-label" style="font-size:13px">Kickstart</div>
-                    <div class="form-sub">5 minutes before your target. Time to wrap up.</div>
+                    <div class="form-label" style="font-size:13px">Wrap-Up Reminder</div>
+                    <div class="form-sub">5 minutes before you're done, so you can finish up.</div>
                   </div>
                   <label class="toggle" style="flex-shrink:0;margin-top:2px" onclick="event.stopPropagation()">
                     <input type="checkbox" id="inpNotifKickstart" onchange="autoSaveSettings()">
@@ -3274,8 +3274,8 @@
 
                 <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;cursor:pointer" onclick="el('inpNotifOvertime').click()">
                   <div>
-                    <div class="form-label" style="font-size:13px">Overtime</div>
-                    <div class="form-sub">5 minutes past your target. A nudge to leave.</div>
+                    <div class="form-label" style="font-size:13px">Overtime Alert</div>
+                    <div class="form-sub">5 minutes past your target. Time to head home.</div>
                   </div>
                   <label class="toggle" style="flex-shrink:0;margin-top:2px" onclick="event.stopPropagation()">
                     <input type="checkbox" id="inpNotifOvertime" onchange="autoSaveSettings()">
@@ -3310,8 +3310,8 @@
             <!-- Manage Devices -->
             <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
               <div>
-                <div class="form-label">Manage Devices</div>
-                <div class="form-sub">All devices signed in to your account.</div>
+                <div class="form-label">Devices</div>
+                <div class="form-sub">See every device signed in to your account.</div>
               </div>
               <button class="btn-secondary" onclick="openDevicesModal()">Manage</button>
             </div>
@@ -3320,8 +3320,8 @@
             <div class="form-field">
               <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
                 <div>
-                  <div class="form-label">Manage Data</div>
-                  <div class="form-sub">Import a backup or export your current log.</div>
+                  <div class="form-label">Backup &amp; Restore</div>
+                  <div class="form-sub">Save a copy of your work log, or bring one back.</div>
                 </div>
                 <div style="display:flex;gap:8px;flex-shrink:0">
                   <button class="btn-secondary" style="gap:5px;padding:0 16px" onclick="openImportModal()">
@@ -3342,7 +3342,7 @@
             <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
               <div>
                 <div class="form-label">Delete Account</div>
-                <div class="form-sub">We'll keep your data for 48 hours before permanently removing it.</div>
+                <div class="form-sub">Your data is kept for 48 hours, then removed for good.</div>
               </div>
               <button class="btn-secondary" onclick="openDeleteModal()">Delete</button>
             </div>
@@ -3351,7 +3351,7 @@
             <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
               <div>
                 <div class="form-label">Log Out</div>
-                <div class="form-sub">Sign out of your 5pm account on this device.</div>
+                <div class="form-sub">Sign out on this device. Your data stays safe in your account.</div>
               </div>
               <button class="btn-ghost-destructive" onclick="openLogoutModal()">Log Out</button>
             </div>
@@ -3411,8 +3411,8 @@
 
               <!-- Notifications — 3-column preview grid -->
               <div>
-                <div class="form-label">Notifications</div>
-                <div class="form-sub" style="margin-bottom:10px">See how each alert looks on your device.</div>
+                <div class="form-label">Preview Alerts</div>
+                <div class="form-sub" style="margin-bottom:10px">See how each alert looks on this device.</div>
                 <div id="notifTestPermWarn" style="display:none;font-size:12px;color:var(--warning);font-weight:500;margin-bottom:10px">
                   Turn on notifications in Settings to preview them.
                 </div>
@@ -3428,8 +3428,8 @@
               <!-- Date Override — function row -->
               <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
                 <div>
-                  <div class="form-label">Override Date</div>
-                  <div class="form-sub">Simulate a different calendar day for testing different states.</div>
+                  <div class="form-label">Test Date</div>
+                  <div class="form-sub">Pretend it's another day to see how 5pm behaves.</div>
                 </div>
                 <div style="display:flex;gap:6px;align-items:center;flex-shrink:0">
                   <button class="this-week-label-btn" id="devDatePickerBtn"
@@ -3451,8 +3451,8 @@
               <!-- Sync — function row (kept at the bottom) -->
               <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
                 <div>
-                  <div class="form-label">Sync</div>
-                  <div class="form-sub">Check the connection to your cloud data.</div>
+                  <div class="form-label">Sync Check</div>
+                  <div class="form-sub">Test the connection to your cloud data.</div>
                 </div>
                 <button class="btn-secondary" style="flex-shrink:0" onclick="runSyncDiagnostic()">Run Diagnostics</button>
               </div>
@@ -9535,7 +9535,11 @@
       el('stTabDaily').classList.toggle('active', !isWeekly);
       el('stTabWeekly').classList.toggle('active', isWeekly);
       const lbl = el('stTargetLabel');
-      if (lbl) lbl.textContent = isWeekly ? 'Weekly Target' : 'Daily Target';
+      if (lbl) lbl.textContent = 'Work Hours';
+      const sub = el('stTargetSub');
+      if (sub) sub.textContent = isWeekly
+        ? 'Weekly lets a long day make up for a short one.'
+        : 'How long you work each day or week. 5pm counts down to it.';
       // Penalty mode follows target mode — weekly target ↔ weekly penalty calc
       const wOff = el('inpWeeklyOn'); if (wOff) wOff.checked = isWeekly;
       updateWeeklyCalc();
@@ -14554,7 +14558,7 @@ ${sig}`
       const movedGroup = document.createElement('div');
       movedGroup.className = 'settings-group';
       moved.appendChild(movedGroup);
-      ['App Theme', '24-hour Clock', 'Timezone'].forEach(name => {
+      ['Appearance', '24-Hour Time', 'Time Zone'].forEach(name => {
         const row = rowByLabel(prefs, name);
         if (row) movedGroup.appendChild(row);
       });
@@ -14573,7 +14577,7 @@ ${sig}`
       const basicGroup = basic && basic.querySelector('.settings-group');
       if (basicGroup && movedGroup.children.length) {
         // App Theme leads the card; the other app rows follow the targets.
-        const themeRow = rowByLabel(moved, 'App Theme');
+        const themeRow = rowByLabel(moved, 'Appearance');
         if (themeRow) basicGroup.prepend(themeRow);
         while (movedGroup.firstChild) basicGroup.appendChild(movedGroup.firstChild);
         basic.querySelector('.settings-section-header')?.remove();

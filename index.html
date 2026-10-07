@@ -3291,6 +3291,11 @@
                   <button type="button" class="st-tab" data-boot="session">Start Session</button>
                 </div>
               </div>
+              <!-- Windows can block startup apps on its own; this toggle can't see that. -->
+              <div id="bootWinHint" class="stay-hint" style="display:none">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-top:2px"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                <span>Windows needs to allow this too. Turn on 5pm in Windows Settings › Apps › Startup.</span>
+              </div>
             </div>
           </div>
         </div>
@@ -15558,6 +15563,8 @@ ${sig}`
     const modeTabs = [...document.querySelectorAll('#bootModeTabs .st-tab')];
     const paintMode = () => {
       if (modeRow) modeRow.style.display = input.checked ? 'flex' : 'none';
+      const hint = document.getElementById('bootWinHint');
+      if (hint) hint.style.display = input.checked ? 'flex' : 'none';
       modeTabs.forEach(b => b.classList.toggle('active', b.dataset.boot === bootMode()));
     };
     modeTabs.forEach(b => b.addEventListener('click', () => {

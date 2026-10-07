@@ -971,7 +971,6 @@
     .td-row-val { font-weight: 600; color: var(--foreground); font-variant-numeric: tabular-nums; }
     .td-row-val.success { color: var(--success); }
     .td-row-val.warn { color: var(--warning); }
-    .td-ignore-btn { width: 100%; margin-top: 12px; }
     /* ── Progress bar ──
        Existing single bar, unchanged, reaching 100% = target complete. Overtime is a
        separate translucent overlay painted inside the SAME track (not an extension of
@@ -4470,25 +4469,6 @@
     </div>
   </div>
 
-  <!-- ── Ignore Today Confirmation Modal ── -->
-  <div class="overlay" id="tdIgnoreConfirmOverlay">
-    <div class="dialog" style="max-width:340px">
-      <div class="dialog-head" style="display:flex;align-items:flex-start;justify-content:space-between">
-        <div>
-          <div class="dialog-title">Ignore today's recommendation?</div>
-          <div class="dialog-desc">Recalculate your Leave By time using only today's base daily target.<br>This change applies only to today.</div>
-        </div>
-        <button class="btn-icon" onclick="el('tdIgnoreConfirmOverlay').classList.remove('open')" title="Close" style="margin:-4px -4px -4px 8px;flex-shrink:0">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-        </button>
-      </div>
-      <div style="padding:0 20px 20px;display:flex;justify-content:flex-end;gap:8px">
-        <button class="btn-secondary" onclick="el('tdIgnoreConfirmOverlay').classList.remove('open')">Cancel</button>
-        <button class="btn btn-primary" style="width:auto;height:38px;padding:0 16px;font-size:13px" onclick="_tdConfirmIgnoreToday()">Confirm</button>
-      </div>
-    </div>
-  </div>
-
   <!-- Week Plan Modal (start-of-week overview) -->
   <div class="overlay" id="weekPlanOverlay">
     <div class="dialog">
@@ -6301,9 +6281,6 @@
       if (onBreak) {
         html += `<div class="td-row"><span class="td-row-label">On Break</span><span class="td-row-val">Yes</span></div>`;
       }
-      if (surplus > 60 || overtimeReq > 60) {
-        html += `<button class="btn-secondary td-ignore-btn" onclick="openIgnoreTodayConfirm()">Ignore Today</button>`;
-      }
       return html;
     }
 
@@ -6346,11 +6323,6 @@
       el('tdPopover')?.classList.remove('open');
       el('tdOverlay')?.classList.remove('open');
       document.querySelectorAll('.td-plan-menu.open').forEach(m => m.classList.remove('open'));
-    }
-
-    function openIgnoreTodayConfirm() {
-      closeTodayDetails();
-      el('tdIgnoreConfirmOverlay')?.classList.add('open');
     }
 
     // ── Today plan dropdown (Full Day / Half Day / Leave / Holiday) ──
@@ -6431,13 +6403,6 @@
       if (e.target.closest('.td-plan-select')) return;
       document.querySelectorAll('.td-plan-menu.open').forEach(m => m.classList.remove('open'));
     });
-
-    function _tdConfirmIgnoreToday() {
-      const tk = todayKey(), ex = dayLog(tk) || {};
-      saveDayLog(tk, { ...ex, todayTargetH: cfg().dailyH });
-      el('tdIgnoreConfirmOverlay')?.classList.remove('open');
-      if (loginDate) render(); else renderEmptyState();
-    }
 
     function _tpOutsideClick(e) {
       const modal = el('tpModal');

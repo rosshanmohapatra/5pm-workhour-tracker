@@ -45,10 +45,10 @@ jobs:
           # GitHub's "Generate release notes" button fills it from the commits.
           releaseDraft: true
           includeUpdaterJson: true
-          # The NSIS installer exists for the in-app updater; 5pm-Setup is what
+          # The NSIS installer exists for the in-app updater; 5pm-Standalone is what
           # people download. Naming it so keeps it from looking like the main
-          # download, and sorts it below 5pm-Setup. latest.json follows the name.
-          assetNamePattern: 'in-app-update-5pm-[version][ext]'
+          # download. latest.json follows the name.
+          assetNamePattern: 'update-[version][ext]'
 
       # 5pm Setup: the branded installer people download. It carries the NSIS
       # installer built above and runs it silently. The NSIS installer stays in
@@ -63,10 +63,10 @@ jobs:
           test -f "$FIVEPM_INSTALLER"
           cd setup/src-tauri
           npx --yes @tauri-apps/cli@2.12.0 build --no-bundle
-          cp "$CARGO_TARGET_DIR/release/fivepm-setup.exe" "$GITHUB_WORKSPACE/5pm-Setup-${VER}.exe"
+          cp "$CARGO_TARGET_DIR/release/fivepm-setup.exe" "$GITHUB_WORKSPACE/5pm-Standalone-${VER}.exe"
 
       - name: Attach 5pm Setup to the draft release
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release upload "$GITHUB_REF_NAME" "5pm-Setup-${GITHUB_REF_NAME#v}.exe" --clobber
+        run: gh release upload "$GITHUB_REF_NAME" "5pm-Standalone-${GITHUB_REF_NAME#v}.exe" --clobber

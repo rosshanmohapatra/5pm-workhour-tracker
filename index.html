@@ -3280,6 +3280,17 @@
                   <span class="toggle-track"></span>
                 </label>
               </div>
+              <!-- What a sign-in launch does. Only shown while autostart is on. -->
+              <div id="bootModeRow" style="display:none;align-items:center;justify-content:space-between;gap:12px">
+                <div>
+                  <div class="form-label">On Startup</div>
+                  <div class="form-sub">Start Session only runs on your working days.</div>
+                </div>
+                <div class="st-tabs" id="bootModeTabs">
+                  <button type="button" class="st-tab" data-boot="app">Start App</button>
+                  <button type="button" class="st-tab" data-boot="session">Start Session</button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -15402,6 +15413,13 @@ ${sig}`
   // Only runs when Windows started 5pm at sign-in. A silent tray launch must
   // never invent hours, so every guard below has to pass, and a session that
   // does start always announces itself.
+  // What a sign-in launch does: 'session' starts the day on working days,
+  // 'app' only opens 5pm in the tray. Per PC, like autostart itself.
+  const BOOT_MODE_KEY = 'wh_boot_mode';
+  function bootMode() {
+    try { return localStorage.getItem(BOOT_MODE_KEY) === 'app' ? 'app' : 'session'; } catch { return 'session'; }
+  }
+
   (function initBootSession() {
     const T = window.__TAURI__;
     if (!T) return;
@@ -15476,6 +15494,8 @@ ${sig}`
 
     T.core.invoke('launched_at_boot').then(atBoot => {
       if (!atBoot) return;
+      // "Start App" in Settings: open in the tray and do nothing else.
+      if (bootMode() === 'app') { console.info('[boot] Start App mode, no session'); return; }
       // Let restore, recovery prompts and the cloud pull settle first, so the
       // guards run against the real state of today rather than an empty one.
       setTimeout(() => {
@@ -15534,15 +15554,28 @@ ${sig}`
     if (!section || !input) return;
 
     section.style.display = '';
+    const modeRow = document.getElementById('bootModeRow');
+    const modeTabs = [...document.querySelectorAll('#bootModeTabs .st-tab')];
+    const paintMode = () => {
+      if (modeRow) modeRow.style.display = input.checked ? 'flex' : 'none';
+      modeTabs.forEach(b => b.classList.toggle('active', b.dataset.boot === bootMode()));
+    };
+    modeTabs.forEach(b => b.addEventListener('click', () => {
+      try { localStorage.setItem(BOOT_MODE_KEY, b.dataset.boot); } catch {}
+      paintMode();
+    }));
+
     T.core.invoke('autostart_enabled')
-      .then(on => { input.checked = !!on; })
+      .then(on => { input.checked = !!on; paintMode(); })
       .catch(err => console.warn('[desktop] could not read autostart:', err));
 
     input.addEventListener('change', () => {
       const wanted = input.checked;
+      paintMode();
       T.core.invoke('autostart_set', { enabled: wanted }).catch(err => {
         // Snap back to what Windows actually holds rather than lying to the user.
         input.checked = !wanted;
+        paintMode();
         console.warn('[desktop] autostart change failed:', err);
       });
     });

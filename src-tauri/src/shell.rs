@@ -105,6 +105,13 @@ pub fn enable_autostart_on_first_run(app: &AppHandle) {
   };
   let marker = dir.join("autostart-initialised");
   if marker.exists() {
+    // Re-register an existing entry so it carries the current arguments.
+    // Installs that first enabled this on 1.2.5 have a Windows entry without
+    // --autostart, so every sign-in looked like a manual open: the window
+    // showed and the day never started.
+    if app.autolaunch().is_enabled().unwrap_or(false) {
+      let _ = app.autolaunch().enable();
+    }
     return;
   }
 

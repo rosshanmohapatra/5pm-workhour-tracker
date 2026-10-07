@@ -45,6 +45,10 @@ jobs:
           # GitHub's "Generate release notes" button fills it from the commits.
           releaseDraft: true
           includeUpdaterJson: true
+          # The NSIS installer exists for the in-app updater; 5pm-Setup is what
+          # people download. Naming it so keeps it from looking like the main
+          # download, and sorts it below 5pm-Setup. latest.json follows the name.
+          assetNamePattern: 'in-app-update-5pm-[version][ext]'
 
       # 5pm Setup: the branded installer people download. It carries the NSIS
       # installer built above and runs it silently. The NSIS installer stays in

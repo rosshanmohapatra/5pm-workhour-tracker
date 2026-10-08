@@ -612,6 +612,14 @@
     #viewSettings { user-select: none; -webkit-user-select: none; }
     #viewSettings input, #viewSettings textarea { user-select: text; -webkit-user-select: text; }
 
+    /* Inside a tile group the note is a row: the group rounds the outer corners. */
+    body.shell-new .tile-list > .set-note { border-radius: 0; padding: 12px 16px; }
+    /* Developer Mode: no card of its own, its rows are tiles like every tab. */
+    body.shell-new #notifTestCard.dev-tiles { background: none; border: none; box-shadow: none; }
+    body.shell-new .dev-tiles > .settings-card-body { padding: 0; max-height: none; overflow: visible; }
+    body.shell-new .dev-tiles .settings-card-head { border: none; }
+    body.shell-new .dev-tiles .settings-section-header { margin: 24px 4px 8px; cursor: default; }
+
     /* Quiet grey note, for advice that is not a setting. */
     .set-note { display: flex; align-items: flex-start; gap: 8px; font-size: 12px; line-height: 1.5;
       color: var(--muted-fg); background: var(--muted); border-radius: var(--radius-md); padding: 10px 12px; }
@@ -14643,9 +14651,39 @@ ${sig}`
         panels.About.appendChild(node);
       });
 
+      // ── Developer Mode, shaped like the other tabs ────
+      // Its header becomes the first tile, the Modals list becomes its own
+      // titled group, and each info button's tip becomes the row's description.
+      const dev = el('notifTestCard');
+      const devGroup = dev && dev.querySelector('.settings-card-body > .settings-group');
+      if (devGroup) {
+        dev.classList.add('dev-tiles');
+        devGroup.removeAttribute('style');
+        const devHead = dev.querySelector('.settings-card-head');
+        if (devHead) devGroup.prepend(devHead);
+        dev.querySelectorAll('.info-icon-btn').forEach(btn => {
+          const titleRow = btn.closest('div[style*="gap:5px"]');
+          const name = titleRow && titleRow.firstElementChild;
+          if (!name) return;
+          name.className = 'form-label'; name.removeAttribute('style');
+          const sub = document.createElement('div');
+          sub.className = 'form-sub';
+          sub.textContent = btn.dataset.tipDesc || '';
+          btn.parentElement.replaceWith(sub);
+          titleRow.removeAttribute('style');
+        });
+        const modals = [...devGroup.children].find(c => c.firstElementChild && c.firstElementChild.textContent.trim() === 'Modals');
+        if (modals) {
+          const title = modals.firstElementChild, rows = modals.lastElementChild;
+          title.className = 'settings-section-header'; title.removeAttribute('style');
+          rows.className = 'settings-group'; rows.removeAttribute('style');
+          devGroup.after(title, rows);
+          modals.remove();
+        }
+      }
+
       // ── Tiles ─────────────────────────────────────────
       Object.values(panels).forEach(p => p.querySelectorAll('.settings-group').forEach(g => {
-        if (g.closest('#notifTestCard')) return;
         g.classList.add('tile-list');
         g.closest('.settings-section')?.classList.add('tile-host');
       }));

@@ -565,8 +565,8 @@
     /* Every tab content sits in a card, and nothing collapses any more. */
     body.shell-new .set-panel > .settings-section,
     body.shell-new .set-panel > .settings-card-merged {
-      background: var(--card); border: 1px solid var(--border);
-      border-radius: var(--radius-lg); box-shadow: var(--shadow-xs); padding: 16px; }
+      background: var(--card); border: none;
+      border-radius: var(--radius-lg); box-shadow: none; padding: 16px; }
     body.shell-new .set-panel > .settings-card-merged { padding: 0; }
     body.shell-new .set-panel .settings-section-body-inner { max-height: none !important; opacity: 1 !important; }
     body.shell-new .set-panel .settings-chevron { display: none !important; }
@@ -583,7 +583,7 @@
     body.shell-new .tile-list { gap: 2px; border-radius: var(--radius-md); overflow: hidden; }
     body.shell-new .tile-list > div:not(.set-note):not([id="recommendTimingsBlock"]),
     body.shell-new #recommendTimingsBlock > div {
-      background: var(--card); padding: 14px 16px; transition: background .12s; }
+      background: var(--card); padding: 14px 16px; border-radius: 0; transition: background .12s; }
     body.shell-new #recommendTimingsBlock { gap: 2px; }
     /* Notifications: the switch and its alerts are rows of one tile, each
        full width so each gets its own hover. */

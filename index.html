@@ -14660,7 +14660,10 @@ ${sig}`
         dev.classList.add('dev-tiles');
         devGroup.removeAttribute('style');
         const devHead = dev.querySelector('.settings-card-head');
-        if (devHead) devGroup.prepend(devHead);
+        if (devHead) {
+          devHead.querySelector('.section-label')?.classList.replace('section-label', 'form-label');
+          devGroup.prepend(devHead);
+        }
         dev.querySelectorAll('.info-icon-btn').forEach(btn => {
           const titleRow = btn.closest('div[style*="gap:5px"]');
           const name = titleRow && titleRow.firstElementChild;

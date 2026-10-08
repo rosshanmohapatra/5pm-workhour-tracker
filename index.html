@@ -15401,6 +15401,8 @@ ${sig}`
     const LAST_UPDATED_KEY = '5pm.desktop.lastUpdated';
     const LAST_CHECKED_KEY = '5pm.desktop.lastChecked';
 
+    // One click: Update downloads, then installs on its own as soon as the
+    // download lands. Cancel stays available while downloading.
     let state   = 'idle';   // idle | checking | available | downloading | ready
     let pending = null;     // { version } of the update the backend is holding
 
@@ -15453,12 +15455,13 @@ ${sig}`
         statusEl.textContent = 'Version ' + pending.version + ' available';
         btnLabel.textContent = 'Update';
       } else if (state === 'downloading') {
-        titleEl.textContent  = 'Update Is Available';
-        btnLabel.textContent = 'Cancel Download';
+        titleEl.textContent  = 'Updating';
+        btnLabel.textContent = 'Cancel';
       } else if (state === 'ready') {
-        titleEl.textContent  = 'Ready to Install';
-        statusEl.textContent = 'Download Complete';
-        btnLabel.textContent = 'Install';
+        titleEl.textContent  = 'Updating';
+        statusEl.textContent = 'Installing, 5pm will reopen';
+        btnLabel.textContent = 'Installing…';
+        btn.disabled = true;
       }
 
       renderNotes();
@@ -15520,7 +15523,6 @@ ${sig}`
       if (state === 'idle')             check();
       else if (state === 'available')   download();
       else if (state === 'downloading') cancel();
-      else if (state === 'ready')       install();
     });
 
     T.event.listen('updater://progress', ev => {
@@ -15533,9 +15535,11 @@ ${sig}`
     });
 
     T.event.listen('updater://ready', () => {
+      if (state !== 'downloading') return; // cancelled just as it finished
       state = 'ready';
       fill.style.width = '100%';
       render();
+      install();
     });
 
     T.event.listen('updater://error', ev => fail('Download failed. ' + ev.payload));
@@ -15561,7 +15565,7 @@ ${sig}`
       if (localStorage.getItem(NOTIFIED_KEY) === pending.version) return;
       localStorage.setItem(NOTIFIED_KEY, pending.version);
       new Notification('Update available', {
-        body: 'Version ' + pending.version + ' is ready to install.'
+        body: 'Version ' + pending.version + ' is out. Update it from Settings.'
       });
     }
     setInterval(autoCheck, 24 * 60 * 60 * 1000);

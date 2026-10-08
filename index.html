@@ -3360,8 +3360,10 @@
                   <span class="toggle-track"></span>
                 </label>
               </div>
-              <!-- What a sign-in launch does. Only shown while autostart is on. -->
-              <div id="bootModeRow" style="display:none;align-items:flex-start;justify-content:space-between;gap:12px">
+              <!-- What a sign-in launch does, and the Windows note. Slide open
+                   while autostart is on, the same way Smart Timings' days do. -->
+              <div id="bootExtras" class="tile-sub" style="max-height:0;opacity:0">
+              <div id="bootModeRow" style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px">
                 <div>
                   <div class="form-label">When 5pm Opens</div>
                   <div class="form-sub">Start App waits for you. Start Session begins tracking on working days.</div>
@@ -3372,9 +3374,10 @@
                 </div>
               </div>
               <!-- Windows can block startup apps on its own; this toggle can't see that. -->
-              <div id="bootWinHint" class="set-note" style="display:none">
+              <div id="bootWinHint" class="set-note">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-top:2px"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
                 <span>Windows needs to allow this too. Turn on 5pm in Windows Settings › Apps › Startup.</span>
+              </div>
               </div>
             </div>
           </div>
@@ -15731,10 +15734,12 @@ ${sig}`
     section.style.display = '';
     const modeRow = document.getElementById('bootModeRow');
     const modeTabs = [...document.querySelectorAll('#bootModeTabs .st-tab')];
+    const extras = document.getElementById('bootExtras');
     const paintMode = () => {
-      if (modeRow) modeRow.style.display = input.checked ? 'flex' : 'none';
-      const hint = document.getElementById('bootWinHint');
-      if (hint) hint.style.display = input.checked ? 'flex' : 'none';
+      if (extras) {
+        extras.style.maxHeight = input.checked ? '400px' : '0';
+        extras.style.opacity   = input.checked ? '1' : '0';
+      }
       modeTabs.forEach(b => b.classList.toggle('active', b.dataset.boot === bootMode()));
     };
     modeTabs.forEach(b => b.addEventListener('click', () => {

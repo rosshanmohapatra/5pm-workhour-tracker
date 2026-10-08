@@ -599,7 +599,8 @@
     /* The block cancels the list's gap (negative margin) and its first row
        carries that divider instead, inside the clipped area. Closed, the block
        is 0px, so the row above is the group's last and gets rounded corners. */
-    body.shell-new .tile-sub { gap: 2px; margin-top: -2px; }
+    /* #recommendTimingsBlock is named too: its base rule (an id) sets gap:16px. */
+    body.shell-new .tile-sub, body.shell-new #recommendTimingsBlock { gap: 2px; margin-top: -2px; }
     body.shell-new .tile-sub > :first-child { margin-top: 2px; }
     body.shell-new .tile-sub > .set-note { border-radius: 0; padding: 12px 16px; }
     /* Notifications: the switch and its alerts are rows of one tile, each

@@ -231,11 +231,11 @@
       --shadow-xl: 0 24px 60px rgba(0,0,0,.14), 0 8px 20px rgba(0,0,0,.08);
     }
     .dark {
-      --background: #09090b; --foreground: #fafafa; --card: #111114;
-      --muted: #18181b; --muted-fg: #a0a0aa; --border: #27272b;
+      --background: #09090b; --foreground: #fafafa; --card: #1a1a1e;
+      --muted: #26262b; --muted-fg: #a0a0aa; --border: #2f2f35;
       --btn-primary-bg: var(--foreground);
-      --btn-secondary-bg: #1c1c20; --btn-secondary-fg: #fafafa; --btn-secondary-hover: #27272a;
-      --input: #38383e; --input-bg: #1c1c20; --ring: #e4e4e7;
+      --btn-secondary-bg: #28282d; --btn-secondary-fg: #fafafa; --btn-secondary-hover: #33333a;
+      --input: #404047; --input-bg: #26262b; --ring: #e4e4e7;
       --success: #4ade80; --success-bg: #052e16; --success-border: #166534;
       --warning: #fbbf24; --warning-bg: #1c1400; --warning-border: #78350f;
       --destructive: #f87171; --destructive-bg: #450a0a; --destructive-border: #7f1d1d;
@@ -572,6 +572,48 @@
     body.shell-new .set-panel .settings-chevron { display: none !important; }
     body.shell-new .set-panel .settings-section-header { cursor: default; }
     body.shell-new .settings-section-divider { display: none !important; }
+
+    /* Windows-style tiles: each setting is its own card, sections are a title
+       over a stack of tiles. Developer tools keep their single card. */
+    body.shell-new .set-panel > .settings-section.tile-host {
+      background: none; border: none; box-shadow: none; padding: 0; }
+    body.shell-new .tile-host > .settings-section-header { margin: 0 4px 8px; }
+    body.shell-new .tile-list { gap: 4px; }
+    body.shell-new .tile-list > div:not(.set-note):not(#recommendTimingsBlock),
+    body.shell-new #recommendTimingsBlock > div {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: var(--radius-md); padding: 14px 16px; }
+    body.shell-new #recommendTimingsBlock { gap: 4px; }
+    /* Notification alerts read as rows inside the Notifications tile. */
+    body.shell-new #notifSubGroup > div { gap: 0 !important; }
+    body.shell-new #notifSubGroup > div > div { border-top: 1px solid var(--border); padding: 14px 0 0; margin-top: 14px; }
+    body.shell-new #viewSettings .form-sub { font-size: 12px; }
+
+    /* Quiet grey note, for advice that is not a setting. */
+    .set-note { display: flex; align-items: flex-start; gap: 8px; font-size: 12px; line-height: 1.5;
+      color: var(--muted-fg); background: var(--muted); border-radius: var(--radius-md); padding: 10px 12px; }
+
+    /* Settings search */
+    .set-search { position: relative; margin-bottom: 12px; }
+    .set-search input { width: 100%; height: 38px; padding: 0 12px 0 36px; border: 1px solid var(--border);
+      border-radius: var(--radius-md); background: var(--card); color: var(--foreground);
+      font: 400 13px var(--font); outline: none; }
+    .set-search input:focus { border-color: var(--muted-fg); }
+    .set-search > svg { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--muted-fg); pointer-events: none; }
+    .set-results { position: absolute; left: 0; right: 0; top: calc(100% + 6px); z-index: 30;
+      background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-md);
+      box-shadow: var(--shadow-lg); padding: 4px; max-height: 320px; overflow-y: auto; display: none; }
+    .set-results.open { display: block; }
+    .set-result { display: block; width: 100%; text-align: left; border: none; background: none; cursor: pointer;
+      padding: 8px 10px; border-radius: 6px; font-family: var(--font); color: var(--foreground); }
+    .set-result.on, .set-result:hover { background: var(--muted); }
+    .set-result-title { font-size: 13px; font-weight: 500; }
+    .set-result-meta { font-size: 12px; color: var(--muted-fg); margin-top: 1px;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .set-empty { padding: 10px; font-size: 12px; color: var(--muted-fg); }
+    /* A found setting flashes so the eye lands on it. */
+    @keyframes set-hit { 0%, 75% { box-shadow: 0 0 0 2px var(--foreground); } 100% { box-shadow: 0 0 0 2px transparent; } }
+    .set-hit { animation: set-hit 2.6s ease-out; }
 
     /* Account's buttons were full size next to the compact ones the sign-in
        rows build, so the Security tab had two button scales. */
@@ -14613,12 +14655,7 @@ ${sig}`
       const syncBtn = el('syncBtn');
       if (syncBtn) syncBtn.style.display = 'none';
       const logoutRow = rowByLabel(account, 'Log Out');
-      if (logoutRow) {
-        logoutRow.style.borderTop = '1px solid var(--border)';
-        logoutRow.style.paddingTop = '14px';
-        logoutRow.style.marginTop = '4px';
-        movedGroup.appendChild(logoutRow);
-      }
+      if (logoutRow) movedGroup.appendChild(logoutRow);
       // Profile stays its own card; the targets and the app rows become one.
       const basicGroup = basic && basic.querySelector('.settings-group');
       if (basicGroup && movedGroup.children.length) {
@@ -14666,6 +14703,89 @@ ${sig}`
         if (!node.querySelector('*') && !node.textContent.trim()) { node.remove(); return; }
         panels.About.appendChild(node);
       });
+
+      // ── Tiles ─────────────────────────────────────────
+      Object.values(panels).forEach(p => p.querySelectorAll('.settings-group').forEach(g => {
+        if (g.closest('#notifTestCard')) return;
+        g.classList.add('tile-list');
+        g.closest('.settings-section')?.classList.add('tile-host');
+      }));
+
+      // ── Search ────────────────────────────────────────
+      // Built from the rows themselves, so renamed or desktop-only settings are
+      // found without a separate list. Old names stay searchable as keywords.
+      const KEYWORDS = {
+        'Appearance': 'theme dark light mode', 'Work Hours': 'daily weekly target hours',
+        'Shift Hours': 'shift start end', '24-Hour Time': 'clock format', 'Time Zone': 'timezone',
+        'Log Out': 'sign out logout', 'Work Saturdays': 'saturday weekend include',
+        'Breaks': 'pause break time', 'Smart Timings': 'recommend timings', 'Quick Start': 'shortcut keyboard',
+        'Short Days': 'leave early', 'Long Days': 'stay late', 'Notifications': 'alerts push allow',
+        'Target Reached': 'daily target alert', 'Wrap-Up Reminder': 'kickstart', 'Overtime Alert': 'overtime',
+        'Devices': 'manage devices', 'Backup & Restore': 'import export manage data', 'Delete Account': 'remove',
+        'Open at Login': 'autostart startup windows', 'When 5pm Opens': 'start app start session startup'
+      };
+      const TAB_INDEX = Object.fromEntries(TABS.map(([n], i) => [n, i]));
+      const entries = [];
+      Object.entries(panels).forEach(([tab, p]) => p.querySelectorAll('.form-label').forEach(l => {
+        if (l.closest('#notifTestCard')) return; // developer tools stay hidden
+        const label = l.textContent.trim();
+        if (!label) return;
+        const row = l.closest('.tile-list > div, #recommendTimingsBlock > div, #notifSubGroup > div > div, .settings-card-merged') || l;
+        const sub = l.parentElement.querySelector('.form-sub')?.textContent.trim() || '';
+        entries.push({ label, sub, tab, row, hay: (label + ' ' + sub + ' ' + (KEYWORDS[label] || '')).toLowerCase() });
+      }));
+
+      const box = document.createElement('div');
+      box.className = 'set-search';
+      box.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>' +
+        '<input type="search" placeholder="Search settings" aria-label="Search settings" autocomplete="off">' +
+        '<div class="set-results" role="listbox"></div>';
+      bar.before(box);
+      const q = box.querySelector('input'), list = box.querySelector('.set-results');
+      let hits = [], cur = 0;
+
+      function paint() {
+        list.innerHTML = hits.length ? '' : '<div class="set-empty">No settings match.</div>';
+        hits.forEach((h, i) => {
+          const b = document.createElement('button');
+          b.type = 'button'; b.className = 'set-result' + (i === cur ? ' on' : '');
+          b.innerHTML = '<div class="set-result-title"></div><div class="set-result-meta"></div>';
+          b.firstChild.textContent = h.label;
+          b.lastChild.textContent = h.tab + (h.sub ? ' · ' + h.sub : '');
+          b.onmousedown = e => { e.preventDefault(); go(h); };
+          list.appendChild(b);
+        });
+        list.classList.add('open');
+      }
+      function close() { list.classList.remove('open'); }
+      function go(h) {
+        q.value = ''; close(); q.blur();
+        show(TAB_INDEX[h.tab]);
+        // A row inside a collapsed group (alerts off, Smart Timings off) has no
+        // height; point at the switch that opens it instead.
+        let target = h.row;
+        if (!target.offsetHeight) target = target.closest('.tile-list > div') || target;
+        if (!target.offsetHeight && target.closest('#recommendTimingsBlock')) target = rowByLabel(prefs, 'Smart Timings') || target;
+        setTimeout(() => {
+          target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          target.classList.remove('set-hit'); void target.offsetWidth; target.classList.add('set-hit');
+        }, 260); // after the tab's slide-in
+      }
+      q.addEventListener('input', () => {
+        const words = q.value.toLowerCase().split(/\s+/).filter(Boolean);
+        if (!words.length) { close(); return; }
+        hits = entries.filter(e => words.every(w => e.hay.includes(w))).slice(0, 8);
+        cur = 0; paint();
+      });
+      q.addEventListener('keydown', e => {
+        if (e.key === 'Escape') { q.value = ''; close(); q.blur(); return; }
+        if (!list.classList.contains('open') || !hits.length) return;
+        if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+          e.preventDefault();
+          cur = (cur + (e.key === 'ArrowDown' ? 1 : hits.length - 1)) % hits.length; paint();
+        } else if (e.key === 'Enter') { e.preventDefault(); go(hits[cur]); }
+      });
+      q.addEventListener('blur', () => setTimeout(close, 120));
     })();
 
   </script>

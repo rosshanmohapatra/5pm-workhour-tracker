@@ -593,10 +593,11 @@
     /* A stack reads as one grouped card: only its outer corners are rounded
        (the list clips them) and 2px gaps of page colour divide the rows. */
     body.shell-new .tile-list { gap: 2px; border-radius: var(--radius-md); overflow: hidden; }
-    body.shell-new .tile-list > div:not(.set-note):not([id="recommendTimingsBlock"]),
-    body.shell-new #recommendTimingsBlock > div {
+    body.shell-new .tile-list > div:not(.set-note):not(.tile-sub),
+    body.shell-new .tile-sub > div:not(.set-note) {
       background: var(--card); padding: 14px 16px; border-radius: 0; transition: background .12s; }
-    body.shell-new #recommendTimingsBlock { gap: 2px; }
+    body.shell-new .tile-sub { gap: 2px; }
+    body.shell-new .tile-sub > .set-note { border-radius: 0; padding: 12px 16px; }
     /* Notifications: the switch and its alerts are rows of one tile, each
        full width so each gets its own hover. */
     body.shell-new .tile-list > div:has(#notifSubGroup) { padding: 0; }
@@ -2539,8 +2540,8 @@
       mix-blend-mode: normal;
     }
 
-    /* Recommend Timings expand/collapse */
-    #recommendTimingsBlock {
+    /* Expand/collapse for a block of rows under a switch (Smart Timings, Open at Login) */
+    #recommendTimingsBlock, .tile-sub {
       overflow: hidden;
       transition: max-height .35s cubic-bezier(.4,0,.2,1), opacity .25s;
       display: flex; flex-direction: column; gap: 16px;
@@ -3272,7 +3273,7 @@
             <!-- Leave Early + Stay Late. Still driven by Recommend Timings:
                  onRecommendTimingsChange() shows and hides this block by id, so
                  moving it down here changes nothing functionally. -->
-            <div id="recommendTimingsBlock">
+            <div id="recommendTimingsBlock" class="tile-sub">
               <div class="target-day-block">
                 <div class="target-day-head">
                   <div class="form-label">Short Days</div>
@@ -12340,12 +12341,20 @@ ${sig}`
           _devTaps = 0;
           const testCard = el('notifTestCard');
           if (testCard) {
-            // Reset any prior collapse styles + re-arm the toggle
-            testCard.style.maxHeight = '';
-            testCard.style.opacity = '';
-            testCard.style.overflow = '';
+            // Open the same way disableDevMode closes: height + opacity.
             testCard.style.transition = '';
+            testCard.style.overflow = 'hidden';
+            testCard.style.maxHeight = '0';
+            testCard.style.opacity = '0';
             testCard.style.display = '';
+            requestAnimationFrame(() => {
+              testCard.style.transition = 'max-height .35s cubic-bezier(.4,0,.2,1), opacity .25s ease';
+              testCard.style.maxHeight = testCard.scrollHeight + 'px';
+              testCard.style.opacity = '1';
+            });
+            setTimeout(() => {
+              testCard.style.maxHeight = ''; testCard.style.overflow = ''; testCard.style.transition = '';
+            }, 400);
             const tgl = el('devModeToggle'); if (tgl) tgl.checked = true;
             // Show User ID on profile card in dev mode
             const uidRow = el('profileUidRow');
@@ -14710,7 +14719,7 @@ ${sig}`
         if (l.closest('#notifTestCard')) return; // developer tools stay hidden
         const label = l.textContent.trim();
         if (!label) return;
-        const row = l.closest('.tile-list > div, #recommendTimingsBlock > div, #notifSubGroup > div > div, .settings-card-merged') || l;
+        const row = l.closest('.tile-sub > div, .tile-list > div, #notifSubGroup > div > div, .settings-card-merged') || l;
         const sub = l.parentElement.querySelector('.form-sub')?.textContent.trim() || '';
         entries.push({ label, sub, tab, row, hay: (label + ' ' + sub + ' ' + (KEYWORDS[label] || '')).toLowerCase() });
       }));

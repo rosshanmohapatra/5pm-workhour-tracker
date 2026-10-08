@@ -453,17 +453,36 @@
       border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-xs); }
     .dark .card { box-shadow: none; }
 
-    /* ── Toggle switch ── */
-    .toggle { position: relative; width: 38px; height: 22px; flex-shrink: 0; display: inline-block; }
+    /* ── Toggle switch ──
+       Fluid Functionalism's Switch (fluidfunctionalism.com/docs/switch), in CSS.
+       34x20 track, 16px thumb inset 2px. Hover stretches the thumb into a 2px
+       pill; press stretches it 4px and squashes it 4px about its centre line.
+       When on, extra width grows leftward so the thumb's outer edge stays put.
+       Thumb moves on a 160ms no-overshoot curve (their spring.moderate); the
+       track recolours in 80ms. Hover/press also fire from the whole clickable
+       row, since the row toggles too. Their thumb drag is not ported. */
+    .toggle { position: relative; width: 34px; height: 20px; flex-shrink: 0; display: inline-block; --tw: 16px; --th: 16px; --ty: 0px; }
     .toggle input { opacity: 0; width: 0; height: 0; position: absolute; }
     .toggle-track { position: absolute; inset: 0; background: var(--border);
-      border-radius: 11px; cursor: pointer; transition: background .18s; }
-    .toggle-track::before { content: ''; position: absolute; width: 16px; height: 16px;
-      top: 3px; left: 3px; border-radius: 50%; background: white;
-      transition: transform .18s; box-shadow: 0 1px 3px rgba(0,0,0,.2); }
-    .toggle input:checked + .toggle-track { background: var(--foreground); }
-    .toggle input:checked + .toggle-track::before { transform: translateX(16px); }
-    .dark .toggle input:checked + .toggle-track::before { background: var(--background); }
+      border-radius: 999px; cursor: pointer; transition: background-color .08s; }
+    .toggle-track::before { content: ''; position: absolute; top: 2px; left: 2px;
+      width: var(--tw); height: var(--th); border-radius: 999px; background: #fff;
+      box-shadow: 0 1px 2px rgba(0,0,0,.15);
+      transform: translate(var(--tx, 0px), var(--ty));
+      transition: transform .16s cubic-bezier(.25,1,.5,1), width .16s cubic-bezier(.25,1,.5,1), height .16s cubic-bezier(.25,1,.5,1); }
+    .toggle input:checked + .toggle-track { background: #6B97FF; }
+    .toggle input:checked + .toggle-track::before { --tx: calc(14px - (var(--tw) - 16px)); }
+    @media (hover: hover) {
+      .toggle:hover, [onclick]:hover > .toggle { --tw: 18px; }
+      .toggle:hover .toggle-track, [onclick]:hover > .toggle .toggle-track {
+        background: color-mix(in oklab, var(--border), var(--foreground) 10%); }
+      .toggle:hover input:checked + .toggle-track,
+      [onclick]:hover > .toggle input:checked + .toggle-track { background: #5C89F2; }
+    }
+    .toggle:active, [onclick]:active > .toggle { --tw: 20px; --th: 12px; --ty: 2px; }
+    .toggle input:focus-visible + .toggle-track { box-shadow: 0 0 0 2px var(--card), 0 0 0 3px #6B97FF; }
+    .toggle input:disabled + .toggle-track { opacity: .5; cursor: default; }
+    @media (prefers-reduced-motion: reduce) { .toggle-track::before { transition: none; } }
 
     /* ── Day picker ── */
     .day-picker { display: flex; gap: 6px; }

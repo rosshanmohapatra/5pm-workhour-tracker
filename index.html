@@ -15668,7 +15668,7 @@ ${sig}`
         if (!isExpectedToday()) { offerToStart(); return; }
 
         _startSession(now);
-        new Notification(greeting(now) + '!', { body: "It's " + short(now) + '.' });
+        new Notification(greeting(now) + '!', { body: 'Session Started at ' + short(now) });
       }, 4000);
     }).catch(err => console.warn('[boot] could not tell how 5pm was launched:', err));
   })();

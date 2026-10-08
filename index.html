@@ -603,7 +603,11 @@
     body.shell-new .tile-list > div:not(.set-note):not(.tile-sub),
     body.shell-new .tile-sub > div:not(.set-note) {
       background: var(--card); padding: 14px 16px; border-radius: 0; transition: background .12s; }
-    body.shell-new .tile-sub { gap: 2px; }
+    /* The block cancels the list's gap (negative margin) and its first row
+       carries that divider instead, inside the clipped area. Closed, the block
+       is 0px, so the row above is the group's last and gets rounded corners. */
+    body.shell-new .tile-sub { gap: 2px; margin-top: -2px; }
+    body.shell-new .tile-sub > :first-child { margin-top: 2px; }
     body.shell-new .tile-sub > .set-note { border-radius: 0; padding: 12px 16px; }
     /* Notifications: the switch and its alerts are rows of one tile, each
        full width so each gets its own hover. */

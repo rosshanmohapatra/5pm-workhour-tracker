@@ -574,7 +574,7 @@
     /* A stack reads as one grouped card: only its outer corners are rounded
        (the list clips them) and 2px gaps of page colour divide the rows. */
     body.shell-new .tile-list { gap: 2px; border-radius: var(--radius-md); overflow: hidden; }
-    body.shell-new .tile-list > div:not(.set-note):not(#recommendTimingsBlock),
+    body.shell-new .tile-list > div:not(.set-note):not([id="recommendTimingsBlock"]),
     body.shell-new #recommendTimingsBlock > div {
       background: var(--card); padding: 14px 16px; transition: background .12s; }
     body.shell-new #recommendTimingsBlock { gap: 2px; }

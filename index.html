@@ -13304,12 +13304,13 @@ ${sig}`
 
         // Passkeys: opens its own page. A passkey never counts toward
         // connectedCount, so removing one can't leave you without a way in.
-        let pkCount = 0;
+        let pkCount = 0, pkOff = false;
         try {
-          const { data: pk } = await window._sbClient.auth.passkey.list();
+          const { data: pk, error: pkErr } = await window._sbClient.auth.passkey.list();
+          pkOff = pkErr?.code === 'passkey_disabled'; // switched off for the project: no row
           pkCount = (pk || []).length;
-        } catch(_) { /* passkeys off or offline: show Not set */ }
-        list.appendChild(_simBuildRow({
+        } catch(_) { /* offline: show Not set */ }
+        if (!pkOff) list.appendChild(_simBuildRow({
           icon: _PK_ICON,
           name: 'Passkeys',
           status: pkCount ? pkCount + (pkCount === 1 ? ' Passkey' : ' Passkeys') : 'Not set',

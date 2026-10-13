@@ -11,7 +11,9 @@
   <!-- PWA / home-screen -->
   <meta name="application-name" content="5pm">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <!-- "black", as in index.html: translucent runs the page under the status bar
+       and iOS paints its scroll-edge blur over that band, above the theme button. -->
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
   <meta name="apple-mobile-web-app-title" content="5pm">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="theme-color" content="#f5f5f7" media="(prefers-color-scheme: light)">

@@ -115,7 +115,7 @@ function toggleMode() {
   $('pwdInput').autocomplete   = isSignup ? 'new-password' : 'current-password';
   $('nameField').classList.toggle('show', isSignup);
   $('forgotLink').style.display = isSignup ? 'none' : '';
-  $('passkey-btn').style.display = isSignup || !_passkeyOK ? 'none' : ''; // sign-in only
+  $('passkey-btn').style.display = isSignup || !_passkeyOn ? 'none' : ''; // sign-in only
 }
 
 // --- Password visibility toggle ---
@@ -443,11 +443,19 @@ initDigits();
 document.getElementById('google-btn').addEventListener('click', e => handleOAuth('Google', e));
 document.getElementById('github-btn').addEventListener('click', e => handleOAuth('GitHub', e));
 // A passkey belongs to whtracker.vercel.app; the desktop app is another origin.
-const _passkeyOK = !!window.PublicKeyCredential && !window.__TAURI__;
-if (_passkeyOK) {
+// Shown only once the project reports passkeys on, so a tap never meets
+// "Passkeys are disabled".
+let _passkeyOn = false;
+if (window.PublicKeyCredential && !window.__TAURI__) {
   const pk = document.getElementById('passkey-btn');
-  pk.style.display = '';
   pk.addEventListener('click', handlePasskey);
+  fetch(window.__SB_URL + '/auth/v1/settings', { headers: { apikey: window.__SB_ANON_KEY } })
+    .then(r => r.json())
+    .then(s => {
+      _passkeyOn = !!s.passkeys_enabled;
+      if (_passkeyOn && !isSignup) pk.style.display = '';
+    })
+    .catch(() => {});
 }
 
 // OAuth buttons — account recovery view

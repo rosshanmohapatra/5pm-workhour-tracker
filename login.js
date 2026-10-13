@@ -22,7 +22,8 @@
 const _sb = window.supabase.createClient(
   window.__SB_URL,
   window.__SB_ANON_KEY,
-  { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } }
+  { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true,
+            experimental: { passkey: true } } }
 );
 
 // ── 2. Theme helpers ──────────────────────────────────────────────────────────
@@ -207,6 +208,33 @@ async function handleOAuth(provider, evt) {
     btn.disabled = false;
     btn.style.opacity = '';
     showAuthError(`${provider} sign-in failed: ${err.message}`);
+  }
+}
+
+// --- Passkey ---
+// The system prompt picks the account, so no email is needed.
+async function handlePasskey(evt) {
+  const btn = evt.currentTarget;
+  btn.disabled = true;
+  btn.style.opacity = '.5';
+  _clearAuthError();
+  try {
+    const { error } = await _sb.auth.signInWithPasskey();
+    if (error) throw error;
+    if (await _mfaRequired()) {
+      btn.disabled = false; btn.style.opacity = '';
+      showMfaChallenge();
+      return;
+    }
+    showSuccess('Welcome back!');
+  } catch (err) {
+    btn.disabled = false;
+    btn.style.opacity = '';
+    const text = (err.name || '') + ' ' + (err.message || '') + ' ' + (err.code || '');
+    if (/NotAllowed|cancel|abort/i.test(text)) return; // closed the prompt
+    showAuthError(err.code === 'webauthn_credential_not_found'
+      ? "That passkey isn't linked to a 5pm account."
+      : 'Passkey sign-in failed: ' + (err.message || 'Please try again.'));
   }
 }
 
@@ -413,6 +441,12 @@ initDigits();
 // OAuth buttons — main login view
 document.getElementById('google-btn').addEventListener('click', e => handleOAuth('Google', e));
 document.getElementById('github-btn').addEventListener('click', e => handleOAuth('GitHub', e));
+// A passkey belongs to whtracker.vercel.app; the desktop app is another origin.
+if (window.PublicKeyCredential && !window.__TAURI__) {
+  const pk = document.getElementById('passkey-btn');
+  pk.style.display = '';
+  pk.addEventListener('click', handlePasskey);
+}
 
 // OAuth buttons — account recovery view
 document.getElementById('google-recovery-btn').addEventListener('click', e => handleOAuth('Google', e));

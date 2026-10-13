@@ -14,7 +14,8 @@
     window._sbClient = window.supabase.createClient(
       window.__SB_URL,
       window.__SB_ANON_KEY,
-      { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } }
+      { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true,
+                experimental: { passkey: true } } }
     );
     // Replace the localStorage gate with Supabase's real session check.
     // onAuthStateChange fires immediately on load with the INITIAL_SESSION event.
@@ -1309,6 +1310,20 @@
     .sim-status.not-connected { color:var(--muted-fg); }
     .sim-status.not-set { color:var(--muted-fg); }
     .sim-status.muted { color:var(--muted-fg); font-weight:400; }
+    /* A row that opens its own page: the whole row is the link. */
+    .sim-row.link { cursor:pointer; }
+    body.shell-new .tile-list > .sim-row.link:hover { background: color-mix(in srgb, var(--card) 93%, var(--foreground)); }
+    .sim-chev { color:var(--muted-fg); flex-shrink:0; }
+
+    /* ── Settings sub-page (Passkeys) ── replaces the tabs while open. */
+    .settings-panel.page-open > :not(.set-page) { display:none !important; }
+    .set-page { display:none; flex-direction:column; gap:12px; }
+    .settings-panel.page-open > .set-page { display:flex; }
+    .set-page-head { display:flex; align-items:flex-start; margin-bottom:8px; }
+    .set-page-head .back-btn { margin-top:1px; }
+    .pk-empty { background:var(--card); border-radius:var(--radius-md); padding:28px 16px;
+      text-align:center; font-size:13px; color:var(--muted-fg); }
+    .set-page .btn-primary { gap:6px; }
 
     /* ── Manage Devices ── */
     .dev-row { display:flex; align-items:center; justify-content:space-between; gap:12px; }
@@ -3819,6 +3834,25 @@
       <div style="padding:20px;display:flex;justify-content:flex-end;gap:8px">
         <button class="btn-secondary" onclick="el('logoutOverlay').classList.remove('open')">Stay Back</button>
         <button class="btn-ghost-destructive" onclick="confirmLogout()">Log Out</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Remove Passkey Confirmation ── -->
+  <div class="overlay" id="pkRemoveOverlay">
+    <div class="dialog" style="max-width:360px">
+      <div class="dialog-head" style="display:flex;align-items:flex-start;justify-content:space-between">
+        <div>
+          <div class="dialog-title">Remove passkey?</div>
+          <div class="dialog-desc">You won't be able to sign in with <b id="pkRemoveName"></b> anymore.</div>
+        </div>
+        <button class="btn-icon" onclick="el('pkRemoveOverlay').classList.remove('open')" title="Close" style="margin:-4px -4px -4px 8px;flex-shrink:0">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div style="padding:20px;display:flex;justify-content:flex-end;gap:8px">
+        <button class="btn-secondary" onclick="el('pkRemoveOverlay').classList.remove('open')">Cancel</button>
+        <button class="btn-ghost-destructive" id="pkRemoveBtn" onclick="confirmRemovePasskey()">Remove</button>
       </div>
     </div>
   </div>
@@ -13268,6 +13302,21 @@ ${sig}`
           destructive: !!githubId,
         }));
 
+        // Passkeys: opens its own page. A passkey never counts toward
+        // connectedCount, so removing one can't leave you without a way in.
+        let pkCount = 0;
+        try {
+          const { data: pk } = await window._sbClient.auth.passkey.list();
+          pkCount = (pk || []).length;
+        } catch(_) { /* passkeys off or offline: show Not set */ }
+        list.appendChild(_simBuildRow({
+          icon: _PK_ICON,
+          name: 'Passkeys',
+          status: pkCount ? pkCount + (pkCount === 1 ? ' Passkey' : ' Passkeys') : 'Not set',
+          statusClass: 'muted',
+          onRow: openPasskeysPage,
+        }));
+
         // Authenticator App (TOTP 2FA) — second factor, not a sign-in provider
         let totpFactor = null;
         try {
@@ -13298,7 +13347,7 @@ ${sig}`
       return 'last updated ' + days + ' day' + (days === 1 ? '' : 's') + ' ago';
     }
 
-    function _simBuildRow({ icon, name, status, statusClass, connected, action, onAction, destructive }) {
+    function _simBuildRow({ icon, name, status, statusClass, connected, action, onAction, destructive, onRow }) {
       const row = document.createElement('div');
       row.className = 'sim-row';
 
@@ -13319,6 +13368,13 @@ ${sig}`
       left.appendChild(iconWrap);
       left.appendChild(info);
       row.appendChild(left);
+
+      if (onRow) {
+        row.classList.add('link');
+        row.addEventListener('click', onRow);
+        row.insertAdjacentHTML('beforeend', '<svg class="sim-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg>');
+        return row;
+      }
 
       const btn = document.createElement('button');
       btn.className = destructive ? 'btn-ghost-destructive' : 'btn-secondary';
@@ -13355,6 +13411,146 @@ ${sig}`
       } catch(e) {
         showToast('Disconnect Failed', 'error', e.message || 'Could not disconnect. Please try again.');
       }
+    }
+
+    // ── Passkeys page ────────────────────────────────────────────────────────
+    // Supabase stores them (auth.passkey, experimental). A passkey is bound to
+    // whtracker.vercel.app, so the desktop app (another origin) can list,
+    // rename and remove them but not create one.
+    const _PK_ICON = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="7.5" cy="15.5" r="4.5"/><path d="m21 2-9.6 9.6"/><path d="m15.5 7.5 3 3L22 7l-3-3"/></svg>';
+    let _pkRemoving = null;
+
+    function openPasskeysPage() {
+      const wrap = document.querySelector('#viewSettings .settings-panel');
+      if (!wrap) return;
+      if (!el('pkPage')) {
+        const page = document.createElement('div');
+        page.id = 'pkPage';
+        page.className = 'set-page';
+        page.innerHTML =
+          '<div class="set-page-head">' +
+            '<button class="back-btn" title="Back" aria-label="Back" onclick="closePasskeysPage()"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></button>' +
+            '<div><div class="settings-title">Passkeys</div><div class="form-sub">Sign in with your face, fingerprint or device PIN.</div></div>' +
+          '</div>' +
+          '<div id="pkList" class="settings-group tile-list"></div>' +
+          '<div id="pkEmpty" class="pk-empty" style="display:none">No passkeys added yet</div>' +
+          (window.__TAURI__
+            ? '<div class="set-note">Add a passkey from 5pm on the web, at whtracker.vercel.app.</div>'
+            : '<button class="btn btn-primary" id="pkAddBtn" onclick="addPasskey()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Add Passkey</button>');
+        wrap.appendChild(page);
+      }
+      wrap.classList.add('page-open');
+      window.scrollTo(0, 0);
+      renderPasskeys();
+    }
+
+    function closePasskeysPage() {
+      document.querySelector('#viewSettings .settings-panel')?.classList.remove('page-open');
+      hydrateSignInMethods(); // the row's count
+    }
+
+    async function renderPasskeys() {
+      const list = el('pkList'), empty = el('pkEmpty');
+      if (!list) return;
+      if (!list.children.length) {
+        list.style.display = '';
+        list.innerHTML = '<div style="font-size:13px;color:var(--muted-fg)">Loading…</div>';
+      }
+      try {
+        const { data, error } = await window._sbClient.auth.passkey.list();
+        if (error) throw error;
+        const keys = (data || []).sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+        list.innerHTML = '';
+        keys.forEach(k => list.appendChild(_pkBuildRow(k)));
+        list.style.display = keys.length ? '' : 'none';
+        empty.style.display = keys.length ? 'none' : '';
+      } catch (e) {
+        list.style.display = '';
+        list.innerHTML = '<div style="font-size:13px;color:var(--muted-fg)">Couldn\'t load passkeys.</div>';
+        empty.style.display = 'none';
+      }
+    }
+
+    function _pkBuildRow(k) {
+      const row = document.createElement('div');
+      row.className = 'dev-row';
+      row.innerHTML =
+        '<div class="dev-left"><div class="dev-icon">' + _PK_ICON + '</div><div class="dev-info">' +
+          '<input class="dev-name" type="text" maxlength="60" spellcheck="false" autocomplete="off" data-lpignore="true" data-1p-ignore="true" aria-label="Passkey name">' +
+          '<div class="dev-sub"></div></div></div>' +
+        '<button class="btn-ghost-destructive" style="flex-shrink:0;font-size:12px;height:30px;padding:0 12px">Remove</button>';
+      const name = row.querySelector('.dev-name');
+      name.value = k.friendly_name || 'Passkey';
+      const d = new Date(k.created_at);
+      const added = d.toLocaleDateString(undefined, d.getFullYear() === new Date().getFullYear()
+        ? { month: 'short', day: 'numeric' } : { month: 'short', day: 'numeric', year: 'numeric' });
+      row.querySelector('.dev-sub').textContent =
+        'Added ' + added + ' · ' + (k.last_used_at ? 'Used ' + _devAgo(k.last_used_at) : 'Not used yet');
+
+      // Rename in place: Enter or leaving the field saves, Esc restores.
+      let last = name.value;
+      name.addEventListener('blur', async () => {
+        const v = name.value.trim().slice(0, 60);
+        if (!v || v === last) { name.value = last; return; }
+        name.value = v;
+        try {
+          const { error } = await window._sbClient.auth.passkey.update({ passkeyId: k.id, friendlyName: v });
+          if (error) throw error;
+          last = v;
+          showToast('Passkey Renamed', 'success');
+        } catch (e) {
+          name.value = last;
+          showToast("Couldn't Rename Passkey", 'error', e.message || 'Please try again.');
+        }
+      });
+      name.addEventListener('keydown', e => {
+        if (e.key === 'Enter')  { e.preventDefault(); name.blur(); }
+        if (e.key === 'Escape') { name.value = last; name.blur(); }
+      });
+
+      row.querySelector('button').addEventListener('click', () => {
+        _pkRemoving = k;
+        el('pkRemoveName').textContent = name.value;
+        el('pkRemoveOverlay').classList.add('open');
+      });
+      return row;
+    }
+
+    async function confirmRemovePasskey() {
+      if (!_pkRemoving) return;
+      const btn = el('pkRemoveBtn');
+      btn.disabled = true; btn.textContent = 'Removing…';
+      try {
+        const { error } = await window._sbClient.auth.passkey.delete({ passkeyId: _pkRemoving.id });
+        if (error) throw error;
+        el('pkRemoveOverlay').classList.remove('open');
+        showToast('Passkey Removed', 'success');
+        renderPasskeys();
+      } catch (e) {
+        showToast("Couldn't Remove Passkey", 'error', e.message || 'Please try again.');
+      }
+      btn.disabled = false; btn.textContent = 'Remove';
+    }
+
+    async function addPasskey() {
+      const btn = el('pkAddBtn');
+      btn.disabled = true;
+      try {
+        const { error } = await window._sbClient.auth.registerPasskey();
+        if (error) throw error;
+        showToast('Passkey Added', 'success', 'Next time, sign in with your face, fingerprint or device PIN.');
+        renderPasskeys();
+      } catch (e) {
+        const code = e.code || '', text = (e.name || '') + ' ' + (e.message || '') + ' ' + code;
+        // Closing the system prompt is a choice, not an error.
+        if (!/NotAllowed|cancel|abort/i.test(text)) {
+          showToast("Couldn't Add Passkey", 'error',
+            code === 'webauthn_credential_exists' ? 'This device already has a passkey for 5pm.'
+            : code === 'too_many_passkeys' ? 'You can save up to 10 passkeys. Remove one first.'
+            : (e.message || 'Please try again.'));
+        }
+      }
+      btn.disabled = false;
     }
 
     function openCreatePwdModal() {

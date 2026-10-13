@@ -219,6 +219,14 @@ async function handlePasskey(evt) {
   btn.disabled = true;
   btn.style.opacity = '.5';
   _clearAuthError();
+  // Desktop app: a passkey belongs to whtracker.vercel.app, so it signs in in
+  // the browser and lib/desktop-auth.js receives the session.
+  if (window.__desktopStartPasskey) {
+    try { await window.__desktopStartPasskey(); }
+    catch (err) { showAuthError('Could not open your browser: ' + (err.message || err)); }
+    btn.disabled = false; btn.style.opacity = '';
+    return;
+  }
   try {
     const { error } = await _sb.auth.signInWithPasskey();
     if (error) throw error;
@@ -436,7 +444,7 @@ document.getElementById('github-btn').addEventListener('click', e => handleOAuth
 // Shown only once the project reports passkeys on, so a tap never meets
 // "Passkeys are disabled".
 let _passkeyOn = false;
-if (window.PublicKeyCredential && !window.__TAURI__) {
+if (window.PublicKeyCredential || window.__TAURI__) { // desktop hands off to the browser
   const pk = document.getElementById('passkey-btn');
   pk.addEventListener('click', handlePasskey);
   fetch(window.__SB_URL + '/auth/v1/settings', { headers: { apikey: window.__SB_ANON_KEY } })

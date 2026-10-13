@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>5pm — Passkey Sign In</title>
+  <meta name="robots" content="noindex">
+  <link id="favicon" rel="icon" type="image/svg+xml" href="/favicon-light.svg">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script>(function(){var s=localStorage.getItem('wh_theme');var p=matchMedia('(prefers-color-scheme:dark)').matches;if(s?s==='dark':p)document.documentElement.classList.add('dark');})()</script>
+  <!--
+    The desktop app runs on its own origin, where a passkey for
+    whtracker.vercel.app can't be used. The app opens this page in the browser
+    with a one-time ?state, the passkey signs in here, and the session goes back
+    to the app's loopback listener (the same port Google sign-in uses). The app
+    rejects any hand-off whose state it didn't create, then rotates the session,
+    so the copy in this tab's history stops working.
+  -->
+  <script src="/lib/config.js"></script>
+  <script src="/lib/supabase.umd.js"></script>
+  <style>
+    :root { --bg:#f5f5f7; --card:#fff; --fg:#09090b; --muted:#ebebee; --muted-fg:#71717a; --border:#dfe0e4; }
+    .dark { --bg:#09090b; --card:#111113; --fg:#fafafa; --muted:#1a1a1d; --muted-fg:#a1a1aa; --border:#2c2c30; }
+    * { box-sizing:border-box; margin:0; padding:0; }
+    body { font-family:'Inter',system-ui,sans-serif; background:var(--bg); color:var(--fg); min-height:100dvh;
+      display:flex; align-items:center; justify-content:center; padding:24px 16px; -webkit-font-smoothing:antialiased; }
+    .card { width:100%; max-width:360px; background:var(--card); border:1px solid var(--border); border-radius:16px; padding:28px 24px; text-align:center; }
+    img { display:block; margin:0 auto 16px; border-radius:14px; }
+    h1 { font-size:18px; font-weight:700; }
+    p { font-size:13px; color:var(--muted-fg); margin-top:6px; line-height:1.5; }
+    button { width:100%; height:42px; margin-top:20px; border-radius:10px; border:1px solid var(--border); background:var(--muted);
+      color:var(--fg); font:500 13px 'Inter',system-ui,sans-serif; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:10px; }
+    button:hover { background:var(--border); }
+    button:disabled { opacity:.5; cursor:default; }
+    #msg { min-height:20px; }
+    #msg.err { color:#dc2626; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <img id="logo" src="/brand-light.svg" alt="5pm" height="56">
+    <h1>Sign in to 5pm for Windows</h1>
+    <p>Use your passkey here, and 5pm on this computer signs in.</p>
+    <button id="go" type="button">
+      <svg width="18" height="18" viewBox="0 -960 960 960" fill="currentColor"><path d="M120-160v-112q0-34 17.5-62.5T184-378q62-31 126-46.5T440-440q20 0 40 1.5t40 4.5q-4 58 21 109.5t73 84.5v80H120ZM760-40l-60-60v-186q-44-13-72-49.5T600-420q0-58 41-99t99-41q58 0 99 41t41 99q0 45-25.5 80T790-290l50 50-60 60 60 60-80 80ZM440-480q-66 0-113-47t-47-113q0-66 47-113t113-47q66 0 113 47t47 113q0 66-47 113t-113 47Zm300 80q17 0 28.5-11.5T780-440q0-17-11.5-28.5T740-480q-17 0-28.5 11.5T700-440q0 17 11.5 28.5T740-400Z"/></svg>
+      Continue with Passkey
+    </button>
+    <p id="msg"></p>
+  </div>
+  <script>
+    if (document.documentElement.classList.contains('dark')) {
+      document.getElementById('logo').src = '/brand-dark.svg';
+      document.getElementById('favicon').href = '/favicon-dark.svg';
+    }
+    var state = new URLSearchParams(location.search).get('state') || '';
+    var btn = document.getElementById('go'), msg = document.getElementById('msg');
+    function say(text, err) { msg.textContent = text; msg.className = err ? 'err' : ''; }
+
+    if (!/^[A-Za-z0-9_-]{32,128}$/.test(state)) {
+      btn.disabled = true;
+      say('Open this page from the 5pm app: choose Continue with Passkey on its sign-in screen.', true);
+    }
+
+    btn.addEventListener('click', async function () {
+      btn.disabled = true;
+      say('');
+      // In memory only: this tab never keeps or refreshes the session, so the
+      // app's copy is the only live one.
+      var sb = window.supabase.createClient(window.__SB_URL, window.__SB_ANON_KEY, {
+        auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false,
+                experimental: { passkey: true } }
+      });
+      try {
+        var res = await sb.auth.signInWithPasskey();
+        if (res.error) throw res.error;
+        var s = res.data.session;
+        say('Signed in. Returning to 5pm…');
+        // The port is fixed, never read from the URL, so the session can't be
+        // sent anywhere but this computer's 5pm app.
+        location.replace('http://localhost:47893/?' + new URLSearchParams({
+          state: state, access_token: s.access_token, refresh_token: s.refresh_token
+        }));
+      } catch (e) {
+        btn.disabled = false;
+        var t = (e.name || '') + ' ' + (e.message || '') + ' ' + (e.code || '');
+        if (/NotAllowed|cancel|abort/i.test(t)) return; // closed the prompt
+        say(e.code === 'webauthn_credential_not_found'
+          ? "That passkey isn't linked to a 5pm account."
+          : 'Passkey sign-in failed: ' + (e.message || 'Please try again.'), true);
+      }
+    });
+  </script>
+</body>
+</html>

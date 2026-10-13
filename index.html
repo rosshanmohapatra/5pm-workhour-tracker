@@ -13576,9 +13576,8 @@ ${sig}`
         page.insertAdjacentHTML('beforeend',
           '<div id="pkList" class="settings-group tile-list"></div>' +
           '<div id="pkEmpty" class="pk-empty" style="display:none">No passkeys added yet</div>' +
-          (window.__TAURI__
-            ? '<div class="set-note">Add a passkey from 5pm on the web, at whtracker.vercel.app.</div>'
-            : '<button class="btn btn-primary" id="pkAddBtn" onclick="addPasskey()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Add Passkey</button>'));
+          '<button class="btn btn-primary" id="pkAddBtn" onclick="addPasskey()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Add Passkey</button>' +
+          (window.__TAURI__ ? '<div class="set-note">Opens 5pm in your browser, where passkeys are added.</div>' : ''));
       });
       renderPasskeys();
     }
@@ -13667,6 +13666,12 @@ ${sig}`
     }
 
     async function addPasskey() {
+      // Desktop: a passkey belongs to whtracker.vercel.app, so it's added there.
+      if (window.__TAURI__) {
+        window.__TAURI__.core.invoke('open_external', { url: 'https://whtracker.vercel.app/index.html#passkeys' })
+          .catch(e => showToast("Couldn't Open Browser", 'error', String(e)));
+        return;
+      }
       const btn = el('pkAddBtn');
       btn.disabled = true;
       try {
@@ -15137,6 +15142,14 @@ ${sig}`
       });
       q.addEventListener('blur', () => setTimeout(close, 120));
     })();
+
+    // The desktop app's Add Passkey opens the web app here, on Settings › Passkeys.
+    if (location.hash === '#passkeys') {
+      history.replaceState(null, '', location.pathname + location.search);
+      const s = el('hdrSettings');
+      if (s) s.click(); else switchTab('settings');
+      openPasskeysPage();
+    }
 
   </script>
 

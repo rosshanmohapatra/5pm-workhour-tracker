@@ -233,6 +233,14 @@ async function handlePasskey(evt) {
   btn.disabled = true;
   btn.style.opacity = '.5';
   _clearAuthError();
+  // Desktop app: a passkey belongs to whtracker.vercel.app, so it signs in in
+  // the browser and lib/desktop-auth.js receives the session.
+  if (window.__desktopStartPasskey) {
+    try { await window.__desktopStartPasskey(); }
+    catch (err) { showAuthError('Could not open your browser: ' + (err.message || err)); }
+    btn.disabled = false; btn.style.opacity = '';
+    return;
+  }
   try {
     const { error } = await _sb.auth.signInWithPasskey();
     if (error) throw error;
@@ -387,32 +395,23 @@ async function completeRecovery() {
   }
 }
 
-// Verify a one-time backup code against our own table, then sign in.
+// A backup code is checked by the database (public.use_backup_code), never
+// here: a valid one turns two-factor off so the account is usable again, and
+// the user sets the authenticator up afresh.
 function _normalizeBackupCode(c) { return (c || '').toLowerCase().replace(/[^a-z0-9]/g, ''); }
-async function _sha256Hex(str) {
-  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
-  return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
-}
 async function verifyBackupCode() {
-  const raw = $('authBackupInput').value;
-  const norm = _normalizeBackupCode(raw);
+  const norm = _normalizeBackupCode($('authBackupInput').value);
   if (norm.length < 8) return;
   const btn = $('authBackupVerify');
   btn.disabled = true; btn.textContent = 'Verifying…';
   if ($('authErr')) $('authErr').classList.remove('show');
   try {
-    const hash = await _sha256Hex(norm);
-    // Atomic single-statement consume: marks the matching unused code used (RLS scopes to this user).
-    const { data, error } = await _sb
-      .from('mfa_backup_codes')
-      .update({ used_at: new Date().toISOString() })
-      .eq('code_hash', hash)
-      .is('used_at', null)
-      .select();
+    const { data: ok, error } = await _sb.rpc('use_backup_code', { code: norm });
     if (error) throw error;
-    if (!data || data.length === 0) throw new Error('Invalid or already-used backup code.');
+    if (!ok) throw new Error('Invalid or already-used backup code.');
+    await _sb.auth.refreshSession(); // the session no longer lists an authenticator
     try { sessionStorage.setItem('wh_mfa_ok', '1'); } catch (_) {}
-    showSuccess('Welcome back!');
+    showSuccess('Two-factor is off. Set it up again in Settings.');
   } catch (err) {
     btn.disabled = false; btn.textContent = 'Use Backup Code';
     _showAuthErr(err.message || 'Could not verify backup code.');
@@ -459,7 +458,7 @@ document.getElementById('github-btn').addEventListener('click', e => handleOAuth
 // Shown only once the project reports passkeys on, so a tap never meets
 // "Passkeys are disabled".
 let _passkeyOn = false;
-if (window.PublicKeyCredential && !window.__TAURI__) {
+if (window.PublicKeyCredential || window.__TAURI__) { // desktop hands off to the browser
   const pk = document.getElementById('passkey-btn');
   pk.addEventListener('click', handlePasskey);
   fetch(window.__SB_URL + '/auth/v1/settings', { headers: { apikey: window.__SB_ANON_KEY } })

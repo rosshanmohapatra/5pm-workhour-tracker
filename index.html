@@ -89,7 +89,12 @@
         if (!_mfaOk && !location.search.includes('code=')) {
           window._sbClient.auth.mfa.getAuthenticatorAssuranceLevel().then(function(res) {
             var d = res && res.data;
-            if (d && d.nextLevel === 'aal2' && d.currentLevel === 'aal1') {
+            // A passkey already proves the device and the person, so a passkey
+            // sign-in skips the authenticator code, in every tab.
+            var viaPasskey = d && (d.currentAuthenticationMethods || []).some(function(m) {
+              return /passkey|webauthn/i.test(m && m.method);
+            });
+            if (d && d.nextLevel === 'aal2' && d.currentLevel === 'aal1' && !viaPasskey) {
               window.location.replace('/login.html');
             } else {
               _revealApp(session);

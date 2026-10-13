@@ -222,11 +222,9 @@ async function handlePasskey(evt) {
   try {
     const { error } = await _sb.auth.signInWithPasskey();
     if (error) throw error;
-    if (await _mfaRequired()) {
-      btn.disabled = false; btn.style.opacity = '';
-      showMfaChallenge();
-      return;
-    }
+    // No authenticator code after a passkey: it already proves the device and
+    // the person. index.html's gate honours this for later tabs too.
+    try { sessionStorage.setItem('wh_mfa_ok', '1'); } catch (_) {}
     showSuccess('Welcome back!');
   } catch (err) {
     btn.disabled = false;
@@ -334,7 +332,8 @@ async function _mfaRequired() {
   try {
     const { data, error } = await _sb.auth.mfa.getAuthenticatorAssuranceLevel();
     if (error) return false;
-    return !!data && data.nextLevel === 'aal2' && data.currentLevel === 'aal1';
+    const viaPasskey = (data?.currentAuthenticationMethods || []).some(m => /passkey|webauthn/i.test(m?.method));
+    return !!data && data.nextLevel === 'aal2' && data.currentLevel === 'aal1' && !viaPasskey;
   } catch (_) { return false; }
 }
 

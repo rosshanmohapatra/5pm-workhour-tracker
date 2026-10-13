@@ -9863,6 +9863,10 @@
       if (name === 'analytics' && !el('viewAnalytics')) { switchTab('home'); renderAnalytics(); return; }
       const oldIdx = VIEW_ORDER.indexOf(activeView);
       const newIdx = VIEW_ORDER.indexOf(name);
+      // Leaving Settings closes any nested page, so it reopens on its tabs.
+      if (activeView === 'settings' && name !== 'settings') {
+        document.querySelector('#viewSettings .settings-panel')?.classList.remove('page-open');
+      }
       activeView = name;
       try { sessionStorage.setItem('wh_active_tab', name); } catch {}
       document.querySelectorAll('.nav-tab').forEach(t => {

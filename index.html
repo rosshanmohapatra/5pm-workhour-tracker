@@ -1324,7 +1324,7 @@
     .set-page .dialog-head, .set-page .email-modal-sep { display:none !important; }
     .set-card [id^="mfaView"] > div { padding:0 !important; }
     #devOthersWrap > div { justify-content:stretch !important; }
-    #devRevokeOthersBtn { width:100%; }
+    #devRevokeOthersBtn { width:100%; justify-content:center; }
     .set-page-head { display:flex; align-items:flex-start; margin-bottom:8px; }
     .set-page-head .back-btn { margin-top:1px; }
     .pk-empty { background:var(--card); border-radius:var(--radius-md); padding:28px 16px;
@@ -14222,7 +14222,7 @@ ${sig}`
       if (isCurrent) {
         const chip = document.createElement('span');
         chip.className = 'dev-chip';
-        chip.textContent = 'This device';
+        chip.textContent = 'This Device';
         actions.appendChild(chip);
       } else {
         const btn = document.createElement('button');

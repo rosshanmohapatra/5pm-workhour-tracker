@@ -15703,14 +15703,16 @@ ${sig}`
     if (!T) return;
 
     function line() {
-      if (typeof loginDate === 'undefined' || !loginDate) return '5pm';
+      if (typeof loginDate === 'undefined' || !loginDate) return 'Not Started';
+      // Offline means changes are waiting to sync; the timer itself keeps running.
+      const off = navigator.onLine ? '' : ' (offline)';
       const worked = _sessionAccSecs + Math.max(0, Math.floor((Date.now() - loginDate) / 1000));
       const target = effSecs();
-      if (!target) return '5pm — ' + durWorked(worked) + ' worked';
+      if (!target) return durWorked(worked) + ' worked' + off;
       const left = target - worked;
-      return left > 0
+      return (left > 0
         ? durWorked(left) + ' left'
-        : 'Overtime ' + durWorked(-left);
+        : 'Overtime ' + durWorked(-left)) + off;
     }
 
     let last = null;
@@ -15721,7 +15723,10 @@ ${sig}`
       T.core.invoke('set_tray_tooltip', { text }).catch(() => {});
     }
 
-    setInterval(push, 60000);
+    // 15s so a start or stop shows quickly; push() skips unchanged text.
+    setInterval(push, 15000);
+    addEventListener('online', push);
+    addEventListener('offline', push);
     push();
   })();
 

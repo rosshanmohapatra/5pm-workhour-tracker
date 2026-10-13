@@ -698,15 +698,11 @@
       overflow: hidden; transition: max-height .28s ease, opacity .2s; }
     .notif-panel.hidden { max-height: 0; opacity: 0; pointer-events: none; }
     .notif-panel.open   { max-height: 900px; opacity: 1; }
+    /* A light dim, never a blur: the page behind stays readable. */
     .notif-scrim { position: fixed; inset: 0; z-index: 39;
-      background: rgba(0,0,0,.28);
-      backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+      background: rgba(0,0,0,.2);
       opacity: 0; pointer-events: none; transition: opacity .2s ease; }
     .notif-scrim.open { opacity: 1; pointer-events: auto; }
-    /* Desktop keeps the page sharp behind the popover; the blur is a phone treatment. */
-    @media (min-width: 641px) {
-      .notif-scrim { backdrop-filter: none; -webkit-backdrop-filter: none; }
-    }
     /* A notification that leads somewhere is tappable as a whole card, rather
        than hiding the action behind a small button. */
     .notif-tappable { cursor: pointer; transition: background .12s; }
@@ -3031,7 +3027,7 @@
         <div class="rc-head">
           <div class="rc-head-left">
             <button class="this-week-label-btn" id="wkNavLabelBtn" onclick="openAnalyticsWeekPicker(this)" type="button">
-              <span id="wkNavLabel">April 13–17</span>
+              <span id="wkNavLabel">This Week</span>
               <svg class="tw-chevron" width="10" height="10" viewBox="0 0 24 24" fill="none">
                 <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
               </svg>
@@ -3796,9 +3792,9 @@
         <table id="weekReportTable" style="width:100%;border-collapse:collapse;font-size:12px"></table>
       </div>
       <div class="dialog-foot" style="flex-shrink:0;padding-top:12px;display:flex;flex-direction:row;justify-content:flex-end">
-        <button class="btn-secondary" style="gap:5px;padding:0 10px" onclick="downloadWeekReport()">
+        <button class="btn-secondary" id="wrExportBtn" style="gap:5px;padding:0 10px" onclick="downloadWeekReport()">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M7.70711 10.2929L11 13.5858L11 3C11 2.44771 11.4477 2 12 2C12.5523 2 13 2.44771 13 3L13 13.5858L16.2929 10.2929C16.6834 9.90237 17.3166 9.90237 17.7071 10.2929C18.0976 10.6834 18.0976 11.3166 17.7071 11.7071L12.7071 16.7071C12.3166 17.0976 11.6834 17.0976 11.2929 16.7071L6.29289 11.7071C5.90237 11.3166 5.90237 10.6834 6.29289 10.2929C6.68342 9.90237 7.31658 9.90237 7.70711 10.2929Z" fill="currentColor"/><path d="M4 22C3.44772 22 3 21.5523 3 21C3 20.4477 3.44772 20 4 20H20C20.5523 20 21 20.4477 21 21C21 21.5523 20.5523 22 20 22H4Z" fill="currentColor"/></svg>
-          Export
+          <span id="wrExportLabel">Export</span>
         </button>
       </div>
     </div>
@@ -5164,7 +5160,9 @@
       if (!c.notifOn || Notification.permission !== 'granted') return;
 
       const targetSecs = effSecs();
-      const baseMs     = new Date(loginTimestamp).getTime();
+      // Time already worked today (before a pause) counts toward the target, so
+      // the reminders count from where the day effectively began.
+      const baseMs     = new Date(loginTimestamp).getTime() - _sessionAccSecs * 1000;
       const now        = Date.now();
 
       const jobs = [
@@ -5744,12 +5742,12 @@
       const log = dayLog(tk) || {};
       const hasCustomTarget = log.todayTargetH != null;
       // Use stored login time when session is ended (loginDate is null after checkout).
-      const inVal = loginDate ? short(loginDate) : _loginDisplayFromLog(log);
+      const inVal = loginDate ? _dayStartDisplay() : _loginDisplayFromLog(log);
 
       // Duration card (active session) — shows "LoginTime → LogoutTime", opens tab picker
       let leftCardHtml;
       if (loginDate) {
-        const logoutDate = new Date(loginDate.getTime() + eff * 1000);
+        const logoutDate = _leaveAt(eff);
         const outVal = short(logoutDate);
         leftCardHtml = `
         <div class="rc-io-box editable" id="inTimeBox" onclick="openLoginLogoutPicker(event)">
@@ -6812,7 +6810,7 @@
       // Only show hint if required stay is within dailyH + 1h
       if (todayRequired > (c.dailyH + 1) * 3600) return null;
 
-      const leaveTimeToday = new Date(loginDate.getTime() + todayRequired * 1000);
+      const leaveTimeToday = _leaveAt(todayRequired);
       if (leaveTimeToday < new Date()) return null; // already past that time
 
       const targetDayName = wk[targetIdx]?.name || 'your target day';
@@ -6852,7 +6850,7 @@
       if (show) {
         const lbl = el('rcRunningElsewhereLabel');
         if (lbl) {
-          const leaveDate = new Date(loginDate.getTime() + effSecs() * 1000);
+          const leaveDate = _leaveAt();
           lbl.textContent = 'Session running · Leave by ' + short(leaveDate);
         }
       }
@@ -7637,8 +7635,26 @@
       } catch(e) { cb(null); }
     }
 
+    // Export shows its state: "Exporting…" with the button disabled (no
+    // duplicate files from repeat clicks), then where the file went, or an error
+    // with Try Again.
+    function _wrExportBusy(on) {
+      const b = el('wrExportBtn'), l = el('wrExportLabel');
+      if (b) b.disabled = on;
+      if (l) l.textContent = on ? 'Exporting…' : 'Export';
+    }
     function downloadWeekReport() {
       if (!window.jspdf) { showToast('Creating your Document', 'info', '', { label: 'Okay' }); return; }
+      if (el('wrExportBtn')?.disabled) return;
+      _wrExportBusy(true);
+      const failed = e => {
+        _wrExportBusy(false);
+        showToast("Couldn't Export Report", 'error', (e && e.message) || 'Please try again.',
+                  { label: 'Try Again', onClick: downloadWeekReport });
+      };
+      try { _downloadWeekReport(failed); } catch (e) { failed(e); }
+    }
+    function _downloadWeekReport(failed) {
       const ctx = _reportContext();
       const c = cfg();
       const showSurplus = c.recommendTimings !== false;   // Surplus column only when Recommend Timings on
@@ -7666,7 +7682,7 @@
             return [{ title, count: ctx.daysArr.length, rows: _buildReportRows(ctx.daysArr) }];
           })();
 
-      _loadLogoDataUrl((logoDataUrl) => {
+      _loadLogoDataUrl((logoDataUrl) => { try {
         const { jsPDF } = window.jspdf;
         const doc    = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
         const pageW  = doc.internal.pageSize.getWidth();  // 210 mm
@@ -7762,7 +7778,9 @@
         });
 
         doc.save(`${ctx.fileBase}.pdf`);
-      });
+        _wrExportBusy(false);
+        showToast('Report Exported', 'success', `Saved to your Downloads folder as ${ctx.fileBase}.pdf.`);
+      } catch (e) { failed(e); } });
     }
 
     // Navigate to the weekend view slot for the current daySelectorWeekOffset strip
@@ -7928,12 +7946,24 @@
     }
 
     // ── MAIN DISPLAY LOOP ──────────────────────────────
+    // When today's work is done: the running segment's start plus what is left
+    // of the target. Time from earlier segments (pause/resume parks it in
+    // _sessionAccSecs) already counts, so it is not loginDate + the full target.
+    function _leaveAt(target = effSecs()) {
+      return new Date(loginDate.getTime() + (target - _sessionAccSecs) * 1000);
+    }
+    // Start of the day as shown: the first start, not the latest resume.
+    function _dayStartDisplay() {
+      const ex = dayLog(todayKey());
+      return _sessionAccSecs > 0 && ex?.loginDisplay ? ex.loginDisplay : short(loginDate);
+    }
+
     function render() {
       if (!loginDate) return;
       _hideSkeleton();
       // The Dashboard's live row ticks regardless of which day Home is showing,
       // so this sits above the past/future early-return below.
-      if (activeView === 'analytics') _tickWkLiveRow();
+      if (el('wkRows')?.offsetParent) _tickWkLiveRow(); // the week card is on screen (Home in the new shell)
       // When browsing a past/future day, only refresh the day-selector dots silently.
       // Without this guard the live ticker overwrites past-day content every second.
       if (selectedDayKey && selectedDayKey !== todayKey()) {
@@ -7949,7 +7979,7 @@
       swapText('rcElapsedLabel', 'Elapsed');
       if (Math.floor(Date.now()/1000) % 30 === 0) persistSession(); // every 30s
       const isDone  = eff > 0 && worked >= eff;
-      const leaveDate = new Date(loginDate.getTime() + eff * 1000);
+      const leaveDate = _leaveAt(eff);
       const OT_QUIPS = ['ARE YOU INSANE!', 'WHY? GOD WHY!', 'GO HOME!!', 'SIR, PLEASE.', 'LEAVE. NOW.', 'SERIOUSLY??', 'IT\'S OVER!!'];
 
       el('autostopBanner').classList.remove('show');
@@ -7958,7 +7988,7 @@
       if (!autoStopped && worked >= autoStopAt) { doAutoStop(); return; }
 
       _rcShowPastMode(false);
-      const _loginStr  = short(loginDate);
+      const _loginStr  = _dayStartDisplay();
       const _logoutStr = short(leaveDate);
       const _elapsedStr = durWorked(worked);
       let _rightStr, _rightClass, _barClass, _descRightTimes, _descRightProgress;
@@ -8082,9 +8112,11 @@
       } else if (!isDone) wasDone = false;
 
       const tk = todayKey(), ex = dayLog(tk) || {};
+      // After a resume, keep the day's first start; only a fresh day takes this segment's.
+      const _keepStart = _sessionAccSecs > 0 && ex.loginDisplay;
       saveDayLog(tk, { ...ex,
-        loginTime:    `${_loginSnapshot.getHours()}:${_loginSnapshot.getMinutes()}:${_loginSnapshot.getSeconds()}`,
-        loginDisplay: short(_loginSnapshot),
+        loginTime:    _keepStart && ex.loginTime ? ex.loginTime : `${_loginSnapshot.getHours()}:${_loginSnapshot.getMinutes()}:${_loginSnapshot.getSeconds()}`,
+        loginDisplay: _keepStart ? ex.loginDisplay : short(_loginSnapshot),
         hoursWorked:  worked / 3600,
         lastUpdated:  now.toISOString(),
         sessionTag:   ex.sessionTag || 'realtime'
@@ -8799,6 +8831,10 @@
       const c = cfg(), wk = week(analyticsWeekOffset), tk = todayKey();
       const rows = el('wkRows');
       if (!rows) return;
+      // The card's title lives here, not only in renderAnalytics(): on Home the
+      // Dashboard tab no longer exists, and the HTML placeholder showed instead.
+      el('wkNavLabel').textContent = analyticsWeekOffset === 0 ? 'This Week' : weekRangeLabel(analyticsWeekOffset);
+      el('wkNextBtn').disabled = analyticsWeekOffset >= 0;
       rows.innerHTML = '';
       let totalSecs = 0, totalSurplusSecs = 0;
       let liveSecs = 0, liveSurplus = 0;
@@ -8971,9 +9007,9 @@
       _updateRunningElsewhereBanner();
       // Same reasoning for the Dashboard's week card: starting/pausing/ending a
       // session changes today's row, but none of those paths rebuild it, so it
-      // kept a stale live pill until the next tab switch. Only when the
-      // Dashboard is actually on screen — no cost during init or Home usage.
-      if (activeView === 'analytics') renderHistory();
+      // kept a stale live pill and Total Hours. Only when the week card is
+      // actually on screen (Home, since the new shell folded Dashboard into it).
+      if (el('wkRows')?.offsetParent) renderHistory();
       btn.classList.remove('end-shift', 'pause-shift', 'resume-shift');
       btn.disabled = false;
       btn.dataset.state = state;

@@ -226,6 +226,17 @@ async function handleOAuth(provider, evt) {
   }
 }
 
+// A sign-in that leaves this page (Google, GitHub, the desktop app's browser
+// hand-off) greys its button out. Closing that window, or coming Back to this
+// page, must leave the buttons usable again, so they're re-enabled whenever the
+// page is shown again or the window gets focus back.
+function _resetSignInButtons() {
+  document.querySelectorAll('#google-btn, #github-btn, #google-recovery-btn, #github-recovery-btn, #passkey-btn')
+    .forEach(b => { b.disabled = false; b.style.opacity = ''; });
+}
+window.addEventListener('pageshow', e => { if (e.persisted) _resetSignInButtons(); });
+window.addEventListener('focus', _resetSignInButtons);
+
 // --- Passkey ---
 // The system prompt picks the account, so no email is needed.
 async function handlePasskey(evt) {

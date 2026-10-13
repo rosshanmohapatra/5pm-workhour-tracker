@@ -17,6 +17,7 @@
       // Desktop returns through fivepm://, a scheme any app could claim, so it uses
       // PKCE: the link then carries a single-use code instead of live tokens.
       { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true,
+                experimental: { passkey: true },
                 ...(window.__TAURI__ ? { flowType: 'pkce' } : {}) } }
     );
     // Replace the localStorage gate with Supabase's real session check.
@@ -91,7 +92,12 @@
         if (!_mfaOk && !location.search.includes('code=')) {
           window._sbClient.auth.mfa.getAuthenticatorAssuranceLevel().then(function(res) {
             var d = res && res.data;
-            if (d && d.nextLevel === 'aal2' && d.currentLevel === 'aal1') {
+            // A passkey already proves the device and the person, so a passkey
+            // sign-in skips the authenticator code, in every tab.
+            var viaPasskey = d && (d.currentAuthenticationMethods || []).some(function(m) {
+              return /passkey|webauthn/i.test(m && m.method);
+            });
+            if (d && d.nextLevel === 'aal2' && d.currentLevel === 'aal1' && !viaPasskey) {
               window.location.replace('/login.html');
             } else {
               _revealApp(session);
@@ -1327,6 +1333,26 @@
     .sim-status.not-connected { color:var(--muted-fg); }
     .sim-status.not-set { color:var(--muted-fg); }
     .sim-status.muted { color:var(--muted-fg); font-weight:400; }
+    /* A row that opens its own page: the whole row is the link. */
+    .sim-row.link { cursor:pointer; }
+    body.shell-new .tile-list > .sim-row.link:hover { background: color-mix(in srgb, var(--card) 93%, var(--foreground)); }
+    .sim-chev { color:var(--muted-fg); flex-shrink:0; }
+
+    /* ── Settings nested pages ── one at a time (.on) replaces the tabs. */
+    .settings-panel.page-open > :not(.set-page) { display:none !important; }
+    .set-page { display:none; flex-direction:column; gap:12px; }
+    .settings-panel.page-open > .set-page.on { display:flex; }
+    /* Content moved in from the old modals: one card, no modal chrome. */
+    .set-card { background:var(--card); border-radius:var(--radius-md); padding:16px; }
+    .set-page .dialog-head, .set-page .email-modal-sep { display:none !important; }
+    .set-card [id^="mfaView"] > div { padding:0 !important; }
+    #devOthersWrap > div { justify-content:stretch !important; }
+    #devRevokeOthersBtn { width:100%; justify-content:center; }
+    .set-page-head { display:flex; align-items:flex-start; margin-bottom:8px; }
+    .set-page-head .back-btn { margin-top:1px; }
+    .pk-empty { background:var(--card); border-radius:var(--radius-md); padding:28px 16px;
+      text-align:center; font-size:13px; color:var(--muted-fg); }
+    .set-page .btn-primary { gap:6px; }
 
     /* ── Manage Devices ── */
     .dev-row { display:flex; align-items:center; justify-content:space-between; gap:12px; }
@@ -1350,9 +1376,8 @@
       overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
     .dev-actions { display:flex; align-items:center; gap:8px; flex-shrink:0; }
     .dev-seen { font-size:11px; color:var(--muted-fg); white-space:nowrap; margin-top:2px; }
-    .dev-chip { font-size:10px; font-weight:600; letter-spacing:.04em; text-transform:uppercase;
-      background:var(--success-bg); color:var(--success); border:1px solid var(--success-border);
-      border-radius:4px; padding:2px 7px; white-space:nowrap; }
+    .dev-chip { font-size:11px; font-weight:600; background:var(--muted); color:var(--foreground);
+      border-radius:6px; padding:5px 10px; white-space:nowrap; }
 
     /* ── Authenticator (MFA) modal ── */
     .mfa-qr { width:176px; height:176px; margin:2px auto 0; display:block; border-radius:10px; background:#fff; padding:8px; }
@@ -1649,13 +1674,13 @@
     .email-field-wrap:hover .email-copy-hover,
     .email-copy-hover:focus-within { opacity: 1; pointer-events: all; }
     @media (min-width: 641px) {
-      #emailModalOverlay, #devModalOverlay { align-items: center !important; padding: 20px; }
-      #emailModalOverlay .email-modal, #devModalOverlay .email-modal {
+      #emailModalOverlay { align-items: center !important; padding: 20px; }
+      #emailModalOverlay .email-modal {
         border-radius: var(--radius-xl) !important;
         border-bottom: 1px solid var(--border) !important;
         max-width: 480px; max-height: none; overflow-y: visible;
         transform: scale(.95); transition: transform .2s cubic-bezier(.32,1,.54,1) !important; }
-      #emailModalOverlay.open .email-modal, #devModalOverlay.open .email-modal { transform: scale(1); }
+      #emailModalOverlay.open .email-modal { transform: scale(1); }
       #emailModalOverlay .email-textarea { resize: none; }
     }
 
@@ -3469,13 +3494,13 @@
           <div class="settings-section-header">Account</div>
           <div class="settings-group">
 
-            <!-- Manage Devices -->
-            <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+            <!-- Saved Logins: the whole row opens its page -->
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;cursor:pointer" onclick="openDevicesModal()">
               <div>
-                <div class="form-label">Devices</div>
-                <div class="form-sub">See every device signed in to your account.</div>
+                <div class="form-label">Saved Logins</div>
+                <div class="form-sub" id="devCountSub">Devices signed in to your account</div>
               </div>
-              <button class="btn-secondary" onclick="openDevicesModal()">Manage</button>
+              <svg class="sim-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg>
             </div>
 
             <!-- Manage Data -->
@@ -3896,6 +3921,25 @@
       <div style="padding:20px;display:flex;justify-content:flex-end;gap:8px">
         <button class="btn-secondary" onclick="el('logoutOverlay').classList.remove('open')">Stay Back</button>
         <button class="btn-ghost-destructive" onclick="confirmLogout()">Log Out</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Remove Passkey Confirmation ── -->
+  <div class="overlay" id="pkRemoveOverlay">
+    <div class="dialog" style="max-width:360px">
+      <div class="dialog-head" style="display:flex;align-items:flex-start;justify-content:space-between">
+        <div>
+          <div class="dialog-title">Remove passkey?</div>
+          <div class="dialog-desc">You won't be able to sign in with <b id="pkRemoveName"></b> anymore.</div>
+        </div>
+        <button class="btn-icon" onclick="el('pkRemoveOverlay').classList.remove('open')" title="Close" style="margin:-4px -4px -4px 8px;flex-shrink:0">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div style="padding:20px;display:flex;justify-content:flex-end;gap:8px">
+        <button class="btn-secondary" onclick="el('pkRemoveOverlay').classList.remove('open')">Cancel</button>
+        <button class="btn-ghost-destructive" id="pkRemoveBtn" onclick="confirmRemovePasskey()">Remove</button>
       </div>
     </div>
   </div>
@@ -9906,6 +9950,10 @@
       if (name === 'analytics' && !el('viewAnalytics')) { switchTab('home'); renderAnalytics(); return; }
       const oldIdx = VIEW_ORDER.indexOf(activeView);
       const newIdx = VIEW_ORDER.indexOf(name);
+      // Leaving Settings closes any nested page, so it reopens on its tabs.
+      if (activeView === 'settings' && name !== 'settings') {
+        document.querySelector('#viewSettings .settings-panel')?.classList.remove('page-open');
+      }
       activeView = name;
       try { sessionStorage.setItem('wh_active_tab', name); } catch {}
       document.querySelectorAll('.nav-tab').forEach(t => {
@@ -10406,12 +10454,15 @@ ${sig}`
     }
 
     function openDevicesModal() {
-      el('devModalOverlay').classList.add('open');
+      _setPage('pageDevices', 'Saved Logins', "Devices where you're signed in to 5pm.", page => {
+        const list = el('devList');
+        list.classList.add('tile-list');
+        page.append(list, el('devOthersWrap'));
+        el('devModalOverlay')?.remove();
+      });
       renderDevices();   // always a fresh read when it opens
     }
-    function closeDevicesModal() {
-      el('devModalOverlay').classList.remove('open');
-    }
+    function closeDevicesModal() { closeSetPage(); }
 
     function closeEmailModal() {
       el('emailModalOverlay').classList.remove('open');
@@ -11644,16 +11695,20 @@ ${sig}`
 
     // ── Import Modal (Settings) ───────────────────────
     function openImportModal() {
+      _setPage('pageImport', 'Import Backup', 'Restore your data from a .json backup file.', page => {
+        const card = document.createElement('div');
+        card.className = 'set-card';
+        card.append(...el('importModal').querySelector('.dialog-body').children);
+        page.appendChild(card);
+        el('importModal').remove();
+      });
       const zoneText = el('importModalZoneText');
       if (zoneText) zoneText.innerHTML = '<strong>Choose a file or drag &amp; drop here</strong><br>Supports .json files';
       const status = el('importModalStatus');
       if (status) { status.style.display = 'none'; status.textContent = ''; }
       const fileInp = el('importModalFile'); if (fileInp) fileInp.value = '';
-      el('importModal').classList.add('open');
     }
-    function closeImportModal() {
-      el('importModal').classList.remove('open');
-    }
+    function closeImportModal() { closeSetPage(); }
 
     // Export Backup — structured v2 JSON with user-friendly filename
     function exportBackup() {
@@ -11708,8 +11763,7 @@ ${sig}`
             infoMeta.textContent = parts.join(' · ');
           }
 
-          // Close import modal (if opened from Settings) before showing confirm
-          el('importModal')?.classList.remove('open');
+          // The Import Backup page stays behind the confirm; Cancel returns to it.
           el('importConfirmOverlay').classList.add('open');
           el('importConfirmOverlay')._pendingSnap = snap;
         } catch (err) {
@@ -11744,6 +11798,7 @@ ${sig}`
 
       el('importConfirmOverlay').classList.remove('open');
       ['logFileInput','importModalFile'].forEach(id=>{const inp=el(id);if(inp)inp.value=''});
+      closeImportModal(); // done: back to Settings
 
       // Full UI refresh
       selectedDayKey = todayKey();
@@ -13298,6 +13353,11 @@ ${sig}`
         const githubId = identities.find(i => i.provider === 'github');
         const connectedCount = [emailId, googleId, githubId].filter(Boolean).length;
         list.innerHTML = '';
+        // Saved Logins row (Account): how many devices, e.g. "3 Devices".
+        Devices.list().then(rows => {
+          const n = rows.filter(r => !r.revoked_at).length, sub = el('devCountSub');
+          if (sub && n) sub.textContent = n + (n === 1 ? ' Device' : ' Devices');
+        }).catch(() => {});
 
         // Password
         list.appendChild(_simBuildRow({
@@ -13345,6 +13405,22 @@ ${sig}`
           destructive: !!githubId,
         }));
 
+        // Passkeys: opens its own page. A passkey never counts toward
+        // connectedCount, so removing one can't leave you without a way in.
+        let pkCount = 0, pkOff = false;
+        try {
+          const { data: pk, error: pkErr } = await window._sbClient.auth.passkey.list();
+          pkOff = pkErr?.code === 'passkey_disabled'; // switched off for the project: no row
+          pkCount = (pk || []).length;
+        } catch(_) { /* offline: show Not set */ }
+        if (!pkOff) list.appendChild(_simBuildRow({
+          icon: _PK_ICON,
+          name: 'Passkeys',
+          status: pkCount ? pkCount + (pkCount === 1 ? ' Passkey' : ' Passkeys') : 'Not set',
+          statusClass: 'muted',
+          onRow: openPasskeysPage,
+        }));
+
         // Authenticator App (TOTP 2FA) — second factor, not a sign-in provider
         let totpFactor = null;
         try {
@@ -13375,7 +13451,7 @@ ${sig}`
       return 'last updated ' + days + ' day' + (days === 1 ? '' : 's') + ' ago';
     }
 
-    function _simBuildRow({ icon, name, status, statusClass, connected, action, onAction, destructive }) {
+    function _simBuildRow({ icon, name, status, statusClass, connected, action, onAction, destructive, onRow }) {
       const row = document.createElement('div');
       row.className = 'sim-row';
 
@@ -13396,6 +13472,13 @@ ${sig}`
       left.appendChild(iconWrap);
       left.appendChild(info);
       row.appendChild(left);
+
+      if (onRow) {
+        row.classList.add('link');
+        row.addEventListener('click', onRow);
+        row.insertAdjacentHTML('beforeend', '<svg class="sim-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg>');
+        return row;
+      }
 
       const btn = document.createElement('button');
       btn.className = destructive ? 'btn-ghost-destructive' : 'btn-secondary';
@@ -13441,6 +13524,169 @@ ${sig}`
       }
     }
 
+    // ── Passkeys page ────────────────────────────────────────────────────────
+    // Supabase stores them (auth.passkey, experimental). A passkey is bound to
+    // whtracker.vercel.app, so the desktop app (another origin) can list,
+    // rename and remove them but not create one.
+    const _PK_ICON = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="7.5" cy="15.5" r="4.5"/><path d="m21 2-9.6 9.6"/><path d="m15.5 7.5 3 3L22 7l-3-3"/></svg>';
+    let _pkRemoving = null;
+
+    // ── Nested Settings pages ────────────────────────────────────────────────
+    // A page replaces the tabs: back button, title, description, content.
+    // build() runs once and may move an old modal's markup in, so every id and
+    // handler that markup had keeps working.
+    function _setPage(id, title, desc, build) {
+      const wrap = document.querySelector('#viewSettings .settings-panel');
+      if (!wrap) return null;
+      let page = el(id);
+      if (!page) {
+        page = document.createElement('div');
+        page.id = id;
+        page.className = 'set-page';
+        page.innerHTML =
+          '<div class="set-page-head">' +
+            '<button class="back-btn" title="Back" aria-label="Back"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></button>' +
+            '<div><div class="settings-title"></div><div class="form-sub"></div></div>' +
+          '</div>';
+        page.querySelector('.back-btn').onclick = closeSetPage;
+        build(page);
+        wrap.appendChild(page);
+      }
+      _setPageHead(page, title, desc);
+      wrap.querySelectorAll('.set-page').forEach(p => p.classList.toggle('on', p === page));
+      wrap.classList.add('page-open');
+      window.scrollTo(0, 0);
+      return page;
+    }
+    function _setPageHead(page, title, desc) {
+      page.querySelector('.settings-title').textContent = title;
+      const sub = page.querySelector('.set-page-head .form-sub');
+      sub.textContent = desc || '';
+      sub.style.display = desc ? '' : 'none';
+    }
+    function closeSetPage() {
+      const wrap = document.querySelector('#viewSettings .settings-panel');
+      if (!wrap || !wrap.classList.contains('page-open')) return;
+      wrap.classList.remove('page-open');
+      hydrateSignInMethods(); // counts on the rows that open pages
+    }
+
+    function openPasskeysPage() {
+      _setPage('pkPage', 'Passkeys', 'Sign in with your face, fingerprint or device PIN.', page => {
+        page.insertAdjacentHTML('beforeend',
+          '<div id="pkList" class="settings-group tile-list"></div>' +
+          '<div id="pkEmpty" class="pk-empty" style="display:none">No passkeys added yet</div>' +
+          (window.__TAURI__
+            ? '<div class="set-note">Add a passkey from 5pm on the web, at whtracker.vercel.app.</div>'
+            : '<button class="btn btn-primary" id="pkAddBtn" onclick="addPasskey()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Add Passkey</button>'));
+      });
+      renderPasskeys();
+    }
+
+    async function renderPasskeys() {
+      const list = el('pkList'), empty = el('pkEmpty');
+      if (!list) return;
+      if (!list.children.length) {
+        list.style.display = '';
+        list.innerHTML = '<div style="font-size:13px;color:var(--muted-fg)">Loading…</div>';
+      }
+      try {
+        const { data, error } = await window._sbClient.auth.passkey.list();
+        if (error) throw error;
+        const keys = (data || []).sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+        list.innerHTML = '';
+        keys.forEach(k => list.appendChild(_pkBuildRow(k)));
+        list.style.display = keys.length ? '' : 'none';
+        empty.style.display = keys.length ? 'none' : '';
+      } catch (e) {
+        list.style.display = '';
+        list.innerHTML = '<div style="font-size:13px;color:var(--muted-fg)">Couldn\'t load passkeys.</div>';
+        empty.style.display = 'none';
+      }
+    }
+
+    function _pkBuildRow(k) {
+      const row = document.createElement('div');
+      row.className = 'dev-row';
+      row.innerHTML =
+        '<div class="dev-left"><div class="dev-icon">' + _PK_ICON + '</div><div class="dev-info">' +
+          '<input class="dev-name" type="text" maxlength="60" spellcheck="false" autocomplete="off" data-lpignore="true" data-1p-ignore="true" aria-label="Passkey name">' +
+          '<div class="dev-sub"></div></div></div>' +
+        '<button class="btn-ghost-destructive" style="flex-shrink:0;font-size:12px;height:30px;padding:0 12px">Remove</button>';
+      const name = row.querySelector('.dev-name');
+      name.value = k.friendly_name || 'Passkey';
+      const d = new Date(k.created_at);
+      const added = d.toLocaleDateString(undefined, d.getFullYear() === new Date().getFullYear()
+        ? { month: 'short', day: 'numeric' } : { month: 'short', day: 'numeric', year: 'numeric' });
+      row.querySelector('.dev-sub').textContent =
+        'Added ' + added + ' · ' + (k.last_used_at ? 'Used ' + _devAgo(k.last_used_at) : 'Not used yet');
+
+      // Rename in place: Enter or leaving the field saves, Esc restores.
+      let last = name.value;
+      name.addEventListener('blur', async () => {
+        const v = name.value.trim().slice(0, 60);
+        if (!v || v === last) { name.value = last; return; }
+        name.value = v;
+        try {
+          const { error } = await window._sbClient.auth.passkey.update({ passkeyId: k.id, friendlyName: v });
+          if (error) throw error;
+          last = v;
+          showToast('Passkey Renamed', 'success');
+        } catch (e) {
+          name.value = last;
+          showToast("Couldn't Rename Passkey", 'error', e.message || 'Please try again.');
+        }
+      });
+      name.addEventListener('keydown', e => {
+        if (e.key === 'Enter')  { e.preventDefault(); name.blur(); }
+        if (e.key === 'Escape') { name.value = last; name.blur(); }
+      });
+
+      row.querySelector('button').addEventListener('click', () => {
+        _pkRemoving = k;
+        el('pkRemoveName').textContent = name.value;
+        el('pkRemoveOverlay').classList.add('open');
+      });
+      return row;
+    }
+
+    async function confirmRemovePasskey() {
+      if (!_pkRemoving) return;
+      const btn = el('pkRemoveBtn');
+      btn.disabled = true; btn.textContent = 'Removing…';
+      try {
+        const { error } = await window._sbClient.auth.passkey.delete({ passkeyId: _pkRemoving.id });
+        if (error) throw error;
+        el('pkRemoveOverlay').classList.remove('open');
+        showToast('Passkey Removed', 'success');
+        renderPasskeys();
+      } catch (e) {
+        showToast("Couldn't Remove Passkey", 'error', e.message || 'Please try again.');
+      }
+      btn.disabled = false; btn.textContent = 'Remove';
+    }
+
+    async function addPasskey() {
+      const btn = el('pkAddBtn');
+      btn.disabled = true;
+      try {
+        const { error } = await window._sbClient.auth.registerPasskey();
+        if (error) throw error;
+        showToast('Passkey Added', 'success', 'Next time, sign in with your face, fingerprint or device PIN.');
+        renderPasskeys();
+      } catch (e) {
+        const code = e.code || '', text = (e.name || '') + ' ' + (e.message || '') + ' ' + code;
+        // Closing the system prompt is a choice, not an error.
+        if (!/NotAllowed|cancel|abort/i.test(text)) {
+          showToast("Couldn't Add Passkey", 'error',
+            code === 'webauthn_credential_exists' ? 'This device already has a passkey for 5pm.'
+            : code === 'too_many_passkeys' ? 'You can save up to 10 passkeys. Remove one first.'
+            : (e.message || 'Please try again.'));
+        }
+      }
+      btn.disabled = false;
+    }
+
     function openCreatePwdModal() {
       const inp = el('createPwdInput'), conf = el('createPwdConfirm');
       if (inp) inp.value = '';
@@ -13481,12 +13727,28 @@ ${sig}`
     // ── Authenticator (TOTP 2FA) ─────────────────────────────────────────────
     let _mfaFactorId = null, _mfaBackupCodes = [], _mfaManageFactor = null;
 
+    // The old modal's views live in one card on the Authenticator App page. The
+    // page header takes each view's own title and description.
+    function _mfaOpenPage() {
+      _setPage('pageMfa', 'Authenticator App', '', page => {
+        const card = document.createElement('div');
+        card.className = 'set-card';
+        card.append(...el('mfaOverlay').querySelector('.dialog').children);
+        page.appendChild(card);
+        el('mfaOverlay').remove();
+      });
+    }
     function _mfaShowView(id) {
       ['mfaViewSetup','mfaViewVerifying','mfaViewBackup','mfaViewSuccess','mfaViewManage','mfaViewDisable']
         .forEach(v => { const e = el(v); if (e) e.style.display = v === id ? '' : 'none'; });
+      const head = el(id)?.querySelector('.dialog-head'), page = el('pageMfa');
+      if (!page) return;
+      if (head) _setPageHead(page, head.querySelector('.dialog-title').textContent,
+                             head.querySelector('.dialog-desc')?.textContent);
+      else _setPageHead(page, 'Authenticator App', ''); // Verifying / Success carry their own text
     }
     function closeMfaModal() {
-      el('mfaOverlay').classList.remove('open');
+      closeSetPage();
       const db = el('mfaDisableBtn'); if (db) { db.disabled = false; db.textContent = 'Disable'; }
     }
     function _mfaSetupError(msg) {
@@ -13525,8 +13787,8 @@ ${sig}`
     }
 
     async function openMfaSetup() {
+      _mfaOpenPage();
       _mfaShowView('mfaViewSetup');
-      el('mfaOverlay').classList.add('open');
       el('mfaQrImg').removeAttribute('src');
       el('mfaSecret').textContent = '…';
       el('mfaCodeInput').value = '';
@@ -13609,8 +13871,8 @@ ${sig}`
 
     function openMfaManage(factor) {
       _mfaManageFactor = factor;
+      _mfaOpenPage();
       _mfaShowView('mfaViewManage');
-      el('mfaOverlay').classList.add('open');
     }
     function mfaShowManage() { _mfaShowView('mfaViewManage'); }
     function mfaShowDisable() { _mfaShowView('mfaViewDisable'); }
@@ -14049,7 +14311,7 @@ ${sig}`
       if (isCurrent) {
         const chip = document.createElement('span');
         chip.className = 'dev-chip';
-        chip.textContent = 'This device';
+        chip.textContent = 'This Device';
         actions.appendChild(chip);
       } else {
         const btn = document.createElement('button');
@@ -14097,7 +14359,7 @@ ${sig}`
       const mine  = row?.value?.d?.[_deviceId()];
       const since = Number(localStorage.getItem(DEV_SINCE_KEY) || 0);
       if (since && mine?.r && Date.parse(mine.r) > since) { _kickThisDevice(); return; }
-      if (el('devModalOverlay')?.classList.contains('open')) renderDevices();
+      if (el('devList')?.offsetParent) renderDevices(); // Saved Logins is on screen
     }
 
     // ── Supabase sign-out (window._sbClient is always ready — init'd in <head>) ──
@@ -14809,7 +15071,7 @@ ${sig}`
         'Breaks': 'pause break time', 'Smart Timings': 'recommend timings', 'Quick Start': 'shortcut keyboard',
         'Short Days': 'leave early', 'Long Days': 'stay late', 'Notifications': 'alerts push allow',
         'Target Reached': 'daily target alert', 'Wrap-Up Reminder': 'kickstart', 'Overtime Alert': 'overtime',
-        'Devices': 'manage devices', 'Backup & Restore': 'import export manage data', 'Delete Account': 'remove',
+        'Saved Logins': 'devices manage sessions','Backup & Restore': 'import export manage data', 'Delete Account': 'remove',
         'Open at Login': 'autostart startup windows', 'When 5pm Opens': 'start app start session startup'
       };
       const TAB_INDEX = Object.fromEntries(TABS.map(([n], i) => [n, i]));

@@ -25,6 +25,7 @@ const _sb = window.supabase.createClient(
   // Desktop returns through fivepm://, a scheme any app could claim, so it uses
   // PKCE: the link then carries a single-use code instead of live tokens.
   { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true,
+            experimental: { passkey: true },
             ...(window.__TAURI__ ? { flowType: 'pkce' } : {}) } }
 );
 
@@ -121,6 +122,7 @@ function toggleMode() {
   $('pwdInput').autocomplete   = isSignup ? 'new-password' : 'current-password';
   $('nameField').classList.toggle('show', isSignup);
   $('forgotLink').style.display = isSignup ? 'none' : '';
+  $('passkey-btn').style.display = isSignup || !_passkeyOn ? 'none' : ''; // sign-in only
 }
 
 // --- Password visibility toggle ---
@@ -224,6 +226,31 @@ async function handleOAuth(provider, evt) {
   }
 }
 
+// --- Passkey ---
+// The system prompt picks the account, so no email is needed.
+async function handlePasskey(evt) {
+  const btn = evt.currentTarget;
+  btn.disabled = true;
+  btn.style.opacity = '.5';
+  _clearAuthError();
+  try {
+    const { error } = await _sb.auth.signInWithPasskey();
+    if (error) throw error;
+    // No authenticator code after a passkey: it already proves the device and
+    // the person. index.html's gate honours this for later tabs too.
+    try { sessionStorage.setItem('wh_mfa_ok', '1'); } catch (_) {}
+    showSuccess('Welcome back!');
+  } catch (err) {
+    btn.disabled = false;
+    btn.style.opacity = '';
+    const text = (err.name || '') + ' ' + (err.message || '') + ' ' + (err.code || '');
+    if (/NotAllowed|cancel|abort/i.test(text)) return; // closed the prompt
+    showAuthError(err.code === 'webauthn_credential_not_found'
+      ? "That passkey isn't linked to a 5pm account."
+      : 'Passkey sign-in failed: ' + (err.message || 'Please try again.'));
+  }
+}
+
 // --- Show success state and redirect ---
 function showSuccess(msg) {
   if (_recTimer) { clearInterval(_recTimer); _recTimer = null; }
@@ -319,7 +346,8 @@ async function _mfaRequired() {
   try {
     const { data, error } = await _sb.auth.mfa.getAuthenticatorAssuranceLevel();
     if (error) return false;
-    return !!data && data.nextLevel === 'aal2' && data.currentLevel === 'aal1';
+    const viaPasskey = (data?.currentAuthenticationMethods || []).some(m => /passkey|webauthn/i.test(m?.method));
+    return !!data && data.nextLevel === 'aal2' && data.currentLevel === 'aal1' && !viaPasskey;
   } catch (_) { return false; }
 }
 
@@ -427,6 +455,21 @@ initDigits();
 // OAuth buttons — main login view
 document.getElementById('google-btn').addEventListener('click', e => handleOAuth('Google', e));
 document.getElementById('github-btn').addEventListener('click', e => handleOAuth('GitHub', e));
+// A passkey belongs to whtracker.vercel.app; the desktop app is another origin.
+// Shown only once the project reports passkeys on, so a tap never meets
+// "Passkeys are disabled".
+let _passkeyOn = false;
+if (window.PublicKeyCredential && !window.__TAURI__) {
+  const pk = document.getElementById('passkey-btn');
+  pk.addEventListener('click', handlePasskey);
+  fetch(window.__SB_URL + '/auth/v1/settings', { headers: { apikey: window.__SB_ANON_KEY } })
+    .then(r => r.json())
+    .then(s => {
+      _passkeyOn = !!s.passkeys_enabled;
+      if (_passkeyOn && !isSignup) pk.style.display = '';
+    })
+    .catch(() => {});
+}
 
 // OAuth buttons — account recovery view
 document.getElementById('google-recovery-btn').addEventListener('click', e => handleOAuth('Google', e));

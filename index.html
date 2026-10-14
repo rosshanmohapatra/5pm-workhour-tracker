@@ -1080,11 +1080,16 @@
     .td-ring { width: 16px; height: 16px; }
     @media (max-width: 640px) { .td-ring { width: 20px; height: 20px; } }
     .td-row-val { font-weight: 600; color: var(--foreground); font-variant-numeric: tabular-nums; }
-    /* Odometer digits: a clipped window onto a 0-9 column. */
-    .td-row-val > span { display: inline-block; height: 1.3em; line-height: 1.3em; vertical-align: top; }
+    /* Odometer digits: a clipped window onto a 0-9 column. Rows are whole
+       pixels (--odo-h) and digits move by exact multiples of it, so a digit
+       that slid into place sits level with one that snapped. Spaces keep their
+       width (white-space: pre), so "8h 25m" never closes up. */
+    .td-row-val { --odo-h: 18px; }
+    .td-row-val > span { display: inline-block; height: var(--odo-h); line-height: var(--odo-h);
+      vertical-align: top; white-space: pre; }
     .td-row-val .odo-d { overflow: hidden; }
     .td-row-val .odo-col { display: block; }
-    .td-row-val .odo-col > span { display: block; height: 1.3em; line-height: 1.3em; text-align: center; }
+    .td-row-val .odo-col > span { display: block; height: var(--odo-h); line-height: var(--odo-h); text-align: center; }
     .td-row-val.success { color: var(--success); }
     .td-row-val.warn { color: var(--warning); }
     /* ── Progress bar ──
@@ -6520,7 +6525,7 @@
         const col = cols[ci++], d = +ch, was = col.dataset.d == null ? d : +col.dataset.d;
         if (d === was && col.dataset.d != null) return;
         col.style.transition = slide && Math.abs(d - was) === 1 ? 'transform 90ms ease-out' : 'none';
-        col.style.transform = `translateY(-${d * 10}%)`;
+        col.style.transform = `translateY(calc(var(--odo-h) * ${-d}))`;
         col.dataset.d = d;
       });
     }

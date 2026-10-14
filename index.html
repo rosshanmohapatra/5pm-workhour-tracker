@@ -1029,40 +1029,46 @@
     .rc-info-btn[data-plan="halfday"] { color: #0ea5e9; background: rgba(14,165,233,.12); }
     .rc-info-btn[data-plan="leave"]   { color: #3b82f6; background: rgba(59,130,246,.12); }
     .rc-info-btn[data-plan="holiday"] { color: #a855f7; background: rgba(168,85,247,.12); }
-    /* ── Today panel: day types (left) and today's numbers (right).
-       A popover under the button on wider screens, a bottom sheet on phones. ── */
-    .td-panel { position: fixed; z-index: 250; width: 440px; max-width: calc(100vw - 16px);
-      display: grid; grid-template-columns: 1fr 1.3fr; align-items: start;
+    /* ── Today panel: today's numbers (left) and day types (right, under the
+       button). A modal over a blurred page: anchored under the button on wider
+       screens, a draggable bottom sheet on phones. A type is only picked until
+       Confirm applies it. ── */
+    .td-panel { position: fixed; z-index: 250; width: 460px; max-width: calc(100vw - 16px);
+      display: grid; grid-template-columns: 1.3fr 1fr; align-items: start;
       background: var(--card); border: 1px solid var(--border); border-radius: 14px;
-      box-shadow: 0 8px 30px rgba(0,0,0,.18); padding: 8px; opacity: 0; transform: translateY(-4px);
+      box-shadow: 0 12px 40px rgba(0,0,0,.28); padding: 8px; opacity: 0; transform: translateY(-4px);
       pointer-events: none; transition: opacity .15s ease, transform .15s ease; }
     .td-panel.open { opacity: 1; transform: translateY(0); pointer-events: all; }
-    .td-types { display: flex; flex-direction: column; gap: 2px; padding-right: 8px; border-right: 1px solid var(--border); }
+    .td-kpis { padding: 2px 16px 2px 8px; }
+    .td-types { display: flex; flex-direction: column; gap: 2px; padding-left: 8px; border-left: 1px solid var(--border); }
     .td-type { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%;
       padding: 10px 12px; font-family: var(--font); font-size: 13px; font-weight: 500; color: var(--foreground);
       background: transparent; border: none; border-radius: 8px; cursor: pointer; text-align: left; }
     .td-type:hover, .td-type.active { background: var(--muted); }
     .td-type.active::after { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--foreground); flex-shrink: 0; }
-    .td-kpis { padding: 2px 8px 2px 16px; }
-    .td-scrim { position: fixed; inset: 0; z-index: 249; background: rgba(0,0,0,.2);
+    .td-confirm { grid-column: 1 / -1; margin-top: 8px; height: 38px; font-size: 13px; }
+    .td-scrim { position: fixed; inset: 0; z-index: 249; background: rgba(0,0,0,.28);
+      backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
       opacity: 0; pointer-events: none; transition: opacity .2s ease; }
+    .td-scrim.open { opacity: 1; pointer-events: auto; }
     @media (max-width: 640px) {
       .td-panel { top: auto !important; left: 0 !important; right: 0; bottom: 0; width: 100%; max-width: none;
         grid-template-columns: 1fr; border-radius: 16px 16px 0 0; border-bottom: none;
         padding: 10px 16px calc(16px + env(safe-area-inset-bottom)); transform: translateY(100%);
-        transition: transform .25s cubic-bezier(.4,0,.2,1), opacity .2s ease; }
+        transition: transform .25s cubic-bezier(.4,0,.2,1), opacity .2s ease; touch-action: none; }
       .td-panel.open { transform: none; }
-      .td-panel::before { content: ''; grid-column: 1; justify-self: center; width: 36px; height: 4px;
+      .td-panel.dragging { transition: none; }
+      .td-panel::before { content: ''; justify-self: center; width: 36px; height: 4px;
         border-radius: 2px; background: var(--border); margin-bottom: 10px; }
-      /* Numbers on top as a 2x2 grid, day types listed below. */
-      .td-kpis { order: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 0 0 12px; }
+      /* Numbers on top as a 2x2 grid, day types listed below, Confirm last. */
+      .td-kpis { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 0 0 12px; }
       .td-kpis .td-row { flex-direction: column; align-items: flex-start; gap: 4px; padding: 10px 12px;
         background: var(--muted); border-radius: 10px; font-size: 12px; }
       .td-kpis .td-row + .td-row { border-top: none; }
       .td-kpis .td-row-val { font-size: 16px; }
-      .td-types { order: 2; border-right: none; padding: 8px 0 0; border-top: 1px solid var(--border); }
+      .td-types { border-left: none; padding: 8px 0 0; border-top: 1px solid var(--border); }
       .td-type { padding: 13px 12px; font-size: 14px; }
-      .td-scrim.open { opacity: 1; pointer-events: auto; }
+      .td-confirm { height: 44px; font-size: 14px; margin-top: 10px; }
     }
     /* ── Today panel number rows ── */
     .td-row { display: flex; align-items: center; justify-content: space-between; padding: 7px 0; font-size: 13px; }
@@ -4572,14 +4578,15 @@
   <!-- ── Today panel: day types + today's numbers. Popover on wider screens,
        bottom sheet on phones (the scrim only shows there). ── -->
   <div class="td-scrim" id="tdScrim" onclick="closeTodayDetails()"></div>
-  <div class="td-panel" id="tdPanel" role="dialog" aria-label="Today">
-    <div class="td-types" id="tdTypes">
-      <button type="button" class="td-type" data-plan="fullday" onclick="_tdPlanSelect('fullday')">Full Day</button>
-      <button type="button" class="td-type" data-plan="halfday" onclick="_tdPlanSelect('halfday')">Half Day</button>
-      <button type="button" class="td-type" data-plan="leave" onclick="_tdPlanSelect('leave')">On Leave</button>
-      <button type="button" class="td-type" data-plan="holiday" onclick="_tdPlanSelect('holiday')">Holiday</button>
-    </div>
+  <div class="td-panel" id="tdPanel" role="dialog" aria-modal="true" aria-label="Today">
     <div class="td-kpis" id="tdKpis"></div>
+    <div class="td-types" id="tdTypes">
+      <button type="button" class="td-type" data-plan="fullday" onclick="_tdPick('fullday')">Full Day</button>
+      <button type="button" class="td-type" data-plan="halfday" onclick="_tdPick('halfday')">Half Day</button>
+      <button type="button" class="td-type" data-plan="leave" onclick="_tdPick('leave')">On Leave</button>
+      <button type="button" class="td-type" data-plan="holiday" onclick="_tdPick('holiday')">Holiday</button>
+    </div>
+    <button type="button" class="btn btn-primary td-confirm" id="tdConfirm" onclick="_tdConfirm()" disabled>Confirm</button>
   </div>
 
   <!-- Week Plan Modal (start-of-week overview) -->
@@ -6367,18 +6374,22 @@
     // ones that come and go sit last (Remaining, Available Surplus, then any
     // extras), so switching Full Day and Half Day changes values, never positions.
     // Leave and Holiday have no target, so only Worked Duration shows.
-    function _tdBuildContent() {
-      const c = cfg(), eff = effSecs(), daily = c.dailyH * 3600;
+    // `plan` previews a type picked but not yet confirmed.
+    function _tdBuildContent(plan = _tdCurrentPlan()) {
+      const c = cfg(), daily = c.dailyH * 3600;
+      const eff = plan === _tdCurrentPlan() ? effSecs()
+        : plan === 'halfday' ? daily / 2
+        : plan === 'fullday' ? _weeklyEffSecs() : 0;
       const worked = loginDate
         ? Math.max(0, Math.floor((new Date() - loginDate) / 1000)) + _sessionAccSecs
         : _sessionAccSecs;
-      const plan = _tdCurrentPlan(), off = plan === 'leave' || plan === 'holiday';
+      const off = plan === 'leave' || plan === 'holiday';
       const recOn = c.recommendTimings !== false;
       const weekly = _weeklyEffSecs();
       const surplus = recOn ? Math.max(0, daily - weekly) : 0;      // banked overtime
       const overtimeReq = recOn ? Math.max(0, weekly - daily) : 0;
       const onBreak = c.breakTime !== false && !loginDate && _sessionAccSecs > 0;
-      const customTarget = (dayLog(todayKey()) || {}).todayTargetH != null && plan !== 'halfday';
+      const customTarget = plan === _tdCurrentPlan() && (dayLog(todayKey()) || {}).todayTargetH != null && plan !== 'halfday';
       const row = (label, val, cls) =>
         `<div class="td-row"><span class="td-row-label">${label}</span><span class="td-row-val${cls ? ' ' + cls : ''}">${val}</span></div>`;
 
@@ -6401,39 +6412,60 @@
 
     function _tdIsMobile() { return window.matchMedia('(max-width: 640px)').matches; }
 
-    // The day-type button opens the Today panel: under the button on wider
-    // screens (opening it again closes it, like a menu button), a bottom sheet
-    // over a light dim on phones.
+    // The day-type button opens the Today panel as a modal over a blurred page:
+    // under the button on wider screens, a bottom sheet on phones.
+    let _tdPicked = null;
     function _tdToggle(event) {
       if (event) { event.stopPropagation(); event.preventDefault(); }
       const panel = el('tdPanel');
       if (panel.classList.contains('open')) { closeTodayDetails(); return; }
+      _tdPicked = _tdCurrentPlan();
       _tdSyncPlan();
       el('tdKpis').innerHTML = _tdBuildContent();
-      if (_tdIsMobile()) {
-        el('tdScrim').classList.add('open');
-      } else {
-        const r = el('rcInfoBtn').getBoundingClientRect(), pad = 8, w = panel.offsetWidth || 440;
+      if (!_tdIsMobile()) {
+        const r = el('rcInfoBtn').getBoundingClientRect(), pad = 8, w = panel.offsetWidth || 460;
         let left = r.right - w;
         if (left + w > window.innerWidth - pad) left = window.innerWidth - w - pad;
         if (left < pad) left = pad;
         panel.style.top = (r.bottom + 8) + 'px'; panel.style.left = left + 'px';
       }
+      el('tdScrim').classList.add('open');
       panel.classList.add('open');
     }
 
-    // A click anywhere else closes the popover (the phone sheet closes from its dim).
-    document.addEventListener('click', e => {
-      const panel = el('tdPanel');
-      if (!panel || !panel.classList.contains('open') || _tdIsMobile()) return;
-      if (panel.contains(e.target) || e.target.closest('#rcInfoBtn')) return;
-      closeTodayDetails();
-    });
-
     function closeTodayDetails() {
-      el('tdPanel')?.classList.remove('open');
+      const panel = el('tdPanel');
+      if (panel) { panel.classList.remove('open', 'dragging'); panel.style.transform = ''; }
       el('tdScrim')?.classList.remove('open');
     }
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape' && el('tdPanel')?.classList.contains('open')) closeTodayDetails();
+    });
+
+    // Phones: drag the sheet down to close it; a short drag springs back.
+    (function () {
+      const panel = el('tdPanel');
+      if (!panel) return;
+      let y0 = null, dy = 0, t0 = 0;
+      panel.addEventListener('touchstart', e => {
+        if (!_tdIsMobile() || !panel.classList.contains('open') || e.touches.length !== 1) return;
+        y0 = e.touches[0].clientY; dy = 0; t0 = Date.now();
+        panel.classList.add('dragging');
+      }, { passive: true });
+      panel.addEventListener('touchmove', e => {
+        if (y0 === null) return;
+        dy = Math.max(0, e.touches[0].clientY - y0);
+        panel.style.transform = `translateY(${dy}px)`;
+      }, { passive: true });
+      panel.addEventListener('touchend', () => {
+        if (y0 === null) return;
+        y0 = null;
+        panel.classList.remove('dragging');
+        const fast = dy > 30 && dy / Math.max(1, Date.now() - t0) > 0.5;
+        if (dy > panel.offsetHeight * 0.3 || fast) closeTodayDetails();
+        else panel.style.transform = '';
+      });
+    })();
 
     // ── Day type (Full Day / Half Day / On Leave / Holiday) ──
     const _TD_PLAN_LABELS = { fullday: 'Full Day', halfday: 'Half Day', leave: 'On Leave', holiday: 'Holiday' };
@@ -6443,7 +6475,7 @@
       return ov === 'halfday' || ov === 'leave' || ov === 'holiday' ? ov : 'fullday';
     }
 
-    // The button shows today's type in its colour; the panel marks the same one.
+    // The button shows today's type in its colour; the panel marks the picked one.
     function _tdSyncPlan() {
       const plan = _tdCurrentPlan(), btn = el('rcInfoBtn');
       if (btn && btn.dataset.plan !== plan) {
@@ -6451,36 +6483,41 @@
         el('rcDayTypeLabel').textContent = _TD_PLAN_LABELS[plan];
         btn.setAttribute('aria-label', 'Day type: ' + _TD_PLAN_LABELS[plan]);
       }
-      el('tdTypes')?.querySelectorAll('.td-type').forEach(t => t.classList.toggle('active', t.dataset.plan === plan));
+      const picked = el('tdPanel')?.classList.contains('open') && _tdPicked ? _tdPicked : plan;
+      el('tdTypes')?.querySelectorAll('.td-type').forEach(t => t.classList.toggle('active', t.dataset.plan === picked));
+      const ok = el('tdConfirm'); if (ok) ok.disabled = picked === plan;
     }
 
     // Rebuild the numbers in the open panel; render()/renderEmptyState() only
     // refresh the card behind it.
     function _tdRefreshBody() {
-      if (el('tdPanel')?.classList.contains('open')) el('tdKpis').innerHTML = _tdBuildContent();
+      if (el('tdPanel')?.classList.contains('open')) el('tdKpis').innerHTML = _tdBuildContent(_tdPicked || undefined);
     }
 
-    // Selecting Half Day is an instant trigger — it just halves today's effective
-    // target (todayTargetH), so it takes effect immediately whether a session is
-    // running, ended, or not started yet. Leave and Holiday route through the Day
-    // Edit screen, which adds a note and needs Update to apply, so a stray tap
-    // there never changes the day on its own.
-    function _tdPlanSelect(type) {
-      const tk = todayKey(), ex = dayLog(tk) || {};
-      if (type === _tdCurrentPlan()) return;
+    // Picking a type only previews it: the dot moves and the numbers show that
+    // day. Confirm applies it.
+    function _tdPick(type) {
+      _tdPicked = type;
+      _tdSyncPlan();
+      _tdRefreshBody();
+    }
 
+    // Half Day halves today's effective target (todayTargetH) and Full Day clears
+    // it, taking effect at once whether a session is running or not. Leave and
+    // Holiday go on to the Day Edit screen for a note before they apply.
+    function _tdConfirm() {
+      const type = _tdPicked, tk = todayKey(), ex = dayLog(tk) || {};
+      if (!type || type === _tdCurrentPlan()) return;
+      closeTodayDetails();
       if (type === 'fullday' || type === 'halfday') {
         const u = { ...ex };
         if (type === 'fullday') { delete u.override; delete u.todayTargetH; }
         else { u.override = 'halfday'; u.todayTargetH = cfg().dailyH / 2; }
         saveDayLogAndSync(tk, u);
-        // Refresh after render() — it can settle session state the panel reads.
         if (loginDate) render(); else renderEmptyState();
         _tdSyncPlan();
-        _tdRefreshBody();
         return;
       }
-      closeTodayDetails();
       openDayEditModal(null, true);
       setDeOverride(type);
     }

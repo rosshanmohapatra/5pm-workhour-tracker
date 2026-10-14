@@ -1039,16 +1039,19 @@
       opacity: 0; transform: translate(-50%, -48%) scale(.98); pointer-events: none;
       transition: opacity .15s ease, transform .15s ease; }
     .td-panel.open { opacity: 1; transform: translate(-50%, -50%); pointer-events: all; }
-    .td-types { display: flex; flex-direction: column; gap: 6px; }
-    /* Same states as the app's other choice buttons (Edit Day's Half Day /
-       Holiday / Leave): grey fill, solid when picked. Hover only where a mouse
-       can hover, so a tap on a phone doesn't leave a button looking pressed. */
-    .td-type { display: flex; align-items: center; width: 100%; padding: 12px 14px;
-      font-family: var(--font); font-size: 14px; font-weight: 500; color: var(--foreground);
-      background: var(--muted); border: none; border-radius: var(--radius-md); cursor: pointer;
-      text-align: left; transition: background .14s, color .14s; -webkit-tap-highlight-color: transparent; }
-    @media (hover: hover) { .td-type:not(.active):hover { background: var(--border); } }
-    .td-type.active { background: var(--btn-primary-bg); color: var(--card); }
+    .td-types { display: flex; flex-direction: column; gap: 2px; }
+    /* No fill at rest; a soft fill on hover and when picked, plus a check on
+       the picked one. Hover only where a mouse can hover, so a tap on a phone
+       doesn't leave a button looking hovered. */
+    .td-type { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%;
+      padding: 12px 14px; font-family: var(--font); font-size: 14px; font-weight: 500; color: var(--foreground);
+      background: transparent; border: none; border-radius: var(--radius-md); cursor: pointer;
+      text-align: left; transition: background .14s; -webkit-tap-highlight-color: transparent; }
+    @media (hover: hover) { .td-type:hover { background: var(--muted); } }
+    .td-type.active { background: var(--muted); }
+    .td-type.active::after { content: ''; width: 16px; height: 16px; flex-shrink: 0; background: currentColor;
+      -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E") center / contain no-repeat;
+              mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E") center / contain no-repeat; }
     /* Numbers are read, not tapped: an outline, never a fill like the buttons. */
     .td-kpis { border: 1px solid var(--border); border-radius: 12px; padding: 4px 14px; overflow: hidden;
       transition: height .28s cubic-bezier(.4,0,.2,1); }

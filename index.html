@@ -6464,39 +6464,66 @@
       box._tdT = setTimeout(() => { box.style.height = ''; }, 300);
     }
 
-    // Odometer: each digit is a 0-9 column that rolls from the old digit to
-    // the new one; letters and spaces stay put. Old and new values are lined up
-    // from the right, so "9h 15m" -> "10h 15m" rolls the right places.
-    function _odoSet(elm, text) {
-      const prev = elm.dataset.odo ?? elm.textContent;
-      if (prev === text && elm.dataset.odo) return;
-      elm.dataset.odo = text;
-      const roll = prev !== text && !matchMedia('(prefers-reduced-motion: reduce)').matches;
-      const shift = text.length - prev.length, chars = [...text];
-      elm.replaceChildren(...chars.map(ch => {
-        const span = document.createElement('span');
-        if (/\d/.test(ch)) {
-          span.className = 'odo-d';
-          span.innerHTML = '<span class="odo-col">' + [...'0123456789'].map(n => `<span>${n}</span>`).join('') + '</span>';
-        } else span.textContent = ch;
-        return span;
-      }));
-      const moves = [];
+    // Odometer that counts like a clock: the value steps minute by minute from
+    // the old time to the new one (fast in the middle, easing at both ends), so
+    // minutes run down or up and the hour changes only as they pass 00 / 59.
+    // Each digit is a 0-9 column; a one-step change slides, a wrap snaps.
+    // Anything that isn't a time ("Yes") is just replaced.
+    const _odoMin = t => {
+      const m = /^(?:(\d+)h)?\s*(?:(\d+)m)?$/.exec((t || '').trim());
+      return m && (m[1] || m[2]) ? (+(m[1] || 0)) * 60 + (+(m[2] || 0)) : null;
+    };
+    const _odoFmt = (min, withHours) => {
+      const h = Math.floor(min / 60), m = min % 60;
+      return h || withHours ? `${h}h ${String(m).padStart(2, '0')}m` : `${m}m`;
+    };
+
+    function _odoRender(elm, text, slide) {
+      const skeleton = text.replace(/\d/g, '#');
+      if (elm.dataset.sk !== skeleton) {
+        elm.dataset.sk = skeleton;
+        elm.replaceChildren(...[...text].map(ch => {
+          const span = document.createElement('span');
+          if (/\d/.test(ch)) {
+            span.className = 'odo-d';
+            span.innerHTML = '<span class="odo-col">' + [...'0123456789'].map(n => `<span>${n}</span>`).join('') + '</span>';
+          } else span.textContent = ch;
+          return span;
+        }));
+        slide = false;
+      }
       let ci = 0;
       const cols = elm.querySelectorAll('.odo-col');
-      chars.forEach((ch, i) => {
+      [...text].forEach(ch => {
         if (!/\d/.test(ch)) return;
-        const col = cols[ci++], to = +ch, was = prev[i - shift];
-        const start = !roll ? to : /\d/.test(was || '') ? +was : 0;
-        col.style.transform = `translateY(-${start * 10}%)`;
-        if (start !== to) moves.push([col, to, ci]);
+        const col = cols[ci++], d = +ch, was = col.dataset.d == null ? d : +col.dataset.d;
+        if (d === was && col.dataset.d != null) return;
+        col.style.transition = slide && Math.abs(d - was) === 1 ? 'transform 90ms ease-out' : 'none';
+        col.style.transform = `translateY(-${d * 10}%)`;
+        col.dataset.d = d;
       });
-      if (!moves.length) return;
-      void elm.offsetWidth; // commit the start positions
-      moves.forEach(([col, to, n]) => {
-        col.style.transition = `transform .7s cubic-bezier(.2,.8,.2,1) ${(n - 1) * 40}ms`;
-        col.style.transform = `translateY(-${to * 10}%)`;
-      });
+    }
+
+    function _odoSet(elm, text) {
+      const prev = elm.dataset.odo ?? elm.textContent;
+      elm.dataset.odo = text;
+      cancelAnimationFrame(elm._odoRaf);
+      const a = _odoMin(prev), b = _odoMin(text);
+      if (a == null || b == null || a === b || matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        _odoRender(elm, text, false);
+        return;
+      }
+      // "0h" only when the app itself writes it that way (dur), never mid-count.
+      const withHours = /^0h/.test(text) || /^0h/.test(prev), t0 = performance.now();
+      const ms = Math.min(1100, 450 + Math.abs(b - a) * 3); // longer runs take a little longer
+      _odoRender(elm, _odoFmt(a, withHours), false);
+      const tick = now => {
+        const t = Math.min(1, (now - t0) / ms);
+        const e = t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; // ease in-out
+        _odoRender(elm, t < 1 ? _odoFmt(Math.round(a + (b - a) * e), withHours) : text, true);
+        if (t < 1) elm._odoRaf = requestAnimationFrame(tick);
+      };
+      elm._odoRaf = requestAnimationFrame(tick);
     }
 
     // Picking a type only previews it: the dot moves and the numbers show that

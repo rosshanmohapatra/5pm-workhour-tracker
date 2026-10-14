@@ -3491,10 +3491,14 @@
               </a>
             </div>
           </div>
-          <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:14px">
+          <div style="display:flex;justify-content:space-between;gap:8px;margin-top:14px">
+            <button class="btn-secondary" style="font-size:12px;height:32px;padding:0 10px;gap:5px" onclick="openPrivacyPolicy()">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6z"/><path d="m9 12 2 2 4-4"/></svg>
+              Privacy Policy
+            </button>
             <button class="btn-secondary" style="font-size:12px;height:32px;padding:0 10px;gap:5px" onclick="openSupportModal()">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
-              Support Development
+              Contribute
             </button>
           </div>
         </div><!-- /About Developer section -->
@@ -4037,7 +4041,7 @@
     <div class="dialog" style="max-width:550px">
       <div class="dialog-head" style="display:flex;align-items:flex-start;justify-content:space-between;border-bottom:1px solid var(--border);padding:16px 16px 14px 20px">
         <div>
-          <div class="dialog-title">Support Development</div>
+          <div class="dialog-title">Contribute</div>
           <div class="dialog-desc" style="margin-top:3px">If 5pm helped you leave work on time, help me make it better.</div>
         </div>
         <button class="btn-icon" onclick="closeSupportModal()" title="Close" style="margin:-2px -2px 0 10px;flex-shrink:0">
@@ -13868,6 +13872,13 @@ ${sig}`
       if (btn) { btn.disabled = false; btn.textContent = 'Send Reset Link'; btn.style.opacity = ''; }
       el('upwdOverlay').classList.add('open');
     }
+    // The policy lives on the website; the desktop app opens it in the browser.
+    function openPrivacyPolicy() {
+      const url = 'https://whtracker.vercel.app/privacy.html';
+      if (window.__TAURI__) window.__TAURI__.core.invoke('open_external', { url }).catch(() => {});
+      else window.open(url, '_blank', 'noopener');
+    }
+
     // ── Support Development Modal ─────────────────────────────────────────
     function openSupportModal() {
       el('supportOverlay').classList.add('open');

@@ -14723,11 +14723,21 @@ ${sig}`
         const pts = tl.loginTime.split(':').map(Number);
         const d = new Date(); d.setHours(pts[0] || 0, pts[1] || 0, pts[2] || 0, 0);
         if (d <= new Date()) {
-          loginDate = d;
+          // loginTime is the day's first start, so after a pause it doesn't
+          // mark the running segment. The log's hours were current as of
+          // lastUpdated, so carry on from there instead of counting the pause.
+          const at = tl.lastUpdated ? new Date(tl.lastUpdated) : null;
+          if (tl.hoursWorked != null && at && !isNaN(at) && at >= d && at <= new Date()) {
+            _sessionAccSecs = Math.round(tl.hoursWorked * 3600);
+            loginDate = at;
+          } else {
+            loginDate = d;
+          }
           setCalcBtnState('running');
           el('shiftInputRow').classList.add('active-state');
           el('shiftActiveLabel').textContent = `Started at ${short(d)}`;
           render();
+          if (ticker) clearInterval(ticker);
           ticker = setInterval(render, 1000);
         } else { renderEmptyState(); }
       } else if (tl?.loginTime && !tl?.autostopped && tl?.checkoutDisplay) {

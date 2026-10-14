@@ -1053,15 +1053,24 @@
       backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
       opacity: 0; pointer-events: none; transition: opacity .2s ease; }
     .td-scrim.open { opacity: 1; pointer-events: auto; }
+    /* Phones: an iOS-style sheet. Edge to edge, large concentric top corners,
+       the grab pill, a capsule Confirm. It owns its drag (touch-action), and the
+       page behind can't scroll or pull-to-refresh while it's open. */
     @media (max-width: 640px) {
       .td-panel { top: auto; left: 0; right: 0; bottom: 0; width: 100%; max-width: none;
-        border-radius: 18px 18px 0 0; border-bottom: none; padding: 10px 16px calc(16px + env(safe-area-inset-bottom));
-        transform: translateY(100%); transition: transform .28s cubic-bezier(.4,0,.2,1), opacity .2s ease; }
+        border: none; border-radius: 32px 32px 0 0; gap: 14px;
+        padding: 6px 16px calc(20px + env(safe-area-inset-bottom));
+        box-shadow: 0 -8px 40px rgba(0,0,0,.35); touch-action: none; overscroll-behavior: contain;
+        transform: translateY(100%); transition: transform .34s cubic-bezier(.32,.72,0,1), opacity .2s ease; }
       .td-panel.open { transform: none; }
       .td-panel.dragging { transition: none; }
-      .td-panel::before { content: ''; align-self: center; width: 36px; height: 4px; border-radius: 2px;
-        background: var(--border); margin-bottom: 2px; flex-shrink: 0; }
-      .td-confirm { height: 46px; }
+      .td-panel::before { content: ''; align-self: center; width: 36px; height: 5px; border-radius: 3px;
+        background: rgba(127,127,127,.4); margin: 0 0 4px; flex-shrink: 0; }
+      .td-kpis { border-radius: 20px; padding: 6px 16px; }
+      .td-type { padding: 14px 16px; font-size: 15px; border-radius: 14px; }
+      .td-confirm { height: 50px; font-size: 16px; font-weight: 600; border-radius: 999px; }
+      html.td-sheet-open, html.td-sheet-open body { overflow: hidden; overscroll-behavior: none; }
+      .td-scrim { touch-action: none; }
     }
     /* ── Today panel number rows ── */
     .td-row { display: flex; align-items: center; justify-content: space-between; padding: 7px 0; font-size: 13px; }
@@ -6344,6 +6353,7 @@
       el('tdKpis').style.height = '';
       el('tdKpis').innerHTML = _tdBuildContent();
       el('tdScrim').classList.add('open');
+      document.documentElement.classList.add('td-sheet-open'); // no page scroll or pull-to-refresh behind it
       panel.classList.add('open');
     }
 
@@ -6351,6 +6361,7 @@
       const panel = el('tdPanel');
       if (panel) { panel.classList.remove('open', 'dragging'); panel.style.transform = ''; }
       el('tdScrim')?.classList.remove('open');
+      document.documentElement.classList.remove('td-sheet-open');
     }
     document.addEventListener('keydown', e => {
       if (e.key === 'Escape' && el('tdPanel')?.classList.contains('open')) closeTodayDetails();
@@ -6366,11 +6377,14 @@
         if (!isSheet() || !panel.classList.contains('open') || e.touches.length !== 1) return;
         y0 = e.touches[0].clientY; dy = 0; t0 = Date.now();
       }, { passive: true });
+      // Not passive: the sheet claims the gesture so the browser never reads a
+      // downward drag as pull-to-refresh.
       panel.addEventListener('touchmove', e => {
         if (y0 === null) return;
+        e.preventDefault();
         dy = Math.max(0, e.touches[0].clientY - y0);
         if (dy > 4) { panel.classList.add('dragging'); panel.style.transform = `translateY(${dy}px)`; }
-      }, { passive: true });
+      }, { passive: false });
       panel.addEventListener('touchend', () => {
         if (y0 === null) return;
         y0 = null;

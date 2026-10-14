@@ -1013,12 +1013,12 @@
     .dark .rc-pair-tab-active { background: var(--muted); }
     /* ── Day type button (was "Info"): today's type, opens the Today panel ──
        Coloured like the weekly log, so the kind of day reads at a glance. */
-    .rc-info-btn { height: 26px; display: inline-flex; align-items: center; gap: 5px; padding: 0 8px 0 10px;
+    .rc-info-btn { height: 26px; display: inline-flex; align-items: center; gap: 4px; padding: 0 6px 0 10px;
       background: var(--background); border: none; border-radius: 7px; color: var(--foreground); cursor: pointer;
       font-family: var(--font); font-size: 12px; font-weight: 600; white-space: nowrap;
       transition: background .15s, color .15s; flex-shrink: 0; }
     .rc-info-btn:hover { background: var(--muted); }
-    .rc-info-btn svg { color: currentColor; opacity: .6; flex-shrink: 0; }
+    .rc-info-btn svg { flex-shrink: 0; }
     .rc-info-btn[data-plan="halfday"] { color: #0ea5e9; background: rgba(14,165,233,.12); }
     .rc-info-btn[data-plan="leave"]   { color: #3b82f6; background: rgba(59,130,246,.12); }
     .rc-info-btn[data-plan="holiday"] { color: #a855f7; background: rgba(168,85,247,.12); }
@@ -1077,6 +1077,8 @@
     .td-row + .td-row { border-top: 1px solid var(--border); }
     .td-row-label { display: flex; align-items: center; gap: 7px; color: var(--muted-fg); }
     .td-row-label svg { flex-shrink: 0; }
+    .td-ring { width: 16px; height: 16px; }
+    @media (max-width: 640px) { .td-ring { width: 20px; height: 20px; } }
     .td-row-val { font-weight: 600; color: var(--foreground); font-variant-numeric: tabular-nums; }
     /* Odometer digits: a clipped window onto a 0-9 column. */
     .td-row-val > span { display: inline-block; height: 1.3em; line-height: 1.3em; vertical-align: top; }
@@ -1263,7 +1265,7 @@
       border-radius: 8px; cursor: pointer; transition: background .15s, border-color .15s; }
     .tz-select-trigger:hover { background: var(--muted); }
     .tz-select-trigger-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .tz-select-trigger svg { color: var(--muted-fg); flex-shrink: 0; transition: transform .15s; }
+    .tz-select-trigger svg { flex-shrink: 0; transition: transform .15s; }
     .tz-select.open .tz-select-trigger svg { transform: rotate(180deg); }
     /* position:fixed (not absolute) — Advanced is a collapsible section that uses
        overflow:hidden on its own body to animate max-height, which clips any
@@ -1872,6 +1874,10 @@
       transition:background .12s; letter-spacing:.02em; white-space:nowrap; }
     .this-week-label-btn:hover { background:var(--btn-secondary-hover); }
     .tw-chevron { flex-shrink:0; transition: transform .2s ease; }
+    /* Every dropdown chevron: the same size as the app's button icons (14px)
+       and the button's own text colour, never a faded grey. */
+    .tw-chevron, .rc-info-btn svg, .tz-select-trigger svg, .split-chevron-btn svg {
+      width: 14px; height: 14px; color: currentColor; opacity: 1; }
     .this-week-label-btn.picker-open .tw-chevron { transform: rotate(180deg); }
     /* ── Week picker calendar ── */
     /* Day picker dropdown — anchored below trigger button, no backdrop */
@@ -6297,13 +6303,13 @@
     function _tdProgressIcon(pct) {
       const p = Math.max(0, Math.min(1, pct));
       if (p >= 1) {
-        return `<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="7" fill="var(--success)"/><path d="M4 7.3l2 2 4-4.6" stroke="var(--card)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>`;
+        return `<svg class="td-ring" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="7" fill="var(--success)"/><path d="M4 7.3l2 2 4-4.6" stroke="var(--card)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>`;
       }
       const r = 5.5, C = 2 * Math.PI * r, dash = p * C;
-      return `<svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+      return `<svg class="td-ring" viewBox="0 0 14 14" fill="none">
         <circle cx="7" cy="7" r="${r}" stroke="var(--border)" stroke-width="2"/>
-        <circle cx="7" cy="7" r="${r}" stroke="var(--foreground)" stroke-width="2" stroke-linecap="round"
-          stroke-dasharray="${dash.toFixed(2)} ${C.toFixed(2)}" transform="rotate(-90 7 7)"/>
+        <circle class="td-ring-fill" cx="7" cy="7" r="${r}" stroke="var(--foreground)" stroke-width="2" stroke-linecap="round"
+          style="stroke-dasharray:${dash.toFixed(2)} ${C.toFixed(2)}" transform="rotate(-90 7 7)"/>
       </svg>`;
     }
 
@@ -6442,12 +6448,24 @@
       tpl.innerHTML = html;
       const label = r => r.querySelector('.td-row-label').textContent.trim();
       const kept = new Map([...box.querySelectorAll('.td-row')].map(r => [label(r), r]));
-      const rolls = [];
+      const rolls = [], rings = [];
       const rows = [...tpl.children].map(r => {
         const k = kept.get(label(r));
         if (!k) return r;
-        k.querySelector('.td-row-label').innerHTML = r.querySelector('.td-row-label').innerHTML;
         const v = k.querySelector('.td-row-val'), nv = r.querySelector('.td-row-val');
+        const ring = k.querySelector('.td-ring-fill'), nring = r.querySelector('.td-ring-fill');
+        if (ring && nring) {
+          // Fills in step with the numbers beside it: same duration and curve.
+          const a = _odoMin(v.dataset.odo ?? v.textContent), b = _odoMin(nv.textContent);
+          const ms = a != null && b != null ? _odoMs(a, b) : 600, dash = nring.style.strokeDasharray;
+          rings.push(() => {
+            ring.style.transition = `stroke-dasharray ${ms}ms cubic-bezier(.65,0,.35,1)`;
+            getComputedStyle(ring).strokeDasharray; // register the transition before the change
+            ring.style.strokeDasharray = dash;
+          });
+        } else {
+          k.querySelector('.td-row-label').innerHTML = r.querySelector('.td-row-label').innerHTML;
+        }
         v.className = nv.className;
         rolls.push([v, nv.textContent]);
         return k;
@@ -6455,6 +6473,7 @@
       box.replaceChildren(...rows);
       // Roll only once the rows are back in place: moving a node cancels its transitions.
       rolls.forEach(([v, text]) => _odoSet(v, text));
+      rings.forEach(f => f());
       const to = box.offsetHeight;
       if (!from || from === to || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
       box.style.height = from + 'px';
@@ -6477,6 +6496,8 @@
       const h = Math.floor(min / 60), m = min % 60;
       return h || withHours ? `${h}h ${String(m).padStart(2, '0')}m` : `${m}m`;
     };
+
+    const _odoMs = (a, b) => Math.min(1100, 450 + Math.abs(b - a) * 3); // longer runs take a little longer
 
     function _odoRender(elm, text, slide) {
       const skeleton = text.replace(/\d/g, '#');
@@ -6515,7 +6536,7 @@
       }
       // "0h" only when the app itself writes it that way (dur), never mid-count.
       const withHours = /^0h/.test(text) || /^0h/.test(prev), t0 = performance.now();
-      const ms = Math.min(1100, 450 + Math.abs(b - a) * 3); // longer runs take a little longer
+      const ms = _odoMs(a, b);
       _odoRender(elm, _odoFmt(a, withHours), false);
       const tick = now => {
         const t = Math.min(1, (now - t0) / ms);

@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>5pm — Work Hour Tracker</title>
+  <meta name="description" content="5pm tracks your work hours and tells you when it's time to head out, for a healthier work-life balance.">
+  <link id="favicon" rel="icon" type="image/svg+xml" href="/favicon-light.svg">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script>(function(){var s=localStorage.getItem('wh_theme');var p=matchMedia('(prefers-color-scheme:dark)').matches;if(s?s==='dark':p)document.documentElement.classList.add('dark');})()</script>
+  <!-- Public home page: what 5pm is, without signing in (Google's OAuth
+       verification requires one). The app itself starts at /login.html. -->
+  <style>
+    :root { --bg:#f5f5f7; --card:#fff; --fg:#09090b; --muted-fg:#5f5f69; --border:#dfe0e4; --chip:#f0f0f3; }
+    .dark { --bg:#09090b; --card:#111113; --fg:#fafafa; --muted-fg:#a1a1aa; --border:#2c2c30; --chip:#1c1c20; }
+    * { box-sizing:border-box; margin:0; padding:0; }
+    body { font-family:'Inter',system-ui,sans-serif; background:var(--bg); color:var(--fg); padding:56px 16px 48px; -webkit-font-smoothing:antialiased; }
+    .wrap { max-width:680px; margin:0 auto; }
+    .hero { text-align:center; }
+    .hero img { border-radius:18px; }
+    h1 { font-size:32px; font-weight:700; margin-top:18px; letter-spacing:-.01em; }
+    .tag { font-size:16px; color:var(--muted-fg); margin:8px auto 0; max-width:440px; line-height:1.55; }
+    .ctas { display:flex; gap:10px; justify-content:center; flex-wrap:wrap; margin-top:24px; }
+    .btn { height:42px; padding:0 20px; border-radius:10px; font:600 14px 'Inter',system-ui,sans-serif; text-decoration:none;
+      display:inline-flex; align-items:center; gap:8px; border:1px solid var(--border); color:var(--fg); background:var(--card); }
+    .btn.primary { background:var(--fg); color:var(--bg); border-color:var(--fg); }
+    .grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:44px; }
+    .card { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:18px; display:flex; gap:14px; align-items:flex-start; }
+    .card svg { flex:none; width:36px; height:36px; padding:8px; border-radius:9px; background:var(--chip); color:var(--fg);
+      fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
+    .card h2 { font-size:14px; font-weight:600; }
+    .card p { font-size:13px; color:var(--muted-fg); line-height:1.55; margin-top:3px; }
+    footer { margin-top:40px; text-align:center; font-size:13px; color:var(--muted-fg); display:flex; gap:16px; justify-content:center; flex-wrap:wrap; }
+    footer a { color:var(--muted-fg); }
+    @media (max-width:560px) { .grid { grid-template-columns:1fr; } h1 { font-size:28px; } }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <section class="hero">
+      <img id="logo" src="/brand-light.svg" alt="5pm logo" width="72" height="72">
+      <h1>5pm</h1>
+      <p class="tag">Your work hour tracker, built to keep a healthier work-life balance.</p>
+      <div class="ctas">
+        <a class="btn primary" href="/index.html">Open 5pm</a>
+        <a class="btn" href="https://github.com/rosshanmohapatra/5pm-workhour-tracker/releases/latest">Download for Windows</a>
+      </div>
+    </section>
+
+    <section class="grid">
+      <div class="card"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+        <div><h2>Track Your Work Hours</h2><p>See when your day starts, when it ends, and how your hours add up.</p></div></div>
+      <div class="card"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        <div><h2>Balanced Routine</h2><p>Get notified when you've completed your target hours and it's time to head out.</p></div></div>
+      <div class="card"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3v18h18"/><path d="m7 15 4-4 3 3 5-6"/></svg>
+        <div><h2>Weekly Reports</h2><p>Review your week, spot short or long days, and export a report as a PDF.</p></div></div>
+      <div class="card"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/></svg>
+        <div><h2>Built For You</h2><p>Set your shift, workweek, targets, half days and leave to match how you work.</p></div></div>
+      <div class="card"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+        <div><h2>Web and Windows</h2><p>Use it in your browser or install the Windows app. Your hours stay in sync.</p></div></div>
+      <div class="card"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6z"/><path d="m9 12 2 2 4-4"/></svg>
+        <div><h2>Privacy Focused</h2><p>Only what the app needs. No ads, no tracking. Sign in with a passkey or add two-factor.</p></div></div>
+    </section>
+
+    <footer>
+      <a href="/privacy.html">Privacy Policy</a>
+      <a href="mailto:roshankanhu@gmail.com">Contact</a>
+      <span>© 2026 Roshan Mohapatra</span>
+    </footer>
+  </div>
+  <script>
+    if (document.documentElement.classList.contains('dark')) {
+      document.getElementById('logo').src = '/brand-dark.svg';
+      document.getElementById('favicon').href = '/favicon-dark.svg';
+    }
+  </script>
+</body>
+</html>

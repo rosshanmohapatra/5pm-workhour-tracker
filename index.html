@@ -1039,20 +1039,22 @@
       opacity: 0; transform: translate(-50%, -48%) scale(.98); pointer-events: none;
       transition: opacity .15s ease, transform .15s ease; }
     .td-panel.open { opacity: 1; transform: translate(-50%, -50%); pointer-events: all; }
-    .td-types { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
-    .td-type { padding: 10px 6px; font-family: var(--font); font-size: 13px; font-weight: 500; color: var(--muted-fg);
+    .td-types { display: flex; flex-direction: column; gap: 6px; }
+    .td-type { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%;
+      padding: 12px 14px; font-family: var(--font); font-size: 14px; font-weight: 500; color: var(--muted-fg);
       background: var(--muted); border: 1px solid transparent; border-radius: 10px; cursor: pointer;
-      text-align: center; white-space: nowrap; transition: background .12s, color .12s, border-color .12s; }
+      text-align: left; transition: background .12s, color .12s, border-color .12s; }
     .td-type:hover { color: var(--foreground); }
     .td-type.active { background: var(--card); color: var(--foreground); border-color: var(--foreground); font-weight: 600; }
-    .td-kpis { background: var(--muted); border-radius: 12px; padding: 4px 14px; }
+    .td-type.active::after { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--foreground); flex-shrink: 0; }
+    .td-kpis { background: var(--muted); border-radius: 12px; padding: 4px 14px; overflow: hidden;
+      transition: height .28s cubic-bezier(.4,0,.2,1); }
     .td-kpis .td-row + .td-row { border-top-color: var(--border); }
     .td-confirm { height: 42px; font-size: 14px; }
     .td-scrim { position: fixed; inset: 0; z-index: 249; background: rgba(0,0,0,.28);
       backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
       opacity: 0; pointer-events: none; transition: opacity .2s ease; }
     .td-scrim.open { opacity: 1; pointer-events: auto; }
-    @media (max-width: 340px) { .td-types { grid-template-columns: 1fr 1fr; } }
     /* ── Today panel number rows ── */
     .td-row { display: flex; align-items: center; justify-content: space-between; padding: 7px 0; font-size: 13px; }
     .td-row + .td-row { border-top: 1px solid var(--border); }
@@ -6401,6 +6403,7 @@
       if (panel.classList.contains('open')) { closeTodayDetails(); return; }
       _tdPicked = _tdCurrentPlan();
       _tdSyncPlan();
+      el('tdKpis').style.height = '';
       el('tdKpis').innerHTML = _tdBuildContent();
       el('tdScrim').classList.add('open');
       panel.classList.add('open');
@@ -6442,7 +6445,23 @@
     // Rebuild the numbers in the open panel; render()/renderEmptyState() only
     // refresh the card behind it.
     function _tdRefreshBody() {
-      if (el('tdPanel')?.classList.contains('open')) el('tdKpis').innerHTML = _tdBuildContent(_tdPicked || undefined);
+      if (el('tdPanel')?.classList.contains('open')) _tdSetKpis(_tdBuildContent(_tdPicked || undefined));
+    }
+
+    // Swap the numbers and glide the card to its new height (rows hide on Leave
+    // and Holiday), so the modal resizes smoothly instead of jumping.
+    function _tdSetKpis(html) {
+      const box = el('tdKpis');
+      const from = box.offsetHeight;
+      box.style.height = '';
+      box.innerHTML = html;
+      const to = box.offsetHeight;
+      if (!from || from === to || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+      box.style.height = from + 'px';
+      void box.offsetHeight; // start from the old height
+      box.style.height = to + 'px';
+      clearTimeout(box._tdT);
+      box._tdT = setTimeout(() => { box.style.height = ''; }, 300);
     }
 
     // Picking a type only previews it: the dot moves and the numbers show that

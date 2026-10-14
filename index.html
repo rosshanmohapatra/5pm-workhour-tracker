@@ -1078,6 +1078,11 @@
     .td-row-label { display: flex; align-items: center; gap: 7px; color: var(--muted-fg); }
     .td-row-label svg { flex-shrink: 0; }
     .td-row-val { font-weight: 600; color: var(--foreground); font-variant-numeric: tabular-nums; }
+    /* Odometer digits: a clipped window onto a 0-9 column. */
+    .td-row-val > span { display: inline-block; height: 1.3em; line-height: 1.3em; vertical-align: top; }
+    .td-row-val .odo-d { overflow: hidden; }
+    .td-row-val .odo-col { display: block; }
+    .td-row-val .odo-col > span { display: block; height: 1.3em; line-height: 1.3em; text-align: center; }
     .td-row-val.success { color: var(--success); }
     .td-row-val.warn { color: var(--warning); }
     /* ── Progress bar ──
@@ -6431,7 +6436,25 @@
       const box = el('tdKpis');
       const from = box.offsetHeight;
       box.style.height = '';
-      box.innerHTML = html;
+      // Rows that stay (matched by label) are kept, so their values can roll;
+      // rows that come or go are swapped in.
+      const tpl = document.createElement('div');
+      tpl.innerHTML = html;
+      const label = r => r.querySelector('.td-row-label').textContent.trim();
+      const kept = new Map([...box.querySelectorAll('.td-row')].map(r => [label(r), r]));
+      const rolls = [];
+      const rows = [...tpl.children].map(r => {
+        const k = kept.get(label(r));
+        if (!k) return r;
+        k.querySelector('.td-row-label').innerHTML = r.querySelector('.td-row-label').innerHTML;
+        const v = k.querySelector('.td-row-val'), nv = r.querySelector('.td-row-val');
+        v.className = nv.className;
+        rolls.push([v, nv.textContent]);
+        return k;
+      });
+      box.replaceChildren(...rows);
+      // Roll only once the rows are back in place: moving a node cancels its transitions.
+      rolls.forEach(([v, text]) => _odoSet(v, text));
       const to = box.offsetHeight;
       if (!from || from === to || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
       box.style.height = from + 'px';
@@ -6439,6 +6462,41 @@
       box.style.height = to + 'px';
       clearTimeout(box._tdT);
       box._tdT = setTimeout(() => { box.style.height = ''; }, 300);
+    }
+
+    // Odometer: each digit is a 0-9 column that rolls from the old digit to
+    // the new one; letters and spaces stay put. Old and new values are lined up
+    // from the right, so "9h 15m" -> "10h 15m" rolls the right places.
+    function _odoSet(elm, text) {
+      const prev = elm.dataset.odo ?? elm.textContent;
+      if (prev === text && elm.dataset.odo) return;
+      elm.dataset.odo = text;
+      const roll = prev !== text && !matchMedia('(prefers-reduced-motion: reduce)').matches;
+      const shift = text.length - prev.length, chars = [...text];
+      elm.replaceChildren(...chars.map(ch => {
+        const span = document.createElement('span');
+        if (/\d/.test(ch)) {
+          span.className = 'odo-d';
+          span.innerHTML = '<span class="odo-col">' + [...'0123456789'].map(n => `<span>${n}</span>`).join('') + '</span>';
+        } else span.textContent = ch;
+        return span;
+      }));
+      const moves = [];
+      let ci = 0;
+      const cols = elm.querySelectorAll('.odo-col');
+      chars.forEach((ch, i) => {
+        if (!/\d/.test(ch)) return;
+        const col = cols[ci++], to = +ch, was = prev[i - shift];
+        const start = !roll ? to : /\d/.test(was || '') ? +was : 0;
+        col.style.transform = `translateY(-${start * 10}%)`;
+        if (start !== to) moves.push([col, to, ci]);
+      });
+      if (!moves.length) return;
+      void elm.offsetWidth; // commit the start positions
+      moves.forEach(([col, to, n]) => {
+        col.style.transition = `transform .7s cubic-bezier(.2,.8,.2,1) ${(n - 1) * 40}ms`;
+        col.style.transform = `translateY(-${to * 10}%)`;
+      });
     }
 
     // Picking a type only previews it: the dot moves and the numbers show that

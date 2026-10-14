@@ -139,16 +139,7 @@
   <!-- Favicons (theme-aware; JS in applyTheme() swaps #favicon at runtime) -->
   <link id="favicon" rel="icon" type="image/svg+xml" href="/favicon-light.svg">
 
-  <!-- jsPDF + AutoTable for direct PDF export (no print dialog) -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"
-          integrity="sha384-JcnsjUPPylna1s1fvi1u12X5qjY5OL56iySh75FdtrwhO/SWXgMjoVqcKyIIWOLk"
-          crossorigin="anonymous" defer></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"
-          integrity="sha384-fCAW/rDWORTbQXSiB7mOg0QtQ5c+r0f544y6XoKjuVva0nMBlCpNUjiFeG5iMdS3"
-          crossorigin="anonymous" defer></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"
-          integrity="sha384-3zSEDfvllQohrq0PHL1fOXJuC/jSOO34H46t6UQfobFOmxE5BpjjaIJY5F2/bMnU"
-          crossorigin="anonymous"></script>
+  <!-- jsPDF, AutoTable (PDF export) and qrcodejs (Contribute) load on first use: _loadLib() -->
 
   <!-- PWA / home-screen -->
   <meta name="application-name" content="5pm">
@@ -180,7 +171,7 @@
   <meta name="twitter:description" content="Real-time work hour tracking. Work your hours. Leave on time.">
   <meta name="twitter:image"       content="https://whtracker.vercel.app/social-preview.svg">
   <link rel="preconnect" href="https://fonts.googleapis.com/">
-  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
     /* ── PWA App Loader ── */
     #appLoader {
@@ -3516,7 +3507,7 @@
         <div class="settings-section" id="devAboutCard">
           <div class="settings-section-header">About Developer</div>
           <div style="display:flex;align-items:center;gap:12px">
-            <img class="about-dev-pic" src="https://framerusercontent.com/images/u88DE05m7bwVdrx5jcyopewNaE.jpg?width=200&height=200" alt="Roshan Mohapatra">
+            <img class="about-dev-pic" loading="lazy" decoding="async" src="https://framerusercontent.com/images/u88DE05m7bwVdrx5jcyopewNaE.jpg?width=200&height=200" alt="Roshan Mohapatra">
             <div style="flex:1;min-width:0">
               <div style="font-size:13px;font-weight:600;color:var(--foreground);line-height:1.2">Roshan Mohapatra</div>
               <div class="form-sub" style="margin-top:1px">Product Designer</div>
@@ -7649,6 +7640,7 @@
     }
 
     function openWeekReport(weekOffset) {
+      _flushLiveLog(); // today's row reads the saved entry
       _reportWeekOffset = typeof weekOffset === 'number' ? weekOffset : daySelectorWeekOffset;
       // Default the Monthly tab to the month containing this week's Monday.
       const wkMon = week(_reportWeekOffset)[0].date, now = new Date();
@@ -7689,8 +7681,28 @@
       if (b) b.disabled = on;
       if (l) l.textContent = on ? 'Exporting…' : 'Export';
     }
+    // Libraries only some screens need load the first time they're used, not
+    // at every launch (PDF export ~400 KB, the QR code for Contribute).
+    const _LIBS = {
+      jspdf:     ['https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',
+                  'sha384-JcnsjUPPylna1s1fvi1u12X5qjY5OL56iySh75FdtrwhO/SWXgMjoVqcKyIIWOLk'],
+      autotable: ['https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js',
+                  'sha384-fCAW/rDWORTbQXSiB7mOg0QtQ5c+r0f544y6XoKjuVva0nMBlCpNUjiFeG5iMdS3'],
+      qrcode:    ['https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js',
+                  'sha384-3zSEDfvllQohrq0PHL1fOXJuC/jSOO34H46t6UQfobFOmxE5BpjjaIJY5F2/bMnU'],
+    };
+    const _libLoads = {};
+    function _loadLib(name) {
+      return _libLoads[name] || (_libLoads[name] = new Promise((resolve, reject) => {
+        const [src, integrity] = _LIBS[name], sc = document.createElement('script');
+        sc.src = src; sc.integrity = integrity; sc.crossOrigin = 'anonymous';
+        sc.onload = resolve;
+        sc.onerror = () => { delete _libLoads[name]; sc.remove(); reject(new Error("Couldn't load the export tools. Check your connection.")); };
+        document.head.appendChild(sc);
+      }));
+    }
+
     function downloadWeekReport() {
-      if (!window.jspdf) { showToast('Creating your Document', 'info', '', { label: 'Okay' }); return; }
       if (el('wrExportBtn')?.disabled) return;
       _wrExportBusy(true);
       const failed = e => {
@@ -7698,7 +7710,9 @@
         showToast("Couldn't Export Report", 'error', (e && e.message) || 'Please try again.',
                   { label: 'Try Again', onClick: downloadWeekReport });
       };
-      try { _downloadWeekReport(failed); } catch (e) { failed(e); }
+      // AutoTable extends jsPDF, so it loads second.
+      _loadLib('jspdf').then(() => _loadLib('autotable'))
+        .then(() => { try { _downloadWeekReport(failed); } catch (e) { failed(e); } }, failed);
     }
     function _downloadWeekReport(failed) {
       const ctx = _reportContext();
@@ -8004,6 +8018,31 @@
       return _sessionAccSecs > 0 && ex?.loginDisplay ? ex.loginDisplay : short(loginDate);
     }
 
+    // Today's running entry. render() writes it every 30s; _flushLiveLog()
+    // writes it now, before anything reads or sends it (View Stats, a cloud
+    // flush, the window hiding or closing). Marked dirty without starting the
+    // idle-sync timer, so it goes up with the 10-minute checkpoint and the
+    // hide/close flushes, as it did when it was written every second.
+    let _liveLogSavedAt = 0;
+    function _writeLiveLog(snapshot, worked) {
+      const now = new Date(), tk = todayKey(), ex = dayLog(tk) || {};
+      // After a resume, keep the day's first start; only a fresh day takes this segment's.
+      const keepStart = _sessionAccSecs > 0 && ex.loginDisplay;
+      Store.setDay(tk, { ...ex,
+        loginTime:    keepStart && ex.loginTime ? ex.loginTime : `${snapshot.getHours()}:${snapshot.getMinutes()}:${snapshot.getSeconds()}`,
+        loginDisplay: keepStart ? ex.loginDisplay : short(snapshot),
+        hoursWorked:  worked / 3600,
+        lastUpdated:  now.toISOString(),
+        sessionTag:   ex.sessionTag || 'realtime'
+      });
+      persist();
+      if (!_applyingRemote) _dirtyDays.add(tk);
+      _liveLogSavedAt = now.getTime();
+    }
+    function _flushLiveLog() {
+      if (loginDate) _writeLiveLog(loginDate, Math.max(0, Math.floor((Date.now() - loginDate) / 1000)) + _sessionAccSecs);
+    }
+
     function render() {
       if (!loginDate) return;
       _tdSyncPlan();
@@ -8158,16 +8197,9 @@
         }
       } else if (!isDone) wasDone = false;
 
-      const tk = todayKey(), ex = dayLog(tk) || {};
-      // After a resume, keep the day's first start; only a fresh day takes this segment's.
-      const _keepStart = _sessionAccSecs > 0 && ex.loginDisplay;
-      saveDayLog(tk, { ...ex,
-        loginTime:    _keepStart && ex.loginTime ? ex.loginTime : `${_loginSnapshot.getHours()}:${_loginSnapshot.getMinutes()}:${_loginSnapshot.getSeconds()}`,
-        loginDisplay: _keepStart ? ex.loginDisplay : short(_loginSnapshot),
-        hoursWorked:  worked / 3600,
-        lastUpdated:  now.toISOString(),
-        sessionTag:   ex.sessionTag || 'realtime'
-      });
+      // Saved every 30s, not every second (the screen still ticks from
+      // loginDate); at once if the target-reached pause just stopped the clock.
+      if (!loginDate || now - _liveLogSavedAt >= 30000) _writeLiveLog(_loginSnapshot, worked);
 
       // Update day-selector dots live (week card is in analytics)
       renderDaySelector();
@@ -11473,6 +11505,7 @@ ${sig}`
     let _lastFailedCfg  = false;
 
     async function _flushSync(opts) {
+      _flushLiveLog();
       const silent = opts?.silent || false; // silent = no toasts (lifecycle flushes)
       if (!_hasPending() && !_lastFailedDays.length && !_lastFailedCfg) return;
 
@@ -14003,14 +14036,15 @@ ${sig}`
     function openSupportModal() {
       el('supportOverlay').classList.add('open');
       var wrap = el('supportQrWrap');
-      if (typeof QRCode !== 'undefined' && wrap && !wrap.firstChild) {
+      if (wrap && !wrap.firstChild) _loadLib('qrcode').then(function () {
+        if (wrap.firstChild) return;
         new QRCode(wrap, {
           text: 'upi://pay?pa=roshan.394@superyes&pn=Roshan%20Mohapatra&cu=INR',
           width: 256, height: 256,
           colorDark: '#000000', colorLight: '#ffffff',
           correctLevel: QRCode.CorrectLevel.M
         });
-      }
+      }).catch(function () {});
     }
     function closeSupportModal() { el('supportOverlay').classList.remove('open'); }
     let _upiResetTimer = null;
@@ -14763,8 +14797,9 @@ ${sig}`
         document.body.style.overflow = anyOpen ? 'hidden' : '';
         document.documentElement.style.overflow = anyOpen ? 'hidden' : '';
       };
+      // Every overlay exists at startup and the observer sees each open/close,
+      // so no once-a-second polling.
       const _scrollLockObserver = new MutationObserver(_syncScrollLock);
-      setInterval(_syncScrollLock, 1000);
       document.querySelectorAll('.overlay, .wp-picker-overlay').forEach(o =>
         _scrollLockObserver.observe(o, { attributes: true, attributeFilter: ['class', 'style'] })
       );

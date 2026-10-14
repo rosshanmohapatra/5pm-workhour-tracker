@@ -1029,47 +1029,30 @@
     .rc-info-btn[data-plan="halfday"] { color: #0ea5e9; background: rgba(14,165,233,.12); }
     .rc-info-btn[data-plan="leave"]   { color: #3b82f6; background: rgba(59,130,246,.12); }
     .rc-info-btn[data-plan="holiday"] { color: #a855f7; background: rgba(168,85,247,.12); }
-    /* ── Today panel: today's numbers (left) and day types (right, under the
-       button). A modal over a blurred page: anchored under the button on wider
-       screens, a draggable bottom sheet on phones. A type is only picked until
-       Confirm applies it. ── */
-    .td-panel { position: fixed; z-index: 250; width: 460px; max-width: calc(100vw - 16px);
-      display: grid; grid-template-columns: 1.3fr 1fr; align-items: start;
-      background: var(--card); border: 1px solid var(--border); border-radius: 14px;
-      box-shadow: 0 12px 40px rgba(0,0,0,.28); padding: 8px; opacity: 0; transform: translateY(-4px);
-      pointer-events: none; transition: opacity .15s ease, transform .15s ease; }
-    .td-panel.open { opacity: 1; transform: translateY(0); pointer-events: all; }
-    .td-kpis { padding: 2px 16px 2px 8px; }
-    .td-types { display: flex; flex-direction: column; gap: 2px; padding-left: 8px; border-left: 1px solid var(--border); }
-    .td-type { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%;
-      padding: 10px 12px; font-family: var(--font); font-size: 13px; font-weight: 500; color: var(--foreground);
-      background: transparent; border: none; border-radius: 8px; cursor: pointer; text-align: left; }
-    .td-type:hover, .td-type.active { background: var(--muted); }
-    .td-type.active::after { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--foreground); flex-shrink: 0; }
-    .td-confirm { grid-column: 1 / -1; margin-top: 8px; height: 38px; font-size: 13px; }
+    /* ── Today panel: a centred modal on every screen. Day types on top, one
+       card with today's numbers, Confirm at the bottom. A type is only picked
+       until Confirm applies it. ── */
+    .td-panel { position: fixed; z-index: 250; top: 50%; left: 50%; width: 420px; max-width: calc(100vw - 32px);
+      display: flex; flex-direction: column; gap: 12px;
+      background: var(--card); border: 1px solid var(--border); border-radius: 16px;
+      box-shadow: 0 12px 40px rgba(0,0,0,.28); padding: 16px;
+      opacity: 0; transform: translate(-50%, -48%) scale(.98); pointer-events: none;
+      transition: opacity .15s ease, transform .15s ease; }
+    .td-panel.open { opacity: 1; transform: translate(-50%, -50%); pointer-events: all; }
+    .td-types { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+    .td-type { padding: 10px 6px; font-family: var(--font); font-size: 13px; font-weight: 500; color: var(--muted-fg);
+      background: var(--muted); border: 1px solid transparent; border-radius: 10px; cursor: pointer;
+      text-align: center; white-space: nowrap; transition: background .12s, color .12s, border-color .12s; }
+    .td-type:hover { color: var(--foreground); }
+    .td-type.active { background: var(--card); color: var(--foreground); border-color: var(--foreground); font-weight: 600; }
+    .td-kpis { background: var(--muted); border-radius: 12px; padding: 4px 14px; }
+    .td-kpis .td-row + .td-row { border-top-color: var(--border); }
+    .td-confirm { height: 42px; font-size: 14px; }
     .td-scrim { position: fixed; inset: 0; z-index: 249; background: rgba(0,0,0,.28);
       backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
       opacity: 0; pointer-events: none; transition: opacity .2s ease; }
     .td-scrim.open { opacity: 1; pointer-events: auto; }
-    @media (max-width: 640px) {
-      .td-panel { top: auto !important; left: 0 !important; right: 0; bottom: 0; width: 100%; max-width: none;
-        grid-template-columns: 1fr; border-radius: 16px 16px 0 0; border-bottom: none;
-        padding: 10px 16px calc(16px + env(safe-area-inset-bottom)); transform: translateY(100%);
-        transition: transform .25s cubic-bezier(.4,0,.2,1), opacity .2s ease; touch-action: none; }
-      .td-panel.open { transform: none; }
-      .td-panel.dragging { transition: none; }
-      .td-panel::before { content: ''; justify-self: center; width: 36px; height: 4px;
-        border-radius: 2px; background: var(--border); margin-bottom: 10px; }
-      /* Numbers on top as a 2x2 grid, day types listed below, Confirm last. */
-      .td-kpis { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 0 0 12px; }
-      .td-kpis .td-row { flex-direction: column; align-items: flex-start; gap: 4px; padding: 10px 12px;
-        background: var(--muted); border-radius: 10px; font-size: 12px; }
-      .td-kpis .td-row + .td-row { border-top: none; }
-      .td-kpis .td-row-val { font-size: 16px; }
-      .td-types { border-left: none; padding: 8px 0 0; border-top: 1px solid var(--border); }
-      .td-type { padding: 13px 12px; font-size: 14px; }
-      .td-confirm { height: 44px; font-size: 14px; margin-top: 10px; }
-    }
+    @media (max-width: 340px) { .td-types { grid-template-columns: 1fr 1fr; } }
     /* ── Today panel number rows ── */
     .td-row { display: flex; align-items: center; justify-content: space-between; padding: 7px 0; font-size: 13px; }
     .td-row + .td-row { border-top: 1px solid var(--border); }
@@ -4579,13 +4562,13 @@
        bottom sheet on phones (the scrim only shows there). ── -->
   <div class="td-scrim" id="tdScrim" onclick="closeTodayDetails()"></div>
   <div class="td-panel" id="tdPanel" role="dialog" aria-modal="true" aria-label="Today">
-    <div class="td-kpis" id="tdKpis"></div>
-    <div class="td-types" id="tdTypes">
-      <button type="button" class="td-type" data-plan="fullday" onclick="_tdPick('fullday')">Full Day</button>
-      <button type="button" class="td-type" data-plan="halfday" onclick="_tdPick('halfday')">Half Day</button>
-      <button type="button" class="td-type" data-plan="leave" onclick="_tdPick('leave')">On Leave</button>
-      <button type="button" class="td-type" data-plan="holiday" onclick="_tdPick('holiday')">Holiday</button>
+    <div class="td-types" id="tdTypes" role="radiogroup" aria-label="Day type">
+      <button type="button" class="td-type" data-plan="fullday" role="radio" onclick="_tdPick('fullday')">Full Day</button>
+      <button type="button" class="td-type" data-plan="halfday" role="radio" onclick="_tdPick('halfday')">Half Day</button>
+      <button type="button" class="td-type" data-plan="leave" role="radio" onclick="_tdPick('leave')">On Leave</button>
+      <button type="button" class="td-type" data-plan="holiday" role="radio" onclick="_tdPick('holiday')">Holiday</button>
     </div>
+    <div class="td-kpis" id="tdKpis"></div>
     <button type="button" class="btn btn-primary td-confirm" id="tdConfirm" onclick="_tdConfirm()" disabled>Confirm</button>
   </div>
 
@@ -6410,10 +6393,7 @@
       return html;
     }
 
-    function _tdIsMobile() { return window.matchMedia('(max-width: 640px)').matches; }
-
-    // The day-type button opens the Today panel as a modal over a blurred page:
-    // under the button on wider screens, a bottom sheet on phones.
+    // The day-type button opens the Today panel, a centred modal over a blurred page.
     let _tdPicked = null;
     function _tdToggle(event) {
       if (event) { event.stopPropagation(); event.preventDefault(); }
@@ -6422,50 +6402,18 @@
       _tdPicked = _tdCurrentPlan();
       _tdSyncPlan();
       el('tdKpis').innerHTML = _tdBuildContent();
-      if (!_tdIsMobile()) {
-        const r = el('rcInfoBtn').getBoundingClientRect(), pad = 8, w = panel.offsetWidth || 460;
-        let left = r.right - w;
-        if (left + w > window.innerWidth - pad) left = window.innerWidth - w - pad;
-        if (left < pad) left = pad;
-        panel.style.top = (r.bottom + 8) + 'px'; panel.style.left = left + 'px';
-      }
       el('tdScrim').classList.add('open');
       panel.classList.add('open');
     }
 
     function closeTodayDetails() {
       const panel = el('tdPanel');
-      if (panel) { panel.classList.remove('open', 'dragging'); panel.style.transform = ''; }
+      panel?.classList.remove('open');
       el('tdScrim')?.classList.remove('open');
     }
     document.addEventListener('keydown', e => {
       if (e.key === 'Escape' && el('tdPanel')?.classList.contains('open')) closeTodayDetails();
     });
-
-    // Phones: drag the sheet down to close it; a short drag springs back.
-    (function () {
-      const panel = el('tdPanel');
-      if (!panel) return;
-      let y0 = null, dy = 0, t0 = 0;
-      panel.addEventListener('touchstart', e => {
-        if (!_tdIsMobile() || !panel.classList.contains('open') || e.touches.length !== 1) return;
-        y0 = e.touches[0].clientY; dy = 0; t0 = Date.now();
-        panel.classList.add('dragging');
-      }, { passive: true });
-      panel.addEventListener('touchmove', e => {
-        if (y0 === null) return;
-        dy = Math.max(0, e.touches[0].clientY - y0);
-        panel.style.transform = `translateY(${dy}px)`;
-      }, { passive: true });
-      panel.addEventListener('touchend', () => {
-        if (y0 === null) return;
-        y0 = null;
-        panel.classList.remove('dragging');
-        const fast = dy > 30 && dy / Math.max(1, Date.now() - t0) > 0.5;
-        if (dy > panel.offsetHeight * 0.3 || fast) closeTodayDetails();
-        else panel.style.transform = '';
-      });
-    })();
 
     // ── Day type (Full Day / Half Day / On Leave / Holiday) ──
     const _TD_PLAN_LABELS = { fullday: 'Full Day', halfday: 'Half Day', leave: 'On Leave', holiday: 'Holiday' };
@@ -6484,7 +6432,10 @@
         btn.setAttribute('aria-label', 'Day type: ' + _TD_PLAN_LABELS[plan]);
       }
       const picked = el('tdPanel')?.classList.contains('open') && _tdPicked ? _tdPicked : plan;
-      el('tdTypes')?.querySelectorAll('.td-type').forEach(t => t.classList.toggle('active', t.dataset.plan === picked));
+      el('tdTypes')?.querySelectorAll('.td-type').forEach(t => {
+        t.classList.toggle('active', t.dataset.plan === picked);
+        t.setAttribute('aria-checked', String(t.dataset.plan === picked));
+      });
       const ok = el('tdConfirm'); if (ok) ok.disabled = picked === plan;
     }
 

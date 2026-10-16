@@ -623,6 +623,12 @@
     body.shell-new .dev-tiles .settings-card-head { border: none; }
     body.shell-new .dev-tiles .settings-section-header { margin: 24px 4px 8px; cursor: default; }
 
+    /* "5pm for Windows" promo card (Settings › About, Windows browsers only). */
+    .win-promo { display: flex; align-items: center; gap: 14px; }
+    .win-promo-icon { width: 40px; height: 40px; flex-shrink: 0; border-radius: 10px; display: grid; place-items: center;
+      color: #fff; background: linear-gradient(135deg, #0ea5e9, #2563eb); }
+    .win-promo-text { flex: 1; min-width: 0; }
+    .win-promo-cta { width: auto; height: 34px; padding: 0 14px; font-size: 13px; gap: 6px; flex-shrink: 0; }
     /* Quiet grey note, for advice that is not a setting. */
     .set-note { display: flex; align-items: flex-start; gap: 8px; font-size: 12px; line-height: 1.5;
       color: var(--muted-fg); background: var(--muted); border-radius: var(--radius-md); padding: 10px 12px; }
@@ -3532,17 +3538,10 @@
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6z"/><path d="m9 12 2 2 4-4"/></svg>
               Privacy Policy
             </button>
-            <div style="display:flex;gap:8px">
-            <!-- Shown only in a browser on a Windows computer (see _showWindowsDownload) -->
-            <button class="btn-secondary" id="aboutDownloadBtn" style="display:none;font-size:12px;height:32px;padding:0 10px;gap:5px" onclick="downloadForWindows(this)">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/></svg>
-              Download for Windows
-            </button>
             <button class="btn-secondary" style="font-size:12px;height:32px;padding:0 10px;gap:5px" onclick="openSupportModal()">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
               Contribute
             </button>
-            </div>
           </div>
         </div><!-- /About Developer section -->
 
@@ -14032,14 +14031,29 @@ ${sig}`
       if (btn) { btn.disabled = false; btn.textContent = 'Send Reset Link'; btn.style.opacity = ''; }
       el('upwdOverlay').classList.add('open');
     }
-    // Download for Windows: only in a browser on a Windows computer with a
-    // mouse or trackpad (not the desktop app, phones, tablets or Macs). Fetches
-    // the newest Standalone installer from GitHub; falls back to the releases page.
-    (function _showWindowsDownload() {
-      const btn = el('aboutDownloadBtn');
-      if (btn && !window.__TAURI__ && /Windows NT/.test(navigator.userAgent) && matchMedia('(pointer: fine)').matches)
-        btn.style.display = 'inline-flex';
-    })();
+    // "5pm for Windows" promo card under About Developer: only in a browser on a
+    // Windows computer with a mouse or trackpad (not the desktop app, phones,
+    // tablets or Macs). Added after the shell has arranged Settings, so it
+    // lands in the About tab right below the developer card.
+    document.addEventListener('DOMContentLoaded', () => {
+      const dev = el('devAboutCard');
+      if (!dev || window.__TAURI__ || !/Windows NT/.test(navigator.userAgent) || !matchMedia('(pointer: fine)').matches) return;
+      const card = document.createElement('div');
+      card.className = 'settings-section win-promo';
+      card.innerHTML = `
+        <div class="win-promo-icon" aria-hidden="true">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M3 5.5 10.5 4.5v7H3zM11.5 4.4 21 3v8.5h-9.5zM3 12.5h7.5v7L3 18.5zM11.5 12.5H21V21l-9.5-1.4z"/></svg>
+        </div>
+        <div class="win-promo-text">
+          <div class="form-label">5pm for Windows</div>
+          <div class="form-sub">Opens at login, keeps your timer in the tray, and tells you when it's time to head out.</div>
+        </div>
+        <button class="btn btn-primary win-promo-cta" onclick="downloadForWindows(this)">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/></svg>
+          Download
+        </button>`;
+      dev.after(card);
+    });
     async function downloadForWindows(btn) {
       const page = 'https://github.com/rosshanmohapatra/5pm-workhour-tracker/releases/latest';
       btn.disabled = true;

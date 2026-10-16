@@ -15982,6 +15982,66 @@ ${sig}`
       statusEl.textContent = message;
     }
 
+    // Windows itself refused to run the update (App Control / Smart App
+    // Control, a group policy, or antivirus). Not a 5pm bug, so it gets a
+    // calm explanation and a way forward instead of the raw OS error.
+    const _isPolicyBlock = e => /os error (4551|1260|225)\b|application control|blocked by|group policy/i.test(String(e));
+
+    function showBlocked() {
+      let ov = document.getElementById('updBlockedOverlay');
+      if (!ov) {
+        const css = document.createElement('style');
+        css.textContent = `
+          .upd-blocked { max-width: 380px; min-width: 0; padding: 30px 24px 22px; text-align: center; }
+          .upd-blocked-x { position: absolute; top: 10px; right: 10px; }
+          .upd-blocked-icon { width: 54px; height: 54px; margin: 0 auto 14px; border-radius: 50%;
+            display: grid; place-items: center; color: #f59e0b; background: rgba(245,158,11,.14);
+            animation: upd-pop .5s cubic-bezier(.34,1.56,.64,1) .08s both; }
+          @keyframes upd-pop { from { transform: scale(.55); opacity: 0; } }
+          .upd-blocked-desc { font-size: 13px; line-height: 1.55; color: var(--muted-fg); margin: 6px 0 20px; }
+          .upd-blocked-cta { gap: 8px; height: 42px; }
+          @media (prefers-reduced-motion: reduce) { .upd-blocked-icon { animation: none; } }`;
+        document.head.appendChild(css);
+        ov = document.createElement('div');
+        ov.className = 'overlay';
+        ov.id = 'updBlockedOverlay';
+        ov.innerHTML = `
+          <div class="dialog upd-blocked" role="alertdialog" aria-modal="true" aria-labelledby="updBlockedTitle" aria-describedby="updBlockedDesc">
+            <button class="btn-icon upd-blocked-x" title="Close" aria-label="Close">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+            </button>
+            <div class="upd-blocked-icon">
+              <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6z"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>
+            </div>
+            <div class="dialog-title" id="updBlockedTitle">Windows Blocked This Update</div>
+            <div class="upd-blocked-desc" id="updBlockedDesc">This PC's security settings didn't let the new version install. 5pm keeps working as it is, and the latest version is always on the web.</div>
+            <button class="btn btn-primary upd-blocked-cta">Open on Web
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>
+            </button>
+          </div>`;
+        document.body.appendChild(ov);
+        const close = () => ov.classList.remove('open');
+        ov.addEventListener('click', e => { if (e.target === ov) close(); });
+        ov.querySelector('.upd-blocked-x').addEventListener('click', close);
+        ov.querySelector('.upd-blocked-cta').addEventListener('click', () => {
+          T.core.invoke('open_external', { url: 'https://whtracker.vercel.app/index.html' }).catch(() => {});
+          close();
+        });
+        document.addEventListener('keydown', e => { if (e.key === 'Escape' && ov.classList.contains('open')) close(); });
+      }
+      void ov.offsetWidth; // let it open with the usual fade and spring
+      ov.classList.add('open');
+    }
+
+    // Blocked: the update stays offered (IT may allow it later), the card says
+    // why in plain words, and the modal explains what to do.
+    function blocked() {
+      state = 'available';
+      render();
+      statusEl.textContent = "Blocked by this PC's security settings";
+      showBlocked();
+    }
+
     async function check() {
       state = 'checking';
       render();
@@ -16003,7 +16063,7 @@ ${sig}`
       try {
         await T.core.invoke('updater_download');
       } catch (e) {
-        fail('Download failed. ' + e);
+        if (_isPolicyBlock(e)) blocked(); else fail('Download failed. ' + e);
       }
     }
 
@@ -16024,7 +16084,7 @@ ${sig}`
       } catch (e) {
         localStorage.removeItem(LAST_UPDATED_KEY);
         btn.disabled = false;
-        fail('Install failed. ' + e);
+        if (_isPolicyBlock(e)) blocked(); else fail('Install failed. ' + e);
       }
     }
 

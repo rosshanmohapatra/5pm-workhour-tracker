@@ -49,6 +49,15 @@ pub fn mark_update_relaunch(app: &AppHandle) {
   }
 }
 
+// The install never started (blocked, cancelled), so no relaunch is coming.
+// Left behind, the marker would make the next sign-in launch skip its boot
+// behaviour.
+pub fn clear_update_relaunch(app: &AppHandle) {
+  if let Ok(dir) = app.path().app_config_dir() {
+    let _ = std::fs::remove_file(dir.join(UPDATE_MARKER));
+  }
+}
+
 // Call once in setup, before anything reads launched_by_autostart().
 pub fn resolve_launch_kind(app: &AppHandle) {
   let updated = app

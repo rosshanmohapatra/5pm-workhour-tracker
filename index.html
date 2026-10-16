@@ -16027,12 +16027,38 @@ ${sig}`
       statusEl.textContent = message;
     }
 
-    // Windows itself refused to run the update (App Control / Smart App
-    // Control, a group policy, or antivirus). Not a 5pm bug, so it gets a
-    // calm explanation and a way forward instead of the raw OS error.
-    const _isPolicyBlock = e => /os error (4551|1260|225)\b|application control|blocked by|group policy/i.test(String(e));
+    // Windows, or the network it sits on, stopped the update. Not a 5pm bug,
+    // so each case gets a calm explanation and a way forward instead of the
+    // raw OS error. First match wins; no match keeps the raw message.
+    const KEEPS = '5pm keeps working as it is, and the latest version is always on the web.';
+    const WIN_ISSUES = [
+      // UAC "No": the person chose this, so no modal.
+      { re: /os error 1223\b|cancell?ed by the user/i, status: 'Update cancelled' },
+      // App Control and Smart App Control (455x/458x), AppLocker or software
+      // restriction (1260), antivirus (225/226).
+      { re: /os error (45[5-8]\d|1260|225|226)\b|application control|smart app control|group policy|blocked by|virus|potentially unwanted/i,
+        status: "Blocked by this PC's security settings", title: 'Windows Blocked This Update', icon: 'shield',
+        desc: "This PC's security settings didn't let the new version install. " + KEEPS },
+      { re: /signature|minisign/i,
+        status: "Update couldn't be verified", title: "This Update Couldn't Be Verified", icon: 'shield',
+        desc: "5pm only installs updates it can verify, and this one didn't check out. Networks that inspect downloads can cause this. " + KEEPS },
+      { re: /os error (112|39)\b|not enough space|disk is full/i,
+        status: 'Not enough disk space', title: 'Not Enough Disk Space',
+        desc: 'Free up some space on this PC, then try the update again. ' + KEEPS },
+      { re: /os error (5|32|33)\b|access is denied|used by another process/i,
+        status: "Couldn't replace 5pm's files", title: "Windows Couldn't Replace 5pm",
+        desc: "Another program, often antivirus, is holding 5pm's files. Restart the PC, then try the update again. " + KEEPS },
+      { re: /os error (10051|10054|10060|10061|11001)\b|error sending request|dns|connect|timed out|certificate|tls|ssl|proxy|status code:? ?40[37]/i,
+        status: "Can't reach the update server", title: "Can't Reach the Update Server",
+        desc: "This network, often a work VPN or firewall, is blocking 5pm's updates. " + KEEPS },
+    ];
+    const winIssue = e => WIN_ISSUES.find(i => i.re.test(String(e)));
+    const ICONS = {
+      shield: '<path d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6z"/><path d="M12 8v4"/><path d="M12 16h.01"/>',
+      alert:  '<circle cx="12" cy="12" r="9"/><path d="M12 8v4"/><path d="M12 16h.01"/>',
+    };
 
-    function showBlocked() {
+    function showBlocked(issue) {
       let ov = document.getElementById('updBlockedOverlay');
       if (!ov) {
         const css = document.createElement('style');
@@ -16056,10 +16082,10 @@ ${sig}`
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
             </button>
             <div class="upd-blocked-icon">
-              <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6z"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>
+              <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></svg>
             </div>
-            <div class="dialog-title" id="updBlockedTitle">Windows Blocked This Update</div>
-            <div class="upd-blocked-desc" id="updBlockedDesc">This PC's security settings didn't let the new version install. 5pm keeps working as it is, and the latest version is always on the web.</div>
+            <div class="dialog-title" id="updBlockedTitle"></div>
+            <div class="upd-blocked-desc" id="updBlockedDesc"></div>
             <button class="btn btn-primary upd-blocked-cta">Open on Web
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>
             </button>
@@ -16074,20 +16100,30 @@ ${sig}`
         });
         document.addEventListener('keydown', e => { if (e.key === 'Escape' && ov.classList.contains('open')) close(); });
       }
+      ov.querySelector('.upd-blocked-icon svg').innerHTML = ICONS[issue.icon || 'alert'];
+      ov.querySelector('#updBlockedTitle').textContent = issue.title;
+      ov.querySelector('#updBlockedDesc').textContent = issue.desc;
+      const icon = ov.querySelector('.upd-blocked-icon');
+      icon.style.animation = 'none'; void icon.offsetWidth; icon.style.animation = ''; // pop again on a repeat
       void ov.offsetWidth; // let it open with the usual fade and spring
       ov.classList.add('open');
     }
 
-    // Blocked: the update stays offered (IT may allow it later), the card says
-    // why in plain words, and the modal explains what to do.
-    function blocked() {
-      state = 'available';
+    // A known Windows or network cause: the card says why in plain words and
+    // the modal explains what to do. `next` is where the card lands, so a
+    // found update stays offered (IT may allow it later). Quiet skips the
+    // modal, for the launch check that nobody asked for.
+    function explain(e, next, quiet) {
+      const issue = winIssue(e);
+      if (!issue) return false;
+      state = next;
       render();
-      statusEl.textContent = "Blocked by this PC's security settings";
-      showBlocked();
+      statusEl.textContent = issue.status;
+      if (issue.title && !quiet) showBlocked(issue);
+      return true;
     }
 
-    async function check() {
+    async function check(quiet) {
       state = 'checking';
       render();
       try {
@@ -16096,7 +16132,7 @@ ${sig}`
         if (found) { pending = found; state = 'available'; } else { state = 'idle'; }
         render();
       } catch (e) {
-        fail('Update check failed. ' + e);
+        if (!explain(e, 'idle', quiet)) fail('Update check failed. ' + e);
       }
     }
 
@@ -16108,7 +16144,7 @@ ${sig}`
       try {
         await T.core.invoke('updater_download');
       } catch (e) {
-        if (_isPolicyBlock(e)) blocked(); else fail('Download failed. ' + e);
+        if (!explain(e, 'available')) fail('Download failed. ' + e);
       }
     }
 
@@ -16129,7 +16165,7 @@ ${sig}`
       } catch (e) {
         localStorage.removeItem(LAST_UPDATED_KEY);
         btn.disabled = false;
-        if (_isPolicyBlock(e)) blocked(); else fail('Install failed. ' + e);
+        if (!explain(e, 'available')) fail('Install failed. ' + e);
       }
     }
 
@@ -16156,7 +16192,13 @@ ${sig}`
       install();
     });
 
-    T.event.listen('updater://error', ev => fail('Download failed. ' + ev.payload));
+    // The download runs in the background, so its failures (network, a
+    // signature that doesn't check out) arrive here rather than in download().
+    T.event.listen('updater://error', ev => {
+      if (state !== 'downloading') return; // cancelled
+      fill.style.width = '0%';
+      if (!explain(ev.payload, 'available')) fail('Download failed. ' + ev.payload);
+    });
 
     function openNotes() {
       if (notes.dataset.url) T.core.invoke('open_external', { url: notes.dataset.url });
@@ -16174,7 +16216,7 @@ ${sig}`
     const NOTIFIED_KEY = '5pm.desktop.updateNotified';
     async function autoCheck() {
       if (state !== 'idle') return;
-      await check();
+      await check(true);
       if (state !== 'available') return;
       if (localStorage.getItem(NOTIFIED_KEY) === pending.version) return;
       localStorage.setItem(NOTIFIED_KEY, pending.version);
@@ -16366,6 +16408,8 @@ ${sig}`
         input.checked = !wanted;
         paintMode();
         console.warn('[desktop] autostart change failed:', err);
+        showToast("Windows Didn't Allow This", 'error',
+          "This PC's settings stopped 5pm from changing whether it opens at sign-in.");
       });
     });
   })();

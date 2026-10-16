@@ -631,11 +631,15 @@
     body.shell-new .dev-tiles .settings-section-header { margin: 24px 4px 8px; cursor: default; }
 
     /* "5pm for Windows" promo card (Settings › About, Windows browsers only). */
-    .win-promo { display: flex; align-items: center; gap: 14px; }
-    .win-promo-icon { width: 40px; height: 40px; flex-shrink: 0; border-radius: 10px; display: grid; place-items: center;
+    /* Logo and text sit on the top line; Download takes the bottom right. Text
+       is the Settings row pair (.form-label over .form-sub). */
+    .win-promo { display: grid; grid-template-columns: 36px 1fr; gap: 12px; align-items: start; }
+    .win-promo-icon { width: 36px; height: 36px; border-radius: 9px; display: grid; place-items: center;
       color: #fff; background: linear-gradient(135deg, #0ea5e9, #2563eb); }
-    .win-promo-text { flex: 1; min-width: 0; }
-    .win-promo-cta { width: auto; height: 34px; padding: 0 14px; font-size: 13px; gap: 6px; flex-shrink: 0; }
+    .win-promo-text { min-width: 0; }
+    .win-promo-text .form-sub { line-height: 1.45; }
+    .win-promo-cta { grid-column: 1 / -1; justify-self: end; width: auto; height: 32px; padding: 0 12px;
+      font-size: 12px; gap: 5px; }
     /* Quiet grey note, for advice that is not a setting. */
     .set-note { display: flex; align-items: flex-start; gap: 8px; font-size: 12px; line-height: 1.5;
       color: var(--muted-fg); background: var(--muted); border-radius: var(--radius-md); padding: 10px 12px; }
@@ -3511,6 +3515,9 @@
               </div>
             </div>
             </div><!-- /notif group wrapper -->
+
+            <!-- Windows can mute alerts on its side, where 5pm can't see it. -->
+            <div class="set-note" id="notifWinTip" style="display:none"></div>
 
           </div>
         </div><!-- /Notifications section -->
@@ -11462,6 +11469,8 @@ ${sig}`
 
     // Drive the sync button icon + label
     let _syncResetTimer = null;
+    const _isNetErr = m => /failed to fetch|networkerror|load failed|network request failed|timed? ?out/i.test(m || '');
+    let _netToastShown = false;
     function _setSyncStatus(state) {
       const btn = el('syncBtn'), label = el('syncBtnLabel');
       if (!btn) return;
@@ -11488,8 +11497,14 @@ ${sig}`
         el('syncIconCheck').style.display = '';
         btn.classList.add('synced');
         label.textContent = 'Synced';
+        _netToastShown = false;
         // Return to default after 2s
         _syncResetTimer = setTimeout(() => _setSyncStatus('default'), 2000);
+      } else if (state === 'blocked') {
+        // The network drops 5pm's requests. Stays until a sync goes through.
+        el('syncIconError').style.display = '';
+        btn.classList.add('error');
+        label.textContent = 'Not Synced';
       } else {
         // default — idle state
         el('syncIconDefault').style.display = '';
@@ -11624,7 +11639,19 @@ ${sig}`
 
       _syncInFlight = false;
 
-      if (failed) {
+      if (failed && _isNetErr(SbSync._lastErr)) {
+        // Offline, or a network (often a work VPN or firewall) that drops 5pm's
+        // requests. Nothing to fix from here, so explain once, not every retry.
+        _lastFailedDays = failedDays;
+        _setSyncStatus('blocked');
+        if (!silent && !_netToastShown) {
+          _netToastShown = true;
+          const online = navigator.onLine;
+          showToast(online ? 'Not Syncing on This Network' : "You're Offline", 'info',
+            "Your hours are saved on this device and will sync once " + (online ? 'this network lets 5pm through.' : "you're back online."),
+            { label: 'Retry', onClick: retrySyncNow });
+        }
+      } else if (failed) {
         _lastFailedDays = failedDays;
         _setSyncStatus('failed');
         // The sync chip already conveys success/in-progress; only surface failures,
@@ -14119,6 +14146,16 @@ ${sig}`
     // Windows computer with a mouse or trackpad (not the desktop app, phones,
     // tablets or Macs). Added after the shell has arranged Settings, so it
     // lands in the About tab right below the developer card.
+    // Windows can switch alerts off for an app, or hold them all with Do Not
+    // Disturb, and neither shows up to the page. So Windows users get a tip.
+    document.addEventListener('DOMContentLoaded', () => {
+      const tip = el('notifWinTip');
+      if (!tip || !(window.__TAURI__ || /Windows NT/.test(navigator.userAgent))) return;
+      tip.textContent = 'Not seeing alerts? In Windows Settings › System › Notifications, make sure '
+        + (window.__TAURI__ ? '5pm' : 'your browser') + ' is on and Do Not Disturb is off.';
+      tip.style.display = '';
+    });
+
     document.addEventListener('DOMContentLoaded', () => {
       const dev = el('devAboutCard');
       if (!dev || window.__TAURI__ || !/Windows NT/.test(navigator.userAgent) || !matchMedia('(pointer: fine)').matches) return;

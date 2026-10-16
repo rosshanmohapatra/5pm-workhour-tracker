@@ -3609,10 +3609,17 @@
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6z"/><path d="m9 12 2 2 4-4"/></svg>
               Privacy Policy
             </button>
+            <div style="display:flex;gap:8px">
+            <!-- Shown only in a browser on a Windows computer (see _showWindowsDownload) -->
+            <button class="btn-secondary" id="aboutDownloadBtn" style="display:none;font-size:12px;height:32px;padding:0 10px;gap:5px" onclick="downloadForWindows(this)">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/></svg>
+              Download for Windows
+            </button>
             <button class="btn-secondary" style="font-size:12px;height:32px;padding:0 10px;gap:5px" onclick="openSupportModal()">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
               Contribute
             </button>
+            </div>
           </div>
         </div><!-- /About Developer section -->
 
@@ -14109,6 +14116,30 @@ ${sig}`
       if (btn) { btn.disabled = false; btn.textContent = 'Send Reset Link'; btn.style.opacity = ''; }
       el('upwdOverlay').classList.add('open');
     }
+    // Download for Windows: only in a browser on a Windows computer with a
+    // mouse or trackpad (not the desktop app, phones, tablets or Macs). Fetches
+    // the newest Standalone installer from GitHub; falls back to the releases page.
+    (function _showWindowsDownload() {
+      const btn = el('aboutDownloadBtn');
+      if (btn && !window.__TAURI__ && /Windows NT/.test(navigator.userAgent) && matchMedia('(pointer: fine)').matches)
+        btn.style.display = 'inline-flex';
+    })();
+    async function downloadForWindows(btn) {
+      const page = 'https://github.com/rosshanmohapatra/5pm-workhour-tracker/releases/latest';
+      btn.disabled = true;
+      let url = page;
+      try {
+        const r = await fetch('https://api.github.com/repos/rosshanmohapatra/5pm-workhour-tracker/releases/latest');
+        const asset = r.ok && ((await r.json()).assets || []).find(a => /^5pm-Standalone-.*\.exe$/.test(a.name));
+        if (asset) url = asset.browser_download_url;
+      } catch (_) { /* offline or rate-limited: the releases page still works */ }
+      btn.disabled = false;
+      if (url === page) window.open(page, '_blank', 'noopener');
+      else window.location.href = url; // starts the download, stays on 5pm
+      showToast('Downloading 5pm for Windows', 'success',
+        'Windows may ask you to confirm the first install. Choose More info, then Run anyway.');
+    }
+
     // The policy lives on the website; the desktop app opens it in the browser.
     function openPrivacyPolicy() {
       const url = 'https://whtracker.vercel.app/privacy.html';

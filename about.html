@@ -24,6 +24,13 @@
     .btn { height:42px; padding:0 20px; border-radius:10px; font:600 14px 'Inter',system-ui,sans-serif; text-decoration:none;
       display:inline-flex; align-items:center; gap:8px; border:1px solid var(--border); color:var(--fg); background:var(--card); }
     .btn.primary { background:var(--fg); color:var(--bg); border-color:var(--fg); }
+    /* The Windows download only makes sense on a Windows computer with a
+       mouse or trackpad: hidden on phones, tablets and Macs. */
+    .win-only { display:none !important; }
+    .is-win-pc .btn.win-only { display:inline-flex !important; }
+    .is-win-pc .win-note.win-only { display:block !important; }
+    .win-note { font-size:12px; color:var(--muted-fg); margin-top:10px; }
+    .win-note b { font-weight:600; color:var(--fg); }
     .grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:44px; }
     .card { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:18px; display:flex; gap:14px; align-items:flex-start; }
     .card svg { flex:none; width:36px; height:36px; padding:8px; border-radius:9px; background:var(--chip); color:var(--fg);
@@ -43,8 +50,9 @@
       <p class="tag">Your work hour tracker, built to keep a healthier work-life balance.</p>
       <div class="ctas">
         <a class="btn primary" href="/index.html">Open 5pm</a>
-        <a class="btn" href="https://github.com/rosshanmohapatra/5pm-workhour-tracker/releases/latest">Download for Windows</a>
+        <a class="btn win-only" href="https://github.com/rosshanmohapatra/5pm-workhour-tracker/releases/latest">Download for Windows</a>
       </div>
+      <p class="win-note win-only">Windows may ask you to confirm the first install. Choose <b>More info</b>, then <b>Run anyway</b>.</p>
     </section>
 
     <section class="grid">
@@ -69,6 +77,8 @@
     </footer>
   </div>
   <script>
+    if (/Windows NT/.test(navigator.userAgent) && matchMedia('(pointer: fine)').matches)
+      document.documentElement.classList.add('is-win-pc');
     if (document.documentElement.classList.contains('dark')) {
       document.getElementById('logo').src = '/brand-dark.svg';
       document.getElementById('favicon').href = '/favicon-dark.svg';

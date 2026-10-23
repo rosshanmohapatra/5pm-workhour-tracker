@@ -2721,19 +2721,36 @@
     // Taps land on the splash and do nothing; say why.
     L.addEventListener('pointerdown', function () { document.getElementById('splashTap').style.opacity = 1; });
 
+    var leaving = false;
     window._splashOut = function () {
-      var target = document.getElementById('selDayClock'), tries = 0;
+      // Sign-in reports in more than once at startup (the saved session, then
+      // a token refresh on a phone opened hours later). Each report used to
+      // start a fresh glide, and the first one's clean-up removed the clock
+      // mid-flight: it vanished, then the home clock appeared. One hand-off only.
+      if (leaving) return;
+      leaving = true;
+      var target = document.getElementById('selDayClock'), deadline = performance.now() + 4000;
       var reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
-      function done() { clearInterval(t); c.remove(); L.remove(); if (target) target.style.visibility = ''; }
+      var finished = false;
+      function done() {
+        if (finished) return; finished = true;
+        clearInterval(t); c.remove(); L.remove(); if (target) target.style.visibility = '';
+      }
       function fade() {
         c.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 300, fill: 'forwards' });
         L.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 300, fill: 'forwards' }).onfinish = done;
       }
-      // The home clock may need a frame or two to get its text and layout.
+      // Wait for the home clock: on a phone the app's main script can take a
+      // second or more to fill it in after sign-in clears (it shows "—" until
+      // then). Counting frames gave up too soon and faded instead of gliding.
+      // Take off once it has its time and holds still; fade only after 4 s.
+      var lastTop = null;
       (function wait() {
         var r = target && target.getBoundingClientRect();
         var ok = r && r.width > 0 && r.top >= 0 && r.bottom <= innerHeight && /\d/.test(target.textContent);
-        if (!ok) { if (++tries < 30) return requestAnimationFrame(wait); return fade(); }
+        var still = ok && lastTop !== null && Math.abs(r.top - lastTop) < 0.5;
+        lastTop = ok ? r.top : null;
+        if (!still) { if (performance.now() < deadline) return requestAnimationFrame(wait); if (!ok) return fade(); }
         if (reduce || !c.animate) return fade();
         var cs = getComputedStyle(target), from = c.getBoundingClientRect(), fromSize = parseFloat(getComputedStyle(c).fontSize);
         var thin = { fontWeight: 200, letterSpacing: getComputedStyle(c).letterSpacing, color: getComputedStyle(c).color };
@@ -2748,11 +2765,16 @@
         var dx = (from.left + from.width / 2) - (to.left + to.width / 2);
         var dy = (from.top + from.height / 2) - (to.top + to.height / 2);
         var D = 950, ease = 'cubic-bezier(.22,1,.36,1)';
-        c.animate([{ transform: 'translate(' + dx + 'px,' + dy + 'px) scale(' + sc + ')' }, { transform: 'none' }], { duration: D, easing: ease });
+        var move = c.animate([{ transform: 'translate(' + dx + 'px,' + dy + 'px) scale(' + sc + ')' }, { transform: 'none' }], { duration: D, easing: ease });
         c.animate([thin, bold], { duration: D * .85, delay: D * .1, easing: 'cubic-bezier(.4,0,.2,1)', fill: 'backwards' });
         L.querySelector('.splash-foot').animate([{ opacity: 1 }, { opacity: 0 }], { duration: 300, easing: 'ease-in', fill: 'forwards' });
         L.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 600, delay: 250, easing: 'ease-out', fill: 'forwards' });
-        setTimeout(done, D + 30);
+        // Hand over when the glide has really landed. A fixed timer counted from
+        // the call, but the glide starts on the next drawn frame, which the
+        // app's start-up work can hold back: the timer then pulled the clock
+        // mid-flight. The long timer only covers a page that never draws.
+        move.finished.then(done, done);
+        setTimeout(done, 4000);
       })();
     };
   })();

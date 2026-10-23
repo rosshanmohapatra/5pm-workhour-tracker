@@ -1127,8 +1127,9 @@
     .td-ring { width: 16px; height: 16px; }
     @media (max-width: 640px) { .td-ring { width: 20px; height: 20px; } }
     .td-row-val { font-weight: 600; color: var(--foreground); font-variant-numeric: tabular-nums; }
-    /* NumberFlow sits on the text baseline like the plain values. */
-    .td-row-val number-flow-group { display: inline-flex; align-items: baseline; white-space: pre; }
+    /* NumberFlow sits on the text baseline like the plain values. A flex row
+       drops a plain space, so the gap between hours and minutes is a gap. */
+    .td-row-val number-flow-group { display: inline-flex; align-items: baseline; gap: .25em; }
     .td-row-val.success { color: var(--success); }
     .td-row-val.warn { color: var(--warning); }
     /* ── Progress bar ──
@@ -6550,7 +6551,7 @@
       if (min == null || !customElements.get('number-flow')) { elm.textContent = text; elm._nf = null; return; }
       const withH = /h/.test(text);
       if (!elm._nf || elm._nf.withH !== withH) {
-        elm.innerHTML = '<number-flow-group>' + (withH ? '<number-flow></number-flow> ' : '') + '<number-flow></number-flow></number-flow-group>';
+        elm.innerHTML = '<number-flow-group>' + (withH ? '<number-flow></number-flow>' : '') + '<number-flow></number-flow></number-flow-group>';
         const flows = elm.querySelectorAll('number-flow'), m = flows[flows.length - 1];
         m.numberSuffix = 'm';
         if (withH) {

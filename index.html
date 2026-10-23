@@ -551,8 +551,10 @@
     body.shell-new .set-tab { scroll-snap-align: start; }
     /* The panel's slide-in must never widen the page sideways. */
     body.shell-new #viewSettings .settings-panel { overflow-x: clip; }
-    /* Touch: swipe the row; arrows would sit over the tab pinned at the left. */
+    /* Touch: swipe the row; arrows would sit over the tab pinned at the left.
+       Mouse: tabs snap just right of the left arrow (33px) instead of under it. */
     @media (pointer: coarse) { body.shell-new .set-tabs-arrow { display: none !important; } }
+    @media (pointer: fine) { body.shell-new .set-tabs { scroll-padding-left: 34px; } }
     body.shell-new .set-tabs::-webkit-scrollbar { display: none; }
     body.shell-new .set-tabs-shell[data-left="true"] .set-tabs { mask-image: linear-gradient(to right, transparent, #000 35px); }
     body.shell-new .set-tabs-shell[data-right="true"] .set-tabs { mask-image: linear-gradient(to right, #000 calc(100% - 35px), transparent); }
@@ -15162,7 +15164,7 @@ ${sig}`
       // reach the left edge.
       function pin(t) {
         const max = bar.scrollWidth - bar.clientWidth;
-        const x = t.offsetLeft - (t.offsetLeft > 0 && matchMedia('(pointer: fine)').matches ? 34 : 0);
+        const x = t.offsetLeft - (parseFloat(getComputedStyle(bar).scrollPaddingLeft) || 0);
         bar.scrollTo({ left: Math.max(0, Math.min(max, x)), behavior: reduced() ? 'auto' : 'smooth' });
       }
       const panels = {};

@@ -72,6 +72,7 @@
       var _elapsed = Date.now() - (window._loaderStart || Date.now());
       var _wait = Math.max(0, 1000 - _elapsed);
       setTimeout(function() {
+        if (window._splashOut) { window._splashOut(); return; }
         var _l = document.getElementById('appLoader');
         if (_l) { _l.classList.add('app-loader-out'); setTimeout(function(){ _l.remove(); }, 320); }
       }, _wait);
@@ -171,31 +172,48 @@
   <meta name="twitter:description" content="Real-time work hour tracking. Work your hours. Leave on time.">
   <meta name="twitter:image"       content="https://whtracker.vercel.app/social-preview.svg">
   <link rel="preconnect" href="https://fonts.googleapis.com/">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap" rel="stylesheet">
   <style>
-    /* ── PWA App Loader ── */
+    /* ── Splash ──
+       A thin live clock, like an always-on display, over a plain screen that
+       takes every tap. When the app is ready the clock glides into the home
+       header and thickens to its weight; the quiet branding fades away. */
     #appLoader {
       position: fixed; inset: 0; z-index: 9999;
       background: var(--background);
       visibility: visible; /* overrides html[visibility:hidden] from auth gate */
-      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 28px;
-      transition: opacity .3s ease; }
-    #appLoader.app-loader-out { opacity: 0; pointer-events: none; }
-    #appLoaderLogoLight { display: block; }
-    #appLoaderLogoDark  { display: none;  }
-    .dark #appLoaderLogoLight { display: none;  }
-    .dark #appLoaderLogoDark  { display: block; }
-    .app-loader-track { width: 96px; height: 2px; background: var(--border); border-radius: 1px; overflow: hidden; }
-    .app-loader-bar   { height: 100%; width: 0; background: var(--foreground); border-radius: 1px;
+      -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
+    #splashClock {
+      position: fixed; z-index: 10000; left: 50%; top: 44%; transform: translate(-50%, -50%);
+      visibility: visible; pointer-events: none; white-space: nowrap; will-change: transform;
+      font-family: var(--font); font-size: clamp(36px, 13vw, 72px); font-weight: 200; line-height: 1.1;
+      letter-spacing: -.045em; color: var(--muted-fg); font-variant-numeric: tabular-nums;
+      animation: splashIn .7s ease-out both; }
+    @keyframes splashIn { from { opacity: 0; filter: blur(4px); } }
+    .splash-foot { position: absolute; left: 0; right: 0; bottom: calc(56px + env(safe-area-inset-bottom));
+      display: flex; flex-direction: column; align-items: center; gap: 14px; }
+    /* Branding comes last: small and muted, the bar exactly as wide as it. */
+    .splash-brand { display: inline-flex; flex-direction: column; gap: 12px; animation: splashBrandIn .6s ease-out .25s both; }
+    @keyframes splashBrandIn { from { opacity: 0; } }
+    .splash-lock { display: flex; align-items: center; gap: 8px; }
+    .splash-lock img { width: 22px; height: 22px; border-radius: 6px; border: 1px solid var(--border); }
+    #appLoaderLogoDark { display: none; }
+    .dark #appLoaderLogoLight { display: none; }
+    .dark #appLoaderLogoDark { display: block; }
+    .splash-title { font-family: var(--font); font-size: 12px; font-weight: 500; color: var(--muted-fg); white-space: nowrap; }
+    .app-loader-track { width: 100%; height: 2px; background: var(--border); border-radius: 1px; overflow: hidden; }
+    .app-loader-bar   { height: 100%; width: 0; background: var(--muted-fg); border-radius: 1px;
       animation: appLoaderFill 1.1s cubic-bezier(.4,0,.6,1) forwards; }
     @keyframes appLoaderFill {
       0%  { width:  0%; }
       55% { width: 72%; }
       85% { width: 90%; }
       100%{ width: 95%; } }
+    #splashTap { font-family: var(--font); font-size: 11px; color: var(--muted-fg); opacity: 0; transition: opacity .3s; }
     #appLoaderHint { font-size: 12px; color: var(--muted-fg); display: flex; align-items: center; gap: 5px; opacity: 0; animation: appLoaderHintIn .4s ease forwards; animation-delay: 3s; }
     #appLoaderHint button { font-size: 12px; font-weight: 500; color: var(--foreground); background: none; border: none; cursor: pointer; font-family: var(--font); padding: 0; text-decoration: underline; text-underline-offset: 2px; }
     @keyframes appLoaderHintIn { to { opacity: 1; } }
+    @media (prefers-reduced-motion: reduce) { #splashClock, .splash-brand { animation: none; } }
 
     /* ── Design tokens ── */
     :root {
@@ -2665,15 +2683,80 @@
 </head>
 <body>
 
-  <!-- ── PWA App Loader ── -->
-  <div id="appLoader">
-    <img id="appLoaderLogoLight" src="/brand-light.svg" alt="5pm" width="64" height="64" style="border-radius:16px;border:1px solid var(--border)">
-    <img id="appLoaderLogoDark"  src="/brand-dark.svg"  alt="5pm" width="64" height="64" style="border-radius:16px;border:1px solid var(--border)">
-    <div style="display:flex;flex-direction:column;align-items:center;gap:12px;">
-      <div class="app-loader-track"><div class="app-loader-bar"></div></div>
+  <!-- ── Splash ── -->
+  <div id="appLoader" aria-hidden="true">
+    <div class="splash-foot">
+      <div class="splash-brand">
+        <div class="splash-lock">
+          <img id="appLoaderLogoLight" src="/brand-light.svg" alt="">
+          <img id="appLoaderLogoDark"  src="/brand-dark.svg"  alt="">
+          <span class="splash-title">5pm - Work Hour Tracker</span>
+        </div>
+        <div class="app-loader-track"><div class="app-loader-bar"></div></div>
+      </div>
+      <div id="splashTap">Getting your day ready</div>
       <div id="appLoaderHint">Taking too long? <button onclick="window.location.reload()">Force Reload</button></div>
     </div>
   </div>
+  <div id="splashClock" aria-hidden="true"></div>
+  <script>
+  // Splash clock: live from the first frame, in the home clock's own format
+  // once the app's clock() exists, and kept 48px clear of each edge.
+  // _splashOut() glides it onto the home clock and hands over.
+  (function () {
+    var c = document.getElementById('splashClock'), L = document.getElementById('appLoader');
+    function text() {
+      try { if (typeof clock === 'function' && typeof _clockNow === 'function') return clock(_clockNow()); } catch (e) {}
+      return new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    }
+    function fit() {
+      c.style.fontSize = '';
+      var room = innerWidth - 96, w = c.getBoundingClientRect().width;
+      if (w > room) c.style.fontSize = (parseFloat(getComputedStyle(c).fontSize) * room / w) + 'px';
+    }
+    function tick() { if (c.isConnected) c.textContent = text(); }
+    tick(); fit();
+    var t = setInterval(tick, 1000);
+    if (document.fonts) document.fonts.ready.then(fit);
+    // Taps land on the splash and do nothing; say why.
+    L.addEventListener('pointerdown', function () { document.getElementById('splashTap').style.opacity = 1; });
+
+    window._splashOut = function () {
+      var target = document.getElementById('selDayClock'), tries = 0;
+      var reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+      function done() { clearInterval(t); c.remove(); L.remove(); if (target) target.style.visibility = ''; }
+      function fade() {
+        c.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 300, fill: 'forwards' });
+        L.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 300, fill: 'forwards' }).onfinish = done;
+      }
+      // The home clock may need a frame or two to get its text and layout.
+      (function wait() {
+        var r = target && target.getBoundingClientRect();
+        var ok = r && r.width > 0 && r.top >= 0 && r.bottom <= innerHeight && /\d/.test(target.textContent);
+        if (!ok) { if (++tries < 30) return requestAnimationFrame(wait); return fade(); }
+        if (reduce || !c.animate) return fade();
+        var cs = getComputedStyle(target), from = c.getBoundingClientRect(), fromSize = parseFloat(getComputedStyle(c).fontSize);
+        var thin = { fontWeight: 200, letterSpacing: getComputedStyle(c).letterSpacing, color: getComputedStyle(c).color };
+        var bold = { fontWeight: cs.fontWeight, letterSpacing: cs.letterSpacing, color: cs.color };
+        c.textContent = target.textContent;
+        target.style.visibility = 'hidden';
+        // Land exactly on the home clock, then play the move in reverse.
+        Object.assign(c.style, { left: r.left + 'px', top: r.top + 'px', transform: 'none', animation: 'none',
+          fontSize: cs.fontSize, lineHeight: cs.lineHeight, fontWeight: bold.fontWeight,
+          letterSpacing: bold.letterSpacing, color: bold.color });
+        var to = c.getBoundingClientRect(), sc = fromSize / parseFloat(cs.fontSize);
+        var dx = (from.left + from.width / 2) - (to.left + to.width / 2);
+        var dy = (from.top + from.height / 2) - (to.top + to.height / 2);
+        var D = 950, ease = 'cubic-bezier(.22,1,.36,1)';
+        c.animate([{ transform: 'translate(' + dx + 'px,' + dy + 'px) scale(' + sc + ')' }, { transform: 'none' }], { duration: D, easing: ease });
+        c.animate([thin, bold], { duration: D * .85, delay: D * .1, easing: 'cubic-bezier(.4,0,.2,1)', fill: 'backwards' });
+        L.querySelector('.splash-foot').animate([{ opacity: 1 }, { opacity: 0 }], { duration: 300, easing: 'ease-in', fill: 'forwards' });
+        L.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 600, delay: 250, easing: 'ease-out', fill: 'forwards' });
+        setTimeout(done, D + 30);
+      })();
+    };
+  })();
+  </script>
 
   <!-- ── Daily Report modal ── -->
   <div class="overlay" id="checkoutOverlay">

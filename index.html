@@ -547,23 +547,34 @@
     body.shell-new #homeMain { flex: 0 0 auto; min-height: auto; gap: 24px; }
     body.shell-new #homeBottomSpacer { display: none; }
 
-    body.shell-new .set-tabs { position: relative; display: flex; gap: 4px;
-      border-bottom: 1px solid var(--border); margin-bottom: 16px; }
-    body.shell-new .set-tab { flex: 1 1 auto; min-width: 0; display: inline-flex; align-items: center;
-      justify-content: center; gap: 7px; padding: 0 8px 10px; border: none; background: transparent;
-      cursor: pointer; font-family: var(--font); font-size: 13px; font-weight: 500;
-      color: var(--muted-fg); white-space: nowrap; border-bottom: none;
-      transition: color .18s; }
-    body.shell-new .set-tab:hover { color: var(--foreground); }
-    /* Phones: five labels only fit without their icons. */
-    @media (max-width: 640px) {
-      body.shell-new .set-tabs { gap: 0; }
-      body.shell-new .set-tab { padding: 0 4px 10px; font-size: 12px; }
-      body.shell-new .set-tab svg { display: none; }
-    }
+    /* Settings tabs, after @uiarc/tabs: each tab keeps its natural width, and
+       when they don't all fit the row scrolls sideways with faded edges and
+       arrow buttons, instead of squeezing every label into one row. The active
+       tab is marked by a sliding bottom line. */
+    body.shell-new .set-tabs-shell { position: relative; margin-bottom: 16px; }
+    body.shell-new .set-tabs { position: relative; display: flex; gap: 4px; overflow-x: auto;
+      scrollbar-width: none; overscroll-behavior-x: contain; box-shadow: inset 0 -1px var(--border); }
+    body.shell-new .set-tabs::-webkit-scrollbar { display: none; }
+    body.shell-new .set-tabs-shell[data-left="true"] .set-tabs { mask-image: linear-gradient(to right, transparent, #000 35px); }
+    body.shell-new .set-tabs-shell[data-right="true"] .set-tabs { mask-image: linear-gradient(to right, #000 calc(100% - 35px), transparent); }
+    body.shell-new .set-tabs-shell[data-left="true"][data-right="true"] .set-tabs {
+      mask-image: linear-gradient(to right, transparent, #000 35px, #000 calc(100% - 35px), transparent); }
+    body.shell-new .set-tab { flex: 0 0 auto; min-width: 5.5rem; min-height: 44px; display: inline-flex;
+      align-items: center; justify-content: center; gap: 7px; padding: 0 12px 2px; border: none;
+      background: transparent; border-radius: var(--radius-md) var(--radius-md) 0 0; cursor: pointer;
+      font-family: var(--font); font-size: 13px; font-weight: 500; color: var(--muted-fg);
+      white-space: nowrap; -webkit-tap-highlight-color: transparent; transition: color .18s, background .18s; }
+    @media (hover: hover) and (pointer: fine) { body.shell-new .set-tab:hover { color: var(--foreground); background: var(--muted); } }
+    body.shell-new .set-tab:active { color: var(--foreground); }
+    body.shell-new .set-tab:focus-visible { outline: 2px solid #6B97FF; outline-offset: -2px; }
     body.shell-new .set-tab.active { color: var(--foreground); font-weight: 600; }
+    body.shell-new .set-tabs-arrow { position: absolute; z-index: 2; top: 0; bottom: 1px; width: 33px; display: grid;
+      place-items: center; border: none; background: var(--background); color: var(--foreground); cursor: pointer; }
+    body.shell-new .set-tabs-arrow.l { left: 0; }
+    body.shell-new .set-tabs-arrow.r { right: 0; }
+    body.shell-new .set-tabs-arrow[hidden] { display: none; }
     /* One underline that slides, rather than a border appearing under each tab. */
-    .set-tab-ind { position: absolute; bottom: -1px; height: 2px; background: var(--foreground);
+    .set-tab-ind { position: absolute; bottom: 0; left: 0; height: 2px; background: var(--foreground);
       border-radius: 2px; transition: left .24s cubic-bezier(.4,0,.2,1), width .24s cubic-bezier(.4,0,.2,1); }
 
     body.shell-new .set-panel { display: none; }
@@ -571,8 +582,8 @@
     body.shell-new .set-panel.active { display: flex; flex-direction: column; gap: 24px; }
     body.shell-new .set-panel.slide-right { animation: set-slide-right .24s cubic-bezier(.4,0,.2,1); }
     body.shell-new .set-panel.slide-left  { animation: set-slide-left  .24s cubic-bezier(.4,0,.2,1); }
-    @keyframes set-slide-right { from { opacity: 0; transform: translateX(16px); } to { opacity: 1; transform: none; } }
-    @keyframes set-slide-left  { from { opacity: 0; transform: translateX(-16px); } to { opacity: 1; transform: none; } }
+    @keyframes set-slide-right { from { opacity: 0; transform: translateX(8px); } to { opacity: 1; transform: none; } }
+    @keyframes set-slide-left  { from { opacity: 0; transform: translateX(-8px); } to { opacity: 1; transform: none; } }
     @media (prefers-reduced-motion: reduce) {
       body.shell-new .set-panel.slide-right, body.shell-new .set-panel.slide-left { animation: none; }
       .set-tab-ind { transition: none; }
@@ -640,6 +651,18 @@
     .win-promo-text .form-sub { line-height: 1.45; }
     .win-promo-cta { grid-column: 1 / -1; justify-self: end; width: auto; height: 32px; padding: 0 12px;
       font-size: 12px; gap: 5px; }
+    /* Privacy Policy page: privacy.html's text in the app's type scale. */
+    .privacy-body h2 { font-size: 14px; font-weight: 600; color: var(--foreground); margin: 20px 0 6px; }
+    .privacy-body > h2:first-child { margin-top: 0; }
+    .privacy-body p, .privacy-body li { font-size: 13px; line-height: 1.6; color: var(--muted-fg); }
+    .privacy-body p + p { margin-top: 8px; }
+    .privacy-body ul { list-style: none; margin-top: 10px; display: flex; flex-direction: column; gap: 12px; }
+    .privacy-body li { display: flex; gap: 12px; align-items: flex-start; }
+    .privacy-body li > svg { flex: none; width: 30px; height: 30px; padding: 7px; border-radius: 8px; background: var(--muted);
+      color: var(--foreground); fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+    .privacy-body li > span { padding-top: 5px; }
+    .privacy-body strong, .privacy-body a { color: var(--foreground); }
+    #viewSettings .privacy-body { user-select: text; -webkit-user-select: text; }
     /* Quiet grey note, for advice that is not a setting. */
     .set-note { display: flex; align-items: flex-start; gap: 8px; font-size: 12px; line-height: 1.5;
       color: var(--muted-fg); background: var(--muted); border-radius: var(--radius-md); padding: 10px 12px; }
@@ -691,8 +714,20 @@
     html.shell-new.scrolling::-webkit-scrollbar-thumb { background: var(--muted-fg);
       background-clip: content-box; }
 
-    /* Phones keep their own top bar and bottom nav. */
-    @media (max-width: 640px) { .hdr-cluster { display: none; } }
+    /* Phones keep their own top bar, now with Settings right of Notifications
+       and no bottom pill nav. The bar is 56px (was 44) for breathing room, and
+       everything that cleared the bar or the pill moves with it. */
+    @media (max-width: 640px) {
+      .hdr-cluster { display: none; }
+      body.shell-new .mob-bottomnav { display: none !important; }
+      body.shell-new .mob-topbar { height: calc(56px + env(safe-area-inset-top)); padding-left: 20px; padding-right: 20px; }
+      body.shell-new .mob-actions { gap: 8px; }
+      body.shell-new #appWrap { padding-top: calc(56px + env(safe-area-inset-top)) !important; }
+      body.shell-new #notifPanel { top: calc(56px + env(safe-area-inset-top) + 8px); }
+      body.shell-new #ptrWrap { top: calc(56px + env(safe-area-inset-top) + 24px); }
+      body.shell-new .page { padding-bottom: calc(32px + env(safe-area-inset-bottom)); }
+      body.shell-new .wh-toast { bottom: calc(16px + env(safe-area-inset-bottom)); }
+    }
 
     .notif-panel { position: fixed; top: calc(24px + 52px + 8px); left: 50%; transform: translateX(-50%);
       width: calc(100% - 48px); max-width: 552px; z-index: 40; padding: 0 !important;
@@ -1070,7 +1105,12 @@
         padding: 6px 16px calc(20px + env(safe-area-inset-bottom));
         box-shadow: 0 -8px 40px rgba(0,0,0,.35); touch-action: none; overscroll-behavior: contain;
         transform: translateY(100%); transition: transform .34s cubic-bezier(.32,.72,0,1), opacity .2s ease; }
-      .td-panel.open { transform: none; }
+      /* Opaque throughout, so closing is seen sliding down rather than fading
+         out first. Hidden only once it has left the screen (its shadow would
+         otherwise peek above the bottom edge). */
+      .td-panel { opacity: 1; visibility: hidden;
+        transition: transform .34s cubic-bezier(.32,.72,0,1), visibility 0s linear .34s; }
+      .td-panel.open { transform: none; visibility: visible; transition: transform .34s cubic-bezier(.32,.72,0,1); }
       .td-panel.dragging { transition: none; }
       .td-panel::before { content: ''; align-self: center; width: 36px; height: 5px; border-radius: 3px;
         background: rgba(127,127,127,.4); margin: 0 0 4px; flex-shrink: 0; }
@@ -14192,10 +14232,30 @@ ${sig}`
     }
 
     // The policy lives on the website; the desktop app opens it in the browser.
+    // The desktop app opens it in the browser, which has its own Back. On the
+    // web it's a Settings page with the usual back button: a new tab from an
+    // installed phone app opened full screen with no way back. privacy.html
+    // stays the one copy of the text; this page shows its <main>.
     function openPrivacyPolicy() {
       const url = 'https://whtracker.vercel.app/privacy.html';
-      if (window.__TAURI__) window.__TAURI__.core.invoke('open_external', { url }).catch(() => {});
-      else window.open(url, '_blank', 'noopener');
+      if (window.__TAURI__) { window.__TAURI__.core.invoke('open_external', { url }).catch(() => {}); return; }
+      const page = _setPage('pagePrivacy', 'Privacy Policy', '', pg => {
+        pg.insertAdjacentHTML('beforeend', '<div class="settings-section privacy-body" id="privacyBody"><div class="form-sub">Loading…</div></div>');
+      });
+      if (!page) { window.open(url, '_blank', 'noopener'); return; }
+      const body = el('privacyBody');
+      if (body.dataset.loaded) return;
+      fetch('/privacy.html').then(r => { if (!r.ok) throw new Error(r.status); return r.text(); }).then(html => {
+        const main = new DOMParser().parseFromString(html, 'text/html').querySelector('main');
+        if (!main) throw new Error('no content');
+        const updated = main.querySelector('.updated')?.textContent || '';
+        main.querySelector('header')?.remove();
+        body.replaceChildren(...main.childNodes);
+        body.dataset.loaded = '1';
+        _setPageHead(page, 'Privacy Policy', updated);
+      }).catch(() => {
+        body.innerHTML = '<div class="form-sub">Couldn’t load the policy. <a href="' + url + '" target="_blank" rel="noopener">Open it in a new tab</a>.</div>';
+      });
     }
 
     // ── Support Development Modal ─────────────────────────────────────────
@@ -15120,9 +15180,16 @@ ${sig}`
       bSet.innerHTML = svg(I.gear);
       cluster.appendChild(bSet);
 
-      const syncHeader = () => bSet.classList.toggle('active', activeView === 'settings');
+      // Phones: the same toggle, right of Notifications in the top bar.
+      const mSet = document.createElement('button');
+      mSet.className = 'btn-icon hdr-icon'; mSet.id = 'mobSettingsBtn';
+      mSet.title = 'Settings'; mSet.setAttribute('aria-label', 'Settings');
+      mSet.innerHTML = svg(I.gear);
+      el('mobNotifBtn')?.after(mSet);
+
+      const syncHeader = () => [bSet, mSet].forEach(b => b.classList.toggle('active', activeView === 'settings'));
       // Toggling: pressing Settings again returns to the page you came from.
-      bSet.onclick = () => { switchTab(activeView === 'settings' ? 'home' : 'settings'); syncHeader(); };
+      bSet.onclick = mSet.onclick = () => { switchTab(activeView === 'settings' ? 'home' : 'settings'); syncHeader(); };
       syncHeader();
 
       // The notification panel hangs below its button instead of centre screen.
@@ -15180,6 +15247,35 @@ ${sig}`
       const TABS = [['General', I.gear], ['Advanced', I.sliders], ['Notifications', I.bell],
                     ['Security', I.shield], ['About', I.info]];
       const bar = document.createElement('div'); bar.className = 'set-tabs';
+      bar.setAttribute('role', 'tablist'); bar.setAttribute('aria-label', 'Settings sections');
+      const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+      // Arrows show only on the side that has more tabs to scroll to.
+      const arrow = (side, label, d, dir) => {
+        const b = document.createElement('button');
+        b.type = 'button'; b.className = 'set-tabs-arrow ' + side; b.tabIndex = -1; b.hidden = true;
+        b.setAttribute('aria-label', label); b.innerHTML = svg(d);
+        b.onclick = () => bar.scrollBy({ left: dir * bar.clientWidth * .75, behavior: reduced() ? 'auto' : 'smooth' });
+        return b;
+      };
+      const arrL = arrow('l', 'Scroll tabs left', I.back, -1);
+      const arrR = arrow('r', 'Scroll tabs right', '<path d="m9 18 6-6-6-6"/>', 1);
+      const tabShell = document.createElement('div'); tabShell.className = 'set-tabs-shell';
+      tabShell.append(arrL, bar, arrR);
+      function edges() {
+        const max = bar.scrollWidth - bar.clientWidth;
+        const l = bar.scrollLeft > 1, r = bar.scrollLeft < max - 1;
+        tabShell.dataset.left = l; tabShell.dataset.right = r;
+        arrL.hidden = !l; arrR.hidden = !r;
+      }
+      bar.addEventListener('scroll', edges, { passive: true });
+      // Scroll a tab fully into view, clear of whichever arrows are showing.
+      function reveal(t) {
+        const f = bar.getBoundingClientRect(), it = t.getBoundingClientRect();
+        const max = bar.scrollWidth - bar.clientWidth;
+        const left = f.left + (bar.scrollLeft > 1 ? 34 : 0), right = f.right - (bar.scrollLeft < max - 1 ? 34 : 0);
+        const d = it.left < left ? it.left - left : it.right > right ? it.right - right : 0;
+        if (d) bar.scrollBy({ left: d, behavior: reduced() ? 'auto' : 'smooth' });
+      }
       const panels = {};
       const tabBtns = [];
       let current = 0;
@@ -15192,6 +15288,7 @@ ${sig}`
         if (!t || !t.offsetWidth) return; // hidden panel has no geometry yet
         ind.style.left = t.offsetLeft + 'px';
         ind.style.width = t.offsetWidth + 'px';
+        edges();
       }
 
       function show(index) {
@@ -15199,7 +15296,11 @@ ${sig}`
         const name = TABS[index][0];
         const dir = index > current ? 'slide-right' : 'slide-left';
         current = index;
-        tabBtns.forEach((b, i) => b.classList.toggle('active', i === index));
+        tabBtns.forEach((b, i) => {
+          b.classList.toggle('active', i === index);
+          b.setAttribute('aria-selected', i === index);
+          b.tabIndex = i === index ? 0 : -1;
+        });
         Object.keys(panels).forEach(n => {
           const p = panels[n];
           p.classList.remove('slide-right', 'slide-left');
@@ -15208,22 +15309,38 @@ ${sig}`
           if (on) { void p.offsetWidth; p.classList.add(dir); } // restart the animation
         });
         moveIndicator();
+        reveal(tabBtns[index]);
       }
 
       TABS.forEach(([name, glyph], i) => {
         const t = document.createElement('button');
+        t.type = 'button';
         t.className = 'set-tab' + (i === 0 ? ' active' : '');
-        t.innerHTML = svg(glyph).replace('width="17" height="17"', 'width="15" height="15"') + name;
+        t.id = 'setTab' + name; t.setAttribute('role', 'tab');
+        t.setAttribute('aria-controls', 'setPanel' + name);
+        t.setAttribute('aria-selected', i === 0); t.tabIndex = i === 0 ? 0 : -1;
+        t.innerHTML = svg(glyph).replace('width="17" height="17"', 'width="15" height="15" aria-hidden="true"') + name;
         t.onclick = () => show(i);
         bar.appendChild(t);
         tabBtns.push(t);
         const p = document.createElement('div');
         p.className = 'set-panel' + (i === 0 ? ' active' : '');
         p.dataset.panel = name;
+        p.id = 'setPanel' + name; p.setAttribute('role', 'tabpanel');
+        p.setAttribute('aria-labelledby', t.id);
         panels[name] = p;
       });
+      // Arrow keys, Home and End move between tabs, and moving selects.
+      bar.addEventListener('keydown', e => {
+        const k = { ArrowRight: current + 1, ArrowLeft: current - 1, Home: 0, End: TABS.length - 1 }[e.key];
+        if (k === undefined) return;
+        e.preventDefault();
+        const next = (k + TABS.length) % TABS.length;
+        show(next);
+        tabBtns[next].focus();
+      });
       bar.appendChild(ind);
-      header.after(bar);
+      header.after(tabShell);
 
       // Phones: swipe sideways on Settings to move between tabs. Fields keep
       // their own gestures (text selection, sliders).
@@ -15232,7 +15349,7 @@ ${sig}`
       document.addEventListener('touchstart', e => {
         swOn = activeView === 'settings' && e.touches.length === 1 &&
           matchMedia('(max-width: 640px)').matches &&
-          !e.target.closest('input, textarea, select, [contenteditable], nav, .overlay, .notif-panel, .wp-picker-overlay');
+          !e.target.closest('input, textarea, select, [contenteditable], nav, .overlay, .notif-panel, .wp-picker-overlay, .set-tabs-shell');
         if (swOn) { swX = e.touches[0].clientX; swY = e.touches[0].clientY; }
       }, { passive: true });
       document.addEventListener('touchend', e => {
@@ -15244,9 +15361,9 @@ ${sig}`
         if (next >= 0 && next < TABS.length) show(next);
       }, { passive: true });
       Object.keys(panels).forEach(n => wrap.appendChild(panels[n]));
-      // Settings starts hidden, so the indicator has to be placed on first sight.
-      addEventListener('resize', moveIndicator);
-      bSet.addEventListener('click', () => setTimeout(moveIndicator, 30));
+      // Settings starts hidden, so the indicator is placed once the row has a
+      // size, and again whenever that size changes.
+      new ResizeObserver(moveIndicator).observe(bar);
 
       const prefs = sectionByName('Preferences');
       const account = sectionByName('Account');
@@ -15320,7 +15437,7 @@ ${sig}`
       // tabs and the tab content: wrappers left hollow once their sections moved
       // out, and loose cards like the developer one.
       [...wrap.children].forEach(node => {
-        if (node === header || node === bar || node.classList.contains('set-panel')) return;
+        if (node === header || node === tabShell || node.classList.contains('set-panel')) return;
         if (!node.querySelector('*') && !node.textContent.trim()) { node.remove(); return; }
         panels.About.appendChild(node);
       });
@@ -15394,7 +15511,7 @@ ${sig}`
       box.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>' +
         '<input type="search" placeholder="Search settings" aria-label="Search settings" autocomplete="off">' +
         '<div class="set-results" role="listbox"></div>';
-      bar.before(box);
+      tabShell.before(box);
       const q = box.querySelector('input'), list = box.querySelector('.set-results');
       let hits = [], cur = 0;
 
@@ -15900,8 +16017,11 @@ ${sig}`
 
     document.addEventListener('touchstart', function (e) {
       if (!ptrEnabled()) { atTop = false; startY = 0; return; }
-      // Disable PTR when any modal/overlay is open — prevents scroll-lock inside modals
-      if (document.querySelector('.overlay.open, .wp-picker-overlay.open')) {
+      // Off while any modal, overlay or bottom sheet is open, and for any touch
+      // that starts inside one: dragging a sheet down must never reload the page.
+      if (document.querySelector('.overlay.open, .wp-picker-overlay.open, .email-modal-overlay.open, .td-panel.open, .notif-panel.open')
+          || document.documentElement.classList.contains('td-sheet-open')
+          || e.target.closest('[role="dialog"], [aria-modal="true"], .td-panel, .td-scrim, #iosInstallSheet, #iosInstallOverlay, .ob-overlay')) {
         atTop = false; startY = 0; return;
       }
       atTop      = getScrollTop() <= 5; // 5px tolerance for iOS rubber-band

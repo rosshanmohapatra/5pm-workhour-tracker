@@ -555,13 +555,11 @@
     body.shell-new .set-tabs { position: relative; display: flex; gap: 4px; overflow-x: auto;
       scrollbar-width: none; overscroll-behavior-x: contain; box-shadow: inset 0 -1px var(--border);
       scroll-snap-type: x proximity; }
-    body.shell-new .set-tab { scroll-snap-align: start; }
+    body.shell-new .set-tab { scroll-snap-align: center; }
     /* The panel's slide-in must never widen the page sideways. */
     body.shell-new #viewSettings .settings-panel { overflow-x: clip; }
-    /* Touch: swipe the row; arrows would sit over the tab pinned at the left.
-       Mouse: tabs snap just right of the left arrow (33px) instead of under it. */
+    /* Touch: swipe the row; the faded edges show there is more. */
     @media (pointer: coarse) { body.shell-new .set-tabs-arrow { display: none !important; } }
-    @media (pointer: fine) { body.shell-new .set-tabs { scroll-padding-left: 34px; } }
     body.shell-new .set-tabs::-webkit-scrollbar { display: none; }
     body.shell-new .set-tabs-shell[data-left="true"] .set-tabs { mask-image: linear-gradient(to right, transparent, #000 35px); }
     body.shell-new .set-tabs-shell[data-right="true"] .set-tabs { mask-image: linear-gradient(to right, #000 calc(100% - 35px), transparent); }
@@ -10224,6 +10222,9 @@
     function renderSurplusCircles() {
       const c = cfg(), wk = week(analyticsWeekOffset), tk = todayKey();
       const container = el('surplusCircles');
+      // The card left with the old Dashboard. Without this, every caller after
+      // it stopped short (deleting an entry never redrew the day or offered Undo).
+      if (!container) return;
       let totalExtraSecs = 0;
       const CIRC = 125.66; // 2π × r=20
 
@@ -11267,6 +11268,12 @@ ${sig}`
       _OVERRIDES: new Set(['leave', 'holiday', 'wfh', 'halfday']),
 
       // Map a localStorage day entry → work_logs row
+      // A row with no times, hours, type or note is a deleted day.
+      _isBlank(row) {
+        return !row.login_time && !row.logout_time && !(parseFloat(row.hours_worked) > 0)
+          && !row.override_type && !row.notes;
+      },
+
       _toRow(userId, dk, entry) {
         const statusMap = {
           realtime: 'completed', edited: 'completed',
@@ -11392,6 +11399,12 @@ ${sig}`
             // Supabase is also cleared rather than restoring the old note.
             if (_isNoteDirty(row.log_date)) {
               toPush.push([row.log_date, local || { lastUpdated: new Date().toISOString() }]);
+              return;
+            }
+            // A blank row is a deleted day: remove it here too, instead of
+            // storing it as an empty logged day. A newer local edit still wins.
+            if (this._isBlank(row) && !(local?.lastUpdated && row.updated_at && Date.parse(local.lastUpdated) > Date.parse(row.updated_at))) {
+              if (local) Store.remove(KEY.day + row.log_date);
               return;
             }
             if (local?.lastUpdated && row.updated_at) {
@@ -11640,10 +11653,10 @@ ${sig}`
       // Batch day pushes — includes future dates (plans and notes on upcoming days)
       for (const dk of days) {
         const entry = Store.getDay(dk);
-        if (entry) {
-          const ok = await SbSync.pushDay(dk, entry);
-          if (!ok) { failed = true; failedDays.push(dk); }
-        }
+        // A deleted day goes up at once as a blank row, which every device
+        // reads as "deleted" (see pullAll). One request per delete.
+        const ok = await SbSync.pushDay(dk, entry || { lastUpdated: new Date().toISOString() });
+        if (!ok) { failed = true; failedDays.push(dk); }
       }
       // Settings push
       if (cfgDirty) {
@@ -11870,13 +11883,16 @@ ${sig}`
         } else {
           // Skip if our local copy is already as new (avoids overwriting fresh edits / own echo)
           const local = Store.getDay(dk);
+          const blank = SbSync._isBlank(newRow);
           if (local?.lastUpdated && newRow.updated_at &&
-              new Date(local.lastUpdated) >= new Date(newRow.updated_at)) return;
+              new Date(local.lastUpdated) >= new Date(newRow.updated_at) && !(blank && local.lastUpdated === newRow.updated_at)) return;
+          // Blanked by a delete on another device.
+          if (blank) Store.remove(KEY.day + dk);
           const loginDt  = newRow.login_time  ? new Date(newRow.login_time)  : null;
           const logoutDt = newRow.logout_time ? new Date(newRow.logout_time) : null;
           // Future days carry futurePlan/futureReason; past/today carry override/note
           const _isFutureDay = new Date(dk + 'T12:00') > new Date() && dk !== todayKey();
-          Store.setDay(dk, {
+          if (!blank) Store.setDay(dk, {
             ...(loginDt  ? { loginTime: `${loginDt.getHours()}:${loginDt.getMinutes()}:${loginDt.getSeconds()}`,
                              loginDisplay: short(loginDt) } : {}),
             ...(logoutDt ? { checkoutDisplay: short(logoutDt),
@@ -15242,13 +15258,12 @@ ${sig}`
         arrL.hidden = !l; arrR.hidden = !r;
       }
       bar.addEventListener('scroll', edges, { passive: true });
-      // The open tab sits at the left edge (just right of the left arrow where
-      // arrows show), so the next tab is always in view to its right. How many
-      // fit is up to the screen. Clamped at the end: the last tabs can't all
-      // reach the left edge.
+      // The open tab sits in the middle of the row, so the previous and next
+      // tabs are both in reach. How many fit is up to the screen. The first and
+      // last tabs stop at the row's ends rather than leaving a gap.
       function pin(t) {
         const max = bar.scrollWidth - bar.clientWidth;
-        const x = t.offsetLeft - (parseFloat(getComputedStyle(bar).scrollPaddingLeft) || 0);
+        const x = t.offsetLeft + t.offsetWidth / 2 - bar.clientWidth / 2;
         bar.scrollTo({ left: Math.max(0, Math.min(max, x)), behavior: reduced() ? 'auto' : 'smooth' });
       }
       const panels = {};

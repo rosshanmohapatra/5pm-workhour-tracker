@@ -668,11 +668,16 @@
 
     /* Settings search */
     .set-search { position: relative; margin-bottom: 12px; }
-    .set-search input { width: 100%; height: 38px; padding: 0 12px 0 36px; border: 1px solid var(--border);
+    /* 44px+ to tap; iOS and Android draw type=search their own way unless told not to. */
+    .set-search input { width: 100%; height: 44px; padding: 0 14px 0 42px; border: 1px solid var(--border);
       border-radius: var(--radius-md); background: var(--card); color: var(--foreground);
-      font: 400 13px var(--font); outline: none; }
+      font: 400 15px var(--font); outline: none; -webkit-appearance: none; appearance: none; }
+    .set-search input::placeholder { color: var(--muted-fg); opacity: 1; }
     .set-search input:focus { border-color: var(--muted-fg); }
-    .set-search > svg { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--muted-fg); pointer-events: none; }
+    .set-search > svg { position: absolute; left: 14px; top: 50%; width: 17px; height: 17px;
+      transform: translateY(-50%); color: var(--muted-fg); pointer-events: none; }
+    /* Phones: taller, and 16px so iOS doesn't zoom the page when it's tapped. */
+    @media (max-width: 640px), (pointer: coarse) { .set-search input { height: 48px; font-size: 16px; } }
     .set-results { position: absolute; left: 0; right: 0; top: calc(100% + 6px); z-index: 30;
       background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-md);
       box-shadow: var(--shadow-lg); padding: 4px; max-height: 320px; overflow-y: auto; display: none; }
@@ -2960,7 +2965,7 @@
               </button>
               <!-- Free-text time input -->
               <input class="tp-free-input" id="tpFreeInput" type="text" inputmode="text"
-                placeholder="Enter time" maxlength="14"
+                placeholder="Enter Login Time" maxlength="14"
                 autocomplete="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true">
               <span class="shift-combo-active-label" id="shiftActiveLabel">—</span>
               <div id="calcBtnWrap" style="position:relative;display:flex;align-items:stretch">
@@ -13141,6 +13146,10 @@ ${sig}`
     let _tcLabel = 'Enter Login Time';
     function _tcSetLabel(label) {
       _tcLabel = label;
+      // The field beside Start / End: "Enter Login Time", or "Update Login
+      // Time" once a session is running or paused.
+      const free = el('tpFreeInput');
+      if (free) free.placeholder = label;
       const ph = el('tc-r7m2-ph');
       if (ph && !ph.classList.contains('tc-ph-has-val')) ph.textContent = label;
     }

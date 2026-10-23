@@ -11719,6 +11719,10 @@ ${sig}`
           el('endSessionOverlay')?.classList.remove('open');
         }
 
+        // And the other way round: a session started on another device since
+        // this one last looked. Pick it up instead of showing an empty day.
+        else if (!loginDate && !autoStopped && _resumeFromLog(_pulled)) _startCheckpoint();
+
         renderHistory(); renderDaySelector();
         // Don't call render() for auto-stopped sessions — the ticker is dead and
         // render() would incorrectly fire the Daily Target modal.
@@ -11831,6 +11835,8 @@ ${sig}`
             lastUpdated: newRow.updated_at,
           });
         }
+        // A session just started on another device: run it here too.
+        if (dk === todayKey() && !loginDate && !autoStopped && _resumeFromLog(Store.getDay(dk))) _startCheckpoint();
         renderDaySelector();
         renderHistory();
         // Don't collapse future-day plan view on realtime echo
@@ -11844,6 +11850,37 @@ ${sig}`
           renderEmptyState();
         }
       } finally { _applyingRemote = false; }
+    }
+
+    // Today's log has a start and no end: a session is running, here or on
+    // another device. Run its timer on this one. Launch, the pull when the app
+    // comes back to the foreground, and live updates all come through here, so
+    // a phone shows the desktop's session without a reload. False when the
+    // start time is still in the future.
+    function _resumeFromLog(tl) {
+      if (!tl?.loginTime || tl.autostopped || tl.checkoutDisplay) return false;
+      const pts = tl.loginTime.split(':').map(Number);
+      const d = new Date(); d.setHours(pts[0] || 0, pts[1] || 0, pts[2] || 0, 0);
+      if (d <= new Date()) {
+        // loginTime is the day's first start, so after a pause it doesn't
+        // mark the running segment. The log's hours were current as of
+        // lastUpdated, so carry on from there instead of counting the pause.
+        const at = tl.lastUpdated ? new Date(tl.lastUpdated) : null;
+        if (tl.hoursWorked != null && at && !isNaN(at) && at >= d && at <= new Date()) {
+          _sessionAccSecs = Math.round(tl.hoursWorked * 3600);
+          loginDate = at;
+        } else {
+          loginDate = d;
+        }
+        setCalcBtnState('running');
+        el('shiftInputRow').classList.add('active-state');
+        el('shiftActiveLabel').textContent = `Started at ${short(d)}`;
+        render();
+        if (ticker) clearInterval(ticker);
+        ticker = setInterval(render, 1000);
+        return true;
+      }
+      return false;
     }
 
     // Session state persistence
@@ -14802,26 +14839,7 @@ ${sig}`
 
       if (tl?.loginTime && !tl?.autostopped && !tl?.checkoutDisplay) {
         // Active session: has a start time, no exit time, not auto-stopped — resume timer
-        const pts = tl.loginTime.split(':').map(Number);
-        const d = new Date(); d.setHours(pts[0] || 0, pts[1] || 0, pts[2] || 0, 0);
-        if (d <= new Date()) {
-          // loginTime is the day's first start, so after a pause it doesn't
-          // mark the running segment. The log's hours were current as of
-          // lastUpdated, so carry on from there instead of counting the pause.
-          const at = tl.lastUpdated ? new Date(tl.lastUpdated) : null;
-          if (tl.hoursWorked != null && at && !isNaN(at) && at >= d && at <= new Date()) {
-            _sessionAccSecs = Math.round(tl.hoursWorked * 3600);
-            loginDate = at;
-          } else {
-            loginDate = d;
-          }
-          setCalcBtnState('running');
-          el('shiftInputRow').classList.add('active-state');
-          el('shiftActiveLabel').textContent = `Started at ${short(d)}`;
-          render();
-          if (ticker) clearInterval(ticker);
-          ticker = setInterval(render, 1000);
-        } else { renderEmptyState(); }
+        if (!_resumeFromLog(tl)) renderEmptyState();
       } else if (tl?.loginTime && !tl?.autostopped && tl?.checkoutDisplay) {
         // Session has an exit time. Distinguish true checkout from a mid-day pause:
         // checkout() saves checkoutTime; endSession() saves sessionDate instead.

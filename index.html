@@ -553,7 +553,15 @@
        tab is marked by a sliding bottom line. */
     body.shell-new .set-tabs-shell { position: relative; margin-bottom: 16px; }
     body.shell-new .set-tabs { position: relative; display: flex; gap: 4px; overflow-x: auto;
-      scrollbar-width: none; overscroll-behavior-x: contain; box-shadow: inset 0 -1px var(--border); }
+      scrollbar-width: none; overscroll-behavior-x: contain; box-shadow: inset 0 -1px var(--border);
+      scroll-snap-type: x proximity; }
+    body.shell-new .set-tab { scroll-snap-align: start; }
+    /* The panel's slide-in must never widen the page sideways. */
+    body.shell-new #viewSettings .settings-panel { overflow-x: clip; }
+    /* Touch: swipe the row; arrows would sit over the tab pinned at the left.
+       Mouse: tabs snap just right of the left arrow (33px) instead of under it. */
+    @media (pointer: coarse) { body.shell-new .set-tabs-arrow { display: none !important; } }
+    @media (pointer: fine) { body.shell-new .set-tabs { scroll-padding-left: 34px; } }
     body.shell-new .set-tabs::-webkit-scrollbar { display: none; }
     body.shell-new .set-tabs-shell[data-left="true"] .set-tabs { mask-image: linear-gradient(to right, transparent, #000 35px); }
     body.shell-new .set-tabs-shell[data-right="true"] .set-tabs { mask-image: linear-gradient(to right, #000 calc(100% - 35px), transparent); }
@@ -1128,16 +1136,9 @@
     .td-ring { width: 16px; height: 16px; }
     @media (max-width: 640px) { .td-ring { width: 20px; height: 20px; } }
     .td-row-val { font-weight: 600; color: var(--foreground); font-variant-numeric: tabular-nums; }
-    /* Odometer digits: a clipped window onto a 0-9 column. Rows are whole
-       pixels (--odo-h) and digits move by exact multiples of it, so a digit
-       that slid into place sits level with one that snapped. Spaces keep their
-       width (white-space: pre), so "8h 25m" never closes up. */
-    .td-row-val { --odo-h: 18px; }
-    .td-row-val > span { display: inline-block; height: var(--odo-h); line-height: var(--odo-h);
-      vertical-align: top; white-space: pre; }
-    .td-row-val .odo-d { overflow: hidden; }
-    .td-row-val .odo-col { display: block; }
-    .td-row-val .odo-col > span { display: block; height: var(--odo-h); line-height: var(--odo-h); text-align: center; }
+    /* NumberFlow sits on the text baseline like the plain values. A flex row
+       drops a plain space, so the gap between hours and minutes is a gap. */
+    .td-row-val number-flow-group { display: inline-flex; align-items: baseline; gap: .25em; }
     .td-row-val.success { color: var(--success); }
     .td-row-val.warn { color: var(--warning); }
     /* ── Progress bar ──
@@ -6489,6 +6490,11 @@
       _tdSyncPlan();
       el('tdKpis').style.height = '';
       el('tdKpis').innerHTML = _tdBuildContent();
+      // Values become NumberFlow at once (no roll), so the first pick animates.
+      // Plain text until the library arrives, then upgraded in place.
+      const upgrade = () => el('tdKpis').querySelectorAll('.td-row-val').forEach(v => { if (!v._nf) _odoSet(v, v.dataset.odo ?? v.textContent); });
+      upgrade();
+      _loadLib('numberflow').then(upgrade, () => {});
       el('tdScrim').classList.add('open');
       document.documentElement.classList.add('td-sheet-open'); // no page scroll or pull-to-refresh behind it
       panel.classList.add('open');
@@ -6582,8 +6588,7 @@
         const ring = k.querySelector('.td-ring-fill'), nring = r.querySelector('.td-ring-fill');
         if (ring && nring) {
           // Fills in step with the numbers beside it: same duration and curve.
-          const a = _odoMin(v.dataset.odo ?? v.textContent), b = _odoMin(nv.textContent);
-          const ms = a != null && b != null ? _odoMs(a, b) : 600, dash = nring.style.strokeDasharray;
+          const ms = 900, dash = nring.style.strokeDasharray; // NumberFlow's own duration
           rings.push(() => {
             ring.style.transition = `stroke-dasharray ${ms}ms cubic-bezier(.65,0,.35,1)`;
             getComputedStyle(ring).strokeDasharray; // register the transition before the change
@@ -6609,68 +6614,34 @@
       box._tdT = setTimeout(() => { box.style.height = ''; }, 300);
     }
 
-    // Odometer that counts like a clock: the value steps minute by minute from
-    // the old time to the new one (fast in the middle, easing at both ends), so
-    // minutes run down or up and the hour changes only as they pass 00 / 59.
-    // Each digit is a 0-9 column; a one-step change slides, a wrap snaps.
-    // Anything that isn't a time ("Yes") is just replaced.
+    // Animated times ("8h 25m", "25m") use NumberFlow, a library built for
+    // this: digits roll, the width eases, and a group keeps hours and minutes
+    // moving together. Minutes' tens digit tops out at 5, so they roll like a
+    // clock. Anything that isn't a time ("Yes"), or before the library has
+    // loaded, is plain text.
     const _odoMin = t => {
       const m = /^(?:(\d+)h)?\s*(?:(\d+)m)?$/.exec((t || '').trim());
       return m && (m[1] || m[2]) ? (+(m[1] || 0)) * 60 + (+(m[2] || 0)) : null;
     };
-    const _odoFmt = (min, withHours) => {
-      const h = Math.floor(min / 60), m = min % 60;
-      return h || withHours ? `${h}h ${String(m).padStart(2, '0')}m` : `${m}m`;
-    };
-
-    const _odoMs = (a, b) => Math.min(1100, 450 + Math.abs(b - a) * 3); // longer runs take a little longer
-
-    function _odoRender(elm, text, slide) {
-      const skeleton = text.replace(/\d/g, '#');
-      if (elm.dataset.sk !== skeleton) {
-        elm.dataset.sk = skeleton;
-        elm.replaceChildren(...[...text].map(ch => {
-          const span = document.createElement('span');
-          if (/\d/.test(ch)) {
-            span.className = 'odo-d';
-            span.innerHTML = '<span class="odo-col">' + [...'0123456789'].map(n => `<span>${n}</span>`).join('') + '</span>';
-          } else span.textContent = ch;
-          return span;
-        }));
-        slide = false;
-      }
-      let ci = 0;
-      const cols = elm.querySelectorAll('.odo-col');
-      [...text].forEach(ch => {
-        if (!/\d/.test(ch)) return;
-        const col = cols[ci++], d = +ch, was = col.dataset.d == null ? d : +col.dataset.d;
-        if (d === was && col.dataset.d != null) return;
-        col.style.transition = slide && Math.abs(d - was) === 1 ? 'transform 90ms ease-out' : 'none';
-        col.style.transform = `translateY(calc(var(--odo-h) * ${-d}))`;
-        col.dataset.d = d;
-      });
-    }
 
     function _odoSet(elm, text) {
-      const prev = elm.dataset.odo ?? elm.textContent;
       elm.dataset.odo = text;
-      cancelAnimationFrame(elm._odoRaf);
-      const a = _odoMin(prev), b = _odoMin(text);
-      if (a == null || b == null || a === b || matchMedia('(prefers-reduced-motion: reduce)').matches) {
-        _odoRender(elm, text, false);
-        return;
+      const min = _odoMin(text);
+      if (min == null || !customElements.get('number-flow')) { elm.textContent = text; elm._nf = null; return; }
+      const withH = /h/.test(text);
+      if (!elm._nf || elm._nf.withH !== withH) {
+        elm.innerHTML = '<number-flow-group>' + (withH ? '<number-flow></number-flow>' : '') + '<number-flow></number-flow></number-flow-group>';
+        const flows = elm.querySelectorAll('number-flow'), m = flows[flows.length - 1];
+        m.numberSuffix = 'm';
+        if (withH) {
+          flows[0].numberSuffix = 'h';
+          m.format = { minimumIntegerDigits: 2 };
+          m.digits = { 1: { max: 5 } };
+        }
+        elm._nf = { withH, h: withH ? flows[0] : null, m };
       }
-      // "0h" only when the app itself writes it that way (dur), never mid-count.
-      const withHours = /^0h/.test(text) || /^0h/.test(prev), t0 = performance.now();
-      const ms = _odoMs(a, b);
-      _odoRender(elm, _odoFmt(a, withHours), false);
-      const tick = now => {
-        const t = Math.min(1, (now - t0) / ms);
-        const e = t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; // ease in-out
-        _odoRender(elm, t < 1 ? _odoFmt(Math.round(a + (b - a) * e), withHours) : text, true);
-        if (t < 1) elm._odoRaf = requestAnimationFrame(tick);
-      };
-      elm._odoRaf = requestAnimationFrame(tick);
+      if (withH) { elm._nf.h.update(Math.floor(min / 60)); elm._nf.m.update(min % 60); }
+      else elm._nf.m.update(min);
     }
 
     // Picking a type only previews it: the dot moves and the numbers show that
@@ -7820,6 +7791,9 @@
                   'sha384-fCAW/rDWORTbQXSiB7mOg0QtQ5c+r0f544y6XoKjuVva0nMBlCpNUjiFeG5iMdS3'],
       qrcode:    ['https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js',
                   'sha384-3zSEDfvllQohrq0PHL1fOXJuC/jSOO34H46t6UQfobFOmxE5BpjjaIJY5F2/bMnU'],
+      // Animated numbers in the Today panel. Self-hosted: not on cdnjs.
+      numberflow: ['/lib/number-flow.js',
+                  'sha384-d4/hV2Pkt2cXP6Fyw/mOb61kYflG2P8BKKaVCQQUt7AS20L71HVbcHmbN2sJxJld'],
     };
     const _libLoads = {};
     function _loadLib(name) {
@@ -15268,13 +15242,14 @@ ${sig}`
         arrL.hidden = !l; arrR.hidden = !r;
       }
       bar.addEventListener('scroll', edges, { passive: true });
-      // Scroll a tab fully into view, clear of whichever arrows are showing.
-      function reveal(t) {
-        const f = bar.getBoundingClientRect(), it = t.getBoundingClientRect();
+      // The open tab sits at the left edge (just right of the left arrow where
+      // arrows show), so the next tab is always in view to its right. How many
+      // fit is up to the screen. Clamped at the end: the last tabs can't all
+      // reach the left edge.
+      function pin(t) {
         const max = bar.scrollWidth - bar.clientWidth;
-        const left = f.left + (bar.scrollLeft > 1 ? 34 : 0), right = f.right - (bar.scrollLeft < max - 1 ? 34 : 0);
-        const d = it.left < left ? it.left - left : it.right > right ? it.right - right : 0;
-        if (d) bar.scrollBy({ left: d, behavior: reduced() ? 'auto' : 'smooth' });
+        const x = t.offsetLeft - (parseFloat(getComputedStyle(bar).scrollPaddingLeft) || 0);
+        bar.scrollTo({ left: Math.max(0, Math.min(max, x)), behavior: reduced() ? 'auto' : 'smooth' });
       }
       const panels = {};
       const tabBtns = [];
@@ -15309,7 +15284,7 @@ ${sig}`
           if (on) { void p.offsetWidth; p.classList.add(dir); } // restart the animation
         });
         moveIndicator();
-        reveal(tabBtns[index]);
+        pin(tabBtns[index]);
       }
 
       TABS.forEach(([name, glyph], i) => {

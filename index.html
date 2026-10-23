@@ -186,17 +186,21 @@
     #splashClock {
       position: fixed; z-index: 10000; left: 50%; top: 44%; transform: translate(-50%, -50%);
       visibility: visible; pointer-events: none; white-space: nowrap; will-change: transform;
-      font-family: var(--font); font-size: clamp(36px, 13vw, 72px); font-weight: 200; line-height: 1.1;
-      letter-spacing: -.045em; color: var(--muted-fg); font-variant-numeric: tabular-nums;
-      animation: splashIn .7s ease-out both; }
+      display: grid; font-family: var(--font); font-size: clamp(36px, 13vw, 72px); line-height: 1.1;
+      font-variant-numeric: tabular-nums; animation: splashIn .7s ease-out both; }
+    /* Two layers in one cell: the thin always-on clock, and a bold copy styled
+       like the home clock that fades in as it lands. */
+    #splashClock > span { grid-area: 1 / 1; will-change: opacity; }
+    .sc-thin { font-weight: 200; letter-spacing: -.045em; color: var(--muted-fg); justify-self: center; }
+    .sc-bold { display: none; justify-self: start; }
     @keyframes splashIn { from { opacity: 0; filter: blur(4px); } }
     .splash-foot { position: absolute; left: 0; right: 0; bottom: calc(56px + env(safe-area-inset-bottom));
       display: flex; flex-direction: column; align-items: center; gap: 14px; }
     /* Branding comes last: small and muted, the bar exactly as wide as it. */
     .splash-brand { display: inline-flex; flex-direction: column; gap: 12px; animation: splashBrandIn .6s ease-out .25s both; }
     @keyframes splashBrandIn { from { opacity: 0; } }
-    .splash-lock { display: flex; align-items: center; gap: 8px; }
-    .splash-lock img { width: 22px; height: 22px; border-radius: 6px; border: 1px solid var(--border); }
+    .splash-lock { display: flex; align-items: center; gap: 10px; }
+    .splash-lock img { width: 32px; height: 32px; border-radius: 8px; border: 1px solid var(--border); }
     #appLoaderLogoDark { display: none; }
     .dark #appLoaderLogoLight { display: none; }
     .dark #appLoaderLogoDark { display: block; }
@@ -2698,13 +2702,14 @@
       <div id="appLoaderHint">Taking too long? <button onclick="window.location.reload()">Force Reload</button></div>
     </div>
   </div>
-  <div id="splashClock" aria-hidden="true"></div>
+  <div id="splashClock" aria-hidden="true"><span class="sc-thin"></span><span class="sc-bold"></span></div>
   <script>
   // Splash clock: live from the first frame, in the home clock's own format
   // once the app's clock() exists, and kept 48px clear of each edge.
   // _splashOut() glides it onto the home clock and hands over.
   (function () {
     var c = document.getElementById('splashClock'), L = document.getElementById('appLoader');
+    var thinEl = c.firstElementChild, boldEl = c.lastElementChild, flying = false;
     function text() {
       try { if (typeof clock === 'function' && typeof _clockNow === 'function') return clock(_clockNow()); } catch (e) {}
       return new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
@@ -2714,7 +2719,8 @@
       var room = innerWidth - 96, w = c.getBoundingClientRect().width;
       if (w > room) c.style.fontSize = (parseFloat(getComputedStyle(c).fontSize) * room / w) + 'px';
     }
-    function tick() { if (c.isConnected) c.textContent = text(); }
+    // Frozen during the glide: a changing digit mid-flight re-lays out the text.
+    function tick() { if (c.isConnected && !flying) thinEl.textContent = boldEl.textContent = text(); }
     tick(); fit();
     var t = setInterval(tick, 1000);
     if (document.fonts) document.fonts.ready.then(fit);
@@ -2752,21 +2758,31 @@
         lastTop = ok ? r.top : null;
         if (!still) { if (performance.now() < deadline) return requestAnimationFrame(wait); if (!ok) return fade(); }
         if (reduce || !c.animate) return fade();
-        var cs = getComputedStyle(target), from = c.getBoundingClientRect(), fromSize = parseFloat(getComputedStyle(c).fontSize);
-        var thin = { fontWeight: 200, letterSpacing: getComputedStyle(c).letterSpacing, color: getComputedStyle(c).color };
-        var bold = { fontWeight: cs.fontWeight, letterSpacing: cs.letterSpacing, color: cs.color };
-        c.textContent = target.textContent;
+        // Let the app's first heavy render finish, so the glide's first frames
+        // aren't the ones that get dropped.
+        (window.requestIdleCallback || function (f) { setTimeout(f, 60); })(go, { timeout: 350 });
+      })();
+
+      function go() {
+        var r = target.getBoundingClientRect(), cs = getComputedStyle(target);
+        var from = c.getBoundingClientRect(), fromSize = parseFloat(getComputedStyle(c).fontSize);
+        flying = true;
+        thinEl.textContent = boldEl.textContent = target.textContent;
+        Object.assign(boldEl.style, { display: 'block', fontWeight: cs.fontWeight, letterSpacing: cs.letterSpacing,
+          color: cs.color, opacity: 1 });
+        thinEl.style.opacity = 0;
         target.style.visibility = 'hidden';
-        // Land exactly on the home clock, then play the move in reverse.
+        // Land exactly on the home clock, then play the move in reverse. Only
+        // transform and opacity animate, which phones run off the main thread.
         Object.assign(c.style, { left: r.left + 'px', top: r.top + 'px', transform: 'none', animation: 'none',
-          fontSize: cs.fontSize, lineHeight: cs.lineHeight, fontWeight: bold.fontWeight,
-          letterSpacing: bold.letterSpacing, color: bold.color });
+          fontSize: cs.fontSize, lineHeight: cs.lineHeight });
         var to = c.getBoundingClientRect(), sc = fromSize / parseFloat(cs.fontSize);
         var dx = (from.left + from.width / 2) - (to.left + to.width / 2);
         var dy = (from.top + from.height / 2) - (to.top + to.height / 2);
-        var D = 950, ease = 'cubic-bezier(.22,1,.36,1)';
+        var D = 1000, ease = 'cubic-bezier(.32,.72,0,1)';
         var move = c.animate([{ transform: 'translate(' + dx + 'px,' + dy + 'px) scale(' + sc + ')' }, { transform: 'none' }], { duration: D, easing: ease });
-        c.animate([thin, bold], { duration: D * .85, delay: D * .1, easing: 'cubic-bezier(.4,0,.2,1)', fill: 'backwards' });
+        thinEl.animate([{ opacity: 1 }, { opacity: 0 }], { duration: D * .5, delay: D * .2, easing: 'ease-in-out', fill: 'backwards' });
+        boldEl.animate([{ opacity: 0 }, { opacity: 1 }], { duration: D * .5, delay: D * .25, easing: 'ease-in-out', fill: 'backwards' });
         L.querySelector('.splash-foot').animate([{ opacity: 1 }, { opacity: 0 }], { duration: 300, easing: 'ease-in', fill: 'forwards' });
         L.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 600, delay: 250, easing: 'ease-out', fill: 'forwards' });
         // Hand over when the glide has really landed. A fixed timer counted from
@@ -2775,7 +2791,7 @@
         // mid-flight. The long timer only covers a page that never draws.
         move.finished.then(done, done);
         setTimeout(done, 4000);
-      })();
+      }
     };
   })();
   </script>

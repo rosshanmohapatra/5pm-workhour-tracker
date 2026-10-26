@@ -75,7 +75,6 @@
       var _elapsed = Date.now() - (window._loaderStart || Date.now());
       var _wait = Math.max(0, 1000 - _elapsed);
       setTimeout(function() {
-        if (window._splashOut) { window._splashOut(); return; }
         var _l = document.getElementById('appLoader');
         if (_l) { _l.classList.add('app-loader-out'); setTimeout(function(){ _l.remove(); }, 320); }
       }, _wait);
@@ -181,50 +180,29 @@
   <link rel="preconnect" href="https://fonts.googleapis.com/">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap" rel="stylesheet">
   <style>
-    /* ── Splash ──
-       A thin live clock, like an always-on display, over a plain screen that
-       takes every tap. When the app is ready the clock glides into the home
-       header and thickens to its weight; the quiet branding fades away. */
+    /* ── PWA App Loader ── */
     #appLoader {
       position: fixed; inset: 0; z-index: 9999;
       background: var(--background);
       visibility: visible; /* overrides html[visibility:hidden] from auth gate */
-      -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
-    #splashClock {
-      position: fixed; z-index: 10000; left: 50%; top: 44%; transform: translate(-50%, -50%);
-      visibility: visible; pointer-events: none; white-space: nowrap; will-change: transform;
-      display: grid; font-family: var(--font); font-size: clamp(36px, 13vw, 72px); line-height: 1.1;
-      font-variant-numeric: tabular-nums; animation: splashIn .7s ease-out both; }
-    /* Two layers in one cell: the thin always-on clock, and a bold copy styled
-       like the home clock that fades in as it lands. */
-    #splashClock > span { grid-area: 1 / 1; will-change: opacity; }
-    .sc-thin { font-weight: 200; letter-spacing: -.045em; color: var(--muted-fg); justify-self: center; }
-    .sc-bold { display: none; justify-self: start; }
-    @keyframes splashIn { from { opacity: 0; filter: blur(4px); } }
-    .splash-foot { position: absolute; left: 0; right: 0; bottom: calc(56px + env(safe-area-inset-bottom));
-      display: flex; flex-direction: column; align-items: center; gap: 14px; }
-    /* Branding comes last: small and muted, the bar exactly as wide as it. */
-    .splash-brand { display: inline-flex; flex-direction: column; gap: 12px; animation: splashBrandIn .6s ease-out .25s both; }
-    @keyframes splashBrandIn { from { opacity: 0; } }
-    .splash-lock { display: flex; align-items: center; gap: 10px; }
-    .splash-lock img { width: 32px; height: 32px; border-radius: 8px; border: 1px solid var(--border); }
-    #appLoaderLogoDark { display: none; }
-    .dark #appLoaderLogoLight { display: none; }
-    .dark #appLoaderLogoDark { display: block; }
-    .splash-title { font-family: var(--font); font-size: 12px; font-weight: 500; color: var(--muted-fg); white-space: nowrap; }
-    .app-loader-track { width: 100%; height: 2px; background: var(--border); border-radius: 1px; overflow: hidden; }
-    .app-loader-bar   { height: 100%; width: 0; background: var(--muted-fg); border-radius: 1px;
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 28px;
+      transition: opacity .3s ease; }
+    #appLoader.app-loader-out { opacity: 0; pointer-events: none; }
+    #appLoaderLogoLight { display: block; }
+    #appLoaderLogoDark  { display: none;  }
+    .dark #appLoaderLogoLight { display: none;  }
+    .dark #appLoaderLogoDark  { display: block; }
+    .app-loader-track { width: 96px; height: 2px; background: var(--border); border-radius: 1px; overflow: hidden; }
+    .app-loader-bar   { height: 100%; width: 0; background: var(--foreground); border-radius: 1px;
       animation: appLoaderFill 1.1s cubic-bezier(.4,0,.6,1) forwards; }
     @keyframes appLoaderFill {
       0%  { width:  0%; }
       55% { width: 72%; }
       85% { width: 90%; }
       100%{ width: 95%; } }
-    #splashTap { font-family: var(--font); font-size: 11px; color: var(--muted-fg); opacity: 0; transition: opacity .3s; }
     #appLoaderHint { font-size: 12px; color: var(--muted-fg); display: flex; align-items: center; gap: 5px; opacity: 0; animation: appLoaderHintIn .4s ease forwards; animation-delay: 3s; }
     #appLoaderHint button { font-size: 12px; font-weight: 500; color: var(--foreground); background: none; border: none; cursor: pointer; font-family: var(--font); padding: 0; text-decoration: underline; text-underline-offset: 2px; }
     @keyframes appLoaderHintIn { to { opacity: 1; } }
-    @media (prefers-reduced-motion: reduce) { #splashClock, .splash-brand { animation: none; } }
 
     /* ── Design tokens ── */
     :root {
@@ -2705,114 +2683,15 @@
 </head>
 <body>
 
-  <!-- ── Splash ── -->
-  <div id="appLoader" aria-hidden="true">
-    <div class="splash-foot">
-      <div class="splash-brand">
-        <div class="splash-lock">
-          <img id="appLoaderLogoLight" src="/brand-light.svg" alt="">
-          <img id="appLoaderLogoDark"  src="/brand-dark.svg"  alt="">
-          <span class="splash-title">5pm - Work Hour Tracker</span>
-        </div>
-        <div class="app-loader-track"><div class="app-loader-bar"></div></div>
-      </div>
-      <div id="splashTap">Getting your day ready</div>
+  <!-- ── PWA App Loader ── -->
+  <div id="appLoader">
+    <img id="appLoaderLogoLight" src="/brand-light.svg" alt="5pm" width="64" height="64" style="border-radius:16px;border:1px solid var(--border)">
+    <img id="appLoaderLogoDark"  src="/brand-dark.svg"  alt="5pm" width="64" height="64" style="border-radius:16px;border:1px solid var(--border)">
+    <div style="display:flex;flex-direction:column;align-items:center;gap:12px;">
+      <div class="app-loader-track"><div class="app-loader-bar"></div></div>
       <div id="appLoaderHint">Taking too long? <button onclick="window.location.reload()">Force Reload</button></div>
     </div>
   </div>
-  <div id="splashClock" aria-hidden="true"><span class="sc-thin"></span><span class="sc-bold"></span></div>
-  <script>
-  // Splash clock: live from the first frame, in the home clock's own format
-  // once the app's clock() exists, and kept 48px clear of each edge.
-  // _splashOut() glides it onto the home clock and hands over.
-  (function () {
-    var c = document.getElementById('splashClock'), L = document.getElementById('appLoader');
-    var thinEl = c.firstElementChild, boldEl = c.lastElementChild, flying = false;
-    function text() {
-      try { if (typeof clock === 'function' && typeof _clockNow === 'function') return clock(_clockNow()); } catch (e) {}
-      return new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-    }
-    function fit() {
-      c.style.fontSize = '';
-      var room = innerWidth - 96, w = c.getBoundingClientRect().width;
-      if (w > room) c.style.fontSize = (parseFloat(getComputedStyle(c).fontSize) * room / w) + 'px';
-    }
-    // Frozen during the glide: a changing digit mid-flight re-lays out the text.
-    function tick() { if (c.isConnected && !flying) thinEl.textContent = boldEl.textContent = text(); }
-    tick(); fit();
-    var t = setInterval(tick, 1000);
-    if (document.fonts) document.fonts.ready.then(fit);
-    // Taps land on the splash and do nothing; say why.
-    L.addEventListener('pointerdown', function () { document.getElementById('splashTap').style.opacity = 1; });
-
-    var leaving = false;
-    window._splashOut = function () {
-      // Sign-in reports in more than once at startup (the saved session, then
-      // a token refresh on a phone opened hours later). Each report used to
-      // start a fresh glide, and the first one's clean-up removed the clock
-      // mid-flight: it vanished, then the home clock appeared. One hand-off only.
-      if (leaving) return;
-      leaving = true;
-      var target = document.getElementById('selDayClock'), deadline = performance.now() + 4000;
-      var reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
-      var finished = false;
-      function done() {
-        if (finished) return; finished = true;
-        clearInterval(t); c.remove(); L.remove(); if (target) target.style.visibility = '';
-      }
-      function fade() {
-        c.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 300, fill: 'forwards' });
-        L.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 300, fill: 'forwards' }).onfinish = done;
-      }
-      // Wait for the home clock: on a phone the app's main script can take a
-      // second or more to fill it in after sign-in clears (it shows "—" until
-      // then). Counting frames gave up too soon and faded instead of gliding.
-      // Take off once it has its time and holds still; fade only after 4 s.
-      var lastTop = null;
-      (function wait() {
-        var r = target && target.getBoundingClientRect();
-        var ok = r && r.width > 0 && r.top >= 0 && r.bottom <= innerHeight && /\d/.test(target.textContent);
-        var still = ok && lastTop !== null && Math.abs(r.top - lastTop) < 0.5;
-        lastTop = ok ? r.top : null;
-        if (!still) { if (performance.now() < deadline) return requestAnimationFrame(wait); if (!ok) return fade(); }
-        if (reduce || !c.animate) return fade();
-        // Let the app's first heavy render finish, so the glide's first frames
-        // aren't the ones that get dropped.
-        (window.requestIdleCallback || function (f) { setTimeout(f, 60); })(go, { timeout: 350 });
-      })();
-
-      function go() {
-        var r = target.getBoundingClientRect(), cs = getComputedStyle(target);
-        var from = c.getBoundingClientRect(), fromSize = parseFloat(getComputedStyle(c).fontSize);
-        flying = true;
-        thinEl.textContent = boldEl.textContent = target.textContent;
-        Object.assign(boldEl.style, { display: 'block', fontWeight: cs.fontWeight, letterSpacing: cs.letterSpacing,
-          color: cs.color, opacity: 1 });
-        thinEl.style.opacity = 0;
-        target.style.visibility = 'hidden';
-        // Land exactly on the home clock, then play the move in reverse. Only
-        // transform and opacity animate, which phones run off the main thread.
-        Object.assign(c.style, { left: r.left + 'px', top: r.top + 'px', transform: 'none', animation: 'none',
-          fontSize: cs.fontSize, lineHeight: cs.lineHeight });
-        var to = c.getBoundingClientRect(), sc = fromSize / parseFloat(cs.fontSize);
-        var dx = (from.left + from.width / 2) - (to.left + to.width / 2);
-        var dy = (from.top + from.height / 2) - (to.top + to.height / 2);
-        var D = 1000, ease = 'cubic-bezier(.32,.72,0,1)';
-        var move = c.animate([{ transform: 'translate(' + dx + 'px,' + dy + 'px) scale(' + sc + ')' }, { transform: 'none' }], { duration: D, easing: ease });
-        thinEl.animate([{ opacity: 1 }, { opacity: 0 }], { duration: D * .5, delay: D * .2, easing: 'ease-in-out', fill: 'backwards' });
-        boldEl.animate([{ opacity: 0 }, { opacity: 1 }], { duration: D * .5, delay: D * .25, easing: 'ease-in-out', fill: 'backwards' });
-        L.querySelector('.splash-foot').animate([{ opacity: 1 }, { opacity: 0 }], { duration: 300, easing: 'ease-in', fill: 'forwards' });
-        L.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 600, delay: 250, easing: 'ease-out', fill: 'forwards' });
-        // Hand over when the glide has really landed. A fixed timer counted from
-        // the call, but the glide starts on the next drawn frame, which the
-        // app's start-up work can hold back: the timer then pulled the clock
-        // mid-flight. The long timer only covers a page that never draws.
-        move.finished.then(done, done);
-        setTimeout(done, 4000);
-      }
-    };
-  })();
-  </script>
 
   <!-- ── Daily Report modal ── -->
   <div class="overlay" id="checkoutOverlay">

@@ -322,6 +322,8 @@
     .auth-digit:focus { border-color: var(--muted-fg); box-shadow: 0 0 0 3px rgba(113,113,122,.1); }
     .auth-digit::-webkit-outer-spin-button,
     .auth-digit::-webkit-inner-spin-button { -webkit-appearance: none; }
+    /* Phones: fields to the 44px touch standard, text at 16px (matches the app). */
+    @media (max-width: 640px) { .field-input { height: 44px; font-size: 16px; } }
   </style>
 </head>
 <body>

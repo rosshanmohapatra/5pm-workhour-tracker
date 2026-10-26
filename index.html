@@ -2243,6 +2243,18 @@
       .btn-icon, .hdr-icon, .back-btn, .about-social-btn, .an-nav-btn, .this-week-btn,
       .wk-minimize-btn, .wk-edit-icon-btn, .rc-io-cancel-btn, .elt-clear-btn, .split-chevron-btn {
         min-width: 40px; min-height: 40px; }
+      /* Fields and toggles to the touch standard: 44px (Apple HIG, WCAG 2.5.5).
+         Field text at 16px, the size phones read comfortably and iOS won't zoom. */
+      .field-input:not(textarea) { height: 44px; }
+      textarea.field-input, .de-note-wrap textarea, #futureDayReason, #wkndNote, .email-textarea { min-height: 44px; }
+      .field-input, .de-note-wrap textarea, #futureDayReason, #wkndNote, .email-textarea,
+      .tp-free-input, .dev-name { font-size: 16px; }
+      /* Switch 48 x 28 (iOS 51 x 31, Material 52 x 32), thumb 24. The invisible
+         ::after stretches the tap area to 44px tall without moving the layout. */
+      .toggle { width: 48px; height: 28px; --tw: 24px; --th: 24px; }
+      .toggle input:checked + .toggle-track::before { --tx: calc(20px - (var(--tw) - 24px)); }
+      .toggle:active, [onclick]:active > .toggle { --tw: 30px; --th: 18px; --ty: 3px; }
+      .toggle::after { content: ''; position: absolute; inset: -8px -4px; }
     }
 
     /* ── Touch / pressed states (no lingering hover on mobile) ── */

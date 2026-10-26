@@ -61,9 +61,51 @@
       } catch (e) {}
     }
 
+    // ── Start-up safety net ──
+    // The splash used to wait forever when sign-in never reported back. Now:
+    // a login saved on this device opens the app from its own data when the
+    // network is down (offline, or a network that blocks Supabase), and after
+    // 8 s the splash says what went wrong and offers Try Again.
+    var _bootDone = false;
+    var _SB_KEY = 'sb-' + new URL(window.__SB_URL).hostname.split('.')[0] + '-auth-token';
+    function _storedSession() {
+      try { var s = JSON.parse(localStorage.getItem(_SB_KEY) || 'null'); return s && s.user && s.user.id ? s : null; }
+      catch (e) { return null; }
+    }
+    function _jwtClaims(t) {
+      try { return JSON.parse(atob(t.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))); } catch (e) { return {}; }
+    }
+    // Opens the app from this device's copy when the saved login belongs to
+    // the account whose data is cached here. Two-factor still applies: an
+    // account with an authenticator opens only if this login already passed
+    // it (aal2), came from a passkey, or this tab cleared it.
+    function _offlineOpen() {
+      if (_bootDone) return true;
+      var s = _storedSession();
+      if (!s || localStorage.getItem('wh_owner_uid') !== s.user.id) return false;
+      var c = _jwtClaims(s.access_token || '');
+      var hasTotp = (s.user.factors || []).some(function (f) { return f.status === 'verified'; });
+      var viaPasskey = (c.amr || []).some(function (m) { return /passkey|webauthn/i.test(m && m.method); });
+      var mfaOk = false; try { mfaOk = sessionStorage.getItem('wh_mfa_ok') === '1'; } catch (e) {}
+      if (hasTotp && c.aal !== 'aal2' && !viaPasskey && !mfaOk) return false;
+      _revealApp(s);
+      return true;
+    }
+    function _bootGiveUp() {
+      if (_bootDone || _offlineOpen()) return;
+      var h = document.getElementById('appLoaderHint');
+      if (!h) return;
+      h.style.animation = 'none'; h.style.opacity = '1';
+      h.innerHTML = "5pm couldn't finish opening. Check your connection, then <button type=\"button\">Try Again</button>";
+      h.querySelector('button').onclick = function () { window.location.replace(location.pathname); };
+    }
+    setTimeout(function () { if (!_bootDone) _offlineOpen(); }, navigator.onLine === false ? 300 : 4000);
+    setTimeout(_bootGiveUp, 8000);
+
     // Reveal the app + dismiss the loader. Split out so the MFA step-up gate
     // can run an async check first and only reveal once the account is cleared.
     function _revealApp(session) {
+      _bootDone = true;
       _guardAccountLocalData(session);
       document.documentElement.style.visibility = '';   // reveal page
       if (location.search.includes('code=')) {
@@ -98,6 +140,7 @@
               return /passkey|webauthn/i.test(m && m.method);
             });
             if (d && d.nextLevel === 'aal2' && d.currentLevel === 'aal1' && !viaPasskey) {
+              _bootDone = true;
               window.location.replace('/login.html');
             } else {
               _revealApp(session);
@@ -106,7 +149,24 @@
           return;
         }
         _revealApp(session);
-      } else if (event === 'INITIAL_SESSION' && !location.search.includes('code=')) {
+      } else if (event === 'INITIAL_SESSION' && location.search.includes('code=')) {
+        // Back from Google or GitHub. If the code didn't turn into a session
+        // (used, expired, or opened in another browser), nothing else will come:
+        // the splash used to wait forever, and Force Reload brought the same
+        // dead code back. getSession() waits for the exchange to finish.
+        window._sbClient.auth.getSession().then(function (r) {
+          if (_bootDone || (r && r.data && r.data.session)) return;
+          _bootDone = true;
+          window.location.replace('/login.html?error=oauth_failed');
+        });
+      } else if (event === 'INITIAL_SESSION' && _storedSession()) {
+        // No session, yet the saved login is still on the device. Supabase only
+        // deletes it when the server rejects it, so this is the network failing
+        // to refresh an expired login, not a sign-out. It used to take the
+        // sign-out path below, wiping this device's data (unsynced changes
+        // included) and sending you to a sign-in page that couldn't load.
+        _offlineOpen();
+      } else if (event === 'INITIAL_SESSION') {
         // No valid session. This is also the only signal a device gets when it
         // was signed out from elsewhere: "Log out others" kills the refresh
         // token server-side, so this page can never read the devices map to
@@ -121,6 +181,7 @@
             .filter(function(k) { return k.indexOf('wh_') === 0 && k !== 'wh_theme' && k !== 'wh_device_id' && k !== 'wh_ios_install_seen'; })
             .forEach(function(k) { localStorage.removeItem(k); });
         } catch (e) {}
+        _bootDone = true;
         window.location.replace('/login.html');
       } else if (event === 'SIGNED_OUT') {
         try { sessionStorage.removeItem('wh_mfa_ok'); } catch (e) {}
@@ -178,7 +239,7 @@
   <meta name="twitter:description" content="Real-time work hour tracking. Work your hours. Leave on time.">
   <meta name="twitter:image"       content="https://whtracker.vercel.app/social-preview.svg">
   <link rel="preconnect" href="https://fonts.googleapis.com/">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap" rel="stylesheet" media="print" onload="this.media='all'"><noscript><link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap" rel="stylesheet"></noscript>
   <style>
     /* ── PWA App Loader ── */
     #appLoader {
@@ -192,7 +253,7 @@
     #appLoaderLogoDark  { display: none;  }
     .dark #appLoaderLogoLight { display: none;  }
     .dark #appLoaderLogoDark  { display: block; }
-    .app-loader-track { width: 96px; height: 2px; background: var(--border); border-radius: 1px; overflow: hidden; }
+    .app-loader-track { width: 64px; height: 2px; background: var(--border); border-radius: 1px; overflow: hidden; }
     .app-loader-bar   { height: 100%; width: 0; background: var(--foreground); border-radius: 1px;
       animation: appLoaderFill 1.1s cubic-bezier(.4,0,.6,1) forwards; }
     @keyframes appLoaderFill {
@@ -2177,6 +2238,13 @@
       #notifPanel { top: calc(44px + env(safe-area-inset-top) + 8px); width: calc(100% - 32px); }
     }
 
+    /* Icon-only buttons: at least 40px to tap on phones. */
+    @media (max-width: 640px) {
+      .btn-icon, .hdr-icon, .back-btn, .about-social-btn, .an-nav-btn, .this-week-btn,
+      .wk-minimize-btn, .wk-edit-icon-btn, .rc-io-cancel-btn, .elt-clear-btn, .split-chevron-btn {
+        min-width: 40px; min-height: 40px; }
+    }
+
     /* ── Touch / pressed states (no lingering hover on mobile) ── */
     @media (hover: none) {
       /* Kill all hover visuals on touch; show only on :active (finger down) */
@@ -2689,7 +2757,7 @@
     <img id="appLoaderLogoDark"  src="/brand-dark.svg"  alt="5pm" width="64" height="64" style="border-radius:16px;border:1px solid var(--border)">
     <div style="display:flex;flex-direction:column;align-items:center;gap:12px;">
       <div class="app-loader-track"><div class="app-loader-bar"></div></div>
-      <div id="appLoaderHint">Taking too long? <button onclick="window.location.reload()">Force Reload</button></div>
+      <div id="appLoaderHint">Taking too long? <button onclick="window.location.replace(location.pathname)">Force Reload</button></div>
     </div>
   </div>
 

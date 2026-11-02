@@ -14892,16 +14892,14 @@ ${sig}`
       // Collect feedback and email it before proceeding
       const chips = [...(el('delChips')?.querySelectorAll('.del-chip.selected') || [])].map(c => c.textContent.trim()).join(', ');
       const details = el('delFeedbackText')?.value?.trim() || '';
-      fetch('https://formsubmit.co/ajax/roshankanhu@gmail.com', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-        body: JSON.stringify({
-          _subject: '[5pm] Account Deletion Feedback',
-          _captcha: 'false',
-          reasons: chips || 'None selected',
-          details: details || 'No additional details.',
-        })
-      }).catch(() => {}); // fire-and-forget — never block deletion
+      // Saved to Supabase (deletion_feedback: insert-only, read in the
+      // dashboard). Fire-and-forget: feedback never blocks the deletion.
+      if (chips || details) {
+        Promise.resolve(window._sbClient.from('deletion_feedback')
+          .insert({ reasons: chips || null, details: details || null }))
+          .then(r => { if (r && r.error) console.warn('[delete] feedback not saved:', r.error.message); })
+          .catch(() => {});
+      }
 
       el('delViewFeedback').style.display = 'none';
       el('delViewPassword').style.display = '';

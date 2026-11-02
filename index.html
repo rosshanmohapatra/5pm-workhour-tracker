@@ -820,8 +820,10 @@
     #rcBody.ns-progress .rc-numbers { justify-content: center; padding-bottom: 0; }
     #rcBody.ns-times #rcDescRow,
     #rcBody.ns-progress #rcDescRow { padding-top: 0; }
-    #rcBody.ns-times #rcPairTabsRow,
-    #rcBody.ns-progress #rcPairTabsRow { display: none; }
+    /* Before starting, Time/Progress has nothing to switch, but the day-type
+       button beside it must stay: it's how a day is set to Half Day or Leave. */
+    #rcBody.ns-times #rcPairTabs,
+    #rcBody.ns-progress #rcPairTabs { visibility: hidden; }
     /* Active/in-progress: tight 8px layout, 32px breathing above & below the KPI group */
     #rcBody:not(.ns-times):not(.ns-progress):not(.weekend-mode):not(.past-day) { gap: 8px; }
     #rcBody:not(.ns-times):not(.ns-progress):not(.weekend-mode):not(.past-day) #rcKpiGroup { margin-top: 24px; margin-bottom: 24px; }

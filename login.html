@@ -1,7 +1,7 @@
 ﻿<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8"><script src="/lib/csp-handlers.js"></script><script src="/lib/pages/login-handlers.js"></script>
   <link rel="manifest" href="/manifest.json">
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
@@ -19,9 +19,9 @@
   <meta name="theme-color" content="#f5f5f7" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#09090b" media="(prefers-color-scheme: dark)">
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" media="print" onload="this.media='all'"><noscript><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"></noscript>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" media="print" data-on-load="he403411552"><noscript><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"></noscript>
   <!-- Apply saved theme before first paint (prevents dark/light flash) -->
-  <script>(function(){var s=localStorage.getItem('wh_theme');var p=window.matchMedia('(prefers-color-scheme:dark)').matches;if(s?s==='dark':p)document.documentElement.classList.add('dark');})()</script>
+  <script src="/lib/pages/login-inline.js"></script>
   <!-- Single source of truth for Supabase credentials (sets window.__SB_URL / __SB_ANON_KEY) -->
   <script src="/lib/config.js"></script>
   <!-- Supabase JS SDK — self-hosted, eliminates CDN SSL issues on iOS (see lib/supabase.umd.js) -->
@@ -330,7 +330,7 @@
 
   <!-- Theme toggle -->
   <div class="top-bar">
-    <button class="theme-btn" id="themeBtn" onclick="toggleTheme()" title="Toggle theme">
+    <button class="theme-btn" id="themeBtn" data-on-click="h6da8d21fcf" title="Toggle theme">
       <svg id="themeIconSun" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="display:none"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
       <svg id="themeIconMoon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
     </button>
@@ -382,18 +382,18 @@
       <div class="field">
         <div class="field-label-row">
           <div class="field-label">Password</div>
-          <button class="forgot-link" id="forgotLink" onclick="showRecovery()"><span class="forgot-link-text">Forgot password?</span></button>
+          <button class="forgot-link" id="forgotLink" data-on-click="h360e8a7cde"><span class="forgot-link-text">Forgot password?</span></button>
         </div>
         <div class="pwd-wrap">
           <input class="field-input" id="pwdInput" type="password" placeholder="••••••••" autocomplete="current-password">
-          <button class="pwd-toggle" type="button" onclick="togglePwd()" title="Show / hide password">
+          <button class="pwd-toggle" type="button" data-on-click="h59c6fde884" title="Show / hide password">
             <svg id="eyeOpen" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
             <svg id="eyeClose" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
           </button>
         </div>
       </div>
 
-      <button class="btn-primary" id="submitBtn" onclick="handleSubmit()">
+      <button class="btn-primary" id="submitBtn" data-on-click="h46df00ab5d">
         <div class="spinner"></div>
         <span class="btn-label" id="submitLabel">Sign In</span>
       </button>
@@ -410,7 +410,7 @@
       <div class="auth-title">Account Recovery</div>
       <div class="auth-sub">Choose how you'd like to reset your access.</div>
 
-      <button class="btn-primary" id="recoverEmailBtn" onclick="startEmailRecovery()">
+      <button class="btn-primary" id="recoverEmailBtn" data-on-click="h70c437f62a">
         <div class="spinner"></div>
         <span class="btn-label">Send an Email</span>
       </button>
@@ -429,12 +429,12 @@
         <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0 1 12 6.844a9.59 9.59 0 0 1 2.504.337c1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0 0 22 12.017C22 6.484 17.522 2 12 2z"/></svg>
         Continue with GitHub
       </button>
-      <button class="btn-oauth" onclick="showAuthDigits()">
+      <button class="btn-oauth" data-on-click="hd08a616183">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path fill-rule="evenodd" clip-rule="evenodd" d="M6 2C3.79086 2 2 3.79086 2 6V18C2 20.2091 3.79086 22 6 22H18C20.2091 22 22 20.2091 22 18V6C22 3.79086 20.2091 2 18 2H6ZM7 7H9V9H7V7ZM9 11H7V13H9V11ZM7 15H9V17H7V15ZM11 7H13V9H11V7ZM13 11H11V13H13V11ZM11 15H13V17H11V15ZM17 7H15V9H17V7ZM15 11H17V13H15V11ZM17 15H15V17H17V15Z" fill="currentColor"/></svg>
         Use Authenticator
       </button>
 
-      <button class="back-link" onclick="backToLogin()">
+      <button class="back-link" data-on-click="heb9206632a">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg>
         Back to sign in
       </button>
@@ -446,15 +446,15 @@
       <div class="auth-sub">A 6-digit code was sent to <strong id="sentEmail"></strong>. Enter it before the timer runs out.</div>
 
       <div class="timer-row" id="timerRow">Code expires in <span id="timerDisplay">1:00</span></div>
-      <div class="expired-row" id="expiredRow">Code expired. <a onclick="resendCode()">Resend email</a></div>
+      <div class="expired-row" id="expiredRow">Code expired. <a data-on-click="h66fb21f3af">Resend email</a></div>
 
       <input class="field-input code-input" id="recoveryCode" type="text" inputmode="numeric"
         maxlength="6" placeholder="000000" autocomplete="one-time-code"
-        oninput="document.getElementById('verifyOTPBtn').disabled=this.value.length<6||recExpired">
+        data-on-input="hf56c91254e">
 
-      <button class="btn-primary" id="verifyOTPBtn" onclick="completeRecovery()" disabled>Verify Code</button>
+      <button class="btn-primary" id="verifyOTPBtn" data-on-click="h0e44d80fe8" disabled>Verify Code</button>
 
-      <button class="back-link" onclick="showRecovery()">
+      <button class="back-link" data-on-click="h360e8a7cde">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg>
         Use a different method
       </button>
@@ -474,7 +474,7 @@
         <input class="auth-digit" id="rd5" type="text" inputmode="numeric" maxlength="1">
       </div>
 
-      <button class="btn-primary" id="authDigitVerify" onclick="completeRecovery()" disabled>Verify Code</button>
+      <button class="btn-primary" id="authDigitVerify" data-on-click="h0e44d80fe8" disabled>Verify Code</button>
 
       <div id="authErr" class="field-error" style="margin-top:10px;text-align:center"></div>
 
@@ -486,10 +486,10 @@
 
       <input class="field-input" id="authBackupInput" type="text" placeholder="xxxx-xxxx" autocomplete="off"
         style="text-align:center;letter-spacing:.1em"
-        oninput="document.getElementById('authBackupVerify').disabled=this.value.replace(/[^a-z0-9]/gi,'').length<8">
-      <button class="btn-oauth" id="authBackupVerify" onclick="verifyBackupCode()" disabled style="margin-top:10px;width:100%">Use Backup Code</button>
+        data-on-input="h6394b9e004">
+      <button class="btn-oauth" id="authBackupVerify" data-on-click="h60a7d6a144" disabled style="margin-top:10px;width:100%">Use Backup Code</button>
 
-      <button class="back-link" onclick="backToLogin()">
+      <button class="back-link" data-on-click="heb9206632a">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg>
         Back to sign in
       </button>
@@ -509,7 +509,7 @@
   <!-- Footer -->
   <div class="auth-footer" id="authFooter">
     <span id="footerText">New to 5pm?</span>
-    <a class="auth-footer-link" id="toggleLink" onclick="toggleMode()">Create an Account</a>
+    <a class="auth-footer-link" id="toggleLink" data-on-click="hcd9818de84">Create an Account</a>
   </div>
 
   <!-- All login page logic lives in login.js -->

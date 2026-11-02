@@ -1,0 +1,17 @@
+name: CSP check
+
+# The Content Security Policy forbids inline JavaScript. This fails the push
+# if any inline <script>, on*="" handler or javascript: URL comes back.
+on:
+  push:
+  pull_request:
+
+jobs:
+  no-inline-script:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: node scripts/check-csp.js

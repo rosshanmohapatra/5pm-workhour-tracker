@@ -1904,10 +1904,29 @@
     .wp-acc.open .wp-acc-body { grid-template-rows: 1fr; }
     .wp-acc-inner { overflow: hidden; min-height: 0; }
     @media (prefers-reduced-motion: reduce) { .wp-acc-body, .wp-acc-head svg { transition: none; } }
+    /* Settings › Advanced uses the same collapsible to-do lists. The header
+       keeps the title and its description; the summary sits on the right. */
+    .set-acc-head { min-height: 0; align-items: center; gap: 12px; }
+    .set-acc-head .target-day-head { flex: 1; min-width: 0; }
+    .set-acc-head .wp-more-sum { flex: 0 0 auto; }
+    .target-day-picker.set-todo { flex-direction: column; flex-wrap: nowrap; gap: 0; padding-top: 8px; }
+    .set-acc + .set-acc { border-top: none; }
+    .set-todo .plan-btn { display: flex; align-items: center; justify-content: space-between; width: 100%; height: auto;
+      min-height: 44px; padding: 0 10px; border-radius: 10px; background: transparent; color: var(--muted-fg);
+      font-size: 14px; font-weight: 400; text-align: left; -webkit-tap-highlight-color: transparent; }
+    .set-todo .plan-btn::after { content: ''; width: 20px; height: 20px; flex-shrink: 0; box-sizing: border-box;
+      border-radius: 50%; border: 1.5px solid var(--muted-fg); }
+    @media (hover: hover) { .set-todo .plan-btn:hover { background: var(--muted); color: var(--muted-fg); } }
+    .set-todo .plan-btn:active { background: var(--border); }
+    .set-todo .plan-btn.selected { background: transparent; color: var(--muted-fg); }
+    .set-todo .plan-btn.selected::after { border-color: var(--foreground); background: var(--foreground)
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E") center / 12px no-repeat; }
+    .dark .set-todo .plan-btn.selected::after { background-image:
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2309090b' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E"); }
     /* To-do rows: full width, tap anywhere on the row to check it. */
     .wp-todo { display: flex; flex-direction: column; padding-bottom: 6px; }
     .wp-todo-row { position: relative; display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 0 10px;
-      border-radius: 10px; font-size: 14px; color: var(--foreground); cursor: pointer;
+      border-radius: 10px; font-size: 14px; color: var(--muted-fg); cursor: pointer;
       -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; }
     @media (hover: hover) { .wp-todo-row:hover { background: var(--muted); } }
     .wp-todo-row:active { background: var(--border); }
@@ -1988,7 +2007,7 @@
     .wp-picker-overlay { position:fixed; z-index:2000; display:none; }
     .wp-picker-overlay.open { display:block; }
     .wp-picker-dialog { background:var(--card); border:1px solid var(--border); border-radius:20px;
-      padding:16px; width:320px; box-shadow:0 16px 48px rgba(0,0,0,.22); }
+      padding:16px; width:320px; max-width:calc(100vw - 16px); box-sizing:border-box; box-shadow:0 16px 48px rgba(0,0,0,.22); }
     /* Header: month/year LEFT, nav arrows RIGHT */
     .wp-picker-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
     .wp-picker-month { font-size:14px; font-weight:600; color:var(--foreground); flex:1; }
@@ -3493,32 +3512,44 @@
                  onRecommendTimingsChange() shows and hides this block by id, so
                  moving it down here changes nothing functionally. -->
             <div id="recommendTimingsBlock" class="tile-sub">
-              <div class="target-day-block">
-                <div class="target-day-head">
-                  <div class="form-label">Short Days</div>
-                  <div class="form-sub">Days you usually leave early. 5pm plans your week around them.</div>
-                </div>
-                <div class="target-day-picker" id="targetDayPicker">
-                  <button type="button" class="plan-btn" data-tday="1">Monday</button>
-                  <button type="button" class="plan-btn" data-tday="2">Tuesday</button>
-                  <button type="button" class="plan-btn" data-tday="3">Wednesday</button>
-                  <button type="button" class="plan-btn" data-tday="4">Thursday</button>
-                  <button type="button" class="plan-btn" data-tday="5">Friday</button>
-                </div>
+              <div class="target-day-block wp-acc set-acc" id="setShortAcc">
+                <button type="button" class="wp-acc-head set-acc-head" aria-expanded="false" aria-controls="targetDayPicker">
+                  <span class="target-day-head">
+                    <span class="form-label">Short Days</span>
+                    <span class="form-sub">Days you usually leave early. 5pm plans your week around them.</span>
+                  </span>
+                  <span class="wp-more-sum" id="setShortSum"></span>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+                </button>
+                <div class="wp-acc-body" inert><div class="wp-acc-inner">
+                  <div class="target-day-picker set-todo" id="targetDayPicker">
+                    <button type="button" class="plan-btn" data-tday="1">Monday</button>
+                    <button type="button" class="plan-btn" data-tday="2">Tuesday</button>
+                    <button type="button" class="plan-btn" data-tday="3">Wednesday</button>
+                    <button type="button" class="plan-btn" data-tday="4">Thursday</button>
+                    <button type="button" class="plan-btn" data-tday="5">Friday</button>
+                  </div>
+                </div></div>
               </div>
 
-              <div class="target-day-block">
-                <div class="target-day-head">
-                  <div class="form-label">Long Days</div>
-                  <div class="form-sub">Days you usually stay late. Your other days get lighter.</div>
-                </div>
-                <div class="target-day-picker" id="dayPicker">
-                  <button type="button" class="plan-btn" data-sday="0">Monday</button>
-                  <button type="button" class="plan-btn selected" data-sday="1">Tuesday</button>
-                  <button type="button" class="plan-btn" data-sday="2">Wednesday</button>
-                  <button type="button" class="plan-btn selected" data-sday="3">Thursday</button>
-                  <button type="button" class="plan-btn" data-sday="4">Friday</button>
-                </div>
+              <div class="target-day-block wp-acc set-acc" id="setLongAcc">
+                <button type="button" class="wp-acc-head set-acc-head" aria-expanded="false" aria-controls="dayPicker">
+                  <span class="target-day-head">
+                    <span class="form-label">Long Days</span>
+                    <span class="form-sub">Days you usually stay late. Your other days get lighter.</span>
+                  </span>
+                  <span class="wp-more-sum" id="setLongSum"></span>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+                </button>
+                <div class="wp-acc-body" inert><div class="wp-acc-inner">
+                  <div class="target-day-picker set-todo" id="dayPicker">
+                    <button type="button" class="plan-btn" data-sday="0">Monday</button>
+                    <button type="button" class="plan-btn" data-sday="1">Tuesday</button>
+                    <button type="button" class="plan-btn" data-sday="2">Wednesday</button>
+                    <button type="button" class="plan-btn" data-sday="3">Thursday</button>
+                    <button type="button" class="plan-btn" data-sday="4">Friday</button>
+                  </div>
+                </div></div>
               </div>
             </div>
 
@@ -3794,16 +3825,17 @@
               </div>
 
               <!-- Sample penalties for trying Email Draft (memory only) -->
-              <div class="dev-row">
+              <!-- The whole row is the label, so a tap anywhere on it toggles -->
+              <label class="dev-row" style="cursor:pointer">
                 <div>
                   <div class="form-label">Sample Penalties</div>
                   <div class="form-sub">Adds 2 short days and 1 short week to Penalties and the bell, to try Email Draft. Nothing is saved.</div>
                 </div>
-                <label class="toggle" style="flex-shrink:0">
+                <span class="toggle" style="flex-shrink:0">
                   <input type="checkbox" id="devSamplePenalties">
                   <span class="toggle-track"></span>
-                </label>
-              </div>
+                </span>
+              </label>
 
               <!-- Sync — function row (kept at the bottom) -->
               <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
@@ -3954,7 +3986,7 @@
   <a href="https://github.com/rosshanmohapatra/5pm-workhour-tracker/releases" target="_blank" rel="noopener" class="version-pill">
     <span style="font-size:11px;font-weight:600;color:var(--muted-fg);letter-spacing:.01em">5pm</span>
     <span style="font-size:10px;font-weight:600;letter-spacing:.05em;
-      background:var(--muted);color:var(--muted-fg);padding:4px 7px;border-radius:100px">v1.2.25</span>
+      background:var(--muted);color:var(--muted-fg);padding:4px 7px;border-radius:100px">v1.2.26</span>
   </a>
 
   <!-- ── Weekly Report Modal ── -->
@@ -4769,26 +4801,26 @@
       <div class="dialog-body">
         <div id="wpDayRows"></div>
         <div style="height:1px;background:var(--border);margin:4px 0 12px"></div>
-        <!-- Early Leave and Stay Late: two collapsible to-do lists, collapsed by default -->
+        <!-- Short Days and Long Days (as named in Settings): two collapsible to-do lists, collapsed by default -->
         <div id="wpRecommendBlock">
           <div class="wp-acc" id="wpEarlyAcc">
             <button type="button" class="wp-acc-head" aria-expanded="false" aria-controls="wpTargetDay">
-              <span class="wp-more-title">Early Leave</span>
+              <span class="wp-more-title">Short Days</span>
               <span class="wp-more-sum" id="wpEarlySum"></span>
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
             </button>
             <div class="wp-acc-body" inert><div class="wp-acc-inner">
-              <div class="wp-todo" id="wpTargetDay" role="group" aria-label="Early Leave"></div>
+              <div class="wp-todo" id="wpTargetDay" role="group" aria-label="Short Days"></div>
             </div></div>
           </div>
           <div class="wp-acc" id="wpLateAcc">
             <button type="button" class="wp-acc-head" aria-expanded="false" aria-controls="wpLateDays">
-              <span class="wp-more-title">Stay Late</span>
+              <span class="wp-more-title">Long Days</span>
               <span class="wp-more-sum" id="wpLateSum"></span>
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
             </button>
             <div class="wp-acc-body" inert><div class="wp-acc-inner">
-              <div class="wp-todo" id="wpLateDays" role="group" aria-label="Stay Late"></div>
+              <div class="wp-todo" id="wpLateDays" role="group" aria-label="Long Days"></div>
             </div></div>
           </div>
         </div>

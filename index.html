@@ -1050,6 +1050,13 @@
          doesn't stall while the browser creates one. */
       .td-panel, .ios-install-sheet, #emailModalOverlay .email-modal { will-change: transform; }
       .td-scrim, .ios-install-overlay { will-change: opacity; }
+      /* While a finger drags a sheet, it follows the finger exactly. The email
+         sheet's open/close transition is !important, so this has to be too, or
+         every move eased over half a second and the sheet jerked behind the finger. */
+      .td-panel.sheet-dragging, .ios-install-sheet.sheet-dragging,
+      #emailModalOverlay .email-modal.sheet-dragging { transition: none !important; }
+      /* Bottom sheets close by drag, tap outside or Escape: no × on phones. */
+      #emailModalOverlay .email-modal-close { display: none; }
       .sheet-dragging::before, .sheet-dragging .ios-handle-bar { width: 48px !important; background: rgba(127,127,127,.85) !important; }
     }
 
@@ -1687,6 +1694,13 @@
       display: flex; flex-direction: column; gap: 8px; }
     .email-pv-meta { font-size: 12px; color: var(--muted-fg); overflow-wrap: anywhere; }
     .email-pv-subject { font-size: 14px; font-weight: 600; color: var(--foreground); overflow-wrap: anywhere; }
+    /* Changing tone: a skeleton for a second, then the new text. The height
+       glides between them, so the sheet grows or shrinks smoothly. */
+    .email-preview { overflow: hidden; transition: height .32s cubic-bezier(.32,.72,0,1); }
+    .email-pv-skel { display: none; flex-direction: column; gap: 9px; }
+    .email-preview.loading .email-pv-skel { display: flex; }
+    .email-preview.loading .email-pv-subject, .email-preview.loading .email-pv-body { display: none; }
+    @media (prefers-reduced-motion: reduce) { .email-preview { transition: none; } }
     .email-pv-body { font-size: 13px; line-height: 1.6; color: var(--foreground); white-space: pre-wrap; overflow-wrap: anywhere; }
     .email-send { display: flex; align-items: center; justify-content: center; height: 44px; text-decoration: none; }
     .email-pane { display: flex; flex-direction: column; gap: 12px; }
@@ -1836,15 +1850,13 @@
       border: 1px solid var(--border); border-radius: 8px; cursor: pointer; color-scheme: light dark;
       -webkit-appearance: none; appearance: none; -webkit-tap-highlight-color: transparent; }
     /* Dropdown menu (lib/pages/menu-select.js): same on every device. The real
-       <select> is hidden; this button opens a glass menu anchored under its
-       right edge, growing from that corner. */
+       <select> is hidden; this button, as wide as its text, opens a solid menu
+       anchored under its right edge, growing from that corner. */
     .ms-native { display: none !important; }
-    .ms-trigger { display: inline-flex; align-items: center; justify-content: flex-end; }
+    .ms-trigger { display: inline-flex; align-items: center; justify-content: flex-end; min-width: 0; width: auto; white-space: nowrap; }
     .ms-trigger[aria-expanded="true"] { background-color: var(--muted); }
     .ms-menu { position: fixed; left: 0; top: 0; z-index: 9600; padding: 6px; max-height: min(60vh, 360px); overflow-y: auto;
-      background: color-mix(in srgb, var(--card) 72%, transparent);
-      backdrop-filter: blur(24px) saturate(1.8); -webkit-backdrop-filter: blur(24px) saturate(1.8);
-      border: .5px solid color-mix(in srgb, var(--foreground) 14%, transparent); border-radius: 16px;
+      background: var(--card); border: 1px solid var(--border); border-radius: 16px;
       box-shadow: 0 12px 40px rgba(0,0,0,.28), 0 2px 8px rgba(0,0,0,.12);
       opacity: 0; transform: scale(.9); transform-origin: top right; pointer-events: none;
       transition: opacity .14s ease, transform .24s cubic-bezier(.32,.72,0,1); }
@@ -2578,6 +2590,12 @@
     /* ── Dialog foot row (side-by-side CTAs) ── */
     .dialog-foot-row { padding: 0 22px 22px; display: flex; flex-direction: row; gap: 8px; }
     .dialog-foot-row .btn { flex: 1; }
+    /* Plan Your Week: the title and the Skip / Confirm Plan panel stay fixed;
+       only the days scroll between them. */
+    #weekPlanOverlay .dialog { display: flex; flex-direction: column; overflow: hidden; }
+    #weekPlanOverlay .dialog-head { flex-shrink: 0; }
+    #weekPlanOverlay .dialog-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+    #weekPlanOverlay .dialog-foot-row { flex-shrink: 0; padding-top: 14px; border-top: 1px solid var(--border); background: var(--card); }
 
     /* ── Disabled time inputs in modal ── */
 
@@ -4785,6 +4803,14 @@
             <div class="email-pv-meta" id="emailPvMeta"></div>
             <div class="email-pv-subject" id="emailPvSubject"></div>
             <div class="email-pv-body" id="emailPvBody"></div>
+            <!-- Shown for a moment while the new tone's text is put together -->
+            <div class="email-pv-skel" aria-hidden="true">
+              <span class="skel" style="width:58%;height:14px"></span>
+              <span class="skel" style="width:22%;height:11px;margin-top:6px"></span>
+              <span class="skel" style="width:96%;height:11px"></span>
+              <span class="skel" style="width:88%;height:11px"></span>
+              <span class="skel" style="width:70%;height:11px"></span>
+            </div>
           </div>
           <div class="email-actions">
             <button type="button" class="btn btn-secondary" id="emailCustomiseBtn">Customise</button>

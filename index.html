@@ -1046,6 +1046,10 @@
       #emailModalOverlay.open .email-modal { transform: none; }
       #emailModalOverlay .email-modal::before { content: ''; display: block; width: 36px; height: 5px; border-radius: 3px;
         background: rgba(127,127,127,.4); margin: 0 auto 14px; }
+      /* Kept on their own GPU layer ahead of time, so a drag's first frame
+         doesn't stall while the browser creates one. */
+      .td-panel, .ios-install-sheet, #emailModalOverlay .email-modal { will-change: transform; }
+      .td-scrim, .ios-install-overlay { will-change: opacity; }
       .sheet-dragging::before, .sheet-dragging .ios-handle-bar { width: 48px !important; background: rgba(127,127,127,.85) !important; }
     }
 
@@ -1826,12 +1830,39 @@
     .wp-override-btn:hover { color: var(--foreground); }
     .wp-override-btn.active { background: var(--muted); color: var(--foreground);
       box-shadow: 0 1px 2px rgba(0,0,0,.15); }
-    /* Day plan: one native dropdown per day (the phone's own picker opens). */
+    /* Dropdown button (day plan, Writing Tone). Opens the menu below. */
     .wp-select { height: 34px; min-width: 128px; padding: 0 32px 0 12px; font: 500 13px var(--font);
       color: var(--foreground); background: var(--input-bg) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E") no-repeat right 12px center;
       border: 1px solid var(--border); border-radius: 8px; cursor: pointer; color-scheme: light dark;
-      -webkit-appearance: none; appearance: none; }
-    .wp-select:focus-visible { outline: 2px solid var(--ring); outline-offset: 1px; }
+      -webkit-appearance: none; appearance: none; -webkit-tap-highlight-color: transparent; }
+    /* Dropdown menu (lib/pages/menu-select.js): same on every device. The real
+       <select> is hidden; this button opens a glass menu anchored under its
+       right edge, growing from that corner. */
+    .ms-native { display: none !important; }
+    .ms-trigger { display: inline-flex; align-items: center; justify-content: flex-end; }
+    .ms-trigger[aria-expanded="true"] { background-color: var(--muted); }
+    .ms-menu { position: fixed; left: 0; top: 0; z-index: 9600; padding: 6px; max-height: min(60vh, 360px); overflow-y: auto;
+      background: color-mix(in srgb, var(--card) 72%, transparent);
+      backdrop-filter: blur(24px) saturate(1.8); -webkit-backdrop-filter: blur(24px) saturate(1.8);
+      border: .5px solid color-mix(in srgb, var(--foreground) 14%, transparent); border-radius: 16px;
+      box-shadow: 0 12px 40px rgba(0,0,0,.28), 0 2px 8px rgba(0,0,0,.12);
+      opacity: 0; transform: scale(.9); transform-origin: top right; pointer-events: none;
+      transition: opacity .14s ease, transform .24s cubic-bezier(.32,.72,0,1); }
+    .ms-menu[data-side="top"] { transform-origin: bottom right; }
+    .ms-menu.open { opacity: 1; transform: none; pointer-events: auto; }
+    .ms-opt { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 40px; padding: 0 12px;
+      border-radius: 10px; font: 500 14px var(--font); color: var(--foreground); cursor: pointer; outline: none;
+      -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; }
+    .ms-opt svg { flex-shrink: 0; opacity: 0; }
+    .ms-opt[aria-selected="true"] svg { opacity: 1; }
+    @media (hover: hover) { .ms-opt:hover { background: color-mix(in srgb, var(--foreground) 9%, transparent); } }
+    .ms-opt:focus-visible { background: color-mix(in srgb, var(--foreground) 9%, transparent); }
+    .ms-opt:active { background: color-mix(in srgb, var(--foreground) 14%, transparent); }
+    @media (max-width: 640px) { .ms-opt { min-height: 44px; font-size: 16px; } }
+    @media (prefers-reduced-motion: reduce) { .ms-menu { transition: opacity .1s ease; transform: none; } }
+    /* No focus look on a tap; keyboard users on a desktop still get the outline. */
+    .wp-select:focus { outline: none; }
+    @media (hover: hover) and (pointer: fine) { .wp-select:focus-visible { outline: 2px solid var(--ring); outline-offset: 1px; } }
     /* Early Leave & Stay Late: two collapsible sections. The body opens by
        transitioning its grid row from 0fr to 1fr, the browser's own height
        animation, so the content below slides instead of jumping. */
@@ -1854,7 +1885,8 @@
     @media (hover: hover) { .wp-todo-row:hover { background: var(--muted); } }
     .wp-todo-row:active { background: var(--border); }
     .wp-todo-row input { position: absolute; opacity: 0; pointer-events: none; }
-    .wp-todo-box { width: 20px; height: 20px; flex-shrink: 0; border-radius: 50%; border: 1.5px solid var(--muted-fg);
+    /* Check sits on the right of the day name. */
+    .wp-todo-box { order: 2; margin-left: auto; width: 20px; height: 20px; flex-shrink: 0; border-radius: 50%; border: 1.5px solid var(--muted-fg);
       display: grid; place-items: center; transition: background .15s, border-color .15s; }
     .wp-todo-row input:checked + .wp-todo-box { background: var(--foreground); border-color: var(--foreground); }
     .wp-todo-row input:checked + .wp-todo-box::after { content: ''; width: 12px; height: 12px; background: var(--card);
@@ -3673,7 +3705,7 @@
               <div class="dev-row">
                 <div>
                   <div class="form-label">Sample Penalties</div>
-                  <div class="form-sub">Adds 2 short days and 1 short week to Penalties to try Email Draft. Nothing is saved.</div>
+                  <div class="form-sub">Adds 2 short days and 1 short week to Penalties and the bell, to try Email Draft. Nothing is saved.</div>
                 </div>
                 <label class="toggle" style="flex-shrink:0">
                   <input type="checkbox" id="devSamplePenalties">
@@ -4741,7 +4773,7 @@
           <div class="email-tone">
             <label class="email-label" for="emailTone">Writing Tone</label>
             <button class="info-icon-btn" type="button" aria-label="About Open Mail"
-              data-tip-desc="Opens your mail app with this email filled in. You can still edit it before sending."
+              id="emailToneInfo" data-tip-desc="Opens your mail app with this email filled in. You can still edit it before sending."
               data-on-click="h335c87590c" data-on-mouseenter="h2bb7e7eb46" data-on-mouseleave="h83efb5e4ca"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg></button>
             <select class="wp-select" id="emailTone">
               <option value="concise">Concise</option>
@@ -4756,7 +4788,7 @@
           </div>
           <div class="email-actions">
             <button type="button" class="btn btn-secondary" id="emailCustomiseBtn">Customise</button>
-            <a class="btn btn-primary email-send" id="emailSendBtn" href="mailto:"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z"/><path d="m21.854 2.147-10.94 10.939"/></svg>Open Mail</a>
+            <a class="btn btn-primary email-send" id="emailSendBtn" href="mailto:"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z"/><path d="m21.854 2.147-10.94 10.939"/></svg><span id="emailSendLabel">Open Mail</span></a>
           </div>
         </div>
         <!-- Customise: recipients and name are saved to the account; the reason is for this email -->
@@ -4782,6 +4814,8 @@
   </div>
 
   <script src="/lib/use-gesture.js"></script>
+  <script src="/lib/floating-ui.js"></script>
+  <script src="/lib/pages/menu-select.js"></script>
   <script src="/lib/pages/sheet.js"></script>
   <script src="/lib/pages/index-app.js"></script>
 

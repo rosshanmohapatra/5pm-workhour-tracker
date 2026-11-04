@@ -124,6 +124,10 @@
 
     /* ── Scrollbar (Fluent Design thin overlay) ── */
     html { scrollbar-gutter: stable; }
+    /* Background scroll lock (phones and tablets only, set by index-app.js):
+       the body is pinned in place while a modal or sheet is open. */
+    html.scroll-locked { overflow: hidden; overscroll-behavior: none; }
+    html.scroll-locked body { position: fixed; left: 0; right: 0; width: 100%; overflow: hidden; }
     ::-webkit-scrollbar { width: 4px; height: 4px; }
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { background: rgba(128,128,128,.35); border-radius: 4px; }
@@ -1011,9 +1015,40 @@
       .td-kpis { border-radius: 20px; padding: 6px 16px; }
       .td-type { padding: 14px 16px; font-size: 15px; border-radius: 14px; }
       .td-confirm { height: 50px; font-size: 16px; font-weight: 600; border-radius: 999px; }
-      html.td-sheet-open, html.td-sheet-open body { overflow: hidden; overscroll-behavior: none; }
       .td-scrim { touch-action: none; }
     }
+    /* ── iOS-style sheets on phones (Plan Your Day, Email Draft, install prompt) ──
+       Float 4px in from the sides and bottom, with large rounded corners. Open
+       and close on the iOS sheet curve. The grab pill widens and darkens while
+       the sheet is dragged (.sheet-dragging, set by lib/pages/sheet.js). */
+    .ios-install-overlay { display: none; position: fixed; inset: 0; z-index: 9000; background: rgba(0,0,0,.45);
+      backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); opacity: 0; transition: opacity .3s ease; }
+    .ios-install-overlay.open { opacity: 1; }
+    .ios-install-sheet { display: none; position: fixed; left: 0; right: 0; bottom: 0; z-index: 9001;
+      background: var(--card); border-top: 1px solid var(--border); border-radius: 20px 20px 0 0;
+      padding: 0 24px calc(24px + env(safe-area-inset-bottom)); box-shadow: 0 -8px 40px rgba(0,0,0,.18);
+      transform: translateY(100%); transition: transform .5s cubic-bezier(.32,.72,0,1); touch-action: none; }
+    .ios-install-sheet.open { transform: none; }
+    .ios-share-cta { width: 100%; height: 50px; margin-top: 24px; gap: 8px; font-size: 16px; font-weight: 600; border-radius: 999px;
+      display: flex; align-items: center; justify-content: center; }
+    .ios-handle-bar, .td-panel::before, #emailModalOverlay .email-modal::before {
+      transition: width .2s cubic-bezier(.32,.72,0,1), background-color .2s ease; }
+    @media (max-width: 640px) {
+      .td-panel, .ios-install-sheet { left: 4px; right: 4px; bottom: 4px; width: auto; border: none; border-radius: 32px; }
+      .td-panel { padding-bottom: calc(16px + env(safe-area-inset-bottom)); box-shadow: 0 8px 40px rgba(0,0,0,.35);
+        transform: translateY(calc(100% + 8px)); transition: transform .5s cubic-bezier(.32,.72,0,1), visibility 0s linear .5s; }
+      .td-panel.open { transition: transform .5s cubic-bezier(.32,.72,0,1); }
+      .ios-install-sheet { padding-bottom: calc(16px + env(safe-area-inset-bottom)); transform: translateY(calc(100% + 8px)); }
+      .ios-install-sheet.open { transform: none; }
+      #emailModalOverlay { padding: 0 4px 4px; }
+      #emailModalOverlay .email-modal { border: none; border-radius: 32px; padding-top: 8px; overscroll-behavior: contain;
+        transform: translateY(calc(100% + 8px)); transition: transform .5s cubic-bezier(.32,.72,0,1) !important; }
+      #emailModalOverlay.open .email-modal { transform: none; }
+      #emailModalOverlay .email-modal::before { content: ''; display: block; width: 36px; height: 5px; border-radius: 3px;
+        background: rgba(127,127,127,.4); margin: 0 auto 14px; }
+      .sheet-dragging::before, .sheet-dragging .ios-handle-bar { width: 48px !important; background: rgba(127,127,127,.85) !important; }
+    }
+
     /* ── Today panel number rows ── */
     .td-row { display: flex; align-items: center; justify-content: space-between; padding: 7px 0; font-size: 13px; }
     .td-row + .td-row { border-top: 1px solid var(--border); }
@@ -1640,8 +1675,8 @@
     .email-copy-hover:focus-within { opacity: 1; pointer-events: all; }
     /* Email draft: pick a format, fill the few inputs, read the preview, open the mail app. */
     .email-compose { display: flex; flex-direction: column; gap: 12px; }
-    .email-formats { align-self: stretch; }
-    .email-formats .rc-pair-tab { flex: 1; }
+    .email-tone { display: flex; align-items: center; gap: 4px; }
+    .email-tone .wp-select { margin-left: auto; }
     .email-fields { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 8px 12px; }
     .email-label { font-size: 11px; font-weight: 600; color: var(--muted-fg); letter-spacing: .05em; text-transform: uppercase; }
     .email-preview { background: var(--muted); border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px;
@@ -1653,8 +1688,7 @@
     .email-pane { display: flex; flex-direction: column; gap: 12px; }
     .email-pane[hidden] { display: none; }
     .email-actions { display: flex; gap: 8px; }
-    .email-actions .btn { height: 44px; }
-    .email-actions .btn-primary { flex: 1; }
+    .email-actions .btn { flex: 1; height: 44px; display: flex; align-items: center; justify-content: center; gap: 8px; }
     .email-hint { font-size: 12px; color: var(--muted-fg); text-align: center; margin-top: -4px; }
     @media (max-width: 640px) {
       .email-fields { grid-template-columns: 1fr; gap: 6px; }
@@ -1797,17 +1831,35 @@
       border: 1px solid var(--border); border-radius: 8px; cursor: pointer; color-scheme: light dark;
       -webkit-appearance: none; appearance: none; }
     .wp-select:focus-visible { outline: 2px solid var(--ring); outline-offset: 1px; }
-    /* Early Leave & Stay Late: collapsed checklist */
-    .wp-more summary { display: flex; align-items: center; gap: 8px; padding: 6px 0; cursor: pointer; list-style: none; }
-    .wp-more summary::-webkit-details-marker { display: none; }
+    /* Early Leave & Stay Late: two collapsible sections. The body opens by
+       transitioning its grid row from 0fr to 1fr, the browser's own height
+       animation, so the content below slides instead of jumping. */
+    .wp-acc + .wp-acc { border-top: 1px solid var(--border); }
+    .wp-acc-head { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 44px; padding: 0;
+      background: none; border: none; font-family: var(--font); cursor: pointer; text-align: left; }
     .wp-more-title { font-size: 13px; font-weight: 500; color: var(--foreground); }
     .wp-more-sum { flex: 1; text-align: right; font-size: 12px; color: var(--muted-fg); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .wp-more summary svg { flex-shrink: 0; color: var(--muted-fg); transition: transform .15s; }
-    .wp-more[open] summary svg { transform: rotate(180deg); }
-    .wp-more-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding: 8px 0 4px; }
-    .wp-checks { display: flex; flex-direction: column; margin-top: 6px; }
-    .wp-check { display: flex; align-items: center; gap: 10px; min-height: 40px; font-size: 13px; color: var(--foreground); cursor: pointer; }
-    .wp-check input { width: 18px; height: 18px; margin: 0; accent-color: var(--foreground); cursor: pointer; }
+    .wp-acc-head svg { flex-shrink: 0; color: var(--muted-fg); transition: transform .25s ease; }
+    .wp-acc.open .wp-acc-head svg { transform: rotate(180deg); }
+    .wp-acc-body { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .28s cubic-bezier(.4,0,.2,1); }
+    .wp-acc.open .wp-acc-body { grid-template-rows: 1fr; }
+    .wp-acc-inner { overflow: hidden; min-height: 0; }
+    @media (prefers-reduced-motion: reduce) { .wp-acc-body, .wp-acc-head svg { transition: none; } }
+    /* To-do rows: full width, tap anywhere on the row to check it. */
+    .wp-todo { display: flex; flex-direction: column; padding-bottom: 6px; }
+    .wp-todo-row { position: relative; display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 0 10px;
+      border-radius: 10px; font-size: 14px; color: var(--foreground); cursor: pointer;
+      -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; }
+    @media (hover: hover) { .wp-todo-row:hover { background: var(--muted); } }
+    .wp-todo-row:active { background: var(--border); }
+    .wp-todo-row input { position: absolute; opacity: 0; pointer-events: none; }
+    .wp-todo-box { width: 20px; height: 20px; flex-shrink: 0; border-radius: 50%; border: 1.5px solid var(--muted-fg);
+      display: grid; place-items: center; transition: background .15s, border-color .15s; }
+    .wp-todo-row input:checked + .wp-todo-box { background: var(--foreground); border-color: var(--foreground); }
+    .wp-todo-row input:checked + .wp-todo-box::after { content: ''; width: 12px; height: 12px; background: var(--card);
+      -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E") center / contain no-repeat;
+              mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E") center / contain no-repeat; }
+    .wp-todo-row input:focus-visible + .wp-todo-box { outline: 2px solid var(--ring); outline-offset: 2px; }
 
     /* ── Day selector strip ── */
     /* Infinite horizontal grid: exactly 5 cards (Mon–Fri) visible at once, with a ~10%
@@ -4592,24 +4644,29 @@
       <div class="dialog-body">
         <div id="wpDayRows"></div>
         <div style="height:1px;background:var(--border);margin:4px 0 12px"></div>
-        <!-- Collapsed by default: a native disclosure, so it needs no script -->
-        <details class="wp-more" id="wpRecommendBlock">
-          <summary>
-            <span class="wp-more-title">Early Leave &amp; Stay Late</span>
-            <span class="wp-more-sum" id="wpMoreSum"></span>
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-          </summary>
-          <div class="wp-more-cols">
-            <div>
-              <div class="email-label">Early Leave</div>
-              <div class="wp-checks" id="wpTargetDay"></div>
-            </div>
-            <div>
-              <div class="email-label">Stay Late</div>
-              <div class="wp-checks" id="wpLateDays"></div>
-            </div>
+        <!-- Early Leave and Stay Late: two collapsible to-do lists, collapsed by default -->
+        <div id="wpRecommendBlock">
+          <div class="wp-acc" id="wpEarlyAcc">
+            <button type="button" class="wp-acc-head" aria-expanded="false" aria-controls="wpTargetDay">
+              <span class="wp-more-title">Early Leave</span>
+              <span class="wp-more-sum" id="wpEarlySum"></span>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+            <div class="wp-acc-body" inert><div class="wp-acc-inner">
+              <div class="wp-todo" id="wpTargetDay" role="group" aria-label="Early Leave"></div>
+            </div></div>
           </div>
-        </details>
+          <div class="wp-acc" id="wpLateAcc">
+            <button type="button" class="wp-acc-head" aria-expanded="false" aria-controls="wpLateDays">
+              <span class="wp-more-title">Stay Late</span>
+              <span class="wp-more-sum" id="wpLateSum"></span>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+            <div class="wp-acc-body" inert><div class="wp-acc-inner">
+              <div class="wp-todo" id="wpLateDays" role="group" aria-label="Stay Late"></div>
+            </div></div>
+          </div>
+        </div>
       </div>
       <div class="dialog-foot-row">
         <button class="btn btn-cancel" id="weekPlanSkip">Skip for Now</button>
@@ -4680,10 +4737,16 @@
       <div class="email-compose">
         <!-- Default: read the email, then open it -->
         <div class="email-pane" id="emailPreviewPane">
-          <div class="rc-pair-tabs email-formats" id="emailFormats" role="radiogroup" aria-label="Email format">
-            <button type="button" class="rc-pair-tab rc-pair-tab-active" data-fmt="concise" role="radio" aria-checked="true">Concise</button>
-            <button type="button" class="rc-pair-tab" data-fmt="detailed" role="radio" aria-checked="false">Detailed</button>
-            <button type="button" class="rc-pair-tab" data-fmt="formal" role="radio" aria-checked="false">Professional</button>
+          <div class="email-tone">
+            <label class="email-label" for="emailTone">Writing Tone</label>
+            <button class="info-icon-btn" type="button" aria-label="About Open Mail"
+              data-tip-desc="Opens your mail app with this email filled in. You can still edit it before sending."
+              data-on-click="h335c87590c" data-on-mouseenter="h2bb7e7eb46" data-on-mouseleave="h83efb5e4ca"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg></button>
+            <select class="wp-select" id="emailTone">
+              <option value="concise">Concise</option>
+              <option value="detailed">Detailed</option>
+              <option value="formal">Professional</option>
+            </select>
           </div>
           <div class="email-preview" aria-live="polite">
             <div class="email-pv-meta" id="emailPvMeta"></div>
@@ -4692,9 +4755,8 @@
           </div>
           <div class="email-actions">
             <button type="button" class="btn btn-secondary" id="emailCustomiseBtn">Customise</button>
-            <a class="btn btn-primary email-send" id="emailSendBtn" href="mailto:">Open in Mail App</a>
+            <a class="btn btn-primary email-send" id="emailSendBtn" href="mailto:"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z"/><path d="m21.854 2.147-10.94 10.939"/></svg>Open Mail</a>
           </div>
-          <div class="email-hint">Opens your mail app with this email filled in. You can still edit it before sending.</div>
         </div>
         <!-- Customise: recipients and name are saved to the account; the reason is for this email -->
         <div class="email-pane" id="emailEditPane" hidden>
@@ -4711,13 +4773,15 @@
           <div class="email-hint">To, CC and the manager's name are saved to your account for all your devices. The reason is only for this email.</div>
           <div class="email-actions">
             <button type="button" class="btn btn-secondary" id="emailEditCancel">Cancel</button>
-            <button type="button" class="btn btn-primary" id="emailEditSave">Save</button>
+            <button type="button" class="btn btn-primary" id="emailEditSave"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg>Save</button>
           </div>
         </div>
       </div>
     </div>
   </div>
 
+  <script src="/lib/use-gesture.js"></script>
+  <script src="/lib/pages/sheet.js"></script>
   <script src="/lib/pages/index-app.js"></script>
 
 <!-- ── ONBOARDING MODAL ── -->
@@ -4911,12 +4975,8 @@
 </div>
 
 <!-- ═══ iOS INSTALL PROMPT ═══ -->
-<div id="iosInstallOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9000;backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);" data-on-click="h75d44fd18b"></div>
-<div id="iosInstallSheet" style="display:none;position:fixed;left:0;right:0;bottom:0;z-index:9001;
-  background:var(--card);border-top:1px solid var(--border);border-radius:20px 20px 0 0;
-  padding:0 24px calc(28px + env(safe-area-inset-bottom));
-  box-shadow:0 -8px 40px rgba(0,0,0,.18);
-  transform:translateY(100%);transition:transform .38s cubic-bezier(.32,0,.18,1);">
+<div id="iosInstallOverlay" class="ios-install-overlay" data-on-click="h75d44fd18b"></div>
+<div id="iosInstallSheet" class="ios-install-sheet" role="dialog" aria-modal="true" aria-label="Add 5pm to your Home Screen">
 
   <!-- Handle -->
   <div id="iosHandleBtn" class="ios-handle-btn" style="padding:4px 0 16px">
@@ -4971,6 +5031,10 @@
     </div>
 
   </div>
+
+  <!-- Opens the iPhone Share menu. A page can't open Add to Home Screen itself;
+       it's in that menu, so the steps above stay as the fallback. -->
+  <button type="button" class="btn btn-primary ios-share-cta" id="iosShareBtn"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>Open Share Menu</button>
 </div>
 
 <script src="/lib/pages/index-extras.js"></script>

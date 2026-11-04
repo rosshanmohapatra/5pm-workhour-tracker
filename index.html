@@ -354,13 +354,13 @@
     .toggle input:checked + .toggle-track { background: #6B97FF; }
     .toggle input:checked + .toggle-track::before { --tx: calc(14px - (var(--tw) - 16px)); }
     @media (hover: hover) {
-      .toggle:hover, [onclick]:hover > .toggle { --tw: 18px; }
-      .toggle:hover .toggle-track, [onclick]:hover > .toggle .toggle-track {
+      .toggle:hover, [data-on-click]:hover > .toggle { --tw: 18px; }
+      .toggle:hover .toggle-track, [data-on-click]:hover > .toggle .toggle-track {
         background: color-mix(in oklab, var(--border), var(--foreground) 10%); }
       .toggle:hover input:checked + .toggle-track,
-      [onclick]:hover > .toggle input:checked + .toggle-track { background: #5C89F2; }
+      [data-on-click]:hover > .toggle input:checked + .toggle-track { background: #5C89F2; }
     }
-    .toggle:active, [onclick]:active > .toggle { --tw: 20px; --th: 12px; --ty: 2px; }
+    .toggle:active, [data-on-click]:active > .toggle { --tw: 20px; --th: 12px; --ty: 2px; }
     .toggle input:focus-visible + .toggle-track { box-shadow: 0 0 0 2px var(--card), 0 0 0 3px #6B97FF; }
     .toggle input:disabled + .toggle-track { opacity: .5; cursor: default; }
     @media (prefers-reduced-motion: reduce) { .toggle-track::before { transition: none; } }
@@ -504,13 +504,13 @@
     /* Notifications: the switch and its alerts are rows of one tile, each
        full width so each gets its own hover. */
     body.shell-new .tile-list > div:has(#notifSubGroup) { padding: 0; }
-    body.shell-new .tile-list > div:has(#notifSubGroup) > div[onclick] { padding: 14px 16px; }
+    body.shell-new .tile-list > div:has(#notifSubGroup) > div[data-on-click] { padding: 14px 16px; }
     body.shell-new #notifSubGroup { margin-top: 0 !important; }
     body.shell-new #notifSubGroup > div { gap: 0 !important; }
     body.shell-new #notifSubGroup > div > div { border-top: 2px solid var(--background); padding: 14px 16px; }
     /* Rows that act on a click (switches) answer the pointer. */
-    body.shell-new .tile-list div[onclick] { transition: background .12s; }
-    body.shell-new .tile-list div[onclick]:hover { background: color-mix(in srgb, var(--card) 93%, var(--foreground)); }
+    body.shell-new .tile-list div[data-on-click] { transition: background .12s; }
+    body.shell-new .tile-list div[data-on-click]:hover { background: color-mix(in srgb, var(--card) 93%, var(--foreground)); }
     body.shell-new #viewSettings .form-sub { font-size: 12px; }
     /* Settings is controls, not reading: no stray text selection. Fields still select. */
     #viewSettings { user-select: none; -webkit-user-select: none; }
@@ -1592,6 +1592,7 @@
     .penalty-info { display: flex; flex-direction: column; gap: 2px; }
     .penalty-date { font-size: 13px; font-weight: 600; color: var(--foreground); }
     .penalty-delta { font-size: 11px; color: var(--warning); font-weight: 500; }
+    .penalty-skel { display: grid; grid-template-columns: 1fr auto; gap: 18px 12px; padding: 20px 16px; }
     .penalty-empty { padding: 20px 16px; text-align: center; font-size: 13px; color: var(--muted-fg); }
     @keyframes shimmer { 0%{opacity:.4} 50%{opacity:.8} 100%{opacity:.4} }
     .skeleton-row { height: 44px; border-radius: 8px; background: var(--muted); margin: 6px 0; animation: shimmer 1.2s ease-in-out infinite; }
@@ -1649,11 +1650,16 @@
     .email-pv-subject { font-size: 14px; font-weight: 600; color: var(--foreground); overflow-wrap: anywhere; }
     .email-pv-body { font-size: 13px; line-height: 1.6; color: var(--foreground); white-space: pre-wrap; overflow-wrap: anywhere; }
     .email-send { display: flex; align-items: center; justify-content: center; height: 44px; text-decoration: none; }
+    .email-pane { display: flex; flex-direction: column; gap: 12px; }
+    .email-pane[hidden] { display: none; }
+    .email-actions { display: flex; gap: 8px; }
+    .email-actions .btn { height: 44px; }
+    .email-actions .btn-primary { flex: 1; }
     .email-hint { font-size: 12px; color: var(--muted-fg); text-align: center; margin-top: -4px; }
     @media (max-width: 640px) {
       .email-fields { grid-template-columns: 1fr; gap: 6px; }
       .email-fields .email-label:not(:first-child) { margin-top: 4px; }
-      .email-send { height: 50px; font-size: 16px; font-weight: 600; border-radius: 999px; }
+      .email-actions .btn { height: 50px; font-size: 16px; font-weight: 600; border-radius: 999px; padding: 0 20px; }
     }
     @media (min-width: 641px) {
       #emailModalOverlay { align-items: center !important; padding: 20px; }
@@ -1785,6 +1791,23 @@
     .wp-override-btn:hover { color: var(--foreground); }
     .wp-override-btn.active { background: var(--muted); color: var(--foreground);
       box-shadow: 0 1px 2px rgba(0,0,0,.15); }
+    /* Day plan: one native dropdown per day (the phone's own picker opens). */
+    .wp-select { height: 34px; min-width: 128px; padding: 0 32px 0 12px; font: 500 13px var(--font);
+      color: var(--foreground); background: var(--input-bg) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E") no-repeat right 12px center;
+      border: 1px solid var(--border); border-radius: 8px; cursor: pointer; color-scheme: light dark;
+      -webkit-appearance: none; appearance: none; }
+    .wp-select:focus-visible { outline: 2px solid var(--ring); outline-offset: 1px; }
+    /* Early Leave & Stay Late: collapsed checklist */
+    .wp-more summary { display: flex; align-items: center; gap: 8px; padding: 6px 0; cursor: pointer; list-style: none; }
+    .wp-more summary::-webkit-details-marker { display: none; }
+    .wp-more-title { font-size: 13px; font-weight: 500; color: var(--foreground); }
+    .wp-more-sum { flex: 1; text-align: right; font-size: 12px; color: var(--muted-fg); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .wp-more summary svg { flex-shrink: 0; color: var(--muted-fg); transition: transform .15s; }
+    .wp-more[open] summary svg { transform: rotate(180deg); }
+    .wp-more-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding: 8px 0 4px; }
+    .wp-checks { display: flex; flex-direction: column; margin-top: 6px; }
+    .wp-check { display: flex; align-items: center; gap: 10px; min-height: 40px; font-size: 13px; color: var(--foreground); cursor: pointer; }
+    .wp-check input { width: 18px; height: 18px; margin: 0; accent-color: var(--foreground); cursor: pointer; }
 
     /* ── Day selector strip ── */
     /* Infinite horizontal grid: exactly 5 cards (Mon–Fri) visible at once, with a ~10%
@@ -2093,7 +2116,7 @@
          ::after stretches the tap area to 44px tall without moving the layout. */
       .toggle { width: 48px; height: 28px; --tw: 24px; --th: 24px; }
       .toggle input:checked + .toggle-track::before { --tx: calc(20px - (var(--tw) - 24px)); }
-      .toggle:active, [onclick]:active > .toggle { --tw: 30px; --th: 18px; --ty: 3px; }
+      .toggle:active, [data-on-click]:active > .toggle { --tw: 30px; --th: 18px; --ty: 3px; }
       .toggle::after { content: ''; position: absolute; inset: -8px -4px; }
     }
 
@@ -3079,7 +3102,11 @@
           <button class="btn-secondary" id="penaltyClearAll" style="font-size:11px;height:30px;padding:0 10px">Clear All</button>
         </div>
         <div class="penalty-list" id="penaltiesList">
-          <div class="penalty-empty" style="padding:24px 16px">Scanning…</div>
+          <!-- Placeholder until the first render fills the list -->
+          <div class="penalty-skel" aria-label="Loading penalties">
+            <div class="skel" style="width:46%;height:12px"></div><div class="skel" style="width:44px;height:12px"></div>
+            <div class="skel" style="width:38%;height:12px"></div><div class="skel" style="width:36px;height:12px"></div>
+          </div>
         </div>
       </div>
 
@@ -4565,16 +4592,24 @@
       <div class="dialog-body">
         <div id="wpDayRows"></div>
         <div style="height:1px;background:var(--border);margin:4px 0 12px"></div>
-        <div id="wpRecommendBlock">
-          <div class="form-field">
-            <div class="form-label" style="font-size:12px">Early Leave</div>
-            <div class="target-day-picker" id="wpTargetDay" style="margin-top:6px"></div>
+        <!-- Collapsed by default: a native disclosure, so it needs no script -->
+        <details class="wp-more" id="wpRecommendBlock">
+          <summary>
+            <span class="wp-more-title">Early Leave &amp; Stay Late</span>
+            <span class="wp-more-sum" id="wpMoreSum"></span>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </summary>
+          <div class="wp-more-cols">
+            <div>
+              <div class="email-label">Early Leave</div>
+              <div class="wp-checks" id="wpTargetDay"></div>
+            </div>
+            <div>
+              <div class="email-label">Stay Late</div>
+              <div class="wp-checks" id="wpLateDays"></div>
+            </div>
           </div>
-          <div class="form-field" style="margin-top:12px">
-            <div class="form-label" style="font-size:12px">Stay Late</div>
-            <div class="target-day-picker" id="wpLateDays" style="margin-top:6px"></div>
-          </div>
-        </div>
+        </details>
       </div>
       <div class="dialog-foot-row">
         <button class="btn btn-cancel" id="weekPlanSkip">Skip for Now</button>
@@ -4643,29 +4678,42 @@
       </div>
       <div class="email-modal-sep"></div>
       <div class="email-compose">
-        <div class="rc-pair-tabs email-formats" id="emailFormats" role="radiogroup" aria-label="Email format">
-          <button type="button" class="rc-pair-tab rc-pair-tab-active" data-fmt="concise" role="radio" aria-checked="true">Concise</button>
-          <button type="button" class="rc-pair-tab" data-fmt="detailed" role="radio" aria-checked="false">Detailed</button>
-          <button type="button" class="rc-pair-tab" data-fmt="formal" role="radio" aria-checked="false">Professional</button>
+        <!-- Default: read the email, then open it -->
+        <div class="email-pane" id="emailPreviewPane">
+          <div class="rc-pair-tabs email-formats" id="emailFormats" role="radiogroup" aria-label="Email format">
+            <button type="button" class="rc-pair-tab rc-pair-tab-active" data-fmt="concise" role="radio" aria-checked="true">Concise</button>
+            <button type="button" class="rc-pair-tab" data-fmt="detailed" role="radio" aria-checked="false">Detailed</button>
+            <button type="button" class="rc-pair-tab" data-fmt="formal" role="radio" aria-checked="false">Professional</button>
+          </div>
+          <div class="email-preview" aria-live="polite">
+            <div class="email-pv-meta" id="emailPvMeta"></div>
+            <div class="email-pv-subject" id="emailPvSubject"></div>
+            <div class="email-pv-body" id="emailPvBody"></div>
+          </div>
+          <div class="email-actions">
+            <button type="button" class="btn btn-secondary" id="emailCustomiseBtn">Customise</button>
+            <a class="btn btn-primary email-send" id="emailSendBtn" href="mailto:">Open in Mail App</a>
+          </div>
+          <div class="email-hint">Opens your mail app with this email filled in. You can still edit it before sending.</div>
         </div>
-        <div class="email-fields">
-          <label class="email-label" for="emailTo">To</label>
-          <input class="field-input" id="emailTo" type="email" multiple inputmode="email" autocomplete="email" placeholder="manager@company.com">
-          <label class="email-label" for="emailCc">CC</label>
-          <input class="field-input" id="emailCc" type="email" multiple inputmode="email" autocomplete="email" placeholder="Optional">
-          <label class="email-label" for="emailManager">Manager's name</label>
-          <input class="field-input" id="emailManager" type="text" autocomplete="off" placeholder="Optional">
-          <label class="email-label" for="emailReason">Reason</label>
-          <input class="field-input" id="emailReason" type="text" autocomplete="off" placeholder="Optional, e.g. a doctor's appointment">
+        <!-- Customise: recipients and name are saved to the account; the reason is for this email -->
+        <div class="email-pane" id="emailEditPane" hidden>
+          <div class="email-fields">
+            <label class="email-label" for="emailTo">To</label>
+            <input class="field-input" id="emailTo" type="email" multiple inputmode="email" autocomplete="email" placeholder="manager@company.com">
+            <label class="email-label" for="emailCc">CC</label>
+            <input class="field-input" id="emailCc" type="email" multiple inputmode="email" autocomplete="email" placeholder="Optional">
+            <label class="email-label" for="emailManager">Manager's name</label>
+            <input class="field-input" id="emailManager" type="text" autocomplete="off" placeholder="Optional">
+            <label class="email-label" for="emailReason">Reason</label>
+            <input class="field-input" id="emailReason" type="text" autocomplete="off" placeholder="Optional, e.g. a doctor's appointment">
+          </div>
+          <div class="email-hint">To, CC and the manager's name are saved to your account for all your devices. The reason is only for this email.</div>
+          <div class="email-actions">
+            <button type="button" class="btn btn-secondary" id="emailEditCancel">Cancel</button>
+            <button type="button" class="btn btn-primary" id="emailEditSave">Save</button>
+          </div>
         </div>
-        <div class="email-label">Preview</div>
-        <div class="email-preview" aria-live="polite">
-          <div class="email-pv-meta" id="emailPvMeta"></div>
-          <div class="email-pv-subject" id="emailPvSubject"></div>
-          <div class="email-pv-body" id="emailPvBody"></div>
-        </div>
-        <a class="btn btn-primary email-send" id="emailSendBtn" href="mailto:">Open in Mail App</a>
-        <div class="email-hint">Opens your mail app with this email filled in. You can still edit it before sending.</div>
       </div>
     </div>
   </div>

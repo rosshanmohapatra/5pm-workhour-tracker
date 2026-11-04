@@ -3663,6 +3663,18 @@
                 </div>
               </div>
 
+              <!-- Sample penalties for trying Email Draft (memory only) -->
+              <div class="dev-row">
+                <div>
+                  <div class="form-label">Sample Penalties</div>
+                  <div class="form-sub">Adds 2 short days and 1 short week to Penalties to try Email Draft. Nothing is saved.</div>
+                </div>
+                <label class="toggle" style="flex-shrink:0">
+                  <input type="checkbox" id="devSamplePenalties">
+                  <span class="toggle-track"></span>
+                </label>
+              </div>
+
               <!-- Sync — function row (kept at the bottom) -->
               <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
                 <div>
@@ -3762,6 +3774,16 @@
                     </div>
                     <button class="btn-secondary" style="flex-shrink:0;font-size:12px;height:32px;padding:0 10px"
                       data-on-click="h028997d4ce">Preview</button>
+                  </div>
+
+                  <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+                    <div style="display:flex;align-items:center;gap:5px">
+                      <div style="font-size:13px;font-weight:500;color:var(--foreground)">Plan Your Week</div>
+                      <div>
+                        <button class="info-icon-btn" type="button" data-tip-desc="Shown at the start of a week to confirm the schedule." data-on-click="h335c87590c" data-on-mouseenter="h2bb7e7eb46" data-on-mouseleave="h83efb5e4ca"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg></button>
+                      </div>
+                    </div>
+                    <button class="btn-secondary" id="devPreviewWeekPlan" style="flex-shrink:0;font-size:12px;height:32px;padding:0 10px">Preview</button>
                   </div>
 
                 </div>

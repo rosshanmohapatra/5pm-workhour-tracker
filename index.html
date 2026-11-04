@@ -1637,12 +1637,30 @@
       transition: opacity .15s; z-index: 1; }
     .email-field-wrap:hover .email-copy-hover,
     .email-copy-hover:focus-within { opacity: 1; pointer-events: all; }
+    /* Email draft: pick a format, fill the few inputs, read the preview, open the mail app. */
+    .email-compose { display: flex; flex-direction: column; gap: 12px; }
+    .email-formats { align-self: stretch; }
+    .email-formats .rc-pair-tab { flex: 1; }
+    .email-fields { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 8px 12px; }
+    .email-label { font-size: 11px; font-weight: 600; color: var(--muted-fg); letter-spacing: .05em; text-transform: uppercase; }
+    .email-preview { background: var(--muted); border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px;
+      display: flex; flex-direction: column; gap: 8px; }
+    .email-pv-meta { font-size: 12px; color: var(--muted-fg); overflow-wrap: anywhere; }
+    .email-pv-subject { font-size: 14px; font-weight: 600; color: var(--foreground); overflow-wrap: anywhere; }
+    .email-pv-body { font-size: 13px; line-height: 1.6; color: var(--foreground); white-space: pre-wrap; overflow-wrap: anywhere; }
+    .email-send { display: flex; align-items: center; justify-content: center; height: 44px; text-decoration: none; }
+    .email-hint { font-size: 12px; color: var(--muted-fg); text-align: center; margin-top: -4px; }
+    @media (max-width: 640px) {
+      .email-fields { grid-template-columns: 1fr; gap: 6px; }
+      .email-fields .email-label:not(:first-child) { margin-top: 4px; }
+      .email-send { height: 50px; font-size: 16px; font-weight: 600; border-radius: 999px; }
+    }
     @media (min-width: 641px) {
       #emailModalOverlay { align-items: center !important; padding: 20px; }
       #emailModalOverlay .email-modal {
         border-radius: var(--radius-xl) !important;
         border-bottom: 1px solid var(--border) !important;
-        max-width: 480px; max-height: none; overflow-y: visible;
+        max-width: 480px; max-height: calc(100vh - 40px); overflow-y: auto;
         transform: scale(.95); transition: transform .2s cubic-bezier(.32,1,.54,1) !important; }
       #emailModalOverlay.open .email-modal { transform: scale(1); }
       #emailModalOverlay .email-textarea { resize: none; }
@@ -4602,27 +4620,30 @@
         </div>
       </div>
       <div class="email-modal-sep"></div>
-      <div style="display:flex;flex-direction:column;gap:10px">
-        <div>
-          <span style="font-size:11px;font-weight:600;color:var(--muted-fg);letter-spacing:.05em;text-transform:uppercase;display:block;margin-bottom:5px">Subject</span>
-          <div class="email-field-wrap">
-            <input class="email-textarea" id="emailModalSubject" type="text" style="min-height:unset;height:38px;resize:none;padding:0 12px;display:flex;align-items:center;padding-right:80px" readonly>
-            <button class="email-copy-btn email-copy-hover" id="emailCopySubjectBtn">
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-              <span id="emailCopySubjectLabel">Copy</span>
-            </button>
-          </div>
+      <div class="email-compose">
+        <div class="rc-pair-tabs email-formats" id="emailFormats" role="radiogroup" aria-label="Email format">
+          <button type="button" class="rc-pair-tab rc-pair-tab-active" data-fmt="concise" role="radio" aria-checked="true">Concise</button>
+          <button type="button" class="rc-pair-tab" data-fmt="detailed" role="radio" aria-checked="false">Detailed</button>
+          <button type="button" class="rc-pair-tab" data-fmt="formal" role="radio" aria-checked="false">Professional</button>
         </div>
-        <div>
-          <span style="font-size:11px;font-weight:600;color:var(--muted-fg);letter-spacing:.05em;text-transform:uppercase;display:block;margin-bottom:5px">Body</span>
-          <div class="email-field-wrap">
-            <textarea class="email-textarea" id="emailModalTextarea" rows="10" style="padding-top:32px"></textarea>
-            <button class="email-copy-btn email-copy-hover" id="emailCopyBodyBtn">
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-              <span id="emailCopyBodyLabel">Copy</span>
-            </button>
-          </div>
+        <div class="email-fields">
+          <label class="email-label" for="emailTo">To</label>
+          <input class="field-input" id="emailTo" type="email" multiple inputmode="email" autocomplete="email" placeholder="manager@company.com">
+          <label class="email-label" for="emailCc">CC</label>
+          <input class="field-input" id="emailCc" type="email" multiple inputmode="email" autocomplete="email" placeholder="Optional">
+          <label class="email-label" for="emailManager">Manager's name</label>
+          <input class="field-input" id="emailManager" type="text" autocomplete="off" placeholder="Optional">
+          <label class="email-label" for="emailReason">Reason</label>
+          <input class="field-input" id="emailReason" type="text" autocomplete="off" placeholder="Optional, e.g. a doctor's appointment">
         </div>
+        <div class="email-label">Preview</div>
+        <div class="email-preview" aria-live="polite">
+          <div class="email-pv-meta" id="emailPvMeta"></div>
+          <div class="email-pv-subject" id="emailPvSubject"></div>
+          <div class="email-pv-body" id="emailPvBody"></div>
+        </div>
+        <a class="btn btn-primary email-send" id="emailSendBtn" href="mailto:">Open in Mail App</a>
+        <div class="email-hint">Opens your mail app with this email filled in. You can still edit it before sending.</div>
       </div>
     </div>
   </div>

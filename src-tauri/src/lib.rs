@@ -8,8 +8,8 @@ mod updater;
 #[tauri::command]
 fn open_external(app: tauri::AppHandle, url: String) -> Result<(), String> {
   use tauri_plugin_opener::OpenerExt;
-  if !url.starts_with("https://") {
-    return Err("refusing to open a non-https url".into());
+  if !(url.starts_with("https://") || url.starts_with("mailto:")) {
+    return Err("refusing to open a url that is not https or mailto".into());
   }
   app
     .opener()

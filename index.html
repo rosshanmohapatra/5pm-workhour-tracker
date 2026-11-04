@@ -1687,8 +1687,9 @@
     .email-send { display: flex; align-items: center; justify-content: center; height: 44px; text-decoration: none; }
     .email-pane { display: flex; flex-direction: column; gap: 12px; }
     .email-pane[hidden] { display: none; }
-    .email-actions { display: flex; gap: 8px; }
-    .email-actions .btn { flex: 1; height: 44px; display: flex; align-items: center; justify-content: center; gap: 8px; }
+    /* Two equal columns: flex shares only the space left after each button's own padding. */
+    .email-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .email-actions .btn { width: 100%; min-width: 0; height: 44px; display: flex; align-items: center; justify-content: center; gap: 8px; }
     .email-hint { font-size: 12px; color: var(--muted-fg); text-align: center; margin-top: -4px; }
     @media (max-width: 640px) {
       .email-fields { grid-template-columns: 1fr; gap: 6px; }

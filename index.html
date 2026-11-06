@@ -1707,12 +1707,6 @@
     .wn-list li::before { content: ''; position: absolute; left: 2px; top: .62em; width: 5px; height: 5px;
       border-radius: 50%; background: var(--muted-fg); }
     .wn-continue { width: 100%; height: 44px; margin-top: 22px; }
-    /* Desktop dialog: 14px on every side, header and body alike. The divider
-       still runs edge to edge. */
-    @media (min-width: 641px) {
-      #whatsNewOverlay .email-modal { padding: 14px; }
-      #whatsNewOverlay .email-modal-sep { margin-left: -14px; margin-right: -14px; }
-    }
     @media (max-width: 640px) { .wn-continue { height: 50px; font-size: 16px; font-weight: 600; border-radius: 999px; } }
     /* Update Entry modal tabs (Update Entry | Raise Dispute) */
     /* Update Entry pages: the second page slides in from the right, the first
@@ -2787,6 +2781,33 @@
       overflow: hidden;
       transition: max-height .35s cubic-bezier(.4,0,.2,1), opacity .25s;
       display: flex; flex-direction: column; gap: 16px;
+    }
+
+    /* ── One rule for every modal ──────────────────────────────────────────
+       14px on each side of the header, body and footer, and a 6px blur on the
+       backdrop. Last in the sheet, and !important on the dialog parts, because
+       several dialogs set their own padding inline. Popovers (time picker,
+       calendar, dropdown menus) keep their own compact spacing. */
+    .dialog-head { padding: 14px 14px 0 !important; }
+    .dialog-head[style*="border-bottom"] { padding-bottom: 14px !important; }
+    .dialog-body { padding: 14px !important; }
+    .dialog-foot, .dialog-foot-row { padding: 0 14px 14px !important; }
+    #weekPlanOverlay .dialog-foot-row { padding-top: 14px !important; }
+    .email-modal { padding: 14px !important; }
+    .email-modal-sep { margin: 12px -14px 14px; }
+    .de-email-page { padding: 14px; }
+    .td-panel { padding: 14px; }
+    .ob-head { padding: 14px 14px 0; }
+    .ob-body { padding: 0 14px 14px; }
+    .ob-foot { padding: 14px; }
+    .ios-install-overlay { backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+    .ob-overlay { -webkit-backdrop-filter: blur(6px); }
+    /* Phone bottom sheets: the same 14px at the sides and bottom (above the home
+       bar), with room at the top for the grab pill. */
+    @media (max-width: 640px) {
+      :is(#emailModalOverlay, #whatsNewOverlay) .email-modal { padding: 8px 14px calc(14px + env(safe-area-inset-bottom)) !important; }
+      .td-panel { padding: 6px 14px calc(14px + env(safe-area-inset-bottom)); }
+      .ios-install-sheet { padding: 0 14px calc(14px + env(safe-area-inset-bottom)); }
     }
   </style>
 </head>

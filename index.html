@@ -1034,7 +1034,7 @@
     .ios-install-sheet.open { transform: none; }
     .ios-share-cta { width: 100%; height: 50px; margin-top: 24px; gap: 8px; font-size: 16px; font-weight: 600; border-radius: 999px;
       display: flex; align-items: center; justify-content: center; }
-    .ios-handle-bar, .td-panel::before, #emailModalOverlay .email-modal::before {
+    .ios-handle-bar, .td-panel::before, :is(#emailModalOverlay, #whatsNewOverlay) .email-modal::before {
       transition: width .2s cubic-bezier(.32,.72,0,1), background-color .2s ease; }
     @media (max-width: 640px) {
       .td-panel, .ios-install-sheet { left: 4px; right: 4px; bottom: 4px; width: auto; border: none; border-radius: 32px; }
@@ -1043,23 +1043,23 @@
       .td-panel.open { transition: transform .5s cubic-bezier(.32,.72,0,1); }
       .ios-install-sheet { padding-bottom: calc(16px + env(safe-area-inset-bottom)); transform: translateY(calc(100% + 8px)); }
       .ios-install-sheet.open { transform: none; }
-      #emailModalOverlay { padding: 0 4px 4px; }
-      #emailModalOverlay .email-modal { border: none; border-radius: 32px; padding-top: 8px; overscroll-behavior: contain;
+      :is(#emailModalOverlay, #whatsNewOverlay) { padding: 0 4px 4px; }
+      :is(#emailModalOverlay, #whatsNewOverlay) .email-modal { border: none; border-radius: 32px; padding-top: 8px; overscroll-behavior: contain;
         transform: translateY(calc(100% + 8px)); transition: transform .5s cubic-bezier(.32,.72,0,1) !important; }
-      #emailModalOverlay.open .email-modal { transform: none; }
-      #emailModalOverlay .email-modal::before { content: ''; display: block; width: 36px; height: 5px; border-radius: 3px;
+      :is(#emailModalOverlay, #whatsNewOverlay).open .email-modal { transform: none; }
+      :is(#emailModalOverlay, #whatsNewOverlay) .email-modal::before { content: ''; display: block; width: 36px; height: 5px; border-radius: 3px;
         background: rgba(127,127,127,.4); margin: 0 auto 14px; }
       /* Kept on their own GPU layer ahead of time, so a drag's first frame
          doesn't stall while the browser creates one. */
-      .td-panel, .ios-install-sheet, #emailModalOverlay .email-modal { will-change: transform; }
+      .td-panel, .ios-install-sheet, :is(#emailModalOverlay, #whatsNewOverlay) .email-modal { will-change: transform; }
       .td-scrim, .ios-install-overlay { will-change: opacity; }
       /* While a finger drags a sheet, it follows the finger exactly. The email
          sheet's open/close transition is !important, so this has to be too, or
          every move eased over half a second and the sheet jerked behind the finger. */
       .td-panel.sheet-dragging, .ios-install-sheet.sheet-dragging,
-      #emailModalOverlay .email-modal.sheet-dragging { transition: none !important; }
+      :is(#emailModalOverlay, #whatsNewOverlay) .email-modal.sheet-dragging { transition: none !important; }
       /* Bottom sheets close by drag, tap outside or Escape: no × on phones. */
-      #emailModalOverlay .email-modal-close { display: none; }
+      :is(#emailModalOverlay, #whatsNewOverlay) .email-modal-close { display: none; }
       .sheet-dragging::before, .sheet-dragging .ios-handle-bar { width: 48px !important; background: rgba(127,127,127,.85) !important; }
     }
 
@@ -1697,6 +1697,15 @@
       display: flex; flex-direction: column; gap: 8px; }
     .email-pv-meta { font-size: 12px; color: var(--muted-fg); overflow-wrap: anywhere; }
     .email-pv-subject { font-size: 14px; font-weight: 600; color: var(--foreground); overflow-wrap: anywhere; }
+    /* What's New: the release notes, one line each under two quiet labels. */
+    .wn-body { display: flex; flex-direction: column; gap: 18px; }
+    .wn-section { display: flex; flex-direction: column; gap: 10px; }
+    .wn-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+    .wn-list li { position: relative; padding-left: 16px; font-size: 14px; line-height: 1.5; color: var(--foreground); }
+    .wn-list li::before { content: ''; position: absolute; left: 2px; top: .62em; width: 5px; height: 5px;
+      border-radius: 50%; background: var(--muted-fg); }
+    .wn-continue { width: 100%; height: 44px; margin-top: 22px; }
+    @media (max-width: 640px) { .wn-continue { height: 50px; font-size: 16px; font-weight: 600; border-radius: 999px; } }
     /* Update Entry modal tabs (Update Entry | Raise Dispute) */
     /* Update Entry pages: the second page slides in from the right, the first
        out to the left, and the dialog's height glides to the new page's. */
@@ -1742,14 +1751,14 @@
       .email-actions .btn { height: 50px; font-size: 16px; font-weight: 600; border-radius: 999px; padding: 0 20px; }
     }
     @media (min-width: 641px) {
-      #emailModalOverlay { align-items: center !important; padding: 20px; }
-      #emailModalOverlay .email-modal {
+      :is(#emailModalOverlay, #whatsNewOverlay) { align-items: center !important; padding: 20px; }
+      :is(#emailModalOverlay, #whatsNewOverlay) .email-modal {
         border-radius: var(--radius-xl) !important;
         border-bottom: 1px solid var(--border) !important;
         max-width: 480px; max-height: calc(100vh - 40px); overflow-y: auto;
         transform: scale(.95); transition: transform .2s cubic-bezier(.32,1,.54,1) !important; }
-      #emailModalOverlay.open .email-modal { transform: scale(1); }
-      #emailModalOverlay .email-textarea { resize: none; }
+      :is(#emailModalOverlay, #whatsNewOverlay).open .email-modal { transform: scale(1); }
+      :is(#emailModalOverlay, #whatsNewOverlay) .email-textarea { resize: none; }
     }
 
     /* ── Selected day context (Home header) — persistent clock, always visible.
@@ -3722,6 +3731,20 @@
           </div>
         </div><!-- /About Developer section -->
 
+        <!-- ── What's New: reopens the latest notes. Same build as the cards around it. ── -->
+        <div class="settings-section" id="whatsNewSection">
+          <div style="display:flex;align-items:center;gap:12px">
+            <div style="flex:1;min-width:0">
+              <div class="form-label" style="font-size:13px;font-weight:600;color:var(--foreground);line-height:1.2">What's New</div>
+              <div class="form-sub" style="margin-top:1px" id="whatsNewSub">See what changed in this version.</div>
+            </div>
+            <button class="btn-secondary" id="whatsNewBtn" style="flex-shrink:0;font-size:12px;height:32px;padding:0 10px;gap:5px">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/><path d="M20 3v4"/><path d="M22 5h-4"/></svg>
+              Open
+            </button>
+          </div>
+        </div>
+
         <!-- ── Report a Bug: its own card under About Developer (lands in the About
              tab). Same build as that card: a plain section, same type and button. ── -->
         <div class="settings-section" id="reportBugSection">
@@ -3914,6 +3937,16 @@
                       </div>
                     </div>
                     <button class="btn-secondary" id="devPreviewWeekPlan" style="flex-shrink:0;font-size:12px;height:32px;padding:0 10px">Preview</button>
+                  </div>
+
+                  <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+                    <div style="display:flex;align-items:center;gap:5px">
+                      <div style="font-size:13px;font-weight:500;color:var(--foreground)">What&#39;s New</div>
+                      <div>
+                        <button class="info-icon-btn" type="button" data-tip-desc="Shown once after an update, with that version&#39;s notes." data-on-click="h335c87590c" data-on-mouseenter="h2bb7e7eb46" data-on-mouseleave="h83efb5e4ca"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg></button>
+                      </div>
+                    </div>
+                    <button class="btn-secondary" id="devPreviewWhatsNew" style="flex-shrink:0;font-size:12px;height:32px;padding:0 10px">Preview</button>
                   </div>
 
                 </div>
@@ -4957,6 +4990,24 @@
     </div>
   </div>
 
+  <!-- What's New: shown once after an update, from lib/whats-new.js; reopened
+       from Settings › About. A sheet on phones, a dialog on desktop, like Email Draft. -->
+  <div class="email-modal-overlay" id="whatsNewOverlay">
+    <div class="email-modal wn-modal" role="dialog" aria-modal="true" aria-labelledby="wnTitle" style="position:relative">
+      <button class="email-modal-close" id="wnClose" aria-label="Close"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+      <div class="email-modal-head">
+        <div style="flex:1;min-width:0">
+          <div class="email-modal-title" id="wnTitle">What's New</div>
+          <div class="email-modal-date" id="wnVersion"></div>
+        </div>
+      </div>
+      <div class="email-modal-sep"></div>
+      <div class="wn-body" id="wnBody"></div>
+      <button type="button" class="btn btn-primary wn-continue" id="wnContinue">Looks Good</button>
+    </div>
+  </div>
+
+  <script src="/lib/whats-new.js"></script>
   <script src="/lib/use-gesture.js"></script>
   <script src="/lib/floating-ui.js"></script>
   <script src="/lib/pages/menu-select.js"></script>

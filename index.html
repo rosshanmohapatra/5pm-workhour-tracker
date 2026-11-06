@@ -532,15 +532,12 @@
     body.shell-new .dev-tiles .settings-section-header { margin: 24px 4px 8px; cursor: default; }
 
     /* "5pm for Windows" promo card (Settings › About, Windows browsers only). */
-    /* Logo and text sit on the top line; Download takes the bottom right. Text
-       is the Settings row pair (.form-label over .form-sub). */
-    .win-promo { display: grid; grid-template-columns: 36px 1fr; gap: 12px; align-items: start; }
-    .win-promo-icon { width: 36px; height: 36px; border-radius: 9px; display: grid; place-items: center;
-      color: #fff; background: linear-gradient(135deg, #0ea5e9, #2563eb); }
-    .win-promo-text { min-width: 0; }
-    .win-promo-text .form-sub { line-height: 1.45; }
-    .win-promo-cta { grid-column: 1 / -1; justify-self: end; width: auto; height: 32px; padding: 0 12px;
-      font-size: 12px; gap: 5px; }
+    /* 5pm for Windows: a row of the About tiles. Icon, text, Download on the right. */
+    .win-promo { display: flex; align-items: center; gap: 12px; }
+    .win-promo-icon { width: 32px; height: 32px; border-radius: 8px; display: grid; place-items: center;
+      flex-shrink: 0; color: #fff; background: linear-gradient(135deg, #0ea5e9, #2563eb); }
+    .win-promo-text { flex: 1; min-width: 0; }
+    .win-promo-cta { flex-shrink: 0; width: auto; height: 32px; padding: 0 10px; font-size: 12px; gap: 5px; }
     /* Privacy Policy page: privacy.html's text in the app's type scale. */
     .privacy-body h2 { font-size: 14px; font-weight: 600; color: var(--foreground); margin: 20px 0 6px; }
     .privacy-body > h2:first-child { margin-top: 0; }
@@ -3760,29 +3757,28 @@
           </div>
         </div><!-- /About Developer section -->
 
-        <!-- ── What's New: reopens the latest notes. Same build as the cards around it. ── -->
-        <div class="settings-section" id="whatsNewSection">
-          <div style="display:flex;align-items:center;gap:12px">
-            <div style="flex:1;min-width:0">
-              <div class="form-label" id="whatsNewTitle" style="font-size:13px;font-weight:600;color:var(--foreground);line-height:1.2">Version</div>
-              <div class="form-sub" style="margin-top:1px">See what's changed in this release.</div>
+        <!-- ── About tiles: Version, Report a Bug and (on Windows browsers) the
+             5pm for Windows row, added by index-app.js. One grouped card,
+             2px gaps, like Account. ── -->
+        <div class="settings-section" id="aboutTiles">
+          <div class="settings-group">
+            <div style="display:flex;align-items:center;gap:12px">
+              <div style="flex:1;min-width:0">
+                <div class="form-label" id="whatsNewTitle" style="font-size:13px;font-weight:600;color:var(--foreground);line-height:1.2">Version</div>
+                <div class="form-sub" style="margin-top:1px">See what's changed in this release.</div>
+              </div>
+              <button class="btn-secondary" id="whatsNewBtn" style="flex-shrink:0;font-size:12px;height:32px;padding:0 10px">What's New</button>
             </div>
-            <button class="btn-secondary" id="whatsNewBtn" style="flex-shrink:0;font-size:12px;height:32px;padding:0 10px">What's New</button>
-          </div>
-        </div>
-
-        <!-- ── Report a Bug: its own card under About Developer (lands in the About
-             tab). Same build as that card: a plain section, same type and button. ── -->
-        <div class="settings-section" id="reportBugSection">
-          <div style="display:flex;align-items:center;gap:12px">
-            <div style="flex:1;min-width:0">
-              <div class="form-label" style="font-size:13px;font-weight:600;color:var(--foreground);line-height:1.2">Report a Bug</div>
-              <div class="form-sub" style="margin-top:1px">Something not working? Tell us what happened.</div>
+            <div style="display:flex;align-items:center;gap:12px">
+              <div style="flex:1;min-width:0">
+                <div class="form-label" style="font-size:13px;font-weight:600;color:var(--foreground);line-height:1.2">Report a Bug</div>
+                <div class="form-sub" style="margin-top:1px">Something not working? Tell us what happened.</div>
+              </div>
+              <button class="btn-secondary" id="reportBugBtn" style="flex-shrink:0;font-size:12px;height:32px;padding:0 10px;gap:5px">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m8 2 1.88 1.88"/><path d="M14.12 3.88 16 2"/><path d="M9 7.13v-1a3.003 3.003 0 1 1 6 0v1"/><path d="M12 20c-3.3 0-6-2.7-6-6v-3a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v3c0 3.3-2.7 6-6 6"/><path d="M12 20v-9"/><path d="M6.53 9C4.6 8.8 3 7.1 3 5"/><path d="M6 13H2"/><path d="M3 21c0-2.1 1.7-3.9 3.8-4"/><path d="M20.97 5c0 2.1-1.6 3.8-3.5 4"/><path d="M22 13h-4"/><path d="M17.2 17c2.1.1 3.8 1.9 3.8 4"/></svg>
+                Report
+              </button>
             </div>
-            <button class="btn-secondary" id="reportBugBtn" style="flex-shrink:0;font-size:12px;height:32px;padding:0 10px;gap:5px">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m8 2 1.88 1.88"/><path d="M14.12 3.88 16 2"/><path d="M9 7.13v-1a3.003 3.003 0 1 1 6 0v1"/><path d="M12 20c-3.3 0-6-2.7-6-6v-3a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v3c0 3.3-2.7 6-6 6"/><path d="M12 20v-9"/><path d="M6.53 9C4.6 8.8 3 7.1 3 5"/><path d="M6 13H2"/><path d="M3 21c0-2.1 1.7-3.9 3.8-4"/><path d="M20.97 5c0 2.1-1.6 3.8-3.5 4"/><path d="M22 13h-4"/><path d="M17.2 17c2.1.1 3.8 1.9 3.8 4"/></svg>
-              Report
-            </button>
           </div>
         </div>
 

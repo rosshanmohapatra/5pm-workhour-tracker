@@ -19,8 +19,7 @@ const full = { hi: 'Hi Asha,', dear: 'Dear Asha,', date: 'Monday, Nov 3', range:
   start: '11:05 AM', end: '06:10 PM', worked: '7h 05m', target: '9h 00m', short: '1h 55m',
   reason: "a doctor's appointment", days: 'Mon 3 Nov: 7h 05m', name: 'Roshan', position: 'Designer',
   description: 'The timer stopped when I locked my phone.', version: '1.2.27', surface: 'website',
-  platform: 'Chrome on Windows', kind: 'Desktop', screen: '1920x1080 at 1x, window 1536x730',
-  tz: 'Asia/Kolkata', lang: 'en-IN', theme: 'Dark', reported: 'Fri Nov 06 2026', ua: 'Mozilla/5.0' };
+  platform: 'Chrome on Windows', details: 'Diagnostics\n\nApp: 5pm 1.2.27, Website' };
 
 // Every format fills every token it uses.
 for (const type of ['daily', 'weekly', 'dispute', 'bug']) {
@@ -46,8 +45,8 @@ for (const fmt of ['concise', 'detailed', 'formal']) assert.ok(_fillTpl(EMAIL_TP
 // A day with no recorded end drops the End line instead of printing an empty one.
 assert.ok(!/End:/.test(_fillTpl(EMAIL_TPL.dispute.concise.body, { ...full, end: '' })));
 
-// Bug report keeps the description and the device details.
+// Bug report keeps the description and the details block.
 const bug = _fillTpl(EMAIL_TPL.bug.concise.body, full);
-assert.ok(bug.includes(full.description) && bug.includes('Device details') && bug.includes('1.2.27'));
+assert.ok(bug.includes(full.description) && bug.includes(full.description + '\n\n' + full.details));
 
 console.log('email templates: all checks passed');

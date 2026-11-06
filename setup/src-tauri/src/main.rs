@@ -17,8 +17,30 @@ use std::{
 use serde::Serialize;
 use tauri::{AppHandle, Emitter};
 
-static INSTALLER: &[u8] = include_bytes!(env!("FIVEPM_INSTALLER"));
-const APP_EXE_SIZE: &str = env!("FIVEPM_APP_EXE_SIZE");
+// Both builds ride along; the PC decides which one is installed.
+static INSTALLER_X64: &[u8] = include_bytes!(env!("FIVEPM_INSTALLER_X64"));
+static INSTALLER_X86: &[u8] = include_bytes!(env!("FIVEPM_INSTALLER_X86"));
+const APP_EXE_SIZE_X64: &str = env!("FIVEPM_APP_EXE_SIZE_X64");
+const APP_EXE_SIZE_X86: &str = env!("FIVEPM_APP_EXE_SIZE_X86");
+
+// 64-bit Intel/AMD Windows gets the 64-bit build. 32-bit Windows and ARM get the
+// 32-bit one, which ARM runs emulated on every Windows version (64-bit
+// emulation needs Windows 11). Setup itself is 32-bit, so on 64-bit Windows the
+// real CPU is in PROCESSOR_ARCHITEW6432, not PROCESSOR_ARCHITECTURE.
+fn is_x64_windows() -> bool {
+  std::env::var("PROCESSOR_ARCHITEW6432")
+    .or_else(|_| std::env::var("PROCESSOR_ARCHITECTURE"))
+    .map(|a| a.eq_ignore_ascii_case("AMD64"))
+    .unwrap_or(false)
+}
+
+fn payload() -> (&'static [u8], &'static str) {
+  if is_x64_windows() {
+    (INSTALLER_X64, APP_EXE_SIZE_X64)
+  } else {
+    (INSTALLER_X86, APP_EXE_SIZE_X86)
+  }
+}
 
 const UNINSTALL_KEY: &str = r"HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\5pm";
 const CREATE_NO_WINDOW: u32 = 0x0800_0000;
@@ -75,11 +97,12 @@ fn setup_install(app: AppHandle) {
 fn run(app: &AppHandle) -> Result<(), String> {
   // 1. Unpacking: write the embedded installer to a temp file.
   emit(app, 0.0, "unpack");
+  let (installer, app_exe_size) = payload();
   let path = std::env::temp_dir().join(format!("5pm-installer-{}.exe", std::process::id()));
   {
     let mut file = fs::File::create(&path).map_err(|e| e.to_string())?;
-    let total = INSTALLER.len().max(1);
-    for (i, chunk) in INSTALLER.chunks(256 * 1024).enumerate() {
+    let total = installer.len().max(1);
+    for (i, chunk) in installer.chunks(256 * 1024).enumerate() {
       file.write_all(chunk).map_err(|e| e.to_string())?;
       let written = ((i + 1) * 256 * 1024).min(total);
       emit(app, 10.0 * written as f64 / total as f64, "unpack");
@@ -89,7 +112,7 @@ fn run(app: &AppHandle) -> Result<(), String> {
   // 2. Copying: run NSIS silently and watch app.exe being written. NSIS kills a
   //    running 5pm itself and installs over the existing copy, keeping data.
   let target = app_exe();
-  let expected = APP_EXE_SIZE.parse::<u64>().unwrap_or(1).max(1);
+  let expected = app_exe_size.parse::<u64>().unwrap_or(1).max(1);
   let started = SystemTime::now();
   emit(app, 10.0, "copy");
   let mut child = Command::new(&path)

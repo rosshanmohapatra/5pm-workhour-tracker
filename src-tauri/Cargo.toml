@@ -33,3 +33,8 @@ tauri-plugin-autostart = "2"
 # Without this, every fivepm:// activation starts a second copy of the app.
 # The deep-link feature forwards the URL to the instance already running.
 tauri-plugin-single-instance = { version = "2", features = ["deep-link"] }
+
+[target.'cfg(windows)'.dependencies]
+# The "Update available" toast listens for its own click (shell::notify_update).
+# Already in the build through tauri-plugin-notification; same version.
+tauri-winrt-notification = "0.8"

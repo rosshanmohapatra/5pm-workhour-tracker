@@ -47,6 +47,7 @@ pub fn run() {
       updater::updater_install,
       oauth::oauth_listen,
       shell::notify,
+      shell::notify_update,
       shell::autostart_enabled,
       shell::autostart_set,
       shell::launched_at_boot,

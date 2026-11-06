@@ -440,6 +440,9 @@
       scrollbar-width: none; overscroll-behavior-x: contain; box-shadow: inset 0 -1px var(--border);
       scroll-snap-type: x proximity; }
     body.shell-new .set-tab { scroll-snap-align: center; }
+    /* Settings: when every tab fits, they share the row to the right edge.
+       When they don't, they keep their size and scroll as before. */
+    body.shell-new .set-tabs-shell:not(.de-tabs) .set-tab { flex-grow: 1; }
     /* The panel's slide-in must never widen the page sideways. */
     body.shell-new #viewSettings .settings-panel { overflow-x: clip; }
     /* Touch: swipe the row; the faded edges show there is more. */

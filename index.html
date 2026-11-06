@@ -1743,6 +1743,33 @@
     .email-send { display: flex; align-items: center; justify-content: center; height: 44px; text-decoration: none; }
     .email-pane { display: flex; flex-direction: column; gap: 12px; }
     .email-pane[hidden] { display: none; }
+    /* Email drafts: the preview reads as before (the wrapper adds no box). */
+    .email-pv-head { display: none; }
+    .email-pv-scroll { display: contents; }
+    /* Report a Bug: the sheet itself never scrolls. The preview is a code block
+       with a fixed height that scrolls on its own and has a copy button, and the
+       button sits in a footer panel. On short screens (and phones) the block
+       gives up height first, down to 140px, so the button is always in view. */
+    #emailModalOverlay.is-bug .email-modal { display: flex; flex-direction: column; overflow: hidden; }
+    #emailModalOverlay.is-bug :is(.email-compose, #emailPreviewPane) { flex: 1 1 auto; min-height: 0; }
+    #emailModalOverlay.is-bug .email-preview { flex: 0 1 300px; min-height: 140px; padding: 0; gap: 0; }
+    #emailModalOverlay.is-bug .email-pv-head { display: flex; align-items: center; justify-content: space-between;
+      padding: 4px 4px 4px 14px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+    #emailModalOverlay.is-bug .email-pv-scroll { display: flex; flex-direction: column; gap: 8px; flex: 1; min-height: 0;
+      overflow-y: auto; overscroll-behavior: contain; padding: 12px 14px; }
+    #emailModalOverlay.is-bug :is(.email-pv-meta, .email-pv-subject, .email-pv-body) {
+      font-family: 'SF Mono', ui-monospace, Menlo, Consolas, monospace; font-size: 12px; line-height: 1.6; }
+    #emailModalOverlay.is-bug .email-pv-subject { font-weight: 600; }
+    #emailModalOverlay.is-bug .email-actions { flex-shrink: 0; margin: 0 -14px; padding: 14px 14px 0; border-top: 1px solid var(--border); }
+    .email-copy { width: 30px; height: 30px; display: grid; place-items: center; border: none; border-radius: var(--radius-md);
+      background: transparent; color: var(--muted-fg); cursor: pointer; transition: background .15s, color .15s; }
+    @media (hover: hover) and (pointer: fine) { .email-copy:hover { background: var(--card); color: var(--foreground); } }
+    .email-copy .ic-check, .email-copy.copied .ic-copy { display: none; }
+    .email-copy.copied .ic-check { display: block; color: var(--foreground); }
+    @media (max-width: 640px) {
+      #emailModalOverlay.is-bug .email-modal { max-height: 85dvh; }
+      #emailModalOverlay.is-bug .email-preview { flex-basis: 260px; }
+    }
     /* Two equal columns: flex shares only the space left after each button's own padding. */
     .email-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
     .email-actions .btn { width: 100%; min-width: 0; height: 44px; display: flex; align-items: center; justify-content: center; gap: 8px; }
@@ -4976,16 +5003,23 @@
             </select>
           </div>
           <div class="email-preview" aria-live="polite">
-            <div class="email-pv-meta" id="emailPvMeta"></div>
-            <div class="email-pv-subject" id="emailPvSubject"></div>
-            <div class="email-pv-body" id="emailPvBody"></div>
-            <!-- Shown for a moment while the new tone's text is put together -->
-            <div class="email-pv-skel" aria-hidden="true">
-              <span class="skel" style="width:58%;height:14px"></span>
-              <span class="skel" style="width:22%;height:11px;margin-top:6px"></span>
-              <span class="skel" style="width:96%;height:11px"></span>
-              <span class="skel" style="width:88%;height:11px"></span>
-              <span class="skel" style="width:70%;height:11px"></span>
+            <!-- Report a Bug only: a code-block header with a copy button -->
+            <div class="email-pv-head">
+              <span class="email-label">Preview</span>
+              <button type="button" class="email-copy" id="emailCopyBtn" title="Copy" aria-label="Copy email"><svg class="ic-copy" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg><svg class="ic-check" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></button>
+            </div>
+            <div class="email-pv-scroll">
+              <div class="email-pv-meta" id="emailPvMeta"></div>
+              <div class="email-pv-subject" id="emailPvSubject"></div>
+              <div class="email-pv-body" id="emailPvBody"></div>
+              <!-- Shown for a moment while the new tone's text is put together -->
+              <div class="email-pv-skel" aria-hidden="true">
+                <span class="skel" style="width:58%;height:14px"></span>
+                <span class="skel" style="width:22%;height:11px;margin-top:6px"></span>
+                <span class="skel" style="width:96%;height:11px"></span>
+                <span class="skel" style="width:88%;height:11px"></span>
+                <span class="skel" style="width:70%;height:11px"></span>
+              </div>
             </div>
           </div>
           <div class="email-actions">

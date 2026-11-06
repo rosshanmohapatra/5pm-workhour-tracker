@@ -1698,6 +1698,14 @@
     .email-pv-meta { font-size: 12px; color: var(--muted-fg); overflow-wrap: anywhere; }
     .email-pv-subject { font-size: 14px; font-weight: 600; color: var(--foreground); overflow-wrap: anywhere; }
     /* Update Entry modal tabs (Update Entry | Raise Dispute) */
+    /* Update Entry pages: the second page slides in from the right, the first
+       out to the left, and the dialog's height glides to the new page's. */
+    .de-pager { position: relative; overflow-x: hidden; }
+    .de-pager.de-sliding { overflow: hidden; transition: height .32s cubic-bezier(.32,.72,0,1); }
+    .de-page.de-moving { transition: transform .32s cubic-bezier(.32,.72,0,1), opacity .32s ease; }
+    .de-page.de-abs { position: absolute; top: 0; left: 0; width: 100%; }
+    .de-email-page { position: relative; padding: 22px 22px 24px; }
+    @media (prefers-reduced-motion: reduce) { .de-pager.de-sliding, .de-page.de-moving { transition: none; } }
     /* Same tabs as Settings (sliding underline); the dialog's side padding. */
     body.shell-new .de-tabs { margin: 0 22px 4px; }
     /* Dispute reasons: one chip at a time, or a reason of your own. */
@@ -4672,7 +4680,11 @@
 
   <!-- Day Edit Modal -->
   <div class="overlay" id="dayEditOverlay">
-    <div class="dialog">
+    <!-- Two pages: the day (Update Entry | Raise Dispute) and, after Draft Email,
+         the dispute email. The email page slides in from the right; Back slides
+         it out again. -->
+    <div class="dialog de-pager">
+      <div class="de-page" id="deMainPage">
       <div class="dialog-head" style="position:relative">
         <div class="dialog-title" id="dayEditTitle">Edit Day</div>
         <div class="dialog-desc" id="dayEditDesc">Update times or mark a special day</div>
@@ -4746,6 +4758,9 @@
           <button class="btn btn-primary" id="deDisputeNext">Draft Email</button>
         </div>
       </div>
+      </div><!-- /deMainPage -->
+      <!-- The Email Draft sheet's content is moved in here while it's shown. -->
+      <div class="de-page de-email-page" id="deEmailPage" hidden></div>
     </div>
   </div>
 

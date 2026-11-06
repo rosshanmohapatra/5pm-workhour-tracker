@@ -1705,6 +1705,12 @@
     .wn-list li::before { content: ''; position: absolute; left: 2px; top: .62em; width: 5px; height: 5px;
       border-radius: 50%; background: var(--muted-fg); }
     .wn-continue { width: 100%; height: 44px; margin-top: 22px; }
+    /* Desktop dialog: the same 24px on every side (the shared sheet padding has a
+       deeper bottom for phones), with the divider still running edge to edge. */
+    @media (min-width: 641px) {
+      #whatsNewOverlay .email-modal { padding: 24px; }
+      #whatsNewOverlay .email-modal-sep { margin-left: -24px; margin-right: -24px; }
+    }
     @media (max-width: 640px) { .wn-continue { height: 50px; font-size: 16px; font-weight: 600; border-radius: 999px; } }
     /* Update Entry modal tabs (Update Entry | Raise Dispute) */
     /* Update Entry pages: the second page slides in from the right, the first
@@ -3735,13 +3741,10 @@
         <div class="settings-section" id="whatsNewSection">
           <div style="display:flex;align-items:center;gap:12px">
             <div style="flex:1;min-width:0">
-              <div class="form-label" style="font-size:13px;font-weight:600;color:var(--foreground);line-height:1.2">What's New</div>
-              <div class="form-sub" style="margin-top:1px" id="whatsNewSub">See what changed in this version.</div>
+              <div class="form-label" id="whatsNewTitle" style="font-size:13px;font-weight:600;color:var(--foreground);line-height:1.2">Version</div>
+              <div class="form-sub" style="margin-top:1px">See what's changed in this release.</div>
             </div>
-            <button class="btn-secondary" id="whatsNewBtn" style="flex-shrink:0;font-size:12px;height:32px;padding:0 10px;gap:5px">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/><path d="M20 3v4"/><path d="M22 5h-4"/></svg>
-              Open
-            </button>
+            <button class="btn-secondary" id="whatsNewBtn" style="flex-shrink:0;font-size:12px;height:32px;padding:0 10px">What's New</button>
           </div>
         </div>
 

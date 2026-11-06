@@ -7,7 +7,8 @@
     "node": "24.x"
   },
   "scripts": {
-    "vapid": "node -e \"const wp=require('web-push');const k=wp.generateVAPIDKeys();console.log('VAPID_PUBLIC_KEY='+k.publicKey);console.log('VAPID_PRIVATE_KEY='+k.privateKey);\""
+    "vapid": "node -e \"const wp=require('web-push');const k=wp.generateVAPIDKeys();console.log('VAPID_PUBLIC_KEY='+k.publicKey);console.log('VAPID_PRIVATE_KEY='+k.privateKey);\"",
+    "play": "node scripts/play.js"
   },
   "dependencies": {
     "@vercel/kv": "^2.0.0",

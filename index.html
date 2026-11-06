@@ -1694,6 +1694,22 @@
       display: flex; flex-direction: column; gap: 8px; }
     .email-pv-meta { font-size: 12px; color: var(--muted-fg); overflow-wrap: anywhere; }
     .email-pv-subject { font-size: 14px; font-weight: 600; color: var(--foreground); overflow-wrap: anywhere; }
+    /* Update Entry modal tabs (Update Entry | Raise Dispute) */
+    .de-tabs { margin: 0 22px 4px; align-self: stretch; }
+    .de-tabs .rc-pair-tab { flex: 1; }
+    /* Dispute reasons: one chip at a time, or a reason of your own. */
+    .de-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+    .de-chip { height: 34px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--border);
+      background: transparent; color: var(--muted-fg); font: 500 13px var(--font); cursor: pointer;
+      -webkit-tap-highlight-color: transparent; transition: background .15s, color .15s, border-color .15s; }
+    @media (hover: hover) { .de-chip:hover { color: var(--foreground); } }
+    .de-chip[aria-checked="true"] { background: var(--foreground); border-color: var(--foreground); color: var(--background); }
+    #deDisputeOther { margin-top: 4px; }
+    /* Report a Bug */
+    .email-bug { display: flex; flex-direction: column; gap: 8px; }
+    .email-bug-desc { height: auto; min-height: 96px; padding: 10px 14px; line-height: 1.5; resize: vertical; }
+    .email-actions.single { grid-template-columns: 1fr; }
+    .email-send[aria-disabled="true"] { opacity: .45; pointer-events: none; }
     /* Changing tone: a skeleton for a second, then the new text. The height
        glides between them, so the sheet grows or shrinks smoothly. */
     .email-preview { overflow: hidden; transition: height .32s cubic-bezier(.32,.72,0,1); }
@@ -3688,6 +3704,10 @@
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6z"/><path d="m9 12 2 2 4-4"/></svg>
               Privacy Policy
             </button>
+            <button class="btn-secondary" id="reportBugBtn" style="font-size:12px;height:32px;padding:0 10px;gap:5px">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m8 2 1.88 1.88"/><path d="M14.12 3.88 16 2"/><path d="M9 7.13v-1a3.003 3.003 0 1 1 6 0v1"/><path d="M12 20c-3.3 0-6-2.7-6-6v-3a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v3c0 3.3-2.7 6-6 6"/><path d="M12 20v-9"/><path d="M6.53 9C4.6 8.8 3 7.1 3 5"/><path d="M6 13H2"/><path d="M3 21c0-2.1 1.7-3.9 3.8-4"/><path d="M20.97 5c0 2.1-1.6 3.8-3.5 4"/><path d="M22 13h-4"/><path d="M17.2 17c2.1.1 3.8 1.9 3.8 4"/></svg>
+              Report a Bug
+            </button>
             <button class="btn-secondary" style="font-size:12px;height:32px;padding:0 10px;gap:5px" data-on-click="ha851ef3e6b">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
               Contribute
@@ -4662,6 +4682,12 @@
           </svg>
         </button>
       </div>
+      <!-- Update Entry | Raise Dispute. The tabs show for today and past days. -->
+      <div class="rc-pair-tabs de-tabs" id="deTabs" role="tablist" aria-label="Day options">
+        <button type="button" class="rc-pair-tab rc-pair-tab-active" role="tab" aria-selected="true" data-de-tab="edit">Update Entry</button>
+        <button type="button" class="rc-pair-tab" role="tab" aria-selected="false" data-de-tab="dispute">Raise Dispute</button>
+      </div>
+      <div id="deEditPane">
       <div class="dialog-body">
         <div class="modal-override-row">
           <button class="modal-override-btn" id="deHalfDay" data-on-click="h78736406eb">Half Day</button>
@@ -4694,6 +4720,25 @@
       <div class="dialog-foot-row">
         <button class="btn btn-cancel" id="dayEditCancel">Cancel</button>
         <button class="btn btn-primary" id="dayEditSave">Update</button>
+      </div>
+      </div><!-- /deEditPane -->
+      <!-- Raise Dispute: pick why the attendance system has this day wrong, then
+           the Email Draft sheet writes it to HR with 5pm's timings for the day. -->
+      <div id="deDisputePane" hidden>
+        <div class="dialog-body">
+          <div class="form-sub">Ask HR to correct this day in your attendance system. 5pm's timings for the day go in the email.</div>
+          <div class="email-label" id="deReasonLabel">Reason</div>
+          <div class="de-chips" id="deDisputeReasons" role="radiogroup" aria-labelledby="deReasonLabel">
+            <button type="button" class="de-chip" role="radio" aria-checked="true" data-reason="missed">Missed Punch Out</button>
+            <button type="button" class="de-chip" role="radio" aria-checked="false" data-reason="glitch">Technical Glitch</button>
+            <button type="button" class="de-chip" role="radio" aria-checked="false" data-reason="notupdated">Not Updated</button>
+          </div>
+          <input class="field-input" id="deDisputeOther" type="text" maxlength="200" placeholder="Or write your own reason" aria-label="Your own reason">
+        </div>
+        <div class="dialog-foot-row">
+          <button class="btn btn-cancel" id="deDisputeCancel">Cancel</button>
+          <button class="btn btn-primary" id="deDisputeNext">Draft Email</button>
+        </div>
       </div>
     </div>
   </div>
@@ -4820,6 +4865,12 @@
       <div class="email-compose">
         <!-- Default: read the email, then open it -->
         <div class="email-pane" id="emailPreviewPane">
+          <!-- Report a Bug: the one thing the user writes -->
+          <div class="email-bug" id="emailBugWrap" hidden>
+            <label class="email-label" for="emailBugDesc">Description</label>
+            <textarea class="field-input email-bug-desc" id="emailBugDesc" rows="4" maxlength="1200"
+              placeholder="Describe what happened, what you expected to happen"></textarea>
+          </div>
           <div class="email-tone">
             <label class="email-label" for="emailTone">Writing Tone</label>
             <button class="info-icon-btn" type="button" aria-label="About Open Mail"

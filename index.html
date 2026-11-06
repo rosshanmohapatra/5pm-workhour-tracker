@@ -128,6 +128,9 @@
 
     /* ── Scrollbar (Fluent Design thin overlay) ── */
     html { scrollbar-gutter: stable; }
+    /* The hidden attribute always hides, even when a class sets display.
+       Without this, .email-bug / .email-tone / .btn kept showing when hidden. */
+    [hidden] { display: none !important; }
     /* Background scroll lock (phones and tablets only, set by index-app.js):
        the body is pinned in place while a modal or sheet is open. */
     html.scroll-locked { overflow: hidden; overscroll-behavior: none; }
@@ -1710,8 +1713,8 @@
     .email-pv-meta { font-size: 12px; color: var(--muted-fg); overflow-wrap: anywhere; }
     .email-pv-subject { font-size: 14px; font-weight: 600; color: var(--foreground); overflow-wrap: anywhere; }
     /* Update Entry modal tabs (Update Entry | Raise Dispute) */
-    .de-tabs { margin: 0 22px 4px; align-self: stretch; }
-    .de-tabs .rc-pair-tab { flex: 1; }
+    /* Same tabs as Settings (sliding underline); the dialog's side padding. */
+    body.shell-new .de-tabs { margin: 0 22px 4px; }
     /* Dispute reasons: one chip at a time, or a reason of your own. */
     .de-chips { display: flex; flex-wrap: wrap; gap: 8px; }
     .de-chip { height: 34px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--border);
@@ -4757,9 +4760,12 @@
         </button>
       </div>
       <!-- Update Entry | Raise Dispute. The tabs show for today and past days. -->
-      <div class="rc-pair-tabs de-tabs" id="deTabs" role="tablist" aria-label="Day options">
-        <button type="button" class="rc-pair-tab rc-pair-tab-active" role="tab" aria-selected="true" data-de-tab="edit">Update Entry</button>
-        <button type="button" class="rc-pair-tab" role="tab" aria-selected="false" data-de-tab="dispute">Raise Dispute</button>
+      <div class="set-tabs-shell de-tabs" id="deTabs">
+        <div class="set-tabs" role="tablist" aria-label="Day options">
+          <button type="button" class="set-tab active" role="tab" aria-selected="true" data-de-tab="edit">Update Entry</button>
+          <button type="button" class="set-tab" role="tab" aria-selected="false" data-de-tab="dispute">Raise Dispute</button>
+          <span class="set-tab-ind" aria-hidden="true"></span>
+        </div>
       </div>
       <div id="deEditPane">
       <div class="dialog-body">
@@ -4930,7 +4936,10 @@
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       </button>
       <div class="email-modal-head">
-        <div>
+        <button type="button" class="back-btn" id="emailBackBtn" title="Back" aria-label="Back to the day" hidden>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+        </button>
+        <div style="flex:1;min-width:0">
           <div class="email-modal-title">Email Draft</div>
           <div class="email-modal-date" id="emailModalDate"></div>
         </div>
@@ -4939,9 +4948,9 @@
       <div class="email-compose">
         <!-- Default: read the email, then open it -->
         <div class="email-pane" id="emailPreviewPane">
-          <!-- Report a Bug: the one thing the user writes -->
+          <!-- Report a Bug: the description. Raise Dispute: the reason, editable. -->
           <div class="email-bug" id="emailBugWrap" hidden>
-            <label class="email-label" for="emailBugDesc">Description</label>
+            <label class="email-label" id="emailBugLabel" for="emailBugDesc">Description</label>
             <textarea class="field-input email-bug-desc" id="emailBugDesc" rows="4" maxlength="1200"
               placeholder="Describe what happened, what you expected to happen"></textarea>
           </div>

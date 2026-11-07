@@ -116,6 +116,7 @@ function toggleMode() {
   $('nameField').classList.toggle('show', isSignup);
   $('forgotLink').style.display = isSignup ? 'none' : '';
   $('passkey-btn').style.display = isSignup || !_passkeyOn ? 'none' : ''; // sign-in only
+  document.querySelectorAll('.last-used').forEach(t => { t.hidden = isSignup; }); // sign-in only
 }
 
 // --- Password visibility toggle ---
@@ -147,6 +148,7 @@ async function handleSubmit() {
   const btn = $('submitBtn');
   btn.classList.add('loading');
   btn.disabled = true;
+  _markLoginPending('email');
   try {
     if (isSignup) {
       const { data, error } = await _sb.auth.signUp({
@@ -490,4 +492,27 @@ document.addEventListener('keydown', e => {
     const { data: { session } } = await _sb.auth.getSession();
     if (session && await _mfaRequired()) showMfaChallenge();
   } catch (_) { /* no session / offline — show the normal login form */ }
+})();
+
+// ── Last Used ─────────────────────────────────────────────────────────────────
+// The sign-in method last used on this device gets a small "Last Used" tag,
+// like Vercel's. Each attempt is saved as pending; the app makes it the last
+// used once the sign-in actually succeeds (index-auth-gate.js). The keys don't
+// start with wh_, so signing out (which clears wh_ keys) keeps them.
+function _markLoginPending(method) {
+  try { localStorage.setItem('5pm_login_pending', method); } catch {}
+}
+document.getElementById('google-btn').addEventListener('click', () => _markLoginPending('google'));
+document.getElementById('github-btn').addEventListener('click', () => _markLoginPending('github'));
+document.getElementById('passkey-btn').addEventListener('click', () => _markLoginPending('passkey'));
+(function lastUsedTag() {
+  let method = null;
+  try { method = localStorage.getItem('5pm_login_last'); } catch {}
+  const btn = document.getElementById({ google: 'google-btn', github: 'github-btn', email: 'submitBtn', passkey: 'passkey-btn' }[method]);
+  if (!btn) return;
+  const tag = document.createElement('span');
+  tag.className = 'last-used';
+  tag.textContent = 'Last Used';
+  btn.classList.add('has-last-used');
+  btn.appendChild(tag);
 })();

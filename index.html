@@ -533,6 +533,29 @@
     body.shell-new .dev-tiles > .settings-card-body { padding: 0; max-height: none; overflow: visible; }
     body.shell-new .dev-tiles .settings-card-head { border: none; }
     body.shell-new .dev-tiles .settings-section-header { margin: 24px 4px 8px; cursor: default; }
+    /* Developer Mode sections: a small uppercase header that opens and closes
+       its group (height glides, chevron turns). */
+    body.shell-new .dev-sec { margin-top: 20px; }
+    .dev-sec-head { display: flex; align-items: center; gap: 6px; width: 100%; padding: 4px 4px 8px; margin: 0;
+      border: none; background: none; cursor: pointer; color: var(--muted-fg); font: 600 11px/1 var(--font);
+      letter-spacing: .06em; text-transform: uppercase; text-align: left; border-radius: var(--radius-md);
+      transition: color .14s; }
+    .dev-sec-count { font-weight: 500; letter-spacing: 0; opacity: .7; }
+    .dev-sec-chev { margin-left: auto; transition: transform .3s cubic-bezier(.32,.72,0,1); }
+    .dev-sec.closed .dev-sec-chev { transform: rotate(-90deg); }
+    @media (hover: hover) and (pointer: fine) { .dev-sec-head:hover { color: var(--foreground); } }
+    .dev-sec-head:focus-visible { outline: 2px solid #6B97FF; outline-offset: 2px; }
+    .dev-sec-body { display: grid; grid-template-rows: 1fr; transition: grid-template-rows .3s cubic-bezier(.32,.72,0,1); }
+    .dev-sec.closed .dev-sec-body { grid-template-rows: 0fr; }
+    .dev-sec-inner { overflow: hidden; min-height: 0; }
+    @media (prefers-reduced-motion: reduce) { .dev-sec-body, .dev-sec-chev { transition: none; } }
+    /* Rows that aren't plain divs still read as tiles. */
+    body.shell-new .tile-list > label.dev-row { background: var(--card); padding: 14px 16px; display: flex;
+      align-items: center; justify-content: space-between; gap: 12px; }
+    .dev-tip-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    /* A tip shown from Developer Mode: same card, a dashed outline says "preview". */
+    .fivepm-inline-tip.is-preview { outline: 1px dashed var(--muted-fg); outline-offset: 2px; }
+    .fivepm-inline-tip.is-panel, .email-pane > .fivepm-inline-tip { margin: 0; }
 
     /* "5pm for Windows" promo card (Settings › About, Windows browsers only). */
     /* 5pm for Windows: a row of the About tiles. Icon, text, Download on the right. */
@@ -1450,6 +1473,19 @@
       gap: 5px; transition: background .12s; }
     .diag-btn:hover { background: rgba(255,255,255,.13); }
     .diag-btn.icon-only { width: 26px; padding: 0; }
+    /* Sync Check log: the same code block as Report a Bug's preview (header
+       strip with LOG on the left, collapse and copy on the right). */
+    #syncDiagWrap { border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--muted); overflow: hidden; }
+    body.shell-new .tile-list > #syncDiagWrap { padding: 0; margin: 0; border: none; border-radius: 0; }
+    #syncDiagWrap > div:first-child { position: static !important; display: flex; align-items: center; justify-content: flex-end;
+      gap: 4px; padding: 4px 4px 4px 14px; border-bottom: 1px solid var(--border); }
+    #syncDiagWrap > div:first-child::before { content: 'Log'; margin-right: auto; font: 600 11px/1 var(--font);
+      letter-spacing: .05em; text-transform: uppercase; color: var(--muted-fg); }
+    #syncDiagWrap .diag-btn { height: 28px; background: transparent; color: var(--muted-fg); border: none; border-radius: var(--radius-md); }
+    @media (hover: hover) and (pointer: fine) { #syncDiagWrap .diag-btn:hover { background: var(--card); color: var(--foreground); } }
+    #syncDiagResult { background: none !important; border: none !important; border-radius: 0 !important; color: var(--muted-fg) !important;
+      font-size: 12px !important; line-height: 1.6 !important; padding: 12px 14px !important; max-height: 280px; }
+    .dev-build-text { white-space: pre-line; font-family: 'SF Mono', ui-monospace, Menlo, Consolas, monospace; font-size: 12px; line-height: 1.6; }
     /* Fluent-style scrollbar */
     #syncDiagResult { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,.22) transparent; }
     #syncDiagResult::-webkit-scrollbar { width: 10px; height: 10px; }
@@ -1483,12 +1519,9 @@
     /* About Project card */
     .about-dev-pic { width: 40px; height: 40px; border-radius: 50%; object-fit: cover;
       border: 2px solid var(--border); flex-shrink: 0; }
-    /* Card is a 5-tap unlock target — block selection so rapid tapping
-       doesn't highlight the name/role text. */
-    #devAboutCard { user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
-    #devAboutCard .settings-section-body-inner { cursor: pointer; }
-    #devAboutCard .settings-section-body-inner button,
-    #devAboutCard .settings-section-body-inner a { cursor: pointer; }
+    /* The Version row is the 5-tap Developer Mode unlock (like Android's build
+       number): no text selection while tapping fast. */
+    #versionRow { user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
     .about-social-btn { display:inline-flex;align-items:center;justify-content:center;
       width:34px;height:34px;border-radius:8px;border:none;
       background:transparent;color:var(--muted-fg);text-decoration:none;
@@ -1503,7 +1536,8 @@
       background:var(--muted);color:var(--muted-fg);padding:2px 8px;border-radius:6px; }
     .page-brand { position:fixed;top:12px;left:12px;z-index:10;display:inline-flex;
       align-items:center;text-decoration:none;line-height:0; }
-    .page-brand:hover img { border-color:var(--muted-fg) !important; transition:border-color .15s; }
+    /* Hover: a slightly stronger gray than the resting border, in both themes. */
+    .page-brand:hover img { border-color:color-mix(in srgb, var(--muted-fg) 40%, var(--border)) !important; transition:border-color .15s; }
     .page-brand img { transition:border-color .15s; }
     @media (max-width:640px) { .page-brand { display:none !important; } }
     .version-pill { position:fixed;bottom:16px;right:16px;
@@ -1730,6 +1764,16 @@
     /* Report a Bug */
     .email-bug { display: flex; flex-direction: column; gap: 8px; }
     .email-bug-desc { height: auto; min-height: 96px; padding: 10px 14px; line-height: 1.5; resize: vertical; }
+    .email-bug-count { font-size: 12px; color: var(--muted-fg); margin-top: -2px; }
+    /* Customise and back: the panes' box glides between their heights and the
+       incoming pane fades in, instead of the sheet jumping in one frame. */
+    .email-compose.pane-gliding { overflow: hidden; transition: height .3s cubic-bezier(.32,.72,0,1); }
+    .email-pane.pane-in { animation: email-pane-in .24s ease both; }
+    @keyframes email-pane-in { from { opacity: 0; } to { opacity: 1; } }
+    @media (prefers-reduced-motion: reduce) {
+      .email-compose.pane-gliding { transition: none; }
+      .email-pane.pane-in { animation: none; }
+    }
     .email-actions.single { grid-template-columns: 1fr; }
     .email-send[aria-disabled="true"] { opacity: .45; pointer-events: none; }
     /* Changing tone: a skeleton for a second, then the new text. The height
@@ -2836,6 +2880,99 @@
       .td-panel { padding: 6px 14px calc(14px + env(safe-area-inset-bottom)); }
       .ios-install-sheet { padding: 0 14px calc(14px + env(safe-area-inset-bottom)); }
     }
+    /* ── Product Tour and tips (Driver.js, lib/driver.css underneath) ──────
+       Sized to 5pm's popover standards: 14px padding, 300px wide, 14px/600
+       title, 13px muted body, 12px progress, 32px buttons with 12px text,
+       8px arrow, blue focus ring, hover only with a mouse. */
+    .driver-popover.fivepm-pop { box-sizing: border-box; background: var(--card); color: var(--foreground);
+      border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 14px;
+      width: 300px; min-width: 0; max-width: calc(100vw - 28px);
+      box-shadow: 0 10px 30px rgba(0,0,0,.28); font-family: var(--font); }
+    .fivepm-pop .driver-popover-title { font: 600 14px/1.3 var(--font); color: var(--foreground); }
+    /* Title on the left, "2 of 4" on the right of the same line. */
+    .fivepm-pop .fivepm-pop-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+    .fivepm-pop .fivepm-pop-head .driver-popover-progress-text { flex-shrink: 0; }
+    /* Footer: Skip on the far left, Back and Next (or Done) on the right. */
+    .fivepm-pop .driver-popover-footer .driver-popover-navigation-btns { margin-left: auto; flex-grow: 0; }
+    .fivepm-pop .driver-popover-footer .driver-popover-prev-btn { background: var(--btn-secondary-bg); color: var(--btn-secondary-fg); }
+    .fivepm-pop .driver-popover-description { font: 400 13px/1.5 var(--font); color: var(--muted-fg); margin-top: 4px; }
+    .fivepm-pop .driver-popover-footer { margin-top: 14px; gap: 8px; }
+    .fivepm-pop .driver-popover-progress-text { font: 400 12px/1 var(--font); color: var(--muted-fg); }
+    .fivepm-pop .driver-popover-navigation-btns { gap: 8px; }
+    .fivepm-pop .driver-popover-footer button { all: unset; box-sizing: border-box; height: 32px; padding: 0 12px;
+      display: inline-flex; align-items: center; justify-content: center; border-radius: var(--radius-md);
+      font: 500 12px/1 var(--font); cursor: pointer; text-shadow: none; transition: background .14s, filter .14s; }
+    .fivepm-pop .driver-popover-footer .driver-popover-next-btn { background: var(--btn-primary-bg); color: var(--card); }
+    .fivepm-pop .driver-popover-footer .fivepm-pop-skip { background: var(--btn-secondary-bg); color: var(--btn-secondary-fg); }
+    .fivepm-pop .driver-popover-close-btn { all: unset; position: absolute; top: 10px; right: 10px; width: 24px; height: 24px;
+      display: grid; place-items: center; border-radius: var(--radius-md); color: var(--muted-fg);
+      font-size: 18px; line-height: 1; cursor: pointer; transition: background .14s, color .14s; }
+    @media (hover: hover) and (pointer: fine) {
+      .fivepm-pop .driver-popover-footer .driver-popover-next-btn:hover { filter: brightness(.88); }
+      .fivepm-pop .driver-popover-footer .fivepm-pop-skip:hover,
+      .fivepm-pop .driver-popover-footer .driver-popover-prev-btn:hover { background: var(--btn-secondary-hover); }
+      .fivepm-pop .driver-popover-close-btn:hover { background: var(--muted); color: var(--foreground); }
+    }
+    .fivepm-pop .driver-popover-footer button:focus-visible,
+    .fivepm-pop .driver-popover-close-btn:focus-visible { outline: 2px solid #6B97FF; outline-offset: 2px; }
+    /* 8px arrow in the popover's own colour. */
+    .fivepm-pop .driver-popover-arrow { border: 8px solid transparent; }
+    .fivepm-pop .driver-popover-arrow-side-left { border-left-color: var(--card); }
+    .fivepm-pop .driver-popover-arrow-side-right { border-right-color: var(--card); }
+    .fivepm-pop .driver-popover-arrow-side-top { border-top-color: var(--card); }
+    .fivepm-pop .driver-popover-arrow-side-bottom { border-bottom-color: var(--card); }
+    .fivepm-pop .driver-popover-arrow-side-left.driver-popover-arrow-align-center,
+    .fivepm-pop .driver-popover-arrow-side-right.driver-popover-arrow-align-center { margin-top: -8px; }
+    .fivepm-pop .driver-popover-arrow-side-top.driver-popover-arrow-align-center,
+    .fivepm-pop .driver-popover-arrow-side-bottom.driver-popover-arrow-align-center { margin-left: -8px; }
+    /* Inline tips (TipKit style): a small card inside the feature's own card.
+       Icon, 14px/600 title, 13px muted line, close. */
+    .fivepm-inline-tip { display: flex; align-items: flex-start; gap: 10px; padding: 12px 10px 12px 14px;
+      margin: 10px 14px 4px; background: var(--muted); border-radius: var(--radius-md); }
+    .fivepm-inline-tip .fivepm-tip-icon { display: flex; color: var(--muted-fg); padding-top: 1px; }
+    .fivepm-inline-tip-text { flex: 1; min-width: 0; }
+    .fivepm-inline-tip-title { font: 600 14px/1.3 var(--font); color: var(--foreground); }
+    .fivepm-inline-tip-body { font: 400 13px/1.5 var(--font); color: var(--muted-fg); margin-top: 2px; }
+    .fivepm-inline-tip-close { width: 24px; height: 24px; display: grid; place-items: center; flex-shrink: 0;
+      border: none; border-radius: var(--radius-md); background: transparent; color: var(--muted-fg);
+      cursor: pointer; transition: background .14s, color .14s; }
+    @media (hover: hover) and (pointer: fine) { .fivepm-inline-tip-close:hover { background: var(--border); color: var(--foreground); } }
+    .fivepm-inline-tip-close:focus-visible { outline: 2px solid #6B97FF; outline-offset: 2px; }
+    @media (prefers-reduced-motion: reduce) { .driver-popover, .driver-overlay { animation: none !important; } }
+    /* ── Desktop rail (wide window + mouse) ──────────────────────────────
+       Icon-only panel on the left: logo on top; Theme and Settings at the
+       bottom. Notifications stays on the page, top right. 64px wide, 40px buttons, 6px apart. */
+    .app-rail { display: none; }
+    body.rail-on { padding-left: 64px; }
+    body.rail-on .app-rail { position: fixed; z-index: 30; top: 0; bottom: 0; left: 0; width: 64px;
+      display: flex; flex-direction: column; align-items: center; justify-content: space-between;
+      padding: 14px 0; background: var(--background); border-right: 1px solid var(--border); }
+    .app-rail-top, .app-rail-bottom { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+    body.rail-on .app-rail .page-brand { position: static; display: inline-flex; }
+    body.rail-on .app-rail .page-brand img { height: 36px; }
+    body.rail-on #hdrSettings { display: none; }   /* Settings lives in the rail */
+    .rail-btn { width: 40px; height: 40px; display: inline-flex; align-items: center;
+      justify-content: center; position: relative; border: none; border-radius: var(--radius-md); background: transparent;
+      color: var(--muted-fg); cursor: pointer; transition: background .14s, color .14s; }
+    @media (hover: hover) and (pointer: fine) {
+      .rail-btn:hover { background: var(--muted); color: var(--foreground); }
+    }
+    .rail-btn.active { background: var(--muted); color: var(--foreground); }
+    .rail-btn:focus-visible { outline: 2px solid #6B97FF; outline-offset: 2px; }
+    .rail-avatar { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center;
+      background: var(--muted); color: var(--foreground); font: 600 11px/1 var(--font); letter-spacing: .02em;
+      box-shadow: inset 0 0 0 1px var(--border); }
+    .rail-btn.active .rail-avatar { background: var(--card); }
+    /* Notifications as a modal: centred, fixed height, the list scrolls inside,
+       blurred backdrop like every other modal. */
+    body.rail-on .notif-panel { top: 50%; left: calc(50% + 32px); width: 420px; max-width: calc(100vw - 112px);
+      transform: translate(-50%, -50%) scale(.97); transition: opacity .2s ease, transform .2s ease; z-index: 1001; }
+    body.rail-on .notif-panel.hidden { max-height: none; opacity: 0; pointer-events: none; }
+    body.rail-on .notif-panel.open { max-height: none; opacity: 1; transform: translate(-50%, -50%) scale(1); }
+    body.rail-on.shell-new .notif-panel.open .notif-card { height: min(520px, 80vh); max-height: none; }
+    body.rail-on .notif-scrim { z-index: 1000; background: rgba(0,0,0,.38);
+      backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+    @media (prefers-reduced-motion: reduce) { body.rail-on .notif-panel { transition: opacity .2s; } }
   </style>
 </head>
 <body>
@@ -3792,12 +3929,19 @@
              2px gaps, like Account. ── -->
         <div class="settings-section" id="aboutTiles">
           <div class="settings-group">
-            <div style="display:flex;align-items:center;gap:12px">
+            <div id="versionRow" style="display:flex;align-items:center;gap:12px">
               <div style="flex:1;min-width:0">
                 <div class="form-label" id="whatsNewTitle" style="font-size:13px;font-weight:600;color:var(--foreground);line-height:1.2">Version</div>
                 <div class="form-sub" style="margin-top:1px">See what's changed in this release.</div>
               </div>
               <button class="btn-secondary" id="whatsNewBtn" style="flex-shrink:0;font-size:12px;height:32px;padding:0 10px">What's New</button>
+            </div>
+            <div style="display:flex;align-items:center;gap:12px">
+              <div style="flex:1;min-width:0">
+                <div class="form-label" style="font-size:13px;font-weight:600;color:var(--foreground);line-height:1.2">Product Tour</div>
+                <div class="form-sub" style="margin-top:1px">See how 5pm works, step by step.</div>
+              </div>
+              <button class="btn-secondary" id="tourBtn" style="flex-shrink:0;font-size:12px;height:32px;padding:0 10px">Take the Tour</button>
             </div>
             <div style="display:flex;align-items:center;gap:12px">
               <div style="flex:1;min-width:0">
@@ -3815,7 +3959,7 @@
         </div><!-- /Unified Settings Card -->
 
 
-        <!-- Developer (hidden by default — unlock with 5 taps on About Developer) -->
+        <!-- Developer (hidden by default; unlock with 5 taps on the Version row in Settings › About) -->
         <div class="settings-card" id="notifTestCard" style="display:none">
           <!-- Header row + toggle — entire row clickable, like other Settings toggles -->
           <div class="settings-card-head" data-on-click="hb03e1f492f">
@@ -3827,6 +3971,33 @@
           </div>
           <div class="settings-card-body">
             <div class="settings-group" style="gap:16px">
+
+              <!-- Active overrides: shown only while a test date or sample penalties are on -->
+              <div id="devOverridesRow" hidden style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+                <div style="min-width:0">
+                  <div class="form-label">Active Overrides</div>
+                  <div class="form-sub" id="devOverridesText"></div>
+                </div>
+                <button type="button" id="devResetAll" class="btn-secondary" style="flex-shrink:0;font-size:12px;height:32px;padding:0 10px">Reset All</button>
+              </div>
+
+              <!-- Replay the first-run flow on this device -->
+              <div id="devReplayRow" style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+                <div style="min-width:0">
+                  <div class="form-label">Replay as New User</div>
+                  <div class="form-sub">Onboarding, then the Product Tour, with tips reset. Your data stays.</div>
+                </div>
+                <button type="button" id="devReplayBtn" class="btn-secondary" style="flex-shrink:0;font-size:12px;height:32px;padding:0 10px">Replay</button>
+              </div>
+
+              <!-- Build details, the same facts a bug report carries -->
+              <div id="devBuildRow" style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px">
+                <div style="min-width:0">
+                  <div class="form-label">Build Info</div>
+                  <div class="form-sub dev-build-text" id="devBuildText"></div>
+                </div>
+                <button type="button" id="devBuildCopy" class="btn-secondary" style="flex-shrink:0;font-size:12px;height:32px;padding:0 10px">Copy</button>
+              </div>
 
               <!-- Notifications — 3-column preview grid -->
               <div>
@@ -3999,6 +4170,27 @@
                       </div>
                     </div>
                     <button class="btn-secondary" id="devPreviewWhatsNew" style="flex-shrink:0;font-size:12px;height:32px;padding:0 10px">Preview</button>
+                  </div>
+
+                  <div id="devTourRow" style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+                    <div style="display:flex;align-items:center;gap:5px">
+                      <div style="font-size:13px;font-weight:500;color:var(--foreground)">Product Tour</div>
+                      <div>
+                        <button class="info-icon-btn" type="button" data-tip-desc="The tour shown after onboarding. On a day off it previews the next workday." data-on-click="h335c87590c" data-on-mouseenter="h2bb7e7eb46" data-on-mouseleave="h83efb5e4ca"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg></button>
+                      </div>
+                    </div>
+                    <button class="btn-secondary" id="devPreviewTour" style="flex-shrink:0;font-size:12px;height:32px;padding:0 10px">Preview</button>
+                  </div>
+
+                  <!-- Tip rows are added before this one by lib/pages/tour.js -->
+                  <div id="devResetTipsRow" style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+                    <div style="display:flex;align-items:center;gap:5px">
+                      <div style="font-size:13px;font-weight:500;color:var(--foreground)">Show Tips Again</div>
+                      <div>
+                        <button class="info-icon-btn" type="button" data-tip-desc="Resets every tip, so each shows again when its moment comes." data-on-click="h335c87590c" data-on-mouseenter="h2bb7e7eb46" data-on-mouseleave="h83efb5e4ca"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg></button>
+                      </div>
+                    </div>
+                    <button class="btn-secondary" id="devResetTips" style="flex-shrink:0;font-size:12px;height:32px;padding:0 10px">Reset</button>
                   </div>
 
                 </div>
@@ -4989,7 +5181,10 @@
           <div class="email-bug" id="emailBugWrap" hidden>
             <label class="email-label" id="emailBugLabel" for="emailBugDesc">Description</label>
             <textarea class="field-input email-bug-desc" id="emailBugDesc" rows="4" maxlength="1200"
+              aria-describedby="emailBugCount"
               placeholder="Describe what happened, what you expected to happen"></textarea>
+            <!-- Report a Bug only: characters still needed before it can be sent -->
+            <div class="email-bug-count" id="emailBugCount" aria-live="polite" hidden></div>
           </div>
           <div class="email-tone">
             <label class="email-label" for="emailTone">Writing Tone</label>
@@ -5072,6 +5267,9 @@
   <script src="/lib/pages/menu-select.js"></script>
   <script src="/lib/pages/sheet.js"></script>
   <script src="/lib/pages/index-app.js"></script>
+  <link rel="stylesheet" href="/lib/driver.css">
+  <script src="/lib/driver.js"></script>
+  <script src="/lib/pages/tour.js"></script>
 
 <!-- ── ONBOARDING MODAL ── -->
 <div class="ob-overlay" id="obOverlay" style="display:none">

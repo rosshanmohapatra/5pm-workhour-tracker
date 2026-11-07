@@ -17,5 +17,10 @@ fn main() {
       .unwrap_or_else(|_| panic!("set {size_var} to the byte size of the built app.exe"));
     size.parse::<u64>().unwrap_or_else(|_| panic!("{size_var} must be a number"));
   }
-  tauri_build::build()
+  // Our own manifest (see setup.manifest) instead of Tauri's default, so
+  // Windows doesn't show "This program might not have installed correctly".
+  println!("cargo:rerun-if-changed=setup.manifest");
+  let windows = tauri_build::WindowsAttributes::new().app_manifest(include_str!("setup.manifest"));
+  tauri_build::try_build(tauri_build::Attributes::new().windows_attributes(windows))
+    .expect("failed to run tauri build script");
 }

@@ -13,10 +13,12 @@ $ErrorActionPreference = 'Stop'
 $tauri  = Split-Path $PSScriptRoot -Parent
 $repo   = Split-Path $tauri -Parent
 $out    = Join-Path $tauri 'target\msix'
-$layout = Join-Path $out 'layout'
 
 # The Store wants four parts with the last one 0: 1.2.27 -> 1.2.27.0
 $version = (Get-Content (Join-Path $tauri 'tauri.conf.json') -Raw | ConvertFrom-Json).version + '.0'
+# One folder per version: a test copy installed with -Install runs from its
+# folder, so Windows keeps it locked until that copy is removed.
+$layout = Join-Path $out "layout-$version"
 
 Push-Location $repo
 try { npm run tauri -- build --no-bundle; if ($LASTEXITCODE) { throw 'tauri build failed' } }

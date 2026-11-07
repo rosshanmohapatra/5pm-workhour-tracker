@@ -16,10 +16,22 @@ use tauri_plugin_notification::NotificationExt;
 // window.Notification onto this command and every existing call site keeps working.
 #[tauri::command]
 pub fn notify(app: AppHandle, title: String, body: String) -> Result<(), String> {
+  let title = if title.is_empty() { "5pm".to_string() } else { title };
+  #[cfg(windows)]
+  if crate::store::is_packaged() {
+    use tauri_winrt_notification::Toast;
+    let handle = app.clone();
+    return Toast::new(&toast_app_id(&app))
+      .title(&title)
+      .text1(&body)
+      .on_activated(move |_| { show_main(&handle); Ok(()) })
+      .show()
+      .map_err(|e| e.to_string());
+  }
   app
     .notification()
     .builder()
-    .title(if title.is_empty() { "5pm".to_string() } else { title })
+    .title(title)
     .body(body)
     .show()
     .map_err(|e| e.to_string())
@@ -36,15 +48,8 @@ pub fn notify_update(app: AppHandle, version: String) -> Result<(), String> {
   {
     use tauri::Emitter;
     use tauri_winrt_notification::Toast;
-    // Installed builds own the toast under the app's ID; `tauri dev` has no
-    // installed shortcut, so it borrows PowerShell's, as the notification plugin does.
-    let app_id = if tauri::is_dev() {
-      Toast::POWERSHELL_APP_ID.to_string()
-    } else {
-      app.config().identifier.clone()
-    };
     let handle = app.clone();
-    Toast::new(&app_id)
+    Toast::new(&toast_app_id(&app))
       .title("Update Ready")
       .text1(&format!("5pm {version} is downloaded. Click to restart 5pm and finish updating."))
       .on_activated(move |_| {
@@ -60,6 +65,49 @@ pub fn notify_update(app: AppHandle, version: String) -> Result<(), String> {
     let _ = (app, version);
   }
   Ok(())
+}
+
+// Tray tip: the first time the window is closed (5pm hides to the tray rather
+// than quitting), one Windows notification says it's still running, so closing
+// it doesn't look like 5pm quit. A marker file keeps it to once per PC.
+const TRAY_TIP_MARKER: &str = "tray-tip-shown";
+
+pub fn tray_tip_once(app: &AppHandle) {
+  let Ok(dir) = app.path().app_config_dir() else { return };
+  let marker = dir.join(TRAY_TIP_MARKER);
+  if marker.exists() {
+    return;
+  }
+  let _ = std::fs::create_dir_all(&dir);
+  let _ = std::fs::write(&marker, "1");
+  #[cfg(windows)]
+  {
+    use tauri_winrt_notification::Toast;
+    let handle = app.clone();
+    let _ = Toast::new(&toast_app_id(app))
+      .title("5pm Is Still Running")
+      .text1("It keeps time from the tray. Click the icon to open it again.")
+      .on_activated(move |_| {
+        show_main(&handle);
+        Ok(())
+      })
+      .show();
+  }
+}
+
+// The app ID a toast is sent under. Installed builds own it through their
+// Start menu shortcut; the Store package has its own; `tauri dev` has no
+// shortcut, so it borrows PowerShell's, as the notification plugin does.
+#[cfg(windows)]
+pub fn toast_app_id(app: &AppHandle) -> String {
+  use tauri_winrt_notification::Toast;
+  if let Some(id) = crate::store::app_user_model_id() {
+    id
+  } else if tauri::is_dev() {
+    Toast::POWERSHELL_APP_ID.to_string()
+  } else {
+    app.config().identifier.clone()
+  }
 }
 
 // Windows passes this when it launches 5pm at sign-in. That run stays in the
@@ -115,7 +163,12 @@ pub fn resolve_launch_kind(app: &AppHandle) {
   }
   let updated = age.map_or(false, |secs| secs <= UPDATE_MARKER_MAX_AGE_SECS);
 
-  let boot = !updated && std::env::args().any(|arg| arg == AUTOSTART_FLAG);
+  // The Store package starts through its StartupTask, which passes no arguments.
+  #[cfg(windows)]
+  let startup_task = crate::store::launched_by_startup_task();
+  #[cfg(not(windows))]
+  let startup_task = false;
+  let boot = !updated && (startup_task || std::env::args().any(|arg| arg == AUTOSTART_FLAG));
   let _ = BOOT_LAUNCH.set(boot);
 }
 
@@ -137,14 +190,22 @@ pub fn set_tray_tooltip(app: AppHandle, text: String) -> Result<(), String> {
 }
 
 #[tauri::command]
-pub fn autostart_enabled(app: AppHandle) -> Result<bool, String> {
+pub async fn autostart_enabled(app: AppHandle) -> Result<bool, String> {
   use tauri_plugin_autostart::ManagerExt;
+  #[cfg(windows)]
+  if crate::store::is_packaged() {
+    return crate::store::autostart_enabled();
+  }
   app.autolaunch().is_enabled().map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-pub fn autostart_set(app: AppHandle, enabled: bool) -> Result<(), String> {
+pub async fn autostart_set(app: AppHandle, enabled: bool) -> Result<(), String> {
   use tauri_plugin_autostart::ManagerExt;
+  #[cfg(windows)]
+  if crate::store::is_packaged() {
+    return crate::store::autostart_set(enabled);
+  }
   let manager = app.autolaunch();
   if enabled {
     manager.enable().map_err(|e| e.to_string())
@@ -158,6 +219,10 @@ pub fn autostart_set(app: AppHandle, enabled: bool) -> Result<(), String> {
 // switches it off in Settings is never overridden.
 pub fn enable_autostart_on_first_run(app: &AppHandle) {
   use tauri_plugin_autostart::ManagerExt;
+  // The Store package's StartupTask is on from install (AppxManifest.xml).
+  if crate::store::is_packaged() {
+    return;
+  }
 
   let Ok(dir) = app.path().app_config_dir() else {
     return;

@@ -36,6 +36,10 @@ pub async fn updater_check(
   app: AppHandle,
   state: State<'_, UpdateState>,
 ) -> Result<Option<UpdateInfo>, String> {
+  // The Store updates its own copy.
+  if crate::store::is_packaged() {
+    return Ok(None);
+  }
   let found = app
     .updater()
     .map_err(|e| e.to_string())?

@@ -1,5 +1,6 @@
 mod oauth;
 mod shell;
+mod store;
 mod updater;
 
 // Sign-in belongs in the real browser, where the user's Google session already
@@ -52,12 +53,14 @@ pub fn run() {
       shell::autostart_set,
       shell::launched_at_boot,
       shell::set_tray_tooltip,
+      store::is_store_app,
       open_external
     ])
     .on_window_event(|window, event| {
       if let tauri::WindowEvent::CloseRequested { api, .. } = event {
         api.prevent_close();
         let _ = window.hide();
+        shell::tray_tip_once(tauri::Manager::app_handle(window));
       }
     })
     .setup(|app| {

@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Microsoft Store package for 5pm. store/build-msix.ps1 fills in {VERSION}
+  and packs this next to 5pm.exe and the icons.
+  Identity values come from Partner Center › 5pm › Product identity. They're
+  public (every Store package carries them) and must match exactly.
+-->
+<Package
+  xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
+  xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
+  xmlns:desktop="http://schemas.microsoft.com/appx/manifest/desktop/windows10"
+  xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
+  IgnorableNamespaces="uap desktop rescap">
+
+  <Identity
+    Name="RoshanMahapatra.5pm"
+    Publisher="CN=34374E87-E986-4A27-84F8-2A8D367C2E34"
+    Version="{VERSION}"
+    ProcessorArchitecture="x64" />
+
+  <Properties>
+    <DisplayName>5pm</DisplayName>
+    <PublisherDisplayName>Roshan Mahapatra</PublisherDisplayName>
+    <Logo>Assets\StoreLogo.png</Logo>
+  </Properties>
+
+  <!-- WebView2 needs Windows 10 1809 or later. -->
+  <Dependencies>
+    <TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.17763.0" MaxVersionTested="10.0.26100.0" />
+  </Dependencies>
+
+  <Resources>
+    <Resource Language="en-us" />
+  </Resources>
+
+  <Applications>
+    <Application Id="App" Executable="5pm.exe" EntryPoint="Windows.FullTrustApplication">
+      <uap:VisualElements
+        DisplayName="5pm"
+        Description="Know when to leave work. Tracks your hours, breaks and overtime."
+        BackgroundColor="transparent"
+        Square150x150Logo="Assets\Square150x150Logo.png"
+        Square44x44Logo="Assets\Square44x44Logo.png">
+        <uap:DefaultTile Square71x71Logo="Assets\Square71x71Logo.png" />
+      </uap:VisualElements>
+      <Extensions>
+        <!-- Sign-in hands back to the app through fivepm:// links. -->
+        <uap:Extension Category="windows.protocol">
+          <uap:Protocol Name="fivepm">
+            <uap:DisplayName>5pm</uap:DisplayName>
+          </uap:Protocol>
+        </uap:Extension>
+        <!-- Open at Login. On from install; Settings in 5pm (or Windows) turns it off. -->
+        <desktop:Extension Category="windows.startupTask" Executable="5pm.exe" EntryPoint="Windows.FullTrustApplication">
+          <desktop:StartupTask TaskId="FivePmStartup" Enabled="true" DisplayName="5pm" />
+        </desktop:Extension>
+      </Extensions>
+    </Application>
+  </Applications>
+
+  <Capabilities>
+    <Capability Name="internetClient" />
+    <rescap:Capability Name="runFullTrust" />
+  </Capabilities>
+</Package>

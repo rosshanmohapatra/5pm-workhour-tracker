@@ -88,6 +88,10 @@ function _clearAuthError() { const e = $('authError'); if (e) e.style.display = 
 (function () {
   const p = new URLSearchParams(location.search);
   const e = p.get('error');
+  // A used or expired email link, sent here by the app (index-auth-gate.js).
+  let linkError = null;
+  try { linkError = sessionStorage.getItem('wh_link_error'); sessionStorage.removeItem('wh_link_error'); } catch {}
+  if (linkError && !e) setTimeout(() => showAuthError('This link has expired. Reset links work once, for an hour. Request a new one.'), 50);
   if (e) setTimeout(() => showAuthError(
     e === 'oauth_failed'
       ? 'Sign-in was cancelled or failed. Please try again.'
@@ -308,9 +312,14 @@ async function startEmailRecovery() {
   btn.classList.add('loading');
   btn.disabled = true;
   try {
-    await _sb.auth.resetPasswordForEmail(email, {
-      redirectTo: window.__DESKTOP_AUTH_REDIRECT || (window.location.origin + '/login.html')
-    });
+    // The link opens in a browser: send it to the website's app page, which
+    // asks for the new password, and ask without PKCE, since the browser can't
+    // finish a sign-in the Windows app started (same as index-app.js).
+    const site = window.__TAURI__ ? 'https://whtracker.vercel.app' : location.origin;
+    const resetSb = window.supabase.createClient(window.__SB_URL, window.__SB_ANON_KEY,
+      { auth: { flowType: 'implicit', persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } });
+    const { error } = await resetSb.auth.resetPasswordForEmail(email, { redirectTo: site + '/index.html' });
+    if (error) throw error;
     $('authFooter').style.display = 'none';
     showView('authSuccess');
     $('successTitle').textContent = 'Email sent!';

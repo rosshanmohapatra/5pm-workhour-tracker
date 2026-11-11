@@ -389,3 +389,9 @@ test('Stats table sorts: numbers largest first, text A→Z, third click clears',
 test('Stats table escapes saved login and logout times', () => {
   assert.match(SRC, /`\$\{_escHtml\(r\.entry\)\} – \$\{r\.exit && r\.exit !== '—' \? _escHtml\(r\.exit\) : 'now'\}`/);
 });
+
+test('Stats Day column names the weekday from the date (30-day names are "14 Tue")', () => {
+  assert.match(SRC, /<b>\$\{dDate \? _DAY_ABBR\[dDate\.getDay\(\)\] : r\.day\.slice\(0, 3\)\}<\/b>/);
+  const abbr = load(extract('const _DAY_ABBR', ';'), {}, '_DAY_ABBR');
+  assert.equal(abbr[new Date('2026-10-14T12:00').getDay()], 'Wed');
+});

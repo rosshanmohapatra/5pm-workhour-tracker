@@ -3004,7 +3004,7 @@
         const time = r.entry && r.entry !== '—' ? `${_escHtml(r.entry)} – ${r.exit && r.exit !== '—' ? _escHtml(r.exit) : 'now'}` : '—';
         const none = '<span class="rpt-none">—</span>';
         html += `<tr class="${isFuture ? 'is-future' : ''}" style="--n:${Math.min(n++, 14)}">`
-          + `<td class="rpt-day"${sorted('day')}><b>${r.day.slice(0, 3)}</b>${dDate ? `<span>${MONTHS[dDate.getMonth()].slice(0, 3)} ${dDate.getDate()}</span>` : ''}</td>`
+          + `<td class="rpt-day"${sorted('day')}><b>${dDate ? _DAY_ABBR[dDate.getDay()] : r.day.slice(0, 3)}</b>${dDate ? `<span>${MONTHS[dDate.getMonth()].slice(0, 3)} ${dDate.getDate()}</span>` : ''}</td>`
           + `<td class="rpt-dim"${sorted('time')}>${time}</td>`
           + `<td${sorted('att')}>${att ? `<span class="rpt-att" style="--k:var(--${att[1]})">${att[0]}</span>` : none}</td>`
           + `<td data-num${sorted('pen')}>${r.isPenalty ? `<span class="wk-chip is-short">${wkSigned(r.diffSecs)}</span>` : none}</td>`

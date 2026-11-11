@@ -19,3 +19,7 @@ jobs:
         with:
           node-version: 20
       - run: node scripts/check-csp.js
+      # Logic tests (tests/): sync, auto-stop, placeholders, release notes.
+      # Built-in Node test runner, nothing to install.
+      - name: Logic tests
+        run: node --test tests/

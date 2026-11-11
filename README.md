@@ -8,7 +8,7 @@
 
 5pm is a personal work-hour tracker that tells you exactly when to leave each day. It tracks your login time in real time, measures your hours against a daily and weekly target, and shows a live "leave at" time, so you work your hours honestly and not a minute more.
 
-**[Open the web app](https://whtracker.vercel.app/)** · **[Get it from the Microsoft Store](https://apps.microsoft.com/detail/9ntmgrg95v3m)** · **[Download for Windows](https://github.com/rosshanmohapatra/5pm-workhour-tracker/releases/latest)**
+**[Open Web App](https://whtracker.vercel.app/)** · **[Get it from Microsoft Store](https://apps.microsoft.com/detail/9ntmgrg95v3m)** · **[Download for Windows](https://github.com/rosshanmohapatra/5pm-workhour-tracker/releases/latest)**
 
 ## Why 5pm?
 
@@ -48,11 +48,11 @@ Most days don't end when the work ends. They end when you finally look at the cl
 
 ## Get 5pm
 
-| Platform | How |
+| Platform | Links |
 |---|---|
-| Web (any browser, installable as an app) | [whtracker.vercel.app](https://whtracker.vercel.app/) |
-| Windows | [5pm Setup from the latest release](https://github.com/rosshanmohapatra/5pm-workhour-tracker/releases/latest) (64-bit and 32-bit; updates itself) |
-| Windows | [Microsoft Store](https://apps.microsoft.com/detail/9ntmgrg95v3m) |
+| Website / WebApp | [whtracker.vercel.app](https://whtracker.vercel.app/) |
+| Windows 11 | [5pm Setup](https://github.com/rosshanmohapatra/5pm-workhour-tracker/releases/latest) (Standalone) |
+| Microsoft Store | [Visit Store](https://apps.microsoft.com/detail/9ntmgrg95v3m) |
 
 Release notes for every version are on the [Releases page](https://github.com/rosshanmohapatra/5pm-workhour-tracker/releases).
 
@@ -62,32 +62,21 @@ Release notes for every version are on the [Releases page](https://github.com/ro
 
 - Your hours are saved on your device first, so 5pm keeps working offline, then synced to your account.
 - Synced data is stored in [Supabase](https://supabase.com/), where row-level security lets each account read and write only its own rows.
-- Details are in the [privacy policy](https://whtracker.vercel.app/privacy.html).
+- Details are provided in [privacy policy](https://whtracker.vercel.app/privacy.html).
 
 ---
 
-## FAQ
+## Frequently Asked Questions (FAQ)
 
-**Can my employer see my hours?**
-No. 5pm isn't connected to your employer or any office system. Your hours belong to your account, and only you can see them.
-
-**Does it watch what I do on my computer?**
-No. 5pm only knows the times you start, pause and stop. It doesn't look at your screen, apps or activity, and it uses no analytics or tracking tools.
-
-**Does it work offline?**
-Yes. Everything is saved on your device first and syncs when you're back online.
-
-**What if I forget to stop the timer?**
-Auto-stop ends the session 2 hours past your daily target (by default). If you were still working, press Resume and carry on. You can also fix any start or end time later with Update Entry.
-
-**My office attendance system has a day wrong. Can 5pm fix it?**
-5pm can't change your office system, but Raise Dispute drafts an email to HR with that day's real times.
-
-**Will I get reminders when 5pm is closed?**
-Not yet. Notifications arrive while 5pm is open in a browser tab or running as the Windows app.
-
-**How do I delete my account?**
-Settings › Security › Delete Account. Your data is kept for 48 hours in case you change your mind, then removed for good.
+| Question | Answer |
+|---|---|
+| **Can my employer see my hours?** | No. 5pm isn't connected to your employer or any office system. Your hours belong to your account, and only you can see them. |
+| **Does it watch what I do on my computer?** | No. 5pm only knows the times you start, pause and stop. It doesn't look at your screen, apps or activity, and it uses no analytics or tracking tools. |
+| **Does it work offline?** | Yes. Everything is saved on your device first and syncs when you're back online. |
+| **What if I forget to stop the timer?** | Auto-stop ends the session 2 hours past your daily target (by default). If you were still working, press Resume and carry on. You can also fix any start or end time later with Update Entry. |
+| **My office attendance system has a day wrong. Can 5pm fix it?** | 5pm can't change your office system, but Raise Dispute drafts an email to HR with that day's real times. |
+| **Will I get reminders when 5pm is closed?** | Not yet. Notifications arrive while 5pm is open in a browser tab or running as the Windows app. |
+| **How do I delete my account?** | Settings › Security › Delete Account. Your data is kept for 48 hours in case you change your mind, then removed for good. |
 
 ---
 
@@ -95,25 +84,12 @@ Settings › Security › Delete Account. Your data is kept for 48 hours in case
 
 5pm is plain HTML, CSS and JavaScript with no build step. The web app is served as-is by Vercel; the Windows app wraps the same files with [Tauri](https://tauri.app/) (on the `desktop` branch).
 
-**Run it locally**
-
-```bash
-npm run play
-```
-
-This serves the app at `http://localhost:3000` and reloads the page when a file is saved. It talks to the live backend, so sign in with a test account.
-
-**Run the tests**
-
-```bash
-npm test
-```
-
 Uses Node's built-in test runner; nothing to install. The tests also run on every push, together with a check that no inline script slips past the Content Security Policy.
 
 **Configuration**
 
 Copy `.env.example` to `.env.local` and fill it in. The database schema is in `supabase/migrations`.
+
 
 **Project layout**
 

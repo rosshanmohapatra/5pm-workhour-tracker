@@ -1,4 +1,4 @@
-// Prints a version's release notes from lib/whats-new.js, in the format used on
+// Prints a version's release notes from public/lib/whats-new.js, in the format used on
 // GitHub releases (and pasted into the Microsoft Store's "What's new" field).
 // Run:  node scripts/release-notes.js 1.2.28 > notes.md
 // Also a self-check: fails if an entry is malformed or uses an em dash.
@@ -6,7 +6,7 @@ const fs = require('fs');
 const path = require('path');
 const assert = require('assert');
 
-const src = fs.readFileSync(path.join(__dirname, '..', 'lib', 'whats-new.js'), 'utf8');
+const src = fs.readFileSync(path.join(__dirname, '..', 'public', 'lib', 'whats-new.js'), 'utf8');
 const window = {};
 new Function('window', src)(window);
 const list = window.WHATS_NEW;
@@ -22,7 +22,7 @@ for (const e of list) {
 
 const want = process.argv[2] || list[0].version;
 const entry = list.find(e => e.version === want);
-if (!entry) { console.error('No What\'s New entry for ' + want + '. Add one to lib/whats-new.js.'); process.exit(1); }
+if (!entry) { console.error('No What\'s New entry for ' + want + '. Add one to public/lib/whats-new.js.'); process.exit(1); }
 
 const out = [];
 if (entry.improvements?.length) out.push('**Improvements**', '', ...entry.improvements, '');

@@ -64,7 +64,7 @@ def convert_handlers(text, table, in_js):
 
 
 def main():
-    root = os.getcwd()
+    root = os.path.join(os.getcwd(), 'public')  # the website lives in public/
     events = set()
     for path, (page, names) in PAGES.items():
         full = os.path.join(root, path)

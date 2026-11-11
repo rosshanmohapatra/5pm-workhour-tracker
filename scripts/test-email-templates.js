@@ -1,5 +1,5 @@
 /**
- * Self-check for the email draft templates in lib/pages/index-app.js
+ * Self-check for the email draft templates in public/lib/pages/index-app.js
  * (shortfalls, disputes, bug reports).
  * _fillTpl fills {tokens} and drops any line whose token has no value.
  * Run with:  node scripts/test-email-templates.js
@@ -8,7 +8,7 @@ const fs = require('fs');
 const path = require('path');
 const assert = require('assert');
 
-const src = fs.readFileSync(path.join(__dirname, '..', 'lib', 'pages', 'index-app.js'), 'utf8');
+const src = fs.readFileSync(path.join(__dirname, '..', 'public', 'lib', 'pages', 'index-app.js'), 'utf8');
 const a = src.indexOf('const EMAIL_TPL = {');
 const b = src.indexOf('// One line per weekday', a);
 assert.ok(a !== -1 && b !== -1, 'could not locate the email templates');

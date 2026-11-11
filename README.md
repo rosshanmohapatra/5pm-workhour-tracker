@@ -93,15 +93,18 @@ Copy `.env.example` to `.env.local` and fill it in. The database schema is in `s
 
 **Project layout**
 
-| Path | What's there |
-|---|---|
-| `index.html`, `login.html`, `about.html`, `privacy.html` | The pages |
-| `lib/pages/` | Each page's script |
-| `lib/whats-new.js` | Release notes, shown in the app after an update and on GitHub |
-| `supabase/migrations/` | Database tables, security rules and functions |
-| `scripts/` | Local playground, CSP check and release-note tools |
-| `tests/` | Automated tests |
-| `api/` | Server half of Web Push (not in use yet) |
+```
+public/               The website, served as-is by Vercel
+├── *.html            The pages
+├── icons/            Favicons, logos, social preview
+└── lib/              Scripts and styles
+    ├── pages/        Each page's script
+    └── whats-new.js  Release notes, shown in the app and on GitHub
+api/                  Server half of Web Push (not in use yet)
+supabase/migrations/  Database tables, security rules and functions
+scripts/              Local playground, CSP check, release-note tools
+tests/                Automated tests
+```
 
 ---
 
@@ -123,8 +126,8 @@ Copy `.env.example` to `.env.local` and fill it in. The database schema is in `s
 
 ## Security
 
-Please report vulnerabilities privately; see [SECURITY.md](SECURITY.md).
+Please report vulnerabilities privately; see [SECURITY.md](.github/SECURITY.md).
 
 ## License
 
-[Apache License 2.0](LICENSE) © Roshan Mahapatra
+[Apache License 2.0](LICENSE) © Roshan Mahapatra. See [NOTICE](NOTICE).

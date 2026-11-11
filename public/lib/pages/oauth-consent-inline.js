@@ -4,7 +4,7 @@
       const dark  = saved ? saved === 'dark' : window.matchMedia('(prefers-color-scheme:dark)').matches;
       if (dark) {
         document.documentElement.classList.add('dark');
-        document.getElementById('favicon').href = '/favicon-dark.svg';
+        document.getElementById('favicon').href = '/icons/favicon-dark.svg';
       }
     })();
 

@@ -11,7 +11,7 @@ Thumbs.db
 
 # Supabase client config — anon key is intentionally public (enforced by RLS).
 # Kept in git so Vercel deploys without a build step.
-# lib/config.js
+# public/lib/config.js
 
 # node_modules
 node_modules/

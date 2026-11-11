@@ -13,17 +13,20 @@ const vm = require('node:vm');
 const { execFileSync } = require('node:child_process');
 
 const ROOT = path.join(__dirname, '..');
-const SRC = fs.readFileSync(path.join(ROOT, 'lib', 'pages', 'index-app.js'), 'utf8');
+const WEB = path.join(ROOT, 'public'); // the website
+const SRC = fs.readFileSync(path.join(WEB, 'lib', 'pages', 'index-app.js'), 'utf8');
 
 // Source from `start` up to the first `end` after it (functions in index-app.js
 // are indented four spaces, so their closing brace is "\n    }").
-function extract(start, end = '\n    }') {
-  const i = SRC.indexOf(start);
-  if (i < 0) throw new Error('Not found in index-app.js: ' + start);
-  const j = SRC.indexOf(end, i);
+function extractFrom(src, name, start, end) {
+  const i = src.indexOf(start);
+  if (i < 0) throw new Error(`Not found in ${name}: ${start}`);
+  const j = src.indexOf(end, i);
   if (j < 0) throw new Error('No end for: ' + start);
-  return SRC.slice(i, j + end.length);
+  return src.slice(i, j + end.length);
 }
+const extract = (start, end = '\n    }') => extractFrom(SRC, 'index-app.js', start, end);
+const LOGIN = fs.readFileSync(path.join(WEB, 'login.js'), 'utf8');
 // Runs code in a fresh sandbox and returns the value of `expr` afterwards.
 function load(code, sandbox, expr) {
   vm.createContext(sandbox);
@@ -188,6 +191,51 @@ test('checkpoint saves at most once per 10 min since the last save of any kind',
   assert.equal(flushes, 1, 'nothing changed: skip');
 });
 
+// ── Google sign-in: always show the account picker ─────────────────────────
+test('Continue with Google always asks Google for the account picker', async () => {
+  let args;
+  const sb = load(extractFrom(LOGIN, 'login.js', 'const GOOGLE_PICKER', ';') + '\n' +
+                  extractFrom(LOGIN, 'login.js', 'async function handleOAuth(', '\n}'), {
+    _sb: { auth: { signInWithOAuth: async a => { args = a; return { error: null }; } } },
+    _clearAuthError() {}, showAuthError(m) { throw new Error(m); },
+    window: { location: { origin: 'https://whtracker.vercel.app' } },
+  });
+  const btn = { disabled: false, style: {} };
+  await vm.runInContext('handleOAuth', sb)('Google', { currentTarget: btn });
+  assert.equal(args.provider, 'google');
+  assert.deepEqual({ ...args.options.queryParams }, { prompt: 'select_account' });
+  assert.equal(args.options.redirectTo, 'https://whtracker.vercel.app/index.html');
+  assert.equal(vm.runInContext('GOOGLE_PICKER', sb)('GitHub'), undefined, 'other providers get nothing extra');
+});
+
+test('Settings › Connect Google also shows the account picker', async () => {
+  let args;
+  const sb = load(extract('async function _connectProvider('), {
+    window: { location: { origin: 'https://whtracker.vercel.app', pathname: '/index.html' },
+              _sbClient: { auth: { linkIdentity: async a => { args = a; return { error: null }; } } } },
+    showToast(t, k, m) { throw new Error(m); },
+  });
+  await vm.runInContext('_connectProvider', sb)('google');
+  assert.deepEqual({ ...args.options.queryParams }, { prompt: 'select_account' });
+});
+
+test('Supabase puts prompt=select_account on the Google sign-in URL', async () => {
+  // The real bundled Supabase client, run offline: it only builds the URL.
+  const ctx = { console, setTimeout, clearTimeout, setInterval, clearInterval, URL, URLSearchParams,
+    TextEncoder, TextDecoder, crypto: globalThis.crypto, Headers, Request, Response, AbortController, atob, btoa,
+    // Node 20 (CI) has no WebSocket; the client only checks one exists and never connects.
+    WebSocket: globalThis.WebSocket || class WebSocket {},
+    fetch: async () => { throw new Error('no network in tests'); } };
+  ctx.window = ctx; ctx.self = ctx; ctx.globalThis = ctx;
+  load(fs.readFileSync(path.join(WEB, 'lib', 'supabase.umd.js'), 'utf8'), ctx);
+  const client = ctx.supabase.createClient('https://example.supabase.co', 'anon',
+    { auth: { persistSession: false, detectSessionInUrl: false, autoRefreshToken: false, flowType: 'implicit' } });
+  const { data, error } = await client.auth.signInWithOAuth({ provider: 'google',
+    options: { skipBrowserRedirect: true, redirectTo: 'https://whtracker.vercel.app/index.html', queryParams: { prompt: 'select_account' } } });
+  assert.equal(error, null);
+  assert.equal(new URL(data.url).searchParams.get('prompt'), 'select_account');
+});
+
 // ── Release checks ─────────────────────────────────────────────────────────
 test('release notes are valid (lib/whats-new.js)', () => {
   execFileSync(process.execPath, [path.join(ROOT, 'scripts', 'release-notes.js')], { stdio: 'pipe' });
@@ -198,7 +246,142 @@ test('no inline script (Content Security Policy)', () => {
 });
 
 test('every app script parses', () => {
-  const files = ['login.js', 'sw.js', ...fs.readdirSync(path.join(ROOT, 'lib', 'pages')).map(f => path.join('lib', 'pages', f))]
+  const files = ['login.js', 'sw.js', ...fs.readdirSync(path.join(WEB, 'lib', 'pages')).map(f => path.join('lib', 'pages', f))]
     .filter(f => f.endsWith('.js'));
-  for (const f of files) execFileSync(process.execPath, ['--check', path.join(ROOT, f)], { stdio: 'pipe' });
+  for (const f of files) execFileSync(process.execPath, ['--check', path.join(WEB, f)], { stdio: 'pipe' });
+});
+
+// ── Week card: ± chips, day types, footer ──────────────────────────────────
+const wkSandbox = (today = '2026-11-05') => {
+  const durWorked = secs => { const s = Math.max(0, secs), h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60); return h === 0 ? `${m}m` : `${h}h ${p2(m)}m`; };
+  const dateKey = d => `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}`;
+  const sb = { p2, durWorked, dateKey, short, todayKey: () => today };
+  load([extract('function wkSigned('), extract('function wkSpoken('), extract('function wkDayModel('), extract('function wkFooterModel(')].join('\n'), sb);
+  return sb;
+};
+
+test('± chips read +2mins, −30mins, +2h 30mins, +1h 15mins', () => {
+  const { wkSigned, wkSpoken } = wkSandbox();
+  assert.equal(wkSigned(120), '+2mins');
+  assert.equal(wkSigned(-1800), '−30mins');
+  assert.equal(wkSigned(9000), '+2h 30mins');
+  assert.equal(wkSigned(4500), '+1h 15mins');
+  assert.equal(wkSigned(-4500), '−1h 15mins');
+  assert.equal(wkSigned(7500), '+2h 05mins');
+  assert.equal(wkSigned(7200), '+2h');
+  assert.equal(wkSigned(60), '+1min');
+  assert.equal(wkSpoken(9000), '2 hours 30 minutes overtime');
+  assert.equal(wkSpoken(-60), '1 minute remaining');
+});
+
+test('week rows pick the right day type', () => {
+  const { wkDayModel } = wkSandbox();
+  const D = 9 * 3600, past = { isPast: true, dailySecs: D }, fut = { isFuture: true, dailySecs: D }, today = { isToday: true, dailySecs: D };
+  assert.equal(wkDayModel({ override: 'holiday' }, past).kind, 'holiday');
+  assert.equal(wkDayModel({ override: 'leave' }, past).label, 'On leave');
+  assert.equal(wkDayModel({ override: 'halfday', hoursWorked: 4.5, checkoutDisplay: '01:30 PM' }, past).line, 'Done by 01:30 PM');
+  assert.equal(wkDayModel(undefined, past).kind, 'missing');
+  assert.equal(wkDayModel({ hoursWorked: 9 + 2 / 60 }, past).diffSecs, 120);
+  assert.equal(wkDayModel({ autostopped: true, hoursWorked: 11, checkoutDisplay: '08:15 PM' }, past).line, 'Stopped for you at 08:15 PM');
+  assert.equal(wkDayModel({ futurePlan: 'late', planEndTime: '7:30 PM' }, fut).label, 'Staying late');
+  assert.equal(wkDayModel({ futurePlan: 'early', planEndTime: '4:00 PM' }, fut).line, 'Planned · out at 4:00 PM');
+  assert.equal(wkDayModel(undefined, fut).kind, 'future');
+  // Today: no ± chip while running or paused, only once the day has ended.
+  const run = wkDayModel({}, { ...today, live: true, liveSecs: 4 * 3600 });
+  assert.equal(run.kind, 'running'); assert.equal(run.diffSecs, undefined);
+  const paused = wkDayModel({ sessionDate: '2026-11-05', hoursWorked: 4.2, checkoutDisplay: '01:12 PM' }, today);
+  assert.equal(paused.kind, 'paused'); assert.equal(paused.line, 'Paused at 01:12 PM'); assert.equal(paused.diffSecs, undefined);
+  const left = wkDayModel({ sessionDate: '2026-11-05', checkoutTime: 'x', hoursWorked: 7.5, checkoutDisplay: '04:30 PM' }, today);
+  assert.equal(left.kind, 'left'); assert.equal(left.line, 'Left at 04:30 PM'); assert.equal(left.diffSecs, -5400);
+  const done = wkDayModel({ sessionDate: '2026-11-05', checkoutTime: 'x', hoursWorked: 9.25, checkoutDisplay: '06:15 PM' }, today);
+  assert.equal(done.kind, 'done'); assert.equal(done.diffSecs, 900);
+});
+
+test('week footer: In hand and On track for', () => {
+  const sb = wkSandbox();
+  const D = 9 * 3600;
+  const mk = (iso, m, loginMin = 9 * 60) => ({ day: { key: iso, name: new Date(iso + 'T12:00').toLocaleDateString('en-US', { weekday: 'long' }), date: new Date(iso + 'T12:00') }, m, loginMin });
+  const ctx = days => ({ days, dailySecs: D, weekTarget: 45 * 3600, offset: 0 });
+  const now = new Date('2026-11-05T10:00');
+  // Two long days bank 2h; today not started; the forecast runs at that pace.
+  const week = [
+    mk('2026-11-02', { kind: 'worked', hrsSecs: D + 3600 }),
+    mk('2026-11-03', { kind: 'worked', hrsSecs: D + 3600 }),
+    mk('2026-11-04', { kind: 'worked', hrsSecs: D }),
+    mk('2026-11-05', { kind: 'empty', today: true }),
+    mk('2026-11-06', { kind: 'future', future: true }),
+  ];
+  let f = sb.wkFooterModel(ctx(week), 0, now);
+  assert.equal(f.left.k, 'In hand'); assert.equal(f.left.v, '+2h 00m'); assert.equal(f.left.tone, 'over');
+  assert.equal(f.right.k, 'On track for'); assert.match(f.right.v, /^Fri, /);
+  // Behind.
+  f = sb.wkFooterModel(ctx([mk('2026-11-02', { kind: 'worked', hrsSecs: D - 5280 }), mk('2026-11-05', { kind: 'empty', today: true })]), 0, now);
+  assert.equal(f.left.k, 'Behind by'); assert.equal(f.left.v, '1h 28m');
+  // A missing day blocks the forecast.
+  f = sb.wkFooterModel(ctx([mk('2026-11-02', { kind: 'worked', hrsSecs: D }), mk('2026-11-04', { kind: 'missing' }), mk('2026-11-05', { kind: 'empty', today: true })]), 0, now);
+  assert.equal(f.right.v, "Add Wed's hours"); assert.equal(f.right.tone, 'missing');
+  // Not enough days left at this pace.
+  f = sb.wkFooterModel(ctx([mk('2026-11-05', { kind: 'empty', today: true })]), 0, now);
+  assert.equal(f.right.v, 'Not this week');
+  // Target met, and past weeks.
+  f = sb.wkFooterModel({ ...ctx(week), weekTarget: 27 * 3600 }, 0, now);
+  assert.equal(f.right.k, 'Target met');
+  f = sb.wkFooterModel({ ...ctx(week), offset: -1 }, 0, now);
+  assert.equal(f.right.k, 'Week total'); assert.equal(f.right.v, '29h 00m');
+});
+
+test('info bars share one component and auto-stop has a Resume button', () => {
+  const html = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
+  for (const id of ['notifPermBar', 'stayHint', 'otBanner', 'doneBanner', 'autostopBanner', 'endSessionHalfDayNote']) {
+    assert.match(html, new RegExp(`<div class="ib"[^>]*id="${id}"`), id + ' uses the .ib component');
+  }
+  assert.doesNotMatch(html, /class="banner\b|notif-perm-bar|stay-hint/, 'old banner styles are gone');
+  assert.match(html, /id="autostopResumeBtn"/);
+  assert.match(SRC, /autostopResumeBtn'\)\?\.addEventListener\('click', \(\) => el\('calcBtn'\)\.click\(\)\)/, 'Resume does what the main button does');
+  const sb = { cfg: () => ({ autoStopBuf: 2 }), durWorked: s => `${Math.floor(s / 3600)}h 00m`, nodes: {} };
+  sb.el = id => (sb.nodes[id] ||= { textContent: '', classList: { add() { sb.shown = true; } } });
+  load(extract('function _showAutostopBar('), sb, '_showAutostopBar("08:15 PM")');
+  assert.equal(sb.nodes.autostopTitle.textContent, 'Stopped at 08:15 PM');
+  assert.equal(sb.nodes.autostopMsg.textContent, 'You reached your target plus the 2h buffer.');
+  assert.ok(sb.shown);
+});
+
+// ── Stats table: sorting and chip colours ──────────────────────────────────
+test('Stats table sorts: numbers largest first, text A→Z, third click clears', () => {
+  const sb = load([
+    "const _RPT_COLS=[];", extract('const _rptFirstDir', ';'),
+    extract('function rptNextSort('), extract('function rptAttendance('), extract('function _rptTimeMins('), extract('function rptOrder('),
+  ].join('\n'), {});
+  const next = (c, k) => vm.runInContext(`rptNextSort(${JSON.stringify(c)}, ${JSON.stringify(k)})`, sb);
+  let s = { key: null, dir: 'asc' };
+  s = next(s, 'hrs'); assert.deepEqual({ ...s }, { key: 'hrs', dir: 'desc' });
+  s = next(s, 'hrs'); assert.deepEqual({ ...s }, { key: 'hrs', dir: 'asc' });
+  s = next(s, 'hrs'); assert.equal(s.key, null);
+  s = next(s, 'att'); assert.equal(s.dir, 'asc');
+  s = next(s, 'att'); assert.equal(s.dir, 'desc');
+  s = next(s, 'att'); assert.equal(s.key, null);
+  const rows = [
+    { entry: '9:02 AM', worked: 9 * 3600, surplusSecs: 120, isPenalty: false, diffSecs: 120, attendance: 'Full Day' },
+    { entry: '—', worked: 0, surplusSecs: 0, isPenalty: false, diffSecs: 0, attendance: 'Holiday' },
+    { entry: '9:40 AM', worked: 7.5 * 3600, surplusSecs: 0, isPenalty: true, diffSecs: -5400, attendance: 'Full Day' },
+    { entry: '8:55 AM', worked: 11 * 3600, surplusSecs: 7200, isPenalty: false, diffSecs: 7200, attendance: 'Full Day', autostopped: true },
+    { entry: '—', worked: 0, surplusSecs: 0, isPenalty: false, diffSecs: 0, attendance: '—', missing: true },
+  ];
+  const order = sort => [...vm.runInContext(`rptOrder(${JSON.stringify(rows)}, ${JSON.stringify(sort)})`, sb)];
+  assert.deepEqual(order({ key: null }), [0, 1, 2, 3, 4], 'unsorted = date order');
+  assert.deepEqual(order({ key: 'hrs', dir: 'desc' }), [3, 0, 2, 1, 4], 'longest day first; equal days stay in date order');
+  assert.equal(order({ key: 'pen', dir: 'desc' })[0], 2, 'biggest shortfall first');
+  assert.equal(order({ key: 'sur', dir: 'desc' })[0], 3, 'biggest surplus first');
+  assert.deepEqual(order({ key: 'time', dir: 'asc' }).slice(0, 3), [3, 0, 2], 'earliest start first, empty days last');
+  // Attendance tones match the week card's day types.
+  const att = r => [...vm.runInContext(`rptAttendance(${JSON.stringify(r)})`, sb)];
+  assert.deepEqual(att(rows[1]), ['Holiday', 'orchid']);
+  assert.deepEqual(att({ attendance: 'Leave' }), ['On leave', 'blue']);
+  assert.deepEqual(att({ attendance: 'Half Day' }), ['Half day', 'teal']);
+  assert.deepEqual(att(rows[3]), ['Auto-stopped', 'warning']);
+  assert.deepEqual(att(rows[4]), ['Missing', 'destructive']);
+  assert.deepEqual(att(rows[0]), ['Full day', 'muted-fg']);
+  // Penalty and surplus reuse the week card's chip classes.
+  assert.match(SRC, /<span class="wk-chip is-short">\$\{wkSigned\(r\.diffSecs\)\}/);
+  assert.match(SRC, /<span class="wk-chip is-over">\$\{wkSigned\(r\.surplusSecs\)\}/);
 });

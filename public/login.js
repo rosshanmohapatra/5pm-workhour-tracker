@@ -41,9 +41,9 @@ function applyTheme() {
   if (sun)  sun.style.display  = isDark ? '' : 'none';
   if (moon) moon.style.display = isDark ? 'none' : '';
   const fav = document.getElementById('favicon');
-  if (fav) fav.href = isDark ? '/favicon-dark.svg' : '/favicon-light.svg';
+  if (fav) fav.href = isDark ? '/icons/favicon-dark.svg' : '/icons/favicon-light.svg';
   const logo = document.getElementById('loginLogo');
-  if (logo) logo.src = isDark ? '/brand-dark.svg' : '/brand-light.svg';
+  if (logo) logo.src = isDark ? '/icons/brand-dark.svg' : '/icons/brand-light.svg';
 }
 
 function toggleTheme() {
@@ -197,6 +197,10 @@ async function handleSubmit() {
 // --- OAuth (Google / GitHub) ---
 // provider: 'Google' or 'GitHub'
 // evt:      the MouseEvent from addEventListener (used to disable the button)
+// Google's "always let me choose" setting; other providers get nothing extra.
+const GOOGLE_PICKER = provider =>
+  String(provider).toLowerCase() === 'google' ? { prompt: 'select_account' } : undefined;
+
 async function handleOAuth(provider, evt) {
   const btn = evt.currentTarget;
   btn.disabled = true;
@@ -207,7 +211,13 @@ async function handleOAuth(provider, evt) {
       provider: provider.toLowerCase(),
       // After OAuth the provider redirects back here with ?code=
       // index.html picks up the code via detectSessionInUrl:true
-      options: { redirectTo: window.location.origin + '/index.html' }
+      options: {
+        redirectTo: window.location.origin + '/index.html',
+        // Always show Google's account picker, even with one account signed
+        // in, so "Use another account" is always there. Without it Google
+        // signs in with the only account in the browser, no choice offered.
+        queryParams: GOOGLE_PICKER(provider)
+      }
     });
     if (error) throw error;
     // Browser navigates away to the OAuth provider — nothing else to do

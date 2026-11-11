@@ -1,0 +1,148 @@
+name: Microsoft Store release
+
+# Stage 4 of the release pipeline. Run it by hand after a desktop version is
+# published on GitHub: Actions › Microsoft Store release › Run workflow.
+#
+# It builds the Store package (.msix) for tag v<version> with
+# src-tauri/store/build-msix.ps1 and attaches it and its release notes to the
+# run. Then, by hand:
+#   1. Open the finished run and download the "5pm-store-<version>" artifact.
+#   2. Partner Center › 5pm › Start update › Packages: upload the .msix.
+#   3. Store listings: paste whats-new-<version>.md into "What's new".
+#   4. Submit for certification.
+#
+# Optional, not used: the steps at the end can upload to Partner Center
+# automatically, but they need a Microsoft Entra tenant, which this
+# individual developer account doesn't have. They stay skipped until these exist:
+#   Repository secrets:   MSSTORE_TENANT_ID, MSSTORE_SELLER_ID,
+#                         MSSTORE_CLIENT_ID, MSSTORE_CLIENT_SECRET
+#   Repository variable:  MSSTORE_PRODUCT_ID  (the 12-character Store ID, 9N...)
+# The secrets come from a Microsoft Entra app added in Partner Center ›
+# Account settings › User management › Microsoft Entra applications, with the
+# Manager role. Microsoft's guide:
+# https://learn.microsoft.com/windows/apps/publish/msstore-dev-cli/github-actions
+# Store updates through this API work for free apps only.
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release, e.g. 1.2.29 (tag v1.2.29 must exist)'
+        required: true
+        type: string
+      submit:
+        description: 'Only used with automatic upload (not set up): submit for certification now'
+        required: false
+        type: boolean
+        default: false
+
+# Only reads the code. Store access comes from the secrets above, not GITHUB_TOKEN.
+permissions:
+  contents: read
+
+# Partner Center allows one open submission at a time.
+concurrency:
+  group: microsoft-store
+  cancel-in-progress: false
+
+jobs:
+  store:
+    runs-on: windows-latest
+    env:
+      VERSION: ${{ inputs.version }}
+    steps:
+      # Inputs are read through env, never pasted into a script, so a typed
+      # value can't run as code.
+      - name: Check the version
+        shell: bash
+        run: |
+          if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Version must look like 1.2.29, got: $VERSION"
+            exit 1
+          fi
+
+      - uses: actions/checkout@v4
+        with:
+          ref: refs/tags/v${{ inputs.version }}
+
+      - name: Check the tag matches the app version
+        shell: bash
+        run: |
+          APP=$(node -p "require('./src-tauri/tauri.conf.json').version")
+          if [ "$APP" != "$VERSION" ]; then
+            echo "::error::Tag v$VERSION has app version $APP in tauri.conf.json"
+            exit 1
+          fi
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: './src-tauri -> target'
+
+      - name: Build the Store package
+        shell: powershell
+        run: powershell -ExecutionPolicy Bypass -File src-tauri/store/build-msix.ps1
+
+      - name: Write the release notes
+        shell: bash
+        run: node scripts/release-notes.js "$VERSION" > "src-tauri/target/msix/whats-new-$VERSION.md"
+
+      # Kept for 30 days: the fallback for a manual upload, and the notes to
+      # paste into Partner Center's "What's new" field.
+      - uses: actions/upload-artifact@v4
+        with:
+          name: 5pm-store-${{ inputs.version }}
+          path: |
+            src-tauri/target/msix/5pm_${{ inputs.version }}.0_x64.msix
+            src-tauri/target/msix/whats-new-${{ inputs.version }}.md
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Check Store credentials
+        id: creds
+        shell: bash
+        env:
+          TENANT: ${{ secrets.MSSTORE_TENANT_ID }}
+          SELLER: ${{ secrets.MSSTORE_SELLER_ID }}
+          CLIENT: ${{ secrets.MSSTORE_CLIENT_ID }}
+          SECRET: ${{ secrets.MSSTORE_CLIENT_SECRET }}
+          PRODUCT: ${{ vars.MSSTORE_PRODUCT_ID }}
+        run: |
+          if [ -n "$TENANT" ] && [ -n "$SELLER" ] && [ -n "$CLIENT" ] && [ -n "$SECRET" ] && [ -n "$PRODUCT" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Store package ready. Download the 5pm-store-$VERSION artifact and upload the .msix in Partner Center."
+          fi
+
+      # Installs the Microsoft Store Developer CLI (msstore).
+      - uses: microsoft/microsoft-store-apppublisher@v1.1
+        if: steps.creds.outputs.ready == 'true'
+
+      - name: Upload to Partner Center
+        if: steps.creds.outputs.ready == 'true'
+        shell: pwsh
+        env:
+          TENANT: ${{ secrets.MSSTORE_TENANT_ID }}
+          SELLER: ${{ secrets.MSSTORE_SELLER_ID }}
+          CLIENT: ${{ secrets.MSSTORE_CLIENT_ID }}
+          SECRET: ${{ secrets.MSSTORE_CLIENT_SECRET }}
+          PRODUCT: ${{ vars.MSSTORE_PRODUCT_ID }}
+          SUBMIT: ${{ inputs.submit }}
+        run: |
+          msstore reconfigure --tenantId $env:TENANT --sellerId $env:SELLER --clientId $env:CLIENT --clientSecret $env:SECRET
+          if ($LASTEXITCODE) { throw 'Could not sign in to Partner Center' }
+          $msix = "src-tauri/target/msix/5pm_$($env:VERSION).0_x64.msix"
+          if ($env:SUBMIT -eq 'true') {
+            msstore publish $msix -id $env:PRODUCT
+          } else {
+            msstore publish $msix -id $env:PRODUCT --noCommit
+          }
+          if ($LASTEXITCODE) { throw 'Upload to Partner Center failed' }
+          if ($env:SUBMIT -eq 'true') { "Sent $($env:VERSION) for certification." }
+          else { "Draft submission for $($env:VERSION) is waiting in Partner Center. Add the What's new notes, then press Submit." }

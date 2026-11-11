@@ -4508,16 +4508,18 @@
 
     // Footer: "In hand" (net banked time from finished days) and "On track for"
     // (when the weekly target is reached at the average pace of finished days).
+    // A missing day counts as 0 hours worked: it owes its target (so it pulls
+    // "In hand" down) but it never hides the forecast and doesn't drag the pace.
     function wkFooterModel(ctx, liveSecs, now) {
       const { days, dailySecs, weekTarget, offset } = ctx;
-      let banked = 0, finishedSecs = 0, finishedCount = 0, total = 0, missing = null;
+      let banked = 0, finishedSecs = 0, finishedCount = 0, total = 0;
       const loginMins = [];
       for (const x of days) {
-        if (x.m.kind === 'missing' && !missing) missing = x;
         const target = x.m.kind === 'halfday' ? dailySecs / 2 : (x.m.kind === 'holiday' || x.m.kind === 'leave') ? 0 : dailySecs;
         const secs = x.m.kind === 'running' ? liveSecs : (x.m.hrsSecs || 0);
         total += secs;
         const finished = !x.m.future && x.m.kind !== 'running' && x.m.kind !== 'paused' && x.m.kind !== 'empty' && x.m.kind !== 'missing' && target > 0 && secs > 0;
+        if (x.m.kind === 'missing') banked -= target; // nothing logged: the whole target is owed
         if (finished) {
           banked += secs - target;
           finishedSecs += secs * (dailySecs / target); finishedCount++;
@@ -4530,7 +4532,6 @@
       let right;
       if (offset < 0) right = { k: 'Week total', v: durWorked(total) };
       else if (weekTarget > 0 && total >= weekTarget) right = { k: 'Target met', v: durWorked(total) };
-      else if (missing) right = { k: 'On track for', v: `Add ${missing.day.name.slice(0, 3)}'s hours`, tone: 'missing' };
       else {
         // Simulate the rest of the week at the current pace.
         const pace = finishedCount ? finishedSecs / finishedCount : dailySecs;

@@ -317,9 +317,20 @@ test('week footer: In hand and On track for', () => {
   // Behind.
   f = sb.wkFooterModel(ctx([mk('2026-11-02', { kind: 'worked', hrsSecs: D - 5280 }), mk('2026-11-05', { kind: 'empty', today: true })]), 0, now);
   assert.equal(f.left.k, 'Behind by'); assert.equal(f.left.v, '1h 28m');
-  // A missing day blocks the forecast.
-  f = sb.wkFooterModel(ctx([mk('2026-11-02', { kind: 'worked', hrsSecs: D }), mk('2026-11-04', { kind: 'missing' }), mk('2026-11-05', { kind: 'empty', today: true })]), 0, now);
-  assert.equal(f.right.v, "Add Wed's hours"); assert.equal(f.right.tone, 'missing');
+  // A missing day counts as 0 hours: it owes its target and never hides the forecast.
+  // (The user's real week: Mon + Tue missing, Wed 13h 05m, Thu not started.)
+  f = sb.wkFooterModel(ctx([mk('2026-11-09', { kind: 'missing' }), mk('2026-11-10', { kind: 'missing' }),
+    mk('2026-11-11', { kind: 'worked', hrsSecs: 13 * 3600 + 300 }), mk('2026-11-12', { kind: 'empty', today: true }),
+    mk('2026-11-13', { kind: 'future', future: true })]), 0, new Date('2026-11-12T04:55'));
+  assert.equal(f.left.k, 'Behind by'); assert.equal(f.left.v, '13h 55m');
+  assert.equal(f.right.k, 'On track for'); assert.equal(f.right.v, 'Not this week');
+  assert.doesNotMatch(f.right.v, /Add .*'s hours/);
+  // One missing day, and the rest of the week can still make it: a real forecast shows.
+  f = sb.wkFooterModel(ctx([mk('2026-11-02', { kind: 'missing' }), mk('2026-11-03', { kind: 'worked', hrsSecs: 12 * 3600 }),
+    mk('2026-11-04', { kind: 'empty', today: true }), mk('2026-11-05', { kind: 'future', future: true }), mk('2026-11-06', { kind: 'future', future: true })]),
+    0, new Date('2026-11-04T09:00'));
+  assert.equal(f.left.v, '6h 00m'); assert.equal(f.left.k, 'Behind by');
+  assert.match(f.right.v, /^Fri, /, 'pace of 12h a day reaches 45h on Friday');
   // Not enough days left at this pace.
   f = sb.wkFooterModel(ctx([mk('2026-11-05', { kind: 'empty', today: true })]), 0, now);
   assert.equal(f.right.v, 'Not this week');

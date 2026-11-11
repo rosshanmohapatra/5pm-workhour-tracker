@@ -1,4 +1,4 @@
-    const APP_VERSION = '1.2.28';
+    const APP_VERSION = '1.2.29';
     localStorage.setItem('wh_ver', APP_VERSION);
 
     // ── HELPERS ─────────────────────────────────────────
@@ -242,6 +242,15 @@
     function durWorked(secs) {
       const s = Math.max(0, secs), h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60);
       return h === 0 ? `${m}m` : `${h}h ${p2(m)}m`;
+    }
+    // Fills the auto-stop info bar: "Stopped at 8:15 PM" over a line that
+    // names the buffer, e.g. "You reached your target plus the 2h buffer."
+    function _showAutostopBar(timeText) {
+      const bufH = cfg().autoStopBuf ?? 2;
+      const buf = durWorked(bufH * 3600).replace(' 00m', '');
+      el('autostopTitle').textContent = timeText ? `Stopped at ${timeText}` : 'Stopped automatically';
+      el('autostopMsg').textContent = `You reached your target plus the ${buf} buffer.`;
+      el('autostopBanner').classList.add('show');
     }
     // Compact surplus/deficit: "+12m" instead of "+0h 12m". Uses Math.round for sub-hour values.
     function durShort(secs) {
@@ -2490,6 +2499,11 @@
           worked:     (!skipPenalty && hasLog) ? worked : 0,
           surplusSecs:(!skipPenalty && hasLog && diff > 60) ? diff : 0,
           isPenalty:  (!skipPenalty && hasLog && diff < -300),
+          // Raw values for the Stats table (sorting, chips). The text fields above stay as they were.
+          date:       d.date,
+          diffSecs:   (!skipPenalty && hasLog) ? diff : 0,
+          autostopped: !!log.autostopped && hasLog,
+          missing:    !isFuture && d.key < tk && !hasLog && !ov,
         };
       });
     }
@@ -2896,63 +2910,121 @@
                fileBase: `week-report-${mon.getFullYear()}-${String(mon.getMonth()+1).padStart(2,'0')}-${String(mon.getDate()).padStart(2,'0')}` };
     }
 
-    function _renderReport() {
+    // ── Stats table (uiarc sortable data table) ───────────────────────────────
+    // Click a header to sort: numbers go largest first → smallest first → off,
+    // text A→Z → Z→A → off. Chips use the week card's colours.
+    let _rptSort = { key: null, dir: 'asc' };
+    const _RPT_COLS = [
+      { key: 'day',  label: 'Day' },
+      { key: 'time', label: 'Time' },
+      { key: 'att',  label: 'Attendance' },
+      { key: 'pen',  label: 'Penalty', num: true },
+      { key: 'hrs',  label: 'Hours',   num: true },
+      { key: 'sur',  label: null,      num: true },   // "Surplus" or "Overtime"
+    ];
+    const _rptFirstDir = key => (key === 'pen' || key === 'hrs' || key === 'sur') ? 'desc' : 'asc';
+    // One header click: first press sorts, second flips, third clears.
+    function rptNextSort(cur, key) {
+      if (cur.key !== key) return { key, dir: _rptFirstDir(key) };
+      if (cur.dir === _rptFirstDir(key)) return { key, dir: cur.dir === 'asc' ? 'desc' : 'asc' };
+      return { key: null, dir: 'asc' };
+    }
+    // Attendance label + tone, matching the week card's day types.
+    function rptAttendance(r) {
+      if (r.attendance === 'Holiday')  return ['Holiday', 'orchid'];
+      if (r.attendance === 'Leave')    return ['On leave', 'blue'];
+      if (r.attendance === 'Half Day') return ['Half day', 'teal'];
+      if (r.autostopped)               return ['Auto-stopped', 'warning'];
+      if (r.attendance === 'Full Day') return ['Full day', 'muted-fg'];
+      if (r.missing)                   return ['Missing', 'destructive'];
+      return null;
+    }
+    function _rptTimeMins(t) {
+      const m = /^(\d{1,2}):(\d{2})\s*(AM|PM)?/i.exec(t || '');
+      if (!m) return Infinity;
+      let h = +m[1] % 12; if ((m[3] || '').toUpperCase() === 'PM') h += 12;
+      return h * 60 + (+m[2]);
+    }
+    // Returns row indexes in display order for the given sort.
+    function rptOrder(rows, sort) {
+      const idx = rows.map((_, i) => i);
+      if (!sort.key) return idx;
+      const val = i => {
+        const r = rows[i];
+        switch (sort.key) {
+          case 'day':  return i;
+          case 'time': return r.entry && r.entry !== '—' ? _rptTimeMins(r.entry) : Infinity;
+          case 'att':  { const a = rptAttendance(r); return a ? a[0] : '\uffff'; }
+          case 'pen':  return r.isPenalty ? -r.diffSecs : 0;
+          case 'hrs':  return r.worked || 0;
+          case 'sur':  return r.surplusSecs || 0;
+        }
+        return 0;
+      };
+      const sign = sort.dir === 'asc' ? 1 : -1;
+      return idx.sort((a, b) => {
+        const x = val(a), y = val(b);
+        return x < y ? -sign : x > y ? sign : a - b; // ties stay in date order
+      });
+    }
+
+    function _renderReport(animate) {
       const ctx = _reportContext();
       const daysArr = ctx.daysArr, tk = todayKey();
       el('weekReportRange').textContent = ctx.label;
-
       const rows = _buildReportRows(daysArr);
       const totalWorked  = rows.reduce((s, r) => s + r.worked, 0);
       const totalSurplus = rows.reduce((s, r) => s + r.surplusSecs, 0);
+      const totalPenalty = rows.reduce((s, r) => s + (r.isPenalty ? -r.diffSecs : 0), 0);
+      const sort = _rptSort, sorted = k => sort.key === k ? ' data-sorted' : '';
+      const arrow = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 15 6-6 6 6"/></svg>';
 
-      const TH = 'padding:8px 10px;text-align:left;font-size:10px;font-weight:600;color:var(--muted-fg);text-transform:uppercase;letter-spacing:.07em;border-bottom:1px solid var(--border);white-space:nowrap';
-      const TD = (extra='') => `padding:10px 10px;font-size:12px;color:var(--foreground);border-bottom:1px solid var(--border);${extra}`;
-      const surpHdr = _surplusLabel();
+      let html = '<thead><tr>' + _RPT_COLS.map(c => {
+        const label = c.label || _surplusLabel();
+        const on = sort.key === c.key;
+        return `<th${c.num ? ' data-num' : ''}${on ? ` data-sorted data-dir="${sort.dir}"` : ''} aria-sort="${on ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none'}">`
+             + `<button type="button" class="rpt-sort" data-key="${c.key}">${label}<span class="rpt-arrow">${arrow}</span></button></th>`;
+      }).join('') + '</tr></thead><tbody>';
 
-      let html = `<thead><tr>
-        <th style="${TH}">Day</th>
-        <th style="${TH}">Login</th>
-        <th style="${TH}">Logout</th>
-        <th style="${TH}">Attendance</th>
-        <th style="${TH}">Penalty</th>
-        <th style="${TH}">Total Hours</th>
-        <th style="${TH}">${surpHdr}</th>
-      </tr></thead><tbody>`;
-
-      const SUBHEAD = 'padding:10px 10px 8px;font-size:14px;font-weight:600;color:var(--foreground);background:var(--muted);border-bottom:1px solid var(--border)';
-      let curMonthKey = null;
-      for (let i = 0; i < rows.length; i++) {
+      let curMonthKey = null, n = 0;
+      for (const i of rptOrder(rows, sort)) {
         const r = rows[i];
-        const dDate = daysArr[i]?.date;
-        // Month sub-header row (only in the grouped 30-day view, when the month changes)
-        if (ctx.grouped && dDate) {
+        const dDate = r.date || daysArr[i]?.date;
+        // Month sub-headings only in the 30-day view, and only in date order.
+        if (ctx.grouped && !sort.key && dDate) {
           const mk = `${dDate.getFullYear()}-${dDate.getMonth()}`;
           if (mk !== curMonthKey) {
             curMonthKey = mk;
-            html += `<tr><td colspan="7" style="${SUBHEAD}">${MONTHS[dDate.getMonth()]} ${dDate.getFullYear()}</td></tr>`;
+            html += `<tr class="rpt-sub"><td colspan="6">${MONTHS[dDate.getMonth()]} ${dDate.getFullYear()}</td></tr>`;
           }
         }
-        const isFutureRow = daysArr[i] && daysArr[i].key > tk;
-        const penColor = r.isPenalty ? 'color:var(--destructive)' : '';
-        const surColor = r.surplusSecs > 0 ? 'color:var(--success)' : 'color:var(--muted-fg)';
-        const rowStyle = isFutureRow ? 'opacity:.45' : '';
-        html += `<tr style="${rowStyle}">
-          <td style="${TD('font-weight:500;font-variant-numeric:tabular-nums')}">${r.day}</td>
-          <td style="${TD('color:var(--muted-fg)')}">${r.entry}</td>
-          <td style="${TD('color:var(--muted-fg)')}">${r.exit}</td>
-          <td style="${TD('vertical-align:middle')}">${isFutureRow ? '<span style="color:var(--muted-fg)">—</span>' : _attChip(r.attendance)}</td>
-          <td style="${TD(penColor)}">${r.penalty}</td>
-          <td style="${TD()}">${r.totalHours}</td>
-          <td style="${TD(surColor)}">${r.surplus}</td>
-        </tr>`;
+        const isFuture = daysArr[i] && daysArr[i].key > tk;
+        const att = isFuture ? null : rptAttendance(r);
+        // Times come from saved entries (also from restored backups), so escape them.
+        const time = r.entry && r.entry !== '—' ? `${_escHtml(r.entry)} – ${r.exit && r.exit !== '—' ? _escHtml(r.exit) : 'now'}` : '—';
+        const none = '<span class="rpt-none">—</span>';
+        html += `<tr class="${isFuture ? 'is-future' : ''}" style="--n:${Math.min(n++, 14)}">`
+          + `<td class="rpt-day"${sorted('day')}><b>${dDate ? _DAY_ABBR[dDate.getDay()] : r.day.slice(0, 3)}</b>${dDate ? `<span>${MONTHS[dDate.getMonth()].slice(0, 3)} ${dDate.getDate()}</span>` : ''}</td>`
+          + `<td class="rpt-dim"${sorted('time')}>${time}</td>`
+          + `<td${sorted('att')}>${att ? `<span class="rpt-att" style="--k:var(--${att[1]})">${att[0]}</span>` : none}</td>`
+          + `<td data-num${sorted('pen')}>${r.isPenalty ? `<span class="wk-chip is-short">${wkSigned(r.diffSecs)}</span>` : none}</td>`
+          + `<td data-num${sorted('hrs')}>${r.worked ? r.totalHours : none}</td>`
+          + `<td data-num${sorted('sur')}>${r.surplusSecs > 0 ? `<span class="wk-chip is-over">${wkSigned(r.surplusSecs)}</span>` : none}</td></tr>`;
       }
-      html += `<tr style="background:var(--muted)">
-        <td colspan="5" style="${TD('font-weight:600;border-bottom:none')}">${ctx.totalLabel}</td>
-        <td style="${TD('font-weight:700;border-bottom:none')}">${totalWorked > 0 ? dur(totalWorked) : '—'}</td>
-        <td style="${TD('font-weight:700;color:var(--success);border-bottom:none')}">${totalSurplus > 0 ? '+' + dur(totalSurplus) : '—'}</td>
-      </tr></tbody>`;
+      html += `</tbody><tfoot><tr><td colspan="3">${ctx.grouped ? '30-day total' : 'Week total'}</td>`
+        + `<td data-num>${totalPenalty ? `<span class="rpt-tot-short">${wkSigned(-totalPenalty)}</span>` : '<span class="rpt-none">—</span>'}</td>`
+        + `<td data-num>${totalWorked > 0 ? dur(totalWorked) : '—'}</td>`
+        + `<td data-num>${totalSurplus > 0 ? `<span class="rpt-tot-over">${wkSigned(totalSurplus)}</span>` : '<span class="rpt-none">—</span>'}</td></tr></tfoot>`;
 
-      el('weekReportTable').innerHTML = html;
+      const table = el('weekReportTable');
+      table.innerHTML = html;
+      table.classList.remove('is-anim');
+      if (animate) { void table.offsetWidth; table.classList.add('is-anim'); }
+      const count = el('wrCount');
+      if (count) {
+        const col = _RPT_COLS.find(c => c.key === sort.key);
+        count.textContent = `${rows.length} days` + (col ? ` · sorted by ${(col.label || _surplusLabel()).toLowerCase()}` : '');
+      }
     }
 
     // Animate the report dialog's height between the old and new content sizes.
@@ -2974,6 +3046,7 @@
 
     function _reportSetMode(mode) {
       _reportMode = mode;
+      _rptSort = { key: null, dir: 'asc' }; // each tab opens in date order
       el('reportTabWeek')?.classList.toggle('active', mode === 'week');
       el('reportTabMonth')?.classList.toggle('active', mode === 'month');
       _animateReportResize(_renderReport);
@@ -2981,6 +3054,7 @@
 
     function openWeekReport(weekOffset) {
       _flushLiveLog(); // today's row reads the saved entry
+      _rptSort = { key: null, dir: 'asc' };
       _reportWeekOffset = typeof weekOffset === 'number' ? weekOffset : daySelectorWeekOffset;
       // Default the Monthly tab to the month containing this week's Monday.
       const wkMon = week(_reportWeekOffset)[0].date, now = new Date();
@@ -2989,12 +3063,21 @@
       el('weekReportOverlay').classList.add('open');
     }
 
+    // Header clicks sort the Stats table (one listener; the table is re-rendered).
+    el('weekReportTable')?.addEventListener('click', e => {
+      const b = e.target.closest('.rpt-sort');
+      if (!b) return;
+      _rptSort = rptNextSort(_rptSort, b.dataset.key);
+      _renderReport(true);
+      el('weekReportTable').querySelector(`.rpt-sort[data-key="${b.dataset.key}"]`)?.focus();
+    });
+
     function closeWeekReport() {
       el('weekReportOverlay').classList.remove('open');
     }
 
     // Helper: load the app logo as a PNG data-URL for jsPDF.
-    // Draws /brand-light.svg onto an offscreen canvas; calls back with data-URL or null.
+    // Draws /icons/brand-light.svg onto an offscreen canvas; calls back with data-URL or null.
     function _loadLogoDataUrl(cb) {
       try {
         const img = new Image();
@@ -3009,7 +3092,7 @@
           } catch(e) { cb(null); }
         };
         img.onerror = () => cb(null);
-        img.src = window.location.origin + '/brand-light.svg';
+        img.src = window.location.origin + '/icons/brand-light.svg';
       } catch(e) { cb(null); }
     }
 
@@ -3225,6 +3308,19 @@
     }
 
     // ── AUTO-STOP ─────────────────────────────────────
+    // Worked seconds at which the running session auto-stops: the daily target
+    // plus the buffer. A session resumed after already passing that (the user
+    // chose to carry on after an auto-stop) gets a fresh buffer counted from the
+    // resume instead. Without it, Resume re-stopped the session a second later,
+    // so it looked like the button did nothing. _sessionAccSecs is the time
+    // before the running segment; it survives a reload (persistSession) and other
+    // devices rebuild it from the day's log (_resumeFromLog).
+    function _autoStopAtSecs() {
+      const c = cfg(), buf = (c.autoStopBuf ?? 2) * 3600, base = c.dailyH * 3600 + buf;
+      // At least an hour after a resume, even if the buffer is set to 0.
+      return _sessionAccSecs >= base ? _sessionAccSecs + Math.max(buf, 3600) : base;
+    }
+
     function doAutoStop() {
       if (!loginDate || autoStopped) return;
       autoStopped = true;
@@ -3252,8 +3348,7 @@
       loginDate = null;
       setCalcBtnState('ended');
       el('shiftInputRow').classList.remove('active-state');
-      el('autostopBanner').classList.add('show');
-      el('autostopMsg').textContent = `Auto-stopped at ${short(now)} — target + buffer reached.`;
+      _showAutostopBar(short(now));
       renderDaySelector();
       renderEmptyState(); // swap the live tracker for the day summary right away
     }
@@ -3380,7 +3475,10 @@
         loginDisplay: keepStart ? ex.loginDisplay : short(snapshot),
         hoursWorked:  worked / 3600,
         lastUpdated:  now.toISOString(),
-        sessionTag:   ex.sessionTag || 'realtime'
+        // A running session is never auto-stopped. Resuming after an auto-stop
+        // left these set, and other devices refuse to pick up an auto-stopped day.
+        autostopped:  false,
+        sessionTag:   ex.sessionTag && ex.sessionTag !== 'autostopped' ? ex.sessionTag : 'realtime'
       });
       persist();
       if (!_applyingRemote) _dirtyDays.add(tk);
@@ -3408,6 +3506,20 @@
       return true;
     }
 
+    // Best guess at when a day's work stopped, for a day with a start and no end:
+    // the last moment its session was seen running (lastUpdated, if it falls on
+    // that day), else start + hours worked. null when the day has no start.
+    function _estimateDayEnd(dk, log) {
+      if (!log?.loginTime) return null;
+      const pts = log.loginTime.split(':').map(Number);
+      const start = new Date(dk + 'T00:00:00'); start.setHours(pts[0] || 0, pts[1] || 0, pts[2] || 0, 0);
+      const dayEnd = new Date(dk + 'T23:59:59');
+      const seen = log.lastUpdated ? new Date(log.lastUpdated) : null;
+      const end = seen && seen >= start && seen <= dayEnd ? seen
+        : new Date(Math.min(start.getTime() + (log.hoursWorked || 0) * 3600000, dayEnd.getTime()));
+      return { start, end };
+    }
+
     // Past days that still have a start and no end: a session left running
     // when the PC shut down, or ended on a device that never synced it. Close
     // each at the last moment it was seen running, on every device, so none of
@@ -3417,12 +3529,7 @@
       let closed = false;
       for (const [dk, log] of Object.entries(Store.allDays())) {
         if (dk >= tk || !log?.loginTime || log.checkoutDisplay || log.checkoutTime || log.autostopped) continue;
-        const pts = log.loginTime.split(':').map(Number);
-        const start = new Date(dk + 'T00:00:00'); start.setHours(pts[0] || 0, pts[1] || 0, pts[2] || 0, 0);
-        const dayEnd = new Date(dk + 'T23:59:59');
-        const seen = log.lastUpdated ? new Date(log.lastUpdated) : null;
-        const end = seen && seen >= start && seen <= dayEnd ? seen
-          : new Date(Math.min(start.getTime() + (log.hoursWorked || 0) * 3600000, dayEnd.getTime()));
+        const { end } = _estimateDayEnd(dk, log);
         saveDayLog(dk, { ...log,
           checkoutDisplay: short(end),
           checkoutTime: `${p2(end.getHours())}:${p2(end.getMinutes())}:${p2(end.getSeconds())}`,
@@ -3465,7 +3572,7 @@
 
       el('autostopBanner').classList.remove('show');
       // ── Auto-stop check ──
-      const autoStopAt = (c.dailyH + (c.autoStopBuf ?? 2)) * 3600;
+      const autoStopAt = _autoStopAtSecs();
       if (!autoStopped && worked >= autoStopAt) { doAutoStop(); return; }
 
       _rcShowPastMode(false);
@@ -3604,9 +3711,33 @@
     let _dsSel = null;      // last key scrolled-to — prevents redundant scrolls on every tick
     let _dsUserNav = false; // true when a click/nav triggered the render (forces re-centre)
 
+    // Desktop (rail on) shows the strip as a segmented control, one week per view.
+    const _dsDesk = () => document.body.classList.contains('rail-on');
+    const _DS_GAP = 2; // px between day columns on desktop (matches the CSS)
+    function _dsWeekStep(container) { return container.clientWidth + _DS_GAP; }
+    // Moves the raised pill under the selected day.
+    function _dsPlaceGlide() {
+      const c = el('daySelectorRow');
+      if (!c) return;
+      let g = c.querySelector('.ds-glide');
+      if (!g) { g = document.createElement('span'); g.className = 'ds-glide'; g.setAttribute('aria-hidden', 'true'); c.prepend(g); }
+      const a = c.querySelector('.day-sel-btn.active');
+      if (!a || !_dsDesk()) { g.style.opacity = '0'; return; }
+      g.style.opacity = '1';
+      g.style.width = a.offsetWidth + 'px';
+      g.style.transform = `translateX(${a.offsetLeft}px)`;
+    }
     function _dsScrollTo(container, btn, behavior) {
       const cw = container.getBoundingClientRect().width;
       if (!cw) return; // layout not ready
+      if (_dsDesk()) {
+        const btns = Array.from(container.querySelectorAll('.day-sel-btn[data-key]'));
+        const page = Math.floor(Math.max(0, btns.indexOf(btn)) / 7);
+        const left = page * _dsWeekStep(container);
+        if (behavior === 'smooth' && !matchMedia('(prefers-reduced-motion: reduce)').matches) container.scrollTo({ left, behavior: 'smooth' });
+        else container.scrollLeft = left;
+        return;
+      }
       // Absolute position of button centre within the scroll content
       const btnAbs = btn.getBoundingClientRect().left - container.getBoundingClientRect().left + container.scrollLeft + btn.offsetWidth / 2;
       const target  = Math.max(0, btnAbs - cw / 2);
@@ -3693,6 +3824,7 @@
       }
       // Plan dot: future plans AND past days where a plan was set (futurePlan persists in log)
       if (!day.isWeekend && log?.futurePlan) btn.classList.add('has-plan');
+      if (!day.isWeekend && day.key < tk && !(log?.hoursWorked > 0) && !log?.override) btn.classList.add('has-missing');
       if (isFuture) btn.classList.add('future');
       btn.innerHTML = `<span class="dsel-name">${day.name.slice(0,3)}</span>`
                     + `<span class="dsel-num">${day.date.getDate()}</span>`;
@@ -3749,6 +3881,7 @@
             if ((dt - log.hoursWorked * 3600) > 300) btn.classList.add('has-penalty');
           }
           if (!_isWkd && log?.futurePlan) btn.classList.add('has-plan');
+          btn.classList.toggle('has-missing', !_isWkd && key < tk && !(log?.hoursWorked > 0) && !log?.override);
         });
         if (!selKey || selFound) {
           if (selKey && (selKey !== _dsSel || _dsUserNav)) {
@@ -3758,6 +3891,7 @@
           }
           _dsUserNav = false;
           _updateDayNavBtns();
+          _dsPlaceGlide();
           return;
         }
       }
@@ -3780,13 +3914,20 @@
 
       // On load, always show Monday of current week first — user swipes left for history.
       if (activeBtn) _dsSel = selKey;
-      requestAnimationFrame(() => _dsResetScroll());
+      requestAnimationFrame(() => { _dsResetScroll(); _dsPlaceGlide(); _updateDayNavBtns(); });
       _updateDayNavBtns();
       _updateWeekLabel();
     }
 
     function navDaySelectorDay(dir) {
       const container = el('daySelectorRow');
+      if (container && _dsDesk()) {
+        const max = container.scrollWidth - container.clientWidth;
+        const left = Math.max(0, Math.min(max, container.scrollLeft + dir * _dsWeekStep(container)));
+        container.scrollTo({ left, behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+        setTimeout(() => { _updateWeekLabel(); _updateDayNavBtns(); }, 450);
+        return;
+      }
       const btns = Array.from(container.querySelectorAll('.day-sel-btn[data-key]'));
       if (!btns.length) return;
       const selKey = selectedDayKey === '__wknd__' ? null : (selectedDayKey || todayKey());
@@ -3811,6 +3952,13 @@
       const selKey = selectedDayKey === '__wknd__' ? null : (selectedDayKey || todayKey());
       const curIdx = selKey ? btns.findIndex(b => b.dataset.key === selKey) : -1;
       const prevBtn = el('weekPrevBtn'), nextBtn = el('weekNextBtn');
+      if (container && _dsDesk()) {
+        // Desktop arrows page whole weeks, so they stop at the first and last week.
+        const max = container.scrollWidth - container.clientWidth;
+        if (prevBtn) { prevBtn.disabled = container.scrollLeft <= 1; prevBtn.title = 'Previous week'; }
+        if (nextBtn) { nextBtn.disabled = container.scrollLeft >= max - 1; nextBtn.title = 'Next week'; }
+        return;
+      }
       if (prevBtn) prevBtn.disabled = curIdx <= 0;
       if (nextBtn) nextBtn.disabled = curIdx >= btns.length - 1;
     }
@@ -4260,45 +4408,177 @@
       return parts[0] >= 10; // after 10 AM considered late
     }
 
-    // Week-card totals excluding the live (still-running) session, so the
-    // per-second tick can add just the live part back without re-summing.
-    let _wkBaseSecs = 0, _wkBaseSurplus = 0;
+    // ── WEEK CARD ───────────────────────────────────────
+    // One row per work day: date tile · what kind of day it was · ± vs target · hours.
+    // The footer shows time "In hand" (banked from finished days) and when the
+    // weekly target will be reached at the current pace ("On track for").
 
-    function _renderWkFooter(totalSecs, totalSurplusSecs) {
-      const c2 = cfg(), wk2 = week(analyticsWeekOffset);
-      const adjTarget = adjustedWeeklyTarget(wk2);
-      const adjH = (adjTarget / 3600).toFixed(1).replace(/\.0$/, '');
-      const totalEl = el('wkTotal');
-      if (totalEl) totalEl.textContent = c2.weeklyOn
-        ? `${durWorked(totalSecs)} / ${adjH}h`
-        : durWorked(totalSecs);
-
-      const surpEl = el('wkSurplus');
-      if (surpEl) {
-        if (totalSurplusSecs > 60) {
-          surpEl.textContent = '+' + durWorked(totalSurplusSecs);
-          surpEl.style.color = 'var(--success)';
-        } else {
-          surpEl.textContent = '0m';
-          surpEl.style.color = 'var(--muted-fg)';
-        }
-      }
-      const surpLblEl = el('wkSurplusLabel');
-      if (surpLblEl) surpLblEl.textContent = _surplusLabel();
+    // Signed difference for the ± chips: "+2mins", "−30mins", "+2h 05mins", "+1min".
+    function wkSigned(secs) {
+      const sign = secs >= 0 ? '+' : '−';
+      const totalMin = Math.round(Math.abs(secs) / 60);
+      const h = Math.floor(totalMin / 60), m = totalMin % 60;
+      const mins = m === 1 ? '1min' : `${h ? p2(m) : m}mins`;
+      return sign + (h ? `${h}h${m ? ' ' + mins : ''}` : mins);
+    }
+    // The same difference in words, for screen readers.
+    function wkSpoken(secs) {
+      const totalMin = Math.round(Math.abs(secs) / 60);
+      const h = Math.floor(totalMin / 60), m = totalMin % 60;
+      const parts = [];
+      if (h) parts.push(h + (h === 1 ? ' hour' : ' hours'));
+      if (m) parts.push(m + (m === 1 ? ' minute' : ' minutes'));
+      return parts.join(' ') + (secs >= 0 ? ' overtime' : ' remaining');
     }
 
-    // Live-tick the week card's today row + footer while a session runs and the
-    // Dashboard is the visible tab. renderHistory() rebuilds every row plus the
-    // notification list — far too much to redo every second — so this rewrites
-    // only the two values that actually change.
+    // Lucide icons (MIT) used by the week card. Size comes from CSS.
+    const WK_ICON = {
+      holiday: '<path d="M5.8 11.3 2 22l10.7-3.79"/><path d="M4 3h.01"/><path d="M22 8h.01"/><path d="M15 2h.01"/><path d="M22 20h.01"/><path d="m22 2-2.24.75a2.9 2.9 0 0 0-1.96 3.12c.1.86-.57 1.63-1.45 1.63h-.38c-.86 0-1.6.6-1.76 1.44L14 10"/><path d="m22 13-.82-.33c-.86-.34-1.82.2-1.98 1.11c-.11.7-.72 1.22-1.43 1.22H17"/><path d="m11 2 .33.82c.34.86-.2 1.82-1.11 1.98C9.52 4.9 9 5.52 9 6.23V7"/><path d="M11 13c1.93 1.93 2.83 4.17 2 5-.83.83-3.07-.07-5-2-1.93-1.93-2.83-4.17-2-5 .83-.83 3.07.07 5 2Z"/>',
+      leave:   '<path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/>',
+      halfday: '<path d="M12 10V2"/><path d="m4.93 10.93 1.41 1.41"/><path d="M2 18h2"/><path d="M20 18h2"/><path d="m19.07 10.93-1.41 1.41"/><path d="M22 22H2"/><path d="m16 6-4 4-4-4"/><path d="M16 18a4 4 0 0 0-8 0"/>',
+      missing: '<path d="M12 6v6l4 2"/><path d="M16 21.16a10 10 0 1 1 5-13.516"/><path d="M20 11.5v6"/><path d="M20 21.5h.01"/>',
+      auto:    '<path d="M10 2h4"/><path d="M4.6 11a8 8 0 0 0 1.7 8.7 8 8 0 0 0 8.7 1.7"/><path d="M7.4 7.4a8 8 0 0 1 10.3 1 8 8 0 0 1 .9 10.2"/><path d="m2 2 20 20"/><path d="M12 12v-2"/>',
+      early:   '<path d="M13 4h3a2 2 0 0 1 2 2v14"/><path d="M2 20h3"/><path d="M13 20h9"/><path d="M10 12v.01"/><path d="M13 4.562v16.157a1 1 0 0 1-1.242.97L5 20V5.562a2 2 0 0 1 1.515-1.94l4-1A2 2 0 0 1 13 4.561Z"/>',
+      late:    '<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>',
+      plus:    '<path d="M5 12h14"/><path d="M12 5v14"/>',
+      pause:   '<rect x="14" y="4" width="4" height="16" rx="1"/><rect x="6" y="4" width="4" height="16" rx="1"/>',
+      check:   '<path d="M20 6 9 17l-5-5"/>',
+    };
+    const wkSvg = name => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${WK_ICON[name]}</svg>`;
+
+    // Everything the footer needs, kept so the live tick can redo just the footer.
+    let _wkCtx = null;
+
+    // How a day reads in the week card. Pure: depends only on the log and flags.
+    // Returns { kind, label, line, hrsSecs, diffSecs, tone, icon, today }.
+    function wkDayModel(log, { isToday, isPast, isFuture, live, liveSecs, dailySecs }) {
+      const ov = log?.override || (isFuture ? log?.futurePlan : null);
+      const worked = log?.hoursWorked != null ? Math.round(log.hoursWorked * 3600) : 0;
+      if (ov === 'holiday') return { kind: 'holiday', label: 'Holiday', line: log?.futureReason ? `${log.futureReason} · enjoy the day off` : 'Enjoy the day off', tone: 'orchid', icon: 'holiday' };
+      if (ov === 'leave')   return { kind: 'leave', label: 'On leave', line: 'Out of office · recharge', tone: 'blue', icon: 'leave' };
+      if (ov === 'halfday') return { kind: 'halfday', label: 'Half day', line: log?.checkoutDisplay ? `Done by ${log.checkoutDisplay}` : 'Half the hours today', tone: 'teal', icon: 'halfday', hrsSecs: worked || null };
+      if (isFuture) {
+        if (log?.futurePlan === 'early') return { kind: 'early', label: 'Leaving early', line: log.planEndTime ? `Planned · out at ${log.planEndTime}` : 'Planned', tone: 'blue', icon: 'early', future: true };
+        if (log?.futurePlan === 'late')  return { kind: 'late', label: 'Staying late', line: log.planEndTime ? `Planned · till ${log.planEndTime}` : 'Planned', tone: 'violet', icon: 'late', future: true };
+        return { kind: 'future', future: true };
+      }
+      if (isToday) {
+        if (live) return { kind: 'running', hrsSecs: liveSecs, today: true };
+        const paused = log && log.sessionDate === todayKey() && !log.checkoutTime && worked > 0 && !log.autostopped;
+        if (paused) return { kind: 'paused', line: log.checkoutDisplay ? `Paused at ${log.checkoutDisplay}` : 'Paused', hrsSecs: worked, today: true };
+      }
+      if (log?.autostopped && worked > 0) return { kind: 'auto', label: 'Auto-stopped', line: log.checkoutDisplay ? `Stopped for you at ${log.checkoutDisplay}` : 'Stopped for you', tone: 'warning', icon: 'auto', hrsSecs: worked, diffSecs: worked - dailySecs, today: isToday };
+      if (worked > 0) {
+        if (isToday) {
+          const over = worked >= dailySecs;
+          return { kind: over ? 'done' : 'left', line: log?.checkoutDisplay ? `${over ? 'Done' : 'Left'} at ${log.checkoutDisplay}` : (over ? 'Done' : 'Ended'), hrsSecs: worked, diffSecs: worked - dailySecs, today: true };
+        }
+        return { kind: 'worked', hrsSecs: worked, diffSecs: worked - dailySecs };
+      }
+      if (isPast) return { kind: 'missing', label: 'Missing entry', line: 'No hours logged yet', tone: 'destructive', icon: 'missing' };
+      return { kind: 'empty', today: isToday };
+    }
+
+    function _wkRowHTML(day, m, isToday) {
+      const d = day.date;
+      const tile = `<span class="wk-tile" aria-hidden="true"><span class="wk-tile-n">${day.name.slice(0, 3)}</span><span class="wk-tile-d">${d.getDate()}</span></span>`;
+      let mid = '';
+      if (m.icon) {
+        mid = `<span class="wk-type" style="--k:var(--${m.tone})"><span class="wk-type-ic">${wkSvg(m.icon)}</span>`
+            + `<span class="wk-type-txt"><span class="wk-type-lbl">${m.label}</span><span class="wk-type-line">${_escHtml(m.line || '')}</span></span></span>`;
+      } else if (m.kind === 'running') {
+        mid = '<span class="wk-now is-run"><span class="wk-live-dot"></span><span class="wk-now-t">Running</span></span>';
+      } else if (m.kind === 'paused') {
+        mid = `<span class="wk-now is-pause">${wkSvg('pause')}<span class="wk-now-t">${_escHtml(m.line)}</span></span>`;
+      } else if (m.kind === 'done' || m.kind === 'left') {
+        mid = `<span class="wk-now ${m.kind === 'done' ? 'is-done' : 'is-left'}">${wkSvg(m.kind === 'done' ? 'check' : 'early')}<span class="wk-now-t">${_escHtml(m.line)}</span></span>`;
+      }
+      // ± chip only for finished days (a running or paused day has nothing to settle yet).
+      const showDiff = m.diffSecs != null && Math.abs(m.diffSecs) >= 60;
+      const chip = showDiff
+        ? `<span class="wk-chip ${m.diffSecs > 0 ? 'is-over' : 'is-short'}" aria-label="${wkSpoken(m.diffSecs)}">${wkSigned(m.diffSecs)}</span>`
+        : '';
+      const end = m.kind === 'missing'
+        ? `<button type="button" class="btn-secondary wk-add">${wkSvg('plus')}Add hours</button>`
+        : (m.hrsSecs ? `<span class="wk-hrs${m.kind === 'running' ? ' is-live' : ''}">${durWorked(m.hrsSecs)}</span>` : '<span class="wk-hrs is-none">–</span>');
+      const cls = ['wk-row', isToday ? 'today' : '', m.future ? 'is-future' : '', m.kind === 'missing' ? 'is-missing' : ''].filter(Boolean).join(' ');
+      return `<div class="${cls}" role="button" tabindex="0" data-day-key="${day.key}"${isToday ? ' aria-current="date"' : ''}>`
+           + `${tile}<span class="wk-mid">${mid}</span><span class="wk-end">${chip}${end}</span></div>`;
+    }
+
+    // Footer: "In hand" (net banked time from finished days) and "On track for"
+    // (when the weekly target is reached at the average pace of finished days).
+    function wkFooterModel(ctx, liveSecs, now) {
+      const { days, dailySecs, weekTarget, offset } = ctx;
+      let banked = 0, finishedSecs = 0, finishedCount = 0, total = 0, missing = null;
+      const loginMins = [];
+      for (const x of days) {
+        if (x.m.kind === 'missing' && !missing) missing = x;
+        const target = x.m.kind === 'halfday' ? dailySecs / 2 : (x.m.kind === 'holiday' || x.m.kind === 'leave') ? 0 : dailySecs;
+        const secs = x.m.kind === 'running' ? liveSecs : (x.m.hrsSecs || 0);
+        total += secs;
+        const finished = !x.m.future && x.m.kind !== 'running' && x.m.kind !== 'paused' && x.m.kind !== 'empty' && x.m.kind !== 'missing' && target > 0 && secs > 0;
+        if (finished) {
+          banked += secs - target;
+          finishedSecs += secs * (dailySecs / target); finishedCount++;
+          if (x.loginMin != null) loginMins.push(x.loginMin);
+        }
+      }
+      const left = banked >= 60 ? { k: 'In hand', v: '+' + durWorked(banked), tone: 'over' }
+                 : banked <= -60 ? { k: 'Behind by', v: durWorked(-banked), tone: 'short' }
+                 : { k: 'In hand', v: 'None', tone: 'none' };
+      let right;
+      if (offset < 0) right = { k: 'Week total', v: durWorked(total) };
+      else if (weekTarget > 0 && total >= weekTarget) right = { k: 'Target met', v: durWorked(total) };
+      else if (missing) right = { k: 'On track for', v: `Add ${missing.day.name.slice(0, 3)}'s hours`, tone: 'missing' };
+      else {
+        // Simulate the rest of the week at the current pace.
+        const pace = finishedCount ? finishedSecs / finishedCount : dailySecs;
+        const startMin = loginMins.length ? Math.round(loginMins.reduce((a, b) => a + b, 0) / loginMins.length) : 9 * 60;
+        let need = weekTarget - total, when = null;
+        for (const x of days) {
+          if (need <= 0 || when) break;
+          const isToday = x.m.today;
+          if (!isToday && !x.m.future) continue;
+          const kindTarget = (x.m.kind === 'holiday' || x.m.kind === 'leave') ? 0 : (x.m.kind === 'halfday' ? pace / 2 : pace);
+          if (kindTarget <= 0) continue;
+          let start, done = 0;
+          if (isToday) {
+            if (x.m.kind === 'done' || x.m.kind === 'left' || x.m.kind === 'auto') continue;
+            start = now.getTime(); done = x.m.kind === 'running' ? liveSecs : (x.m.hrsSecs || 0);
+          } else {
+            const d = new Date(x.day.date); d.setHours(0, startMin, 0, 0); start = d.getTime();
+          }
+          const room = Math.max(0, kindTarget - done);
+          if (room >= need) when = new Date(start + need * 1000);
+          else need -= room;
+        }
+        right = when
+          ? { k: 'On track for', v: `${dateKey(when) === todayKey() ? 'Today' : when.toLocaleDateString('en-US', { weekday: 'short' })}, ${short(when)}` }
+          : { k: 'On track for', v: 'Not this week', tone: 'none' };
+      }
+      return { left, right };
+    }
+
+    function _renderWkFooter(liveSecs) {
+      const f = el('wkFooter');
+      if (!f || !_wkCtx) return;
+      const { left, right } = wkFooterModel(_wkCtx, liveSecs || 0, new Date());
+      const lk = el('wkHandLabel'), lv = el('wkHandVal'), rk = el('wkTrackLabel'), rv = el('wkTrackVal');
+      if (!lk) return;
+      lk.textContent = left.k; lv.textContent = left.v; lv.dataset.tone = left.tone || '';
+      rk.textContent = right.k; rv.textContent = right.v; rv.dataset.tone = right.tone || '';
+    }
+
+    // Live-tick the week card while a session runs: only today's hours and the
+    // footer change, so rewrite just those instead of rebuilding every row.
     function _tickWkLiveRow() {
       if (!loginDate) return;
-      const pill = document.querySelector('#wkRows .wk-row.today .wk-pill.live');
-      if (!pill) return; // today isn't in the week being viewed
+      const hrs = document.querySelector('#wkRows .wk-row.today .wk-hrs.is-live');
+      if (!hrs) return; // today isn't in the week being viewed
       const worked = _sessionAccSecs + Math.max(0, Math.floor((new Date() - loginDate) / 1000));
-      pill.innerHTML = `<span class="dot-live"></span>${durWorked(worked)}`;
-      _renderWkFooter(_wkBaseSecs + worked,
-                      _wkBaseSurplus + Math.max(0, worked - cfg().dailyH * 3600));
+      hrs.textContent = durWorked(worked);
+      _renderWkFooter(worked);
     }
 
     function renderHistory() {
@@ -4309,111 +4589,27 @@
       // Dashboard tab no longer exists, and the HTML placeholder showed instead.
       el('wkNavLabel').textContent = analyticsWeekOffset === 0 ? 'This Week' : weekRangeLabel(analyticsWeekOffset);
       el('wkNextBtn').disabled = analyticsWeekOffset >= 0;
-      rows.innerHTML = '';
-      let totalSecs = 0, totalSurplusSecs = 0;
-      let liveSecs = 0, liveSurplus = 0;
-
-      const OV_CFG = {
-        holiday: { label: 'Holiday',  color: '#a855f7', bg: 'rgba(168,85,247,.12)', border: 'rgba(168,85,247,.3)' },
-        leave:   { label: 'On Leave', color: '#3b82f6', bg: 'rgba(59,130,246,.12)', border: 'rgba(59,130,246,.3)'  },
-        halfday: { label: 'Half Day', color: '#0ea5e9', bg: 'rgba(14,165,233,.12)', border: 'rgba(14,165,233,.3)'  },
-      };
-
-      for (const day of wk) {
+      const dailySecs = c.dailyH * 3600;
+      const live = !!loginDate;
+      const liveSecs = live ? _sessionAccSecs + Math.max(0, Math.floor((new Date() - loginDate) / 1000)) : 0;
+      const days = wk.map(day => {
         const log = dayLog(day.key);
         const isToday = day.key === tk && analyticsWeekOffset === 0;
-        const wSecs = log?.hoursWorked != null ? log.hoursWorked * 3600 : 0;
-        const isPastDay = !isToday && day.key < tk;
-        const isFutureDay = !isToday && day.key > tk;
-        const ov = log?.override;
-
-        const row = document.createElement('div');
-        row.className = 'wk-row' + (isToday ? ' today' : '');
-        row.dataset.dayKey = day.key;
-        row.addEventListener('click', () => openDayEditModal(day.key));
-        if (ov === 'holiday' || ov === 'leave' || ov === 'halfday') {
-          row.style.background = 'var(--muted)';
-        }
-
-        // Col 1: formatted date — "15th June"
-        const d = new Date(day.key + 'T12:00');
-        const dn = d.getDate(), mo = MONTHS[d.getMonth()];
-        const sfx = dn === 1||dn === 21||dn === 31 ? 'st' : dn === 2||dn === 22 ? 'nd' : dn === 3||dn === 23 ? 'rd' : 'th';
-        const colDate = document.createElement('div');
-        colDate.className = 'wk-col-date';
-        colDate.textContent = `${dn}${sfx} ${mo}`;
-        row.appendChild(colDate);
-
-        // Col 2: pill / chip / badge
-        const rightWrap = document.createElement('div');
-        rightWrap.className = 'wk-col-mid';
-
-        if (ov === 'holiday' || ov === 'leave' || ov === 'halfday') {
-          const { label, color, bg, border } = OV_CFG[ov];
-          const chip = document.createElement('div');
-          chip.style.cssText = `font-size:12px;font-weight:500;color:${color};background:${bg};border:1px solid ${border};padding:2px 10px;border-radius:20px;letter-spacing:.3px;pointer-events:none`;
-          chip.textContent = label;
-          rightWrap.appendChild(chip);
-          if (ov === 'halfday' && log?.hoursWorked != null) totalSecs += wSecs;
-        } else if (isFutureDay) {
-          const pill = document.createElement('div');
-          pill.className = 'wk-pill'; pill.textContent = '–';
-          rightWrap.appendChild(pill);
-        } else if (isToday && loginDate) {
-          // _sessionAccSecs holds every earlier segment of today's session (a
-          // pause/resume parks time there and restarts loginDate), so counting
-          // only now−loginDate under-reports — and reads as a stuck "0h 00m"
-          // right after a resume.
-          const ds = _sessionAccSecs + Math.max(0, Math.floor((new Date() - loginDate) / 1000));
-          const pill = document.createElement('div');
-          pill.className = 'wk-pill live';
-          pill.innerHTML = `<span class="dot-live"></span>${durWorked(ds)}`;
-          liveSecs = ds;
-          liveSurplus = Math.max(0, ds - c.dailyH * 3600);
-          totalSecs += ds;
-          totalSurplusSecs += liveSurplus;
-          rightWrap.appendChild(pill);
-        } else if (log?.hoursWorked != null && (!isToday || log?.checkoutDisplay)) {
-          const diff = wSecs - c.dailyH * 3600;
-          const pill = document.createElement('div');
-          pill.className = 'wk-pill';
-          if (diff > 120) {
-            const surpH = Math.floor(diff / 3600), surpM = Math.floor((diff % 3600) / 60);
-            const surpStr = surpH > 0 ? `${surpH}h${surpM > 0 ? ' ' + surpM + 'm' : ''}` : `${Math.floor(diff/60)}m`;
-            // "9h 20m +5m" reads as 9h 25m. Say "over" and name the target so the number is a comparison, not an addition.
-            pill.title = `Target ${durWorked(c.dailyH * 3600)}`;
-            pill.innerHTML = `${durWorked(wSecs)} <span style="color:var(--success);font-weight:600">· ${surpStr} over</span>`;
-            totalSurplusSecs += diff;
-          } else { pill.textContent = durWorked(wSecs); }
-          totalSecs += wSecs;
-          rightWrap.appendChild(pill);
-        } else if (isPastDay) {
-          const missBadge = document.createElement('div');
-          missBadge.style.cssText = 'font-size:12px;font-weight:500;color:var(--destructive);background:var(--destructive-bg);border:1px solid var(--destructive-border);padding:2px 10px;border-radius:20px;letter-spacing:.3px;pointer-events:none';
-          missBadge.textContent = 'Missing Entry';
-          rightWrap.appendChild(missBadge);
-        } else {
-          const pill = document.createElement('div');
-          pill.className = 'wk-pill'; pill.textContent = '–';
-          rightWrap.appendChild(pill);
-        }
-
-        row.appendChild(rightWrap);
-
-        // Col 3: day name
-        const colDay = document.createElement('div');
-        colDay.className = 'wk-col-day';
-        colDay.textContent = day.name;
-        row.appendChild(colDay);
-
-        rows.appendChild(row);
-      }
-
-      // Remember the non-live portion so _tickWkLiveRow() can recompute the
-      // footer each second without re-summing every day.
-      _wkBaseSecs    = totalSecs - liveSecs;
-      _wkBaseSurplus = totalSurplusSecs - liveSurplus;
-      _renderWkFooter(totalSecs, totalSurplusSecs);
+        const isPast = !isToday && day.key < tk;
+        const isFuture = !isToday && day.key > tk;
+        const m = wkDayModel(log, { isToday, isPast, isFuture, live: isToday && live, liveSecs, dailySecs });
+        const lt = (log?.loginTime || '').split(':').map(Number);
+        const loginMin = lt.length >= 2 && !isNaN(lt[0]) ? lt[0] * 60 + (lt[1] || 0) : null;
+        return { day, log, m, isToday, loginMin };
+      });
+      rows.innerHTML = days.map(x => _wkRowHTML(x.day, x.m, x.isToday)).join('');
+      rows.querySelectorAll('.wk-row').forEach(r => {
+        const open = () => openDayEditModal(r.dataset.dayKey);
+        r.addEventListener('click', open);
+        r.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); } });
+      });
+      _wkCtx = { days, dailySecs, weekTarget: c.weeklyOn ? adjustedWeeklyTarget(wk) : dailySecs * wk.length, offset: analyticsWeekOffset };
+      _renderWkFooter(liveSecs);
 
       renderNotifs();
       // Refresh day-selector dots when history changes
@@ -6785,10 +6981,14 @@ Kind regards,
       el('deStart').value = log?.loginDisplay || '';
       el('deEnd').value   = log?.checkoutDisplay || '';
       el('deErr').classList.remove('show');
-      // Set shift-aware placeholders
+      // Placeholders. Start: the shift's usual start. End: when this day's work
+      // was last seen running, so an empty end suggests a real time; the shift's
+      // usual end only when the day has nothing to go on (no start, no time worked).
       const sd = getShiftDefaults();
+      const _guess = log?.checkoutDisplay ? null : _estimateDayEnd(_dayEditKey, log);
       el('deStart').placeholder = sd.start || 'Start time';
-      el('deEnd').placeholder   = sd.end   || 'End time';
+      el('deEnd').placeholder   = _guess && _guess.end > _guess.start ? short(_guess.end)
+                                : (sd.end || 'End time');
       // For future plan days, futurePlan/futureReason are the source of truth
       const _effectiveOverride = log?.override || log?.futurePlan || null;
       const _effectiveNote     = log?.note || log?.futureReason || '';
@@ -7249,22 +7449,38 @@ Kind regards,
         } catch (e) { console.warn('[SbSync] pushAll failed:', e); }
       },
 
+      // Only the columns the merge below reads (and _isBlank checks).
+      _PULL_COLS: 'log_date,login_time,logout_time,hours_worked,status,override_type,notes,updated_at',
+
       // Two-way sync: pull Supabase → local, then push any local entries
-      // that Supabase doesn't have yet. Runs on every startup.
-      // Merge rule: newer updated_at wins. Local-only entries always get pushed up.
-      async pullAll() {
+      // that Supabase doesn't have yet. Merge rule: newer updated_at wins.
+      //
+      // Full pull ({ full: true }: launch, the Sync button, or no cursor yet):
+      // every row, and local days the cloud has never seen are pushed up.
+      // Delta pull (everything else, e.g. coming back to the tab): only rows
+      // changed since the last pull, so it stays small however long the history
+      // gets. The cursor is the newest server updated_at seen (the server's
+      // clock, not this device's), re-read with a 60 s overlap so a row stamped
+      // just before a slow commit isn't missed; rows seen twice are skipped as
+      // identical. It's per account and starts with wh_, so sign-out wipes it.
+      async pullAll(opts) {
         try {
           const uid = await this._uid();
           if (!uid) return;
-          const { data, error } = await window._sbClient
-            .from('work_logs').select('*').eq('user_id', uid);
+          const cursorKey = 'wh_pull_cursor_' + uid;
+          const cursor = opts?.full ? null : localStorage.getItem(cursorKey);
+          let q = window._sbClient.from('work_logs').select(this._PULL_COLS).eq('user_id', uid);
+          if (cursor) q = q.gte('updated_at', new Date(Date.parse(cursor) - 60000).toISOString());
+          const { data, error } = await q;
           if (error) { console.warn('[SbSync] pullAll:', error.message); return; }
 
           const toPush  = [];
-          const inCloud = new Set(); // dates that exist in Supabase
+          const inCloud = new Set(); // dates that exist in Supabase (complete on a full pull only)
+          let newest = cursor;
 
           (data || []).forEach(row => {
             inCloud.add(row.log_date);
+            if (row.updated_at && (!newest || Date.parse(row.updated_at) > Date.parse(newest))) newest = row.updated_at;
             const local = Store.getDay(row.log_date);
             // Local-write guard: if this day has an unsent save/delete, never let
             // stale remote data overwrite it — push local up instead.
@@ -7310,10 +7526,15 @@ Kind regards,
 
           // Push every local entry that Supabase has never seen
           // This is the missing piece: historical desktop data, offline edits, etc.
-          Object.entries(Store.allDays()).forEach(([dk, entry]) => {
-            if (!inCloud.has(dk)) toPush.push([dk, entry]);
-          });
+          // Full pulls only: a delta pull doesn't list unchanged days, so every
+          // local day would look "missing" and be pushed again.
+          if (!cursor) {
+            Object.entries(Store.allDays()).forEach(([dk, entry]) => {
+              if (!inCloud.has(dk)) toPush.push([dk, entry]);
+            });
+          }
 
+          if (newest) localStorage.setItem(cursorKey, newest);
           if (toPush.length) toPush.forEach(([dk, entry]) => this.pushDay(dk, entry));
           return true; // pulled: local now holds the merged data
         } catch (e) { console.warn('[SbSync] pullAll failed:', e); }
@@ -7424,7 +7645,7 @@ Kind regards,
       } else {
         // Nothing dirty — force a full pull+push cycle; reset cooldown timer
         _setSyncStatus('syncing');
-        SbSync.pullAll().then(() => {
+        SbSync.pullAll({ full: true }).then(() => {
           localStorage.setItem('wh_last_pull', String(Date.now()));
           _setSyncStatus('synced');
           showToast('Synced', 'success');
@@ -7483,6 +7704,7 @@ Kind regards,
     let _dirtyCfg = false;          // cfg changed since last push
     let _idleSyncTimer = null;      // 20s idle debounce
     let _checkpointTimer = null;    // 10 min periodic checkpoint
+    let _lastPushAt = 0;            // last successful save (any trigger), for the checkpoint
 
     function _markDirty(dk) {
       if (_applyingRemote) return;
@@ -7561,6 +7783,7 @@ Kind regards,
         // with the error code and a one-tap retry.
         if (!silent) showToast('Sync failed', 'error', SbSync._lastErr || 'Please try again', { label: 'Retry', onClick: retrySyncNow });
       } else {
+        _lastPushAt = Date.now();
         _setSyncStatus('synced');
         // Success / in-progress are shown via the sync chip — no toast (per design).
       }
@@ -7584,12 +7807,17 @@ Kind regards,
       _idleSyncTimer = setTimeout(() => { _idleSyncTimer = null; _flushSync(); }, 20000);
     }
 
-    // ── Periodic checkpoint (every 10 min while active + dirty) ──
+    // ── Periodic checkpoint (while active + dirty) ──
+    // At most one save per 10 minutes, counted from the last successful save of
+    // any kind. A tab-hide or Pause save resets the clock, so the checkpoint
+    // never sends a second copy minutes later. Checks once a minute, so the
+    // cloud copy of a running session is never more than ~10 min behind.
+    const _CHECKPOINT_MS = 10 * 60 * 1000;
     function _startCheckpoint() {
       if (_checkpointTimer) return;
       _checkpointTimer = setInterval(() => {
-        if (_hasPending()) _flushSync({ silent: true });
-      }, 10 * 60 * 1000);
+        if (_hasPending() && Date.now() - _lastPushAt >= _CHECKPOINT_MS) _flushSync({ silent: true });
+      }, 60 * 1000);
     }
     function _stopCheckpoint() {
       if (_checkpointTimer) { clearInterval(_checkpointTimer); _checkpointTimer = null; }
@@ -7639,13 +7867,15 @@ Kind regards,
     }
 
     let _lastPullAt = 0;
-    function _refreshFromCloud(force) {
+    // full: download every row (launch). Otherwise only rows changed since the
+    // last pull (see SbSync.pullAll).
+    function _refreshFromCloud(force, full) {
       // ponytail: 30s throttle so ordinary tab-switching does not hammer Supabase.
       // Lower it if cross-device lag matters more than request volume.
       if (_dropStaleLive()) force = true;
       if (!force && Date.now() - _lastPullAt < 30000) return;
       _lastPullAt = Date.now();
-      return SbSync.pullAll().then(pulled => {
+      return SbSync.pullAll({ full }).then(pulled => {
         localStorage.setItem('wh_last_pull', String(Date.now()));
         // Only on merged data: closing a stale local copy offline would stamp it
         // newer than the other device's real hours and overwrite them.
@@ -8403,8 +8633,8 @@ Kind regards,
     }
 
     // ── THEME ──────────────────────────────────────────
-    const _faviconLight = 'favicon-light.svg';
-    const _faviconDark  = 'favicon-dark.svg';
+    const _faviconLight = '/icons/favicon-light.svg';
+    const _faviconDark  = '/icons/favicon-dark.svg';
     // pref is what gets remembered: 'auto', 'light' or 'dark'. It is passed
     // explicitly when following the system, so a system-driven switch to dark
     // is not recorded as the user choosing dark.
@@ -8415,7 +8645,7 @@ Kind regards,
       _renderThemeTabs();
       const fav = document.getElementById('favicon');
       if (fav) fav.href = d ? _faviconDark : _faviconLight;
-      const logoSrc = d ? 'brand-dark.svg' : 'brand-light.svg';
+      const logoSrc = d ? '/icons/brand-dark.svg' : '/icons/brand-light.svg';
       const mobLogo = document.getElementById('mobLogo');
       if (mobLogo) mobLogo.src = logoSrc;
       const navLogo = document.getElementById('navLogo');
@@ -8644,6 +8874,9 @@ Kind regards,
       });
     });
     // Shift presets handled by renderShiftPresets() / applyShiftPreset()
+    // The info bar's Resume does exactly what the main Resume button does
+    // (including the "Continue working?" check).
+    el('autostopResumeBtn')?.addEventListener('click', () => el('calcBtn').click());
     el('calcBtn').addEventListener('click', () => {
       const state = el('calcBtn').dataset.state || 'start';
       if (state === 'running') {
@@ -8986,6 +9219,19 @@ Kind regards,
     el('dayEditSave').addEventListener('click', saveDayEditModal);
     el('dayEditCancel').addEventListener('click', closeDayEditModal);
     el('dayEditOverlay').addEventListener('click', e => { if (e.target === el('dayEditOverlay')) closeDayEditModal(); });
+    // Desktop sheet: a round close button (Cancel is hidden there) and Esc.
+    (() => {
+      const head = el('dayEditOverlay')?.querySelector('#deMainPage .dialog-head');
+      if (!head) return;
+      const x = document.createElement('button');
+      x.type = 'button'; x.className = 'sheet-close'; x.setAttribute('aria-label', 'Close');
+      x.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>';
+      x.addEventListener('click', () => closeDayEditModal());
+      head.appendChild(x);
+      document.addEventListener('keydown', e => {
+        if (e.key === 'Escape' && el('dayEditOverlay').classList.contains('open')) closeDayEditModal();
+      });
+    })();
     el('dayEditDeleteBtn').addEventListener('click', deleteDayEntry);
 
     // End Session modal
@@ -9876,7 +10122,10 @@ Kind regards,
           provider,
           options: {
             redirectTo: window.__DESKTOP_OAUTH_REDIRECT || (window.location.origin + window.location.pathname),
-            skipBrowserRedirect: !!window.__TAURI__
+            skipBrowserRedirect: !!window.__TAURI__,
+            // Always show Google's account picker so the right account gets
+            // linked, even when only one is signed in to the browser.
+            queryParams: String(provider).toLowerCase() === 'google' ? { prompt: 'select_account' } : undefined
           }
         });
         if (error) throw error;
@@ -11057,8 +11306,7 @@ Kind regards,
         const d = new Date(); d.setHours(pts[0] || 0, pts[1] || 0, pts[2] || 0, 0);
         loginDate = d;
         setCalcBtnState('ended');
-        el('autostopBanner').classList.add('show');
-        el('autostopMsg').textContent = `Auto-stopped at ${tl.checkoutDisplay || '—'} — target + buffer reached.`;
+        _showAutostopBar(tl.checkoutDisplay);
         renderEmptyState(); // show card in read mode
       } else { setCalcBtnState('start'); renderEmptyState(); }
 
@@ -11082,7 +11330,7 @@ Kind regards,
 
       // Always pull from Supabase on launch — cross-device accuracy requires
       // fresh data regardless of when the last pull happened.
-      _syncGlance(_refreshFromCloud(true));
+      _syncGlance(_refreshFromCloud(true, true));
 
       // Pull settings + wire up realtime — always, regardless of pull cooldown.
       SbSync.pullSettings().then(remoteCfg => {
@@ -11374,17 +11622,35 @@ Kind regards,
       const placeForMode = () => {
         const on = RAIL_MQ.matches;
         document.body.classList.toggle('rail-on', on);
+        const permBar = el('notifPermBar'), notifList = el('notifList');
         if (on) {
           if (brand) railTop.appendChild(brand);
-          // Top to bottom: Theme, Settings. Notifications stays on the page.
-          railBottom.append(railTheme, railProfile);
+          // Rail bottom, top to bottom: Notifications, Settings. The bell sits
+          // where Theme was; Theme takes the bell's place top right.
+          if (realNotif) { realNotif.classList.add('rail-btn'); railBottom.append(realNotif, railProfile); }
+          else railBottom.append(railProfile);
+          railTheme.classList.remove('rail-btn'); railTheme.classList.add('hdr-icon');
+          cluster.prepend(railTheme);
+          // "Notifications are off" lives at the top of the notifications drawer.
+          if (permBar && notifList && permBar.parentElement !== notifList.parentElement) {
+            if (!permBar._home) permBar._home = { parent: permBar.parentElement, next: permBar.nextSibling };
+            notifList.before(permBar);
+          }
         } else {
           if (brand) document.body.appendChild(brand);
+          if (realNotif) { realNotif.classList.remove('rail-btn'); cluster.prepend(realNotif); }
+          railTheme.classList.add('rail-btn'); railTheme.classList.remove('hdr-icon');
+          railBottom.prepend(railTheme);
+          if (permBar && permBar._home) permBar._home.parent.insertBefore(permBar, permBar._home.next);
         }
         paintTheme();
       };
       RAIL_MQ.addEventListener('change', placeForMode);
       placeForMode();
+      // The day selector switches between swiping (touch) and one-week pages (desktop).
+      const _dsRelayout = () => requestAnimationFrame(() => { _dsResetScroll(); _dsPlaceGlide(); _updateDayNavBtns(); });
+      RAIL_MQ.addEventListener('change', _dsRelayout);
+      addEventListener('resize', _dsRelayout, { passive: true });
 
       // The notification panel hangs below its button instead of centre screen.
       // With the desktop rail it's a centred modal instead (CSS), so no placing.

@@ -1,6 +1,6 @@
 // scripts/generate-config.js
-// Runs at Vercel build time — reads env vars and writes lib/config.js.
-// This file is safe to commit; lib/config.js is not.
+// Runs at Vercel build time — reads env vars and writes public/lib/config.js.
+// This file is safe to commit; public/lib/config.js is not.
 const fs   = require('fs');
 const path = require('path');
 
@@ -17,7 +17,7 @@ const content =
   "window.__SB_URL      = '" + url + "';\n" +
   "window.__SB_ANON_KEY = '" + key + "';\n";
 
-const outPath = path.join(__dirname, '..', 'lib', 'config.js');
+const outPath = path.join(__dirname, '..', 'public', 'lib', 'config.js');
 fs.mkdirSync(path.dirname(outPath), { recursive: true });
 fs.writeFileSync(outPath, content, 'utf8');
-console.log('[generate-config] lib/config.js generated ✓');
+console.log('[generate-config] public/lib/config.js generated ✓');

@@ -48,9 +48,9 @@ function applyTheme() {
   if (sun)  sun.style.display  = isDark ? '' : 'none';
   if (moon) moon.style.display = isDark ? 'none' : '';
   const fav = document.getElementById('favicon');
-  if (fav) fav.href = isDark ? '/favicon-dark.svg' : '/favicon-light.svg';
+  if (fav) fav.href = isDark ? '/icons/favicon-dark.svg' : '/icons/favicon-light.svg';
   const logo = document.getElementById('loginLogo');
-  if (logo) logo.src = isDark ? '/brand-dark.svg' : '/brand-light.svg';
+  if (logo) logo.src = isDark ? '/icons/brand-dark.svg' : '/icons/brand-light.svg';
 }
 
 function toggleTheme() {
@@ -204,6 +204,10 @@ async function handleSubmit() {
 // --- OAuth (Google / GitHub) ---
 // provider: 'Google' or 'GitHub'
 // evt:      the MouseEvent from addEventListener (used to disable the button)
+// Google's "always let me choose" setting; other providers get nothing extra.
+const GOOGLE_PICKER = provider =>
+  String(provider).toLowerCase() === 'google' ? { prompt: 'select_account' } : undefined;
+
 async function handleOAuth(provider, evt) {
   const btn = evt.currentTarget;
   btn.disabled = true;
@@ -217,7 +221,10 @@ async function handleOAuth(provider, evt) {
       // fivepm:// and lib/desktop-auth.js exchanges it.
       options: {
         redirectTo: window.__DESKTOP_OAUTH_REDIRECT || (window.location.origin + '/index.html'),
-        skipBrowserRedirect: !!window.__TAURI__
+        skipBrowserRedirect: !!window.__TAURI__,
+        // Always show Google's account picker, even with one account signed
+        // in, so "Use another account" is always there.
+        queryParams: GOOGLE_PICKER(provider)
       }
     });
     if (error) throw error;

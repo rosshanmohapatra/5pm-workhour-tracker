@@ -2,10 +2,25 @@
 //  - the What's New modal, shown once after an update (lib/pages/index-app.js),
 //  - Settings › About › What's New, which reopens it,
 //  - the GitHub release notes and the Microsoft Store "What's new" text:
-//      node scripts/release-notes.js 1.2.28
+//      node scripts/release-notes.js 1.2.29
 // Write each line the way the release notes read: plain, one line each, and
 // bug fixes as "Fixed <problem>". No em dashes.
 window.WHATS_NEW = [
+  {
+    version: '1.2.29',
+    improvements: [
+      "A fresh new look, with softer colours and cleaner cards.",
+      "Redesigned your week on Home, so each day reads at a glance.",
+      "See how much time you have in hand this week.",
+      "Sort Stats by any column.",
+      "Faster sync that uses less data.",
+    ],
+    fixes: [
+      "Fixed Resume not working after a session was auto-stopped.",
+      "Fixed Update Entry suggesting your shift end instead of when you were last active.",
+      "Fixed password reset links not opening Set New Password.",
+    ],
+  },
   {
     version: '1.2.28',
     improvements: [

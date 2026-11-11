@@ -6,7 +6,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const root = path.join(__dirname, '..');
+const root = path.join(__dirname, '..', 'public'); // the website lives in public/
 const pages = ['index.html', 'login.html', 'about.html', 'privacy.html',
   'passkey-desktop.html', 'oauth/consent/index.html'];
 const scripts = fs.readdirSync(path.join(root, 'lib/pages'))

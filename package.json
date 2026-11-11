@@ -1,6 +1,6 @@
 {
   "name": "5pm-work-tracker",
-  "version": "1.2.0",
+  "version": "1.2.29",
   "description": "Work hour tracker with Web Push notifications",
   "private": true,
   "engines": {
@@ -9,7 +9,8 @@
   "scripts": {
     "vapid": "node -e \"const wp=require('web-push');const k=wp.generateVAPIDKeys();console.log('VAPID_PUBLIC_KEY='+k.publicKey);console.log('VAPID_PRIVATE_KEY='+k.privateKey);\"",
     "tauri": "npx --yes @tauri-apps/cli@2.12.0",
-    "play": "node scripts/play.js"
+    "play": "node scripts/play.js",
+    "test": "node --test tests/"
   },
   "dependencies": {
     "@vercel/kv": "^2.0.0",

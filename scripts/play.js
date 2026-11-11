@@ -12,10 +12,10 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 
-const ROOT = path.resolve(__dirname, '..');
+const ROOT = path.resolve(__dirname, '..', 'public'); // the website lives in public/
 const PORT = Number(process.env.PORT) || 3000;
 const HOST = '127.0.0.1';
-const IGNORE = /(^|[\\/])(\.|node_modules|src-tauri|figma-cli-main)/;
+const IGNORE = /(^|[\\/])(\.|node_modules|src-tauri)/;
 const TYPES = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8',
   '.css': 'text/css; charset=utf-8', '.json': 'application/json', '.svg': 'image/svg+xml',
@@ -29,16 +29,26 @@ const TAG = '<script src="/__play/reload.js"></script>';
 
 const clients = new Set();
 
+// The repo folder with any shortcuts (symlinks) followed, so a link that
+// points outside the repo can't be used to read other files.
+const ROOT_REAL = fs.realpathSync(ROOT);
+
 // Request path to a file inside the repo, or null (outside, hidden, missing).
+// Each candidate ("/about" and "/about.html") is checked on its own, after
+// the final path is built, so nothing outside the repo can slip through.
 function resolveFile(urlPath) {
   let p;
   try { p = decodeURIComponent(urlPath.split('?')[0]); } catch { return null; }
+  if (p.includes('\0')) return null;
   if (p.endsWith('/')) p += 'index.html';
-  const file = path.resolve(ROOT, '.' + p);
-  if (file !== ROOT && !file.startsWith(ROOT + path.sep)) return null;
-  if (path.relative(ROOT, file).split(path.sep).some(s => s.startsWith('.'))) return null;
-  for (const f of [file, file + '.html']) {
-    try { if (fs.statSync(f).isFile()) return f; } catch {}
+  for (const candidate of [p, p + '.html']) {
+    const file = path.resolve(ROOT, '.' + candidate);
+    if (!file.startsWith(ROOT + path.sep)) continue;
+    let real;
+    try { real = fs.realpathSync(file); } catch { continue; }
+    if (!real.startsWith(ROOT_REAL + path.sep)) continue;
+    if (path.relative(ROOT_REAL, real).split(path.sep).some(s => s.startsWith('.'))) continue;
+    try { if (fs.statSync(real).isFile()) return real; } catch {}
   }
   return null;
 }

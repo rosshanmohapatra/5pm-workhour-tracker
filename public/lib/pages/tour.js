@@ -266,7 +266,7 @@
     { id: 'missedDay', name: 'Missed a Day?', where: 'Home › This Week',
       title: () => 'Missed a Day?',
       text: v => `${v} a day to add the hours you worked.`,
-      when: () => [...document.querySelectorAll('#wkRows .wk-row')].some(r => r.textContent.includes('Missing Entry')),
+      when: () => !!document.querySelector('#wkRows .wk-row.is-missing'),
       place: t => el('wkRows')?.before(t) },
     { id: 'startFaster', name: 'Start Faster', where: 'Home › today, under Start', desktopOnly: true,
       title: () => 'Start Faster',
@@ -330,7 +330,7 @@
       const t = e.target;
       if (t.closest?.('#penaltiesList .penalty-row') && !t.closest('.penalty-discard-btn')) markSeen('penalties');
       const row = t.closest?.('#wkRows .wk-row');
-      if (row && row.textContent.includes('Missing Entry')) markSeen('missedDay');
+      if (row && row.classList.contains('is-missing')) markSeen('missedDay');
       // A real mouse click on Start (not the shortcut, which clicks it for you).
       if (t.closest?.('#calcBtn') && e.detail > 0 && el('calcBtn').dataset.state === 'start' && !touch()) bump('mouseStarts');
       if (t.closest?.('#emailEditSave')) markSeen('saveRecipient');

@@ -1,5 +1,5 @@
 /**
- * Self-check for the Manage Devices helpers in lib/pages/index-app.js.
+ * Self-check for the Manage Devices helpers in public/lib/pages/index-app.js.
  *
  * These two functions decide what every device row shows, and both are pure
  * logic that is easy to break silently.
@@ -9,7 +9,7 @@ const fs = require('fs');
 const path = require('path');
 const assert = require('assert');
 
-const html = fs.readFileSync(path.join(__dirname, '..', 'lib', 'pages', 'index-app.js'), 'utf8');
+const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'lib', 'pages', 'index-app.js'), 'utf8');
 
 // Pull the real function bodies out of the page rather than duplicating them,
 // so this test fails if the shipped implementation changes.

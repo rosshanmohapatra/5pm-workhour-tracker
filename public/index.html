@@ -25,7 +25,7 @@
   <title>5pm - Work Hour Tracker</title>
 
   <!-- Favicons (theme-aware; JS in applyTheme() swaps #favicon at runtime) -->
-  <link id="favicon" rel="icon" type="image/svg+xml" href="/favicon-light.svg">
+  <link id="favicon" rel="icon" type="image/svg+xml" href="/icons/favicon-light.svg">
 
   <!-- jsPDF, AutoTable (PDF export) and qrcodejs (Contribute) load on first use: _loadLib() -->
 
@@ -50,14 +50,14 @@
   <meta property="og:site_name"   content="5pm">
   <meta property="og:title"       content="5pm - Work Hour Tracker">
   <meta property="og:description" content="Real-time work hour tracking. Work your hours. Leave on time.">
-  <meta property="og:image"       content="https://whtracker.vercel.app/social-preview.svg">
+  <meta property="og:image"       content="https://whtracker.vercel.app/icons/social-preview.svg">
   <meta property="og:image:type"  content="image/svg+xml">
 
   <!-- Twitter / X Card -->
   <meta name="twitter:card"        content="summary_large_image">
   <meta name="twitter:title"       content="5pm - Work Hour Tracker">
   <meta name="twitter:description" content="Real-time work hour tracking. Work your hours. Leave on time.">
-  <meta name="twitter:image"       content="https://whtracker.vercel.app/social-preview.svg">
+  <meta name="twitter:image"       content="https://whtracker.vercel.app/icons/social-preview.svg">
   <link rel="preconnect" href="https://fonts.googleapis.com/">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap" rel="stylesheet" media="print" data-on-load="he403411552"><noscript><link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap" rel="stylesheet"></noscript>
   <style>
@@ -87,39 +87,54 @@
 
     /* ── Design tokens ── */
     :root {
-      --background: #f5f5f7; --foreground: #09090b; --card: #ffffff;
-      --muted: #f0f0f4; --muted-fg: #70707a; --border: #e1e1e6;
-      --input: #e1e1e6; --input-bg: #f4f4f5; --ring: #09090b;
-      --btn-primary-bg: #27272a;
-      --btn-secondary-bg: #ebebee; --btn-secondary-fg: #09090b; --btn-secondary-hover: #d4d4d8;
-      --success: #16a34a; --success-bg: #f0fdf4; --success-border: #bbf7d0;
-      --warning: #d97706; --warning-bg: #fffbeb; --warning-border: #fde68a;
-      --destructive: #dc2626; --destructive-bg: #fee2e2; --destructive-border: #fecaca;
-      --blue: #2563eb; --blue-bg: #eff6ff; --blue-border: #bfdbfe;
+      /* Colours and surfaces follow uiarc's arc-foundation palette (oklch values
+         converted to hex). Token names are 5pm's, so every rule follows. */
+      --background: #ffffff; --foreground: #0b0b0b; --card: #ffffff;
+      --surface-raised: #ffffff;
+      --muted: #f8f8f8; --muted-fg: #585858; --text-muted: #7d7d7d;
+      --border: #e9e9e9; --border-subtle: #f3f3f3; --border-strong: #c4c4c4;
+      --input: #c4c4c4; --input-bg: #ffffff; --ring: #0b0b0b;
+      --accent: #353535; --accent-subtle: rgba(53,53,53,.1);
+      --btn-primary-bg: #0b0b0b;
+      --btn-secondary-bg: #f1f1f1; --btn-secondary-fg: #0b0b0b; --btn-secondary-hover: #e3e3e3;
+      --success: #00774d; --success-bg: #e8f1ec; --success-border: #c8ded2;
+      --warning: #9f6202; --warning-bg: #f6efe8; --warning-border: #e9d8c8;
+      --destructive: #bb2c54; --destructive-bg: #fbebed; --destructive-border: #f5cfd3;
+      --blue: #136d9e; --blue-bg: #e8f0f6; --blue-border: #c9dbe8;
+      --violet: #6850b9; --orchid: #943fa2; --teal: #007467;
+      /* Today's date tile: a slight hint of the foreground in the surface. */
+      --today-tile: color-mix(in srgb, var(--foreground) 9%, var(--card));
       --font: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Inter', system-ui, sans-serif;
       --font-display: 'DM Serif Display', Georgia, serif;
       /* ── Radius scale ── */
       --radius-xs: 4px; --radius: 6px; --radius-md: 10px;
       --radius-lg: 16px; --radius-xl: 20px;
       /* ── Shadow scale ── */
-      --shadow-xs: 0 1px 3px rgba(0,0,0,.05), 0 0 1px rgba(0,0,0,.04);
-      --shadow-sm: 0 2px 6px rgba(0,0,0,.07), 0 1px 2px rgba(0,0,0,.04);
-      --shadow-md: 0 4px 14px rgba(0,0,0,.09), 0 2px 4px rgba(0,0,0,.05);
-      --shadow-lg: 0 8px 28px rgba(0,0,0,.11), 0 3px 8px rgba(0,0,0,.06);
+      --shadow-xs: 0 1px 2px rgba(0,0,0,.035);
+      --shadow-sm: 0 2px 6px rgba(0,0,0,.05), 0 1px 2px rgba(0,0,0,.035);
+      --shadow-md: 0 6px 18px rgba(0,0,0,.065), 0 1px 3px rgba(0,0,0,.035);
+      --shadow-lg: 0 20px 48px rgba(0,0,0,.105), 0 3px 10px rgba(0,0,0,.045);
       --shadow-xl: 0 24px 60px rgba(0,0,0,.14), 0 8px 20px rgba(0,0,0,.08);
+      /* Motion shared by sheets, toasts and gliding selections. */
+      --ease-sheet: cubic-bezier(.32,.72,0,1); --ease-sheet-out: cubic-bezier(.4,0,.6,1);
     }
     .dark {
-      --background: #09090b; --foreground: #fafafa; --card: #1a1a1e;
-      --muted: #26262b; --muted-fg: #a0a0aa; --border: #2f2f35;
+      --background: #141414; --foreground: #f2f2f2; --card: #191919;
+      --surface-raised: #1f1f1f;
+      --muted: #242424; --muted-fg: #b4b4b4; --text-muted: #8c8c8c;
+      --border: #2b2b2b; --border-subtle: #222222; --border-strong: #484848;
       --btn-primary-bg: var(--foreground);
-      --btn-secondary-bg: #28282d; --btn-secondary-fg: #fafafa; --btn-secondary-hover: #33333a;
-      --input: #404047; --input-bg: #26262b; --ring: #e4e4e7;
-      --success: #4ade80; --success-bg: #052e16; --success-border: #166534;
-      --warning: #fbbf24; --warning-bg: #1c1400; --warning-border: #78350f;
-      --destructive: #f87171; --destructive-bg: #450a0a; --destructive-border: #7f1d1d;
-      --blue: #60a5fa; --blue-bg: #0c1a2e; --blue-border: #1e40af;
+      --btn-secondary-bg: #242424; --btn-secondary-fg: #f2f2f2; --btn-secondary-hover: #303030;
+      --input: #484848; --input-bg: #191919; --ring: #bebebe;
+      --accent: #bebebe; --accent-subtle: rgba(190,190,190,.14);
+      --success: #55d69f; --success-bg: #24302a; --success-border: #2f4c3d;
+      --warning: #f2bd68; --warning-bg: #332d25; --warning-border: #524531;
+      --destructive: #f0738f; --destructive-bg: #342628; --destructive-border: #533439;
+      --blue: #7cc4f0; --blue-bg: #272e33; --blue-border: #364752;
+      --violet: #aa9df4; --orchid: #dd8fe9; --teal: #37d5c1;
+      --today-tile: color-mix(in srgb, var(--foreground) 15%, var(--card));
       /* ── Shadow scale (dark — stronger) ── */
-      --shadow-xs: 0 1px 3px rgba(0,0,0,.28);
+      --shadow-xs: 0 1px 2px rgba(0,0,0,.18);
       --shadow-sm: 0 2px 8px rgba(0,0,0,.34);
       --shadow-md: 0 4px 16px rgba(0,0,0,.44);
       --shadow-lg: 0 8px 32px rgba(0,0,0,.54);
@@ -1159,17 +1174,60 @@
     .rc-meta-item { font-size: 12px; color: var(--muted-fg); }
     .rc-meta-item b { color: var(--foreground); }
 
-    /* ── Banners ── */
-    .banner { display: none; align-items: center; gap: 8px;
-      padding: 10px 12px; border-radius: var(--radius);
-      font-size: 13px; font-weight: 500; border: 1px solid;
-      justify-content: space-between; }
-    .banner.show { display: flex; }
-    .banner svg { flex-shrink: 0; }
-    .banner-left { display: flex; align-items: center; gap: 8px; }
-    .ot-quip { font-size: 11px; font-weight: 700; opacity: .75; letter-spacing: .04em; flex-shrink: 0; }
-    .banner-success { background: var(--success-bg); color: var(--success); border-color: var(--success-border); }
-    .banner-warning { background: var(--warning-bg); color: var(--warning); border-color: var(--warning-border); }
+    /* ── Info bar (.ib): one component for every in-page notice ──
+       Modelled on uiarc's Alert: a neutral card, the tone only on the icon.
+       Every look is an --ib-* variable; data-attributes pick the variant:
+         data-tone   = info | success | warning | danger   (neutral when absent)
+         data-action = label (icon + text button) | icon (icon-only button) | none
+         data-toggle = hidden until the .show class is added
+       Markup:
+         <div class="ib" data-tone="warning" data-action="label">
+           <span class="ib-icon">svg</span>
+           <div class="ib-body"><span class="ib-title"></span><span class="ib-text"></span></div>
+           <button class="btn-secondary ib-btn"><svg/><span class="ib-btn-label">Resume</span></button>
+         </div>
+       With a title AND text the icon sits top-left; one line keeps it centred. */
+    .ib {
+      --ib-tone: var(--muted-fg); --ib-tone-bg: var(--muted);
+      --ib-bg: var(--card); --ib-border: var(--border); --ib-radius: var(--radius-md);
+      --ib-pad-y: 10px; --ib-pad-x: 12px; --ib-gap: 10px;
+      --ib-icon: 18px; --ib-tile: calc(var(--ib-icon) + 14px);
+      --ib-title: 13px; --ib-text: 12px;
+      display: flex; align-items: center; gap: var(--ib-gap);
+      padding: var(--ib-pad-y) var(--ib-pad-x); border: 1px solid var(--ib-border);
+      border-radius: var(--ib-radius); background: var(--ib-bg); box-shadow: var(--shadow-xs);
+      color: var(--foreground); font-family: var(--font); line-height: 1.4;
+    }
+    .dark .ib { box-shadow: none; }
+    .ib[data-toggle]:not(.show) { display: none; }
+    .ib[data-tone="info"]    { --ib-tone: var(--blue);        --ib-tone-bg: var(--blue-bg); }
+    .ib[data-tone="success"] { --ib-tone: var(--success);     --ib-tone-bg: var(--success-bg); }
+    .ib[data-tone="warning"] { --ib-tone: var(--warning);     --ib-tone-bg: var(--warning-bg); }
+    .ib[data-tone="danger"]  { --ib-tone: var(--destructive); --ib-tone-bg: var(--destructive-bg); }
+    .ib-icon { flex-shrink: 0; display: grid; place-items: center; width: var(--ib-tile); height: var(--ib-tile);
+      border-radius: var(--radius-md); background: var(--ib-tone-bg); color: var(--ib-tone); }
+    .ib-icon svg { width: var(--ib-icon); height: var(--ib-icon); }
+    .ib-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+    .ib-title { font-size: var(--ib-title); font-weight: 500; color: var(--foreground); }
+    .ib-text { font-size: var(--ib-text); color: var(--muted-fg); }
+    .ib-title:empty, .ib-text:empty { display: none; }
+    .ib:has(.ib-title:not(:empty)):has(.ib-text:not(:empty)) { align-items: flex-start; }
+    .ib:has(.ib-title:not(:empty)):has(.ib-text:not(:empty)) .ib-btn { align-self: center; }
+    .ib-meta { flex-shrink: 0; font-size: 11px; font-weight: 600; letter-spacing: .04em; color: var(--muted-fg); }
+    .ib-meta:empty { display: none; }
+    /* Buttons are 5pm's compact .btn-secondary (Settings rows): 30px, 12px, 14px icon. */
+    .ib .ib-btn { flex-shrink: 0; height: 30px; padding: 0 12px; font-size: 12px; gap: 5px; }
+    .ib .ib-btn svg { width: 14px; height: 14px; flex-shrink: 0; }
+    .ib[data-action="icon"] .ib-btn { width: 30px; padding: 0; }
+    .ib[data-action="icon"] .ib-btn-label { position: absolute; width: 1px; height: 1px; overflow: hidden;
+      clip: rect(0 0 0 0); white-space: nowrap; }
+    .ib[data-action="none"] .ib-btn { display: none; }
+    /* uiarc motion: the icon settles in, the copy rises out of a short blur. */
+    @keyframes ib-icon-in { from { opacity: 0; transform: scale(.6); filter: blur(2px); } to { opacity: 1; transform: none; filter: none; } }
+    @keyframes ib-text-in { from { opacity: 0; transform: translateY(.3em); filter: blur(4px); } to { opacity: 1; transform: none; filter: none; } }
+    .ib.show .ib-icon { animation: ib-icon-in .26s cubic-bezier(.22,1,.36,1) both; }
+    .ib.show .ib-body { animation: ib-text-in .24s cubic-bezier(.16,1,.3,1) both; }
+    @media (prefers-reduced-motion: reduce) { .ib.show .ib-icon, .ib.show .ib-body { animation: none; } }
 
     /* ── Week history card ── */
     .wk-head { padding: 12px 14px 12px 16px; border-bottom: 1px solid var(--border);
@@ -1184,25 +1242,79 @@
     .wk-collapsible { overflow: hidden; transition: max-height .28s ease, opacity .22s; }
     .wk-collapsible.open     { max-height: 500px; opacity: 1; }
     .wk-collapsible.minimized { max-height: 0; opacity: 0; }
-    .wk-rows { padding: 8px 12px; display: flex; flex-direction: column; gap: 8px; }
-    .wk-row { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center;
-      min-height: 40px; padding: 6px 10px; cursor: pointer; border-radius: 8px; position: relative; transition: background .12s; gap: 0 8px; }
-    .wk-row:hover { background: var(--muted); }
-    .wk-col-day { font-size: 12px; font-weight: 400; color: var(--muted-fg); white-space: nowrap; text-align: right; }
-    .wk-col-mid { display: flex; align-items: center; justify-content: center; }
-    .wk-col-date { font-size: 13px; font-weight: 500; color: var(--foreground); white-space: nowrap; }
+    /* Week card rows (Apple-style list): date tile · day type · ± chip · hours.
+       64px rows, separators start after the tile, nothing hard-coded. */
+    .wk-card { container: wkcard / inline-size; }
+    .wk-rows { --wk-tile: 44px; --wk-pad-x: 12px; --wk-gap: 12px; padding: 4px 0; display: flex; flex-direction: column; }
+    .wk-row { position: relative; display: flex; align-items: center; gap: var(--wk-gap);
+      min-height: 64px; padding: 10px 16px 10px var(--wk-pad-x); cursor: pointer; transition: background .15s; }
+    .wk-row + .wk-row::before { content: ""; position: absolute; top: 0; right: 0; height: 1px; background: var(--border);
+      left: calc(var(--wk-pad-x) + var(--wk-tile) + var(--wk-gap)); }
+    @media (hover: hover) and (pointer: fine) { .wk-row:hover { background: var(--muted); } .wk-row:hover .wk-tile { background: var(--btn-secondary-hover); color: var(--foreground); } }
+    .wk-row:focus-visible { outline: 2px solid var(--ring); outline-offset: -2px; }
+    /* Date tile: matches the day selector (weekday on top, number below). */
+    .wk-tile { width: var(--wk-tile); height: var(--wk-tile); flex-shrink: 0; border-radius: var(--radius-md);
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; line-height: 1;
+      background: var(--btn-secondary-bg); color: var(--muted-fg); transition: background .12s, color .12s; }
+    .wk-tile-n { font-size: 10px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; }
+    .wk-tile-d { font-size: 16px; font-weight: 700; font-variant-numeric: tabular-nums; }
+    .wk-row.today .wk-tile, .wk-row.today:hover .wk-tile { background: var(--today-tile); color: var(--foreground); }
+    .wk-row.is-future .wk-tile { background: transparent; box-shadow: inset 0 0 0 1px var(--border); }
+    .wk-row.is-future:not(:has(.wk-type)) { opacity: .6; }
+    .wk-mid { flex: 1; min-width: 0; display: flex; align-items: center; }
+    /* Day types: icon bubble + coloured label + a friendly line. Never a capsule. */
+    .wk-type { --k: var(--muted-fg); display: flex; align-items: center; gap: 10px; min-width: 0; }
+    .wk-type-ic { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; flex-shrink: 0;
+      color: var(--k); background: color-mix(in srgb, var(--k) 12%, var(--card)); }
+    .wk-type-ic svg { width: 15px; height: 15px; }
+    .wk-type-txt { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+    .wk-type-lbl { font-size: 14px; font-weight: 600; color: var(--k); letter-spacing: -.01em; }
+    .wk-type-line { font-size: 12px; color: var(--muted-fg); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    /* Today's state ("Live dot"): glyph + a short word. */
+    .wk-now { display: flex; align-items: center; gap: 5px; font-size: 13px; font-weight: 500; min-width: 0; }
+    .wk-now svg { width: 12px; height: 12px; stroke-width: 2.5; flex-shrink: 0; }
+    .wk-now-t { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .wk-now.is-run, .wk-now.is-done { color: var(--success); }
+    .wk-now.is-pause { color: var(--warning); }
+    .wk-now.is-left { color: var(--muted-fg); }
+    .wk-live-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--success); flex-shrink: 0;
+      animation: wk-pulse 2s ease-in-out infinite; }
+    @keyframes wk-pulse { 50% { opacity: .3; } }
+    .wk-end { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+    .wk-hrs { text-align: right; font-size: 15px; font-weight: 500; font-variant-numeric: tabular-nums; white-space: nowrap; color: var(--foreground); }
+    .wk-hrs.is-none { color: var(--text-muted); font-weight: 400; }
+    /* ± chips: "+2mins" green, "−30mins" amber. */
+    .wk-chip { --c: var(--muted-fg); display: inline-flex; align-items: center; height: 22px; padding: 0 8px; border-radius: 11px;
+      font-size: 12px; font-weight: 500; font-variant-numeric: tabular-nums; white-space: nowrap;
+      color: var(--c); background: color-mix(in srgb, var(--c) 12%, var(--card)); }
+    .wk-chip.is-over { --c: var(--success); }
+    .wk-chip.is-short { --c: var(--warning); }
+    .wk-add { height: 30px; padding: 0 12px; font-size: 12px; gap: 5px; }
+    .wk-add svg { width: 14px; height: 14px; }
+    /* Small phones: shorter today text, chip under the hours. */
+    @container wkcard (max-width: 360px) {
+      .wk-rows { --wk-pad-x: 12px; --wk-gap: 10px; }
+      .wk-row { padding-right: 12px; }
+      .wk-row.today .wk-end { flex-direction: column; align-items: flex-end; gap: 3px; }
+      .wk-row.today .wk-chip { height: 18px; padding: 0 6px; font-size: 11px; border-radius: 9px; order: 2; }
+    }
+    @container wkcard (min-width: 520px) { .wk-row { min-height: 56px; padding-right: 20px; } }
+    @media (prefers-reduced-motion: reduce) { .wk-live-dot { animation: none; } .wk-row, .wk-tile { transition: none; } }
     @keyframes wk-flash { 0%{box-shadow:0 0 0 0 var(--ring)} 30%{box-shadow:0 0 0 2px var(--ring)} 70%{box-shadow:0 0 0 2px var(--ring)} 100%{box-shadow:0 0 0 0 transparent} }
     .wk-row-flash { animation: wk-flash 1.5s ease-out; }
-    .wk-pill { display: inline-flex; align-items: center; gap: 5px;
-      font-size: 13px; font-weight: 500;
-      color: var(--muted-fg); white-space: nowrap; justify-self: start; }
-    .wk-pill.live    { color: var(--foreground); }
-    .wk-pill.early   { color: var(--blue); }
-    .wk-pill.surplus { color: var(--success); }
-    .wk-pill.deficit { color: var(--warning); }
-    .wk-footer { border-top: 1px solid var(--border); padding: 14px 16px; }
-    .wk-footer-row { display: flex; align-items: center; justify-content: space-between; }
-    .wk-footer-val { font-size: 13px; color: var(--foreground); font-weight: 500; }
+    /* Footer: two stacked stats split by a divider. */
+    .wk-footer { border-top: 1px solid var(--border); }
+    .wk-stats { display: grid; grid-template-columns: 1fr 1fr; min-height: 60px; }
+    .wk-stat { padding: 10px 16px; display: flex; flex-direction: column; justify-content: center; gap: 2px; min-width: 0; }
+    .wk-stat + .wk-stat { border-left: 1px solid var(--border); text-align: right; }
+    .wk-stat-k { font-size: 11px; color: var(--text-muted); }
+    .wk-stat-v { font-size: 15px; font-weight: 600; letter-spacing: -.01em; font-variant-numeric: tabular-nums;
+      color: var(--foreground); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .wk-stat-v[data-tone="over"] { color: var(--success); }
+    .wk-stat-v[data-tone="short"] { color: var(--warning); }
+    .wk-stat-v[data-tone="missing"] { color: var(--destructive); }
+    .wk-stat-v[data-tone="none"] { color: var(--text-muted); font-weight: 500; }
+    .wk-footer-actions { padding: 0 16px 14px; }
 
     /* Day edit dropdown (analytics row expand) */
     .wk-row-actions { display: flex; align-items: center; gap: 8px; justify-self: end; }
@@ -1236,11 +1348,6 @@
     .rec-ack-btn.yes:hover { opacity:.85; }
 
     /* Stay-hint row */
-    .stay-hint { display: flex; align-items: flex-start; gap: 8px;
-      font-size: 12px; color: var(--blue); line-height: 1.5;
-      background: var(--blue-bg); border: 1px solid var(--blue-border);
-      border-radius: 8px; padding: 10px 12px; }
-    .stay-hint svg { flex-shrink: 0; margin-top: 1px; }
 
     /* ── Delete-account password field (type=text + visual masking, avoids iOS autofill) ── */
     #deleteConfirmInput        { -webkit-text-security: disc; }
@@ -1870,20 +1977,7 @@
       color: var(--foreground); font-variant-numeric: tabular-nums; white-space: nowrap; }
 
     /* ── Missing data pill ── */
-    .wk-pill.missing { color: var(--muted-fg);
-      font-style: italic; font-size: 11px; }
 
-    /* ── Auto-stop banner ── */
-    .banner-autostop { background: var(--warning-bg); color: var(--warning);
-      border-color: var(--warning-border); }
-    #autostopBanner { display: none; }
-    #autostopBanner.show { display: flex; }
-
-    /* ── Notification permission warning ── */
-    .notif-perm-bar { align-items: center; gap: 8px; padding: 9px 12px; border-radius: var(--radius-md);
-      border: 1px solid var(--warning-border); background: var(--warning-bg);
-      color: var(--warning); font-size: 12px; display: none; }
-    .notif-perm-bar.show { display: flex; }
 
     /* ── wk-time-input fix ── */
     .wk-time-input { height: 28px; width: 80px; font-size: 12px; font-family: var(--font);
@@ -2099,6 +2193,78 @@
       padding: 12px; border-bottom: 1px solid var(--border); }
     .this-week-wrap .day-selector { padding: 16px 0; }
     .ds-fade-wrap { position: relative; }
+    .ds-glide { display: none; }
+    /* ── Stats table (uiarc sortable data table) ──
+       Rounded bordered table, sticky headers, a tinted sorted column, rows that
+       fade into their new order. Chips reuse the week card's .wk-chip. */
+    .rpt-body { flex: 1; min-height: 0; display: flex; padding: 0 14px 4px; }
+    .rpt-wrap { flex: 1; min-width: 0; border: 1px solid var(--border); border-radius: 14px; overflow: hidden; background: var(--card); display: flex; }
+    .rpt-scroll { flex: 1; overflow: auto; scrollbar-width: thin; }
+    .rpt-table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13px; color: var(--foreground); }
+    .rpt-table th, .rpt-table td { background: var(--card); transition: background-color .24s; }
+    .rpt-table th[data-sorted], .rpt-table td[data-sorted] { background: var(--muted); }
+    .rpt-table th { position: sticky; top: 0; z-index: 2; height: 40px; padding: 0; text-align: left;
+      border-bottom: 1px solid var(--border); color: var(--text-muted); font-weight: 500; white-space: nowrap; }
+    .rpt-table th[data-sorted] { color: var(--foreground); }
+    .rpt-sort { display: flex; align-items: center; gap: 6px; width: 100%; height: 40px; padding: 0 10px; border: 0;
+      background: transparent; color: inherit; font: inherit; cursor: pointer; }
+    /* Reversed row: flex-start is the right edge, so the label sits over its digits. */
+    .rpt-table th[data-num] .rpt-sort { justify-content: flex-start; flex-direction: row-reverse; }
+    .rpt-sort:focus-visible { outline: 2px solid var(--ring); outline-offset: -2px; border-radius: 6px; }
+    .rpt-arrow { width: 14px; height: 14px; display: grid; place-items: center; opacity: 0; transition: opacity .16s, transform .3s var(--ease-sheet); }
+    .rpt-arrow svg { width: 14px; height: 14px; }
+    @media (hover: hover) { .rpt-sort:hover .rpt-arrow { opacity: .45; } }
+    .rpt-table th[data-sorted] .rpt-arrow { opacity: 1; }
+    .rpt-table th[data-dir="desc"] .rpt-arrow { transform: rotate(180deg); }
+    .rpt-table td { height: 48px; padding: 0 10px; border-bottom: 1px solid var(--border-subtle); vertical-align: middle; white-space: nowrap; }
+    .rpt-table [data-num] { text-align: right; font-variant-numeric: tabular-nums; }
+    .rpt-table tr.is-future td { color: var(--text-muted); }
+    .rpt-day b { font-weight: 500; }
+    .rpt-day span { color: var(--text-muted); margin-left: 6px; font-size: 12px; }
+    .rpt-dim { color: var(--muted-fg); }
+    .rpt-none { color: var(--text-muted); }
+    .rpt-att { display: inline-flex; align-items: center; height: 20px; padding: 0 8px; border-radius: 10px;
+      font-size: 11px; font-weight: 500; color: var(--k); background: color-mix(in srgb, var(--k) 12%, var(--card)); }
+    .rpt-table tr.rpt-sub td { height: 36px; font-size: 12px; font-weight: 600; color: var(--muted-fg); background: var(--muted); }
+    .rpt-table tfoot td { height: 48px; font-weight: 600; border-top: 1px solid var(--border); border-bottom: 0; background: var(--muted); position: sticky; bottom: 0; }
+    .rpt-tot-short { color: var(--warning); }
+    .rpt-tot-over { color: var(--success); }
+    .rpt-count { font-size: 12px; color: var(--text-muted); }
+    @keyframes rpt-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+    .rpt-table.is-anim tbody tr { animation: rpt-in .42s var(--ease-sheet) both; animation-delay: calc(var(--n, 0) * 18ms); }
+    @media (prefers-reduced-motion: reduce) { .rpt-table.is-anim tbody tr { animation: none; } .rpt-arrow, .rpt-table th, .rpt-table td { transition: none; } }
+    /* ── Desktop day selector: uiarc segmented control ──
+       One week per view (7 equal columns) in a sunken track; a raised pill
+       glides to the selected day and the arrows page a week at a time. */
+    body.rail-on .this-week-label-btn { height: 32px; padding: 0 12px; border-radius: 999px; background: var(--card);
+      border: 1px solid var(--border); font-size: 13px; font-weight: 500; letter-spacing: 0; text-transform: none; }
+    body.rail-on .this-week-label-btn:hover { background: var(--muted); }
+    body.rail-on .this-week-btn { width: 32px; height: 32px; border-radius: 999px; background: transparent; color: var(--muted-fg); }
+    body.rail-on .this-week-btn:hover:not(:disabled) { background: var(--muted); color: var(--foreground); }
+    body.rail-on .this-week-btn:disabled { opacity: .35; }
+    body.rail-on .ds-fade-wrap { padding: 3px; border: 1px solid var(--border); border-radius: 16px; background: var(--muted); }
+    body.rail-on .day-selector { position: relative; gap: 2px; padding: 0 !important; overflow: hidden; scroll-snap-type: none; }
+    body.rail-on .day-sel-btn { flex: 0 0 calc((100% - 12px) / 7); position: relative; z-index: 1; gap: 4px; padding: 10px 2px;
+      border-radius: 12px; background: transparent; color: var(--text-muted); transition: color .16s; }
+    body.rail-on .day-sel-btn .dsel-name { font-size: 11px; }
+    body.rail-on .day-sel-btn .dsel-num { font-size: 17px; font-weight: 600; font-variant-numeric: tabular-nums; }
+    body.rail-on .day-sel-btn:hover:not(:disabled), body.rail-on .day-sel-btn.active,
+    body.rail-on .day-sel-btn.wkd-btn.active { background: transparent; color: var(--foreground); }
+    body.rail-on .day-sel-btn.wkd-btn::before { display: none; }
+    body.rail-on .day-sel-btn.future:not(.active) .dsel-name, body.rail-on .day-sel-btn.future:not(.active) .dsel-num { opacity: .55; }
+    body.rail-on .ds-glide { display: block; position: absolute; z-index: 0; top: 0; bottom: 0; left: 0; width: 0;
+      border-radius: 12px; background: var(--card); pointer-events: none;
+      box-shadow: 0 1px 2px rgba(0,0,0,.06), 0 0 0 1px var(--border);
+      transition: transform .5s var(--ease-sheet), width .5s var(--ease-sheet), opacity .2s; }
+    /* Status dots: amber short day, rose missing, violet plan. */
+    body.rail-on .day-sel-btn.has-penalty::after, body.rail-on .day-sel-btn.has-missing::after,
+    body.rail-on .day-sel-btn.has-plan::after { content: ""; position: absolute; top: 8px; right: 9px; width: 5px; height: 5px; border-radius: 50%; }
+    body.rail-on .day-sel-btn.has-penalty::after { background: var(--warning); }
+    body.rail-on .day-sel-btn.has-missing::after { background: var(--destructive); }
+    body.rail-on .day-sel-btn.has-plan::after { background: var(--violet); }
+    /* Dark: the pill must read as raised, so it's lighter than the track. */
+    .dark body.rail-on .ds-glide { background: var(--btn-secondary-hover); box-shadow: 0 1px 2px rgba(0,0,0,.35), 0 0 0 1px rgba(255,255,255,.06); }
+    @media (prefers-reduced-motion: reduce) { body.rail-on .ds-glide { transition: none; } }
     .this-week-label { font-size: 11px; font-weight: 600; color: var(--muted-fg); letter-spacing: .06em; text-transform: uppercase; }
     .this-week-label-btn { height:28px; padding:0 10px; border-radius:6px; border:none;
       background:var(--btn-secondary-bg); color:var(--btn-secondary-fg); font-size:11px; font-weight:600;
@@ -2798,7 +2964,7 @@
       transform-origin: center;
       display: inline-flex; align-items: center;
     }
-    .banner.show .p10-check-icon {
+    .ib.show .p10-check-icon {
       animation: p10-check-in var(--p10-rotate-dur) var(--p10-ease-bob) both;
     }
 
@@ -2978,24 +3144,70 @@
       background: var(--muted); color: var(--foreground); font: 600 11px/1 var(--font); letter-spacing: .02em;
       box-shadow: inset 0 0 0 1px var(--border); }
     .rail-btn.active .rail-avatar { background: var(--card); }
-    /* Notifications as a modal: centred, fixed height, the list scrolls inside,
-       blurred backdrop like every other modal. */
-    body.rail-on .notif-panel { top: 50%; left: calc(50% + 32px); width: 420px; max-width: calc(100vw - 112px);
-      transform: translate(-50%, -50%) scale(.97); transition: opacity .2s ease, transform .2s ease; z-index: 1001; }
+    /* ── Desktop sheets (one component, Apple HIG) ───────────────────────
+       --sheet-w / --sheet-inset / --sheet-radius size every sheet; opening uses
+       --ease-sheet over .48s, closing --ease-sheet-out over .32s. Only transform
+       and opacity animate. Reduce motion turns it into a short fade. */
+    body.rail-on { --sheet-w: 360px; --sheet-inset: 12px; --sheet-radius: 20px; --rail-w: 64px; }
+    /* Notifications: a drawer that grows out of the bell beside the rail. The
+       rail stays undimmed so the bell that opened it is still visible. */
+    body.rail-on .notif-panel { top: var(--sheet-inset); bottom: var(--sheet-inset); left: calc(var(--rail-w) + var(--sheet-inset));
+      width: var(--sheet-w); max-width: calc(100vw - var(--rail-w) - var(--sheet-inset) * 2); z-index: 1001;
+      transform: translateX(-16px); opacity: 0; max-height: none;
+      transition: transform .32s var(--ease-sheet-out), opacity .32s var(--ease-sheet-out); }
     body.rail-on .notif-panel.hidden { max-height: none; opacity: 0; pointer-events: none; }
-    body.rail-on .notif-panel.open { max-height: none; opacity: 1; transform: translate(-50%, -50%) scale(1); }
-    body.rail-on.shell-new .notif-panel.open .notif-card { height: min(520px, 80vh); max-height: none; }
-    body.rail-on .notif-scrim { z-index: 1000; background: rgba(0,0,0,.38);
-      backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
-    @media (prefers-reduced-motion: reduce) { body.rail-on .notif-panel { transition: opacity .2s; } }
+    body.rail-on .notif-panel.open { transform: none; opacity: 1; max-height: none;
+      transition: transform .48s var(--ease-sheet), opacity .48s var(--ease-sheet); }
+    body.rail-on .notif-panel .notif-card, body.rail-on.shell-new .notif-panel.open .notif-card {
+      height: 100%; max-height: none; display: flex; flex-direction: column;
+      border-radius: var(--sheet-radius); background: var(--surface-raised); box-shadow: var(--shadow-lg);
+      backdrop-filter: none; -webkit-backdrop-filter: none; }
+    body.rail-on #notifList { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+    body.rail-on .notif-panel #notifPermBar { margin: 0 12px 8px; }
+    body.rail-on .notif-scrim { z-index: 1000; left: var(--rail-w); background: rgba(0,0,0,.18);
+      backdrop-filter: none; -webkit-backdrop-filter: none; }
+    /* A dark page needs a deeper dim to read as "behind" the sheet. */
+    .dark body.rail-on .notif-scrim, .dark body.rail-on #dayEditOverlay { background: rgba(0,0,0,.5); }
+    body.rail-on .app-rail #notifBtn { width: 40px; height: 40px; border-radius: var(--radius-md); }
+    /* Update Entry / Raise Dispute: the same sheet from the right. The dim covers
+       the whole window, rail included. One primary button; ✕, Esc or a click
+       outside closes it. */
+    body.rail-on #dayEditOverlay { display: block; padding: 0; background: rgba(0,0,0,.18);
+      backdrop-filter: none; -webkit-backdrop-filter: none;
+      transition: opacity .32s var(--ease-sheet-out); }
+    body.rail-on #dayEditOverlay.open { transition: opacity .48s var(--ease-sheet); }
+    body.rail-on #dayEditOverlay > .dialog { position: absolute; top: var(--sheet-inset); right: var(--sheet-inset); bottom: var(--sheet-inset);
+      width: var(--sheet-w); min-width: 0; max-width: calc(100vw - var(--sheet-inset) * 2); max-height: none;
+      border-radius: var(--sheet-radius); background: var(--surface-raised); box-shadow: var(--shadow-lg);
+      transform: translateX(calc(100% + var(--sheet-inset) * 2));
+      transition: transform .32s var(--ease-sheet-out); }
+    body.rail-on #dayEditOverlay.open > .dialog { transform: none; transition: transform .48s var(--ease-sheet); }
+    body.rail-on #dayEditCancel { display: none; }
+    body.rail-on #dayEditSave { flex: 1; width: 100%; }
+    .sheet-close { display: none; }
+    body.rail-on #dayEditOverlay .sheet-close { display: grid; place-items: center; position: absolute; top: 14px; right: 14px;
+      width: 28px; height: 28px; padding: 0; border: none; border-radius: 50%; background: var(--muted); color: var(--muted-fg); cursor: pointer;
+      transition: background .14s, color .14s; z-index: 2; }
+    body.rail-on #dayEditOverlay .sheet-close:hover { background: var(--btn-secondary-hover); color: var(--foreground); }
+    body.rail-on #dayEditOverlay .sheet-close svg { width: 13px; height: 13px; }
+    body.rail-on #dayEditDeleteBtn { right: 48px !important; }
+    /* Toasts: bottom-right on desktop, sliding up with the sheet easing. */
+    body.rail-on .wh-toast { left: auto; right: 24px; bottom: 24px; transform: translateY(14px);
+      transition: transform .48s var(--ease-sheet), opacity .32s var(--ease-sheet); }
+    body.rail-on .wh-toast.show { transform: translateY(0); }
+    @media (prefers-reduced-motion: reduce) {
+      body.rail-on .notif-panel, body.rail-on .notif-panel.open { transform: none; transition: opacity .2s; }
+      body.rail-on #dayEditOverlay > .dialog, body.rail-on #dayEditOverlay.open > .dialog { transform: none; transition: none; }
+      body.rail-on .wh-toast, body.rail-on .wh-toast.show { transform: none; transition: opacity .2s; }
+    }
   </style>
 </head>
 <body>
 
   <!-- ── PWA App Loader ── -->
   <div id="appLoader">
-    <img id="appLoaderLogoLight" src="/brand-light.svg" alt="5pm" width="64" height="64" style="border-radius:16px;border:1px solid var(--border)">
-    <img id="appLoaderLogoDark"  src="/brand-dark.svg"  alt="5pm" width="64" height="64" style="border-radius:16px;border:1px solid var(--border)">
+    <img id="appLoaderLogoLight" src="/icons/brand-light.svg" alt="5pm" width="64" height="64" style="border-radius:16px;border:1px solid var(--border)">
+    <img id="appLoaderLogoDark"  src="/icons/brand-dark.svg"  alt="5pm" width="64" height="64" style="border-radius:16px;border:1px solid var(--border)">
     <div style="display:flex;flex-direction:column;align-items:center;gap:12px;">
       <div class="app-loader-track"><div class="app-loader-bar"></div></div>
       <div id="appLoaderHint">Taking too long? <button data-on-click="h248485a70e">Force Reload</button></div>
@@ -3052,7 +3264,7 @@
 
   <!-- Fixed brand logo — page top-left corner (desktop/tablet only) -->
   <a href="/" class="page-brand" title="5pm">
-    <img id="navLogo" src="brand-light.svg" alt="5pm" height="32" style="display:block;border-radius:7px;border:1px solid var(--border)">
+    <img id="navLogo" src="/icons/brand-light.svg" alt="5pm" height="32" style="display:block;border-radius:7px;border:1px solid var(--border)">
   </a>
 
 
@@ -3082,7 +3294,7 @@
 
     <!-- Mobile top bar -->
     <div class="mob-topbar" id="mobTopbar">
-      <img id="mobLogo" src="brand-light.svg" alt="5pm" height="32" style="display:block;border-radius:8px">
+      <img id="mobLogo" src="/icons/brand-light.svg" alt="5pm" height="32" style="display:block;border-radius:8px">
       <div class="mob-actions">
         <button class="btn-icon" id="mobNotifBtn" title="Notifications">
           <div class="notif-badge" id="mobNotifBadge"></div>
@@ -3136,12 +3348,10 @@
       </div>
 
       <!-- Notification permission warning -->
-      <div class="notif-perm-bar" id="notifPermBar">
-        <div style="flex:1;display:flex;flex-direction:column;gap:1px">
-          <span style="font-weight:600">Notifications are disabled.</span>
-          <span style="opacity:.75">You may miss work hour alerts.</span>
-        </div>
-        <button data-on-click="h06a0f13802" style="flex-shrink:0;height:26px;padding:0 10px;font-size:11px;font-weight:600;border-radius:6px;border:none;background:var(--warning-bg);color:var(--warning);cursor:pointer;white-space:nowrap;font-family:var(--font)">Turn On</button>
+      <div class="ib" data-tone="warning" data-action="label" data-toggle id="notifPermBar">
+        <span class="ib-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.268 21a2 2 0 0 0 3.464 0"/><path d="M17 17H4a1 1 0 0 1-.74-1.673C4.59 13.956 6 12.499 6 8a6 6 0 0 1 .258-1.742"/><path d="m2 2 20 20"/><path d="M8.668 3.01A6 6 0 0 1 18 8c0 2.687.77 4.653 1.707 6.05"/></svg></span>
+        <div class="ib-body"><span class="ib-title">Notifications are off</span><span class="ib-text">You may miss work hour alerts.</span></div>
+        <button type="button" class="btn-secondary ib-btn" data-on-click="h06a0f13802"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.268 21a2 2 0 0 0 3.464 0"/><path d="M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326"/></svg><span class="ib-btn-label">Turn on</span></button>
       </div>
 
       <div id="homeMain">
@@ -3316,30 +3526,23 @@
             <div class="err-msg" id="errMsg">Couldn't parse that. Try: 11:30, 1130, 11:30 AM, or 13:30</div>
             <div class="login-ap-hint" id="loginApHint"></div>
           </div>
-          <div id="stayHint" class="stay-hint" style="display:none">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M12 18.5C12.5523 18.5 13 18.0523 13 17.5L13 10.5C13 9.94772 12.5523 9.5 12 9.5C11.4477 9.5 11 9.94772 11 10.5L11 17.5C11 18.0523 11.4477 18.5 12 18.5Z" fill="currentColor"/><path d="M12 8.5C12.8284 8.5 13.5 7.82843 13.5 7C13.5 6.17157 12.8284 5.5 12 5.5C11.1716 5.5 10.5 6.17157 10.5 7C10.5 7.82843 11.1716 8.5 12 8.5Z" fill="currentColor"/><path fill-rule="evenodd" clip-rule="evenodd" d="M1 12C1 18.0751 5.92487 23 12 23C18.0751 23 23 18.0751 23 12C23 5.92487 18.0751 1 12 1C5.92487 1 1 5.92487 1 12ZM12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12C21 16.9706 16.9706 21 12 21Z" fill="currentColor"/></svg>
-            <span id="stayHintText"></span>
+          <div class="ib" data-tone="info" data-action="none" id="stayHint" style="display:none">
+            <span class="ib-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg></span>
+            <div class="ib-body"><span class="ib-title" id="stayHintText"></span></div>
           </div>
-          <div class="banner banner-warning" id="otBanner">
-            <div class="banner-left">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M12 5.5C12.5523 5.5 13 5.94772 13 6.5L13 13.5C13 14.0523 12.5523 14.5 12 14.5C11.4477 14.5 11 14.0523 11 13.5L11 6.5C11 5.94772 11.4477 5.5 12 5.5Z" fill="currentColor"/><path d="M12 18.5C12.8284 18.5 13.5 17.8284 13.5 17C13.5 16.1716 12.8284 15.5 12 15.5C11.1716 15.5 10.5 16.1716 10.5 17C10.5 17.8284 11.1716 18.5 12 18.5Z" fill="currentColor"/><path fill-rule="evenodd" clip-rule="evenodd" d="M1 12C1 5.92487 5.92487 1 12 1C18.0751 1 23 5.92487 23 12C23 18.0751 18.0751 23 12 23C5.92487 23 1 18.0751 1 12ZM12 3C7.02944 3 3 7.02944 3 12C3 16.9706 7.02944 21 12 21C16.9706 21 21 16.9706 21 12C21 7.02944 16.9706 3 12 3Z" fill="currentColor"/></svg>
-              <span id="otMsg">+0h 00m overtime</span>
-            </div>
-            <span class="ot-quip" id="otQuip"></span>
+          <div class="ib" data-tone="danger" data-action="none" data-toggle id="otBanner">
+            <span class="ib-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg></span>
+            <div class="ib-body"><span class="ib-title" id="otMsg">+0h 00m overtime</span></div>
+            <span class="ib-meta" id="otQuip"></span>
           </div>
-          <div class="banner banner-success" id="doneBanner">
-            <div class="banner-left">
-              <span class="p10-check-icon">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path fill-rule="evenodd" clip-rule="evenodd" d="M21.2285 6.60358C21.619 6.9941 21.619 7.62726 21.2285 8.01779L10.2557 18.9906C9.86764 19.3786 9.23938 19.3815 8.84786 18.997L2.66233 12.9219C2.2683 12.5349 2.2626 11.9017 2.64959 11.5077L3.3503 10.7943C3.73729 10.4002 4.37043 10.3945 4.76445 10.7815L9.53589 15.4678L19.1072 5.89647C19.4977 5.50595 20.1309 5.50595 20.5214 5.89647L21.2285 6.60358Z" fill="currentColor"/></svg>
-              </span>
-              <span id="doneMsg">You're done. Head out!</span>
-            </div>
+          <div class="ib" data-tone="success" data-action="none" data-toggle id="doneBanner">
+            <span class="ib-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg></span>
+            <div class="ib-body"><span class="ib-title" id="doneMsg">You're done. Head out!</span></div>
           </div>
-          <div class="banner banner-autostop banner-warning" id="autostopBanner">
-            <div class="banner-left">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M12 5.5C12.5523 5.5 13 5.94772 13 6.5L13 13.5C13 14.0523 12.5523 14.5 12 14.5C11.4477 14.5 11 14.0523 11 13.5L11 6.5C11 5.94772 11.4477 5.5 12 5.5Z" fill="currentColor"/><path d="M12 18.5C12.8284 18.5 13.5 17.8284 13.5 17C13.5 16.1716 12.8284 15.5 12 15.5C11.1716 15.5 10.5 16.1716 10.5 17C10.5 17.8284 11.1716 18.5 12 18.5Z" fill="currentColor"/><path fill-rule="evenodd" clip-rule="evenodd" d="M1 12C1 5.92487 5.92487 1 12 1C18.0751 1 23 5.92487 23 12C23 18.0751 18.0751 23 12 23C5.92487 23 1 18.0751 1 12ZM12 3C7.02944 3 3 7.02944 3 12C3 16.9706 7.02944 21 12 21C16.9706 21 21 16.9706 21 12C21 7.02944 16.9706 3 12 3Z" fill="currentColor"/></svg>
-              <span id="autostopMsg">Tracking auto-stopped at daily target + buffer.</span>
-            </div>
+          <div class="ib" data-tone="warning" data-action="label" data-toggle id="autostopBanner">
+            <span class="ib-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 2h4"/><path d="M4.6 11a8 8 0 0 0 1.7 8.7 8 8 0 0 0 8.7 1.7"/><path d="M7.4 7.4a8 8 0 0 1 10.3 1 8 8 0 0 1 .9 10.2"/><path d="m2 2 20 20"/><path d="M12 12v-2"/></svg></span>
+            <div class="ib-body"><span class="ib-title" id="autostopTitle">Stopped automatically</span><span class="ib-text" id="autostopMsg">You reached your target plus the buffer.</span></div>
+            <button type="button" class="btn-secondary ib-btn" id="autostopResumeBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="6 3 20 12 6 21 6 3"/></svg><span class="ib-btn-label">Resume</span></button>
           </div>
 
           <!-- ── Weekend / Holiday / Leave info state ── -->
@@ -3422,7 +3625,7 @@
     <main class="page">
 
       <!-- Week card (main analytics content) -->
-      <div class="card" id="wkCardAnalytics">
+      <div class="card wk-card" id="wkCardAnalytics">
         <div class="rc-head">
           <div class="rc-head-left">
             <button class="this-week-label-btn" id="wkNavLabelBtn" data-on-click="hcc29c6d1fd" type="button">
@@ -3443,15 +3646,12 @@
         </div>
         <div class="wk-rows" id="wkRows"><!-- filled by renderHistory() --></div>
         <div class="wk-footer" id="wkFooter">
-          <div class="wk-footer-row">
-            <span class="section-label">Total Hours</span>
-            <span class="wk-footer-val" id="wkTotal">14h 57m / 45h</span>
+          <!-- In hand: time banked this week · On track for: when the week's target is met at this pace -->
+          <div class="wk-stats">
+            <div class="wk-stat"><span class="wk-stat-k" id="wkHandLabel">In hand</span><span class="wk-stat-v" id="wkHandVal">None</span></div>
+            <div class="wk-stat"><span class="wk-stat-k" id="wkTrackLabel">On track for</span><span class="wk-stat-v" id="wkTrackVal">–</span></div>
           </div>
-          <div class="wk-footer-row" style="margin-top:6px">
-            <span class="section-label" id="wkSurplusLabel" style="color:var(--muted-fg)">Surplus</span>
-            <span class="wk-footer-val" id="wkSurplus" style="color:var(--muted-fg)">+0m</span>
-          </div>
-          <div style="margin-top:12px">
+          <div class="wk-footer-actions">
             <button class="btn-secondary" style="height:36px;font-size:12px;padding:0 16px;width:100%;display:flex;align-items:center;justify-content:center;gap:6px" data-on-click="ha2e8e1871e">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
               View Stats
@@ -4305,7 +4505,7 @@
   <a href="https://github.com/rosshanmohapatra/5pm-workhour-tracker/releases" target="_blank" rel="noopener" class="version-pill">
     <span style="font-size:11px;font-weight:600;color:var(--muted-fg);letter-spacing:.01em">5pm</span>
     <span style="font-size:10px;font-weight:600;letter-spacing:.05em;
-      background:var(--muted);color:var(--muted-fg);padding:4px 7px;border-radius:100px">v1.2.28</span>
+      background:var(--muted);color:var(--muted-fg);padding:4px 7px;border-radius:100px">v1.2.29</span>
   </a>
 
   <!-- ── Weekly Report Modal ── -->
@@ -4323,10 +4523,11 @@
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>
       </div>
-      <div style="overflow-x:auto;flex:1;overflow-y:auto;padding:0 14px 4px">
-        <table id="weekReportTable" style="width:100%;border-collapse:collapse;font-size:12px"></table>
+      <div class="rpt-body">
+        <div class="rpt-wrap"><div class="rpt-scroll"><table id="weekReportTable" class="rpt-table"></table></div></div>
       </div>
-      <div class="dialog-foot" style="flex-shrink:0;padding-top:12px;display:flex;flex-direction:row;justify-content:flex-end">
+      <div class="dialog-foot" style="flex-shrink:0;padding-top:12px;display:flex;flex-direction:row;justify-content:space-between;align-items:center;gap:12px">
+        <span class="rpt-count" id="wrCount"></span>
         <button class="btn-secondary" id="wrExportBtn" style="gap:5px;padding:0 10px" data-on-click="hf11c074512">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M7.70711 10.2929L11 13.5858L11 3C11 2.44771 11.4477 2 12 2C12.5523 2 13 2.44771 13 3L13 13.5858L16.2929 10.2929C16.6834 9.90237 17.3166 9.90237 17.7071 10.2929C18.0976 10.6834 18.0976 11.3166 17.7071 11.7071L12.7071 16.7071C12.3166 17.0976 11.6834 17.0976 11.2929 16.7071L6.29289 11.7071C5.90237 11.3166 5.90237 10.6834 6.29289 10.2929C6.68342 9.90237 7.31658 9.90237 7.70711 10.2929Z" fill="currentColor"/><path d="M4 22C3.44772 22 3 21.5523 3 21C3 20.4477 3.44772 20 4 20H20C20.5523 20 21 20.4477 21 21C21 21.5523 20.5523 22 20 22H4Z" fill="currentColor"/></svg>
           <span id="wrExportLabel">Export</span>
@@ -4413,8 +4614,9 @@
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>
       </div>
-      <div id="endSessionHalfDayNote" style="display:none;margin:0 14px 4px;padding:10px 12px;background:var(--warning-bg);border:1px solid var(--warning-border);border-radius:8px;font-size:12px;color:var(--warning);font-weight:500;line-height:1.4">
-        Since you're leaving before the halfway mark, today will be logged as a Half Day.
+      <div class="ib" data-tone="warning" data-action="none" id="endSessionHalfDayNote" style="display:none;margin:0 14px 4px">
+        <span class="ib-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg></span>
+        <div class="ib-body"><span class="ib-title">This will count as a Half Day</span><span class="ib-text">You're leaving before the halfway mark.</span></div>
       </div>
       <div style="padding:14px;display:flex;justify-content:flex-end;gap:8px">
         <button class="btn-secondary" id="endSessionCancelBtn">Keep Going</button>
@@ -5361,8 +5563,8 @@
       <!-- Step 1: Introduction -->
       <div class="ob-panel active" id="obPanel1">
         <div class="ob-intro-head">
-          <img class="ob-intro-logo ob-intro-logo-light" src="/brand-light.svg" alt="5pm">
-          <img class="ob-intro-logo ob-intro-logo-dark" src="/brand-dark.svg" alt="5pm">
+          <img class="ob-intro-logo ob-intro-logo-light" src="/icons/brand-light.svg" alt="5pm">
+          <img class="ob-intro-logo ob-intro-logo-dark" src="/icons/brand-dark.svg" alt="5pm">
           <div class="ob-intro-text">
             <div class="ob-title">5pm</div>
             <div class="ob-desc">Your work hour tracker, built to keep a healthier work-life balance.</div>
@@ -5546,7 +5748,7 @@
 
   <!-- Heading -->
   <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">
-    <img src="/brand-light.svg" id="installPromptLogo" alt="5pm" width="48" height="48" style="border-radius:12px;flex-shrink:0">
+    <img src="/icons/brand-light.svg" id="installPromptLogo" alt="5pm" width="48" height="48" style="border-radius:12px;flex-shrink:0">
     <div>
       <div style="font-size:17px;font-weight:700;color:var(--foreground);letter-spacing:-.3px">Add 5pm to your Home Screen</div>
       <div style="font-size:13px;color:var(--muted-fg);margin-top:2px;line-height:1.4">Get the full Web App experience.</div>

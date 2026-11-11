@@ -6,6 +6,10 @@ on:
   push:
   pull_request:
 
+# Read-only: this job only checks out the code and scans it.
+permissions:
+  contents: read
+
 jobs:
   no-inline-script:
     runs-on: ubuntu-latest

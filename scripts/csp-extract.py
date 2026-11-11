@@ -26,7 +26,9 @@ PAGES = {
     'passkey-desktop.html': ('passkey-desktop', None),
     'oauth/consent/index.html': ('oauth-consent', None),
 }
-INLINE_SCRIPT = re.compile(r'<script(?![^>]*\bsrc=)([^>]*)>(.*?)</script>', re.S)
+# Case-insensitive, and the closing tag may carry spaces (</script >), so no
+# inline script is missed because of how its tags happen to be written.
+INLINE_SCRIPT = re.compile(r'<script\b(?![^>]*\bsrc\s*=)([^>]*)>(.*?)</script\b[^>]*>', re.S | re.I)
 HANDLER = re.compile(r'(\s)on([a-z]+)="([^"]*)"')
 PLACEHOLDER = re.compile(r"('?)\$\{([^{}]*)\}('?)")
 

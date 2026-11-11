@@ -1,38 +1,62 @@
-# WH Tracker Security Policy
+# 5pm Security Policy
 
 ## Supported Versions
 
-Security updates are maintained for the current release only. Older versions are not actively patched.
+Only the latest release gets security fixes: the web app at
+[whtracker.vercel.app](https://whtracker.vercel.app/) (always current) and the newest
+Windows version from [Releases](https://github.com/rosshanmohapatra/5pm-workhour-tracker/releases/latest)
+or the [Microsoft Store](https://apps.microsoft.com/detail/9ntmgrg95v3m). The Windows app
+updates itself, so staying on the latest version is the fix for most reports.
 
-| Version | Supported          |
-| ------- | ------------------ |
-| 0.9.x   | Yes                |
-| < 0.9   | No                 |
+| Version | Supported |
+| ------- | --------- |
+| 1.2.x (latest) | Yes |
+| < 1.2   | No  |
 
 ## Reporting a Vulnerability
 
-Security issues should be reported privately rather than disclosed publicly. Preferred approaches:
+Please report security issues privately, not in a public issue.
 
-- Use GitHub's private vulnerability reporting feature on this repository
-- Email `roshanmohapatra.2001@gmail.com` with the subject line: "Security Vulnerability: WH Tracker"
+- **Preferred:** [report a vulnerability](https://github.com/rosshanmohapatra/5pm-workhour-tracker/security/advisories/new) through GitHub's private reporting on this repository.
+- **Or email** `roshanmohapatra.2001@gmail.com` with the subject "Security Vulnerability: 5pm".
 
-When submitting a report, please include:
+Please include:
 
-- A description of the vulnerability and its potential impact
-- Steps to reproduce or a proof of concept
-- The affected version and browser environment
-- Any relevant screenshots, logs, or links
+- What the issue is and what an attacker could do with it
+- Steps to reproduce, or a proof of concept
+- The version (web, or the Windows version from Settings › About) and your browser or OS
+- Any screenshots, logs or links that help
 
-Reports are typically acknowledged within a week. On acceptance, a fix will be prepared and released before any public disclosure is made.
+Reports are usually acknowledged within a week. Once a report is confirmed, a fix is
+released before the issue is made public.
+
+Please test only against your own account. Don't access other people's data, run
+denial-of-service or load tests, or use automated scanners that flood the service.
 
 ## Scope
 
-WH Tracker is a single-file, client-side application with no server, no authentication system, and no network requests. All data is stored in the browser's localStorage. The primary security surface is the browser environment itself.
+5pm is a web app with a Windows desktop version. What's in scope:
 
-Areas in scope include:
+| Part | What it is |
+|---|---|
+| Web app | Static HTML, CSS and JavaScript served by Vercel |
+| Accounts | Supabase Auth: email and password, Google, passkeys, two-factor authentication (authenticator app) with backup codes |
+| Data | Supabase Postgres. Every table has row-level security so an account can only read and write its own rows; two-factor is enforced by the database, not only the sign-in page |
+| Sync | Supabase Realtime, limited to the signed-in account's own rows |
+| Windows app | Tauri app built from the `desktop` branch; updates are signed and verified before install |
 
-- Cross-site scripting (XSS) via user-supplied input rendered to the DOM
-- Malicious JSON payloads processed during the import flow
-- Data leakage through localStorage access patterns
+Out of scope: vulnerabilities in Supabase, Vercel, GitHub, Microsoft or Google
+themselves (report those to them), and issues that need a device that is already
+compromised.
 
-Out of scope: server-side vulnerabilities, denial of service, social engineering.
+## How 5pm is protected
+
+- **Content Security Policy** with no inline script, checked on every push.
+- **Security headers** on every page: HSTS, `X-Frame-Options: DENY`, `nosniff`,
+  a strict referrer policy and a locked-down permissions policy.
+- **Row-level security** on every table, with a database rule that turns it on for
+  any new table automatically.
+- **Code scanning** (CodeQL) on every push to `main`.
+- **Signed updates** for the Windows app.
+- **No secrets in the code.** The public Supabase key is safe to expose: it can do
+  nothing that row-level security doesn't allow.

@@ -385,3 +385,7 @@ test('Stats table sorts: numbers largest first, text A→Z, third click clears',
   assert.match(SRC, /<span class="wk-chip is-short">\$\{wkSigned\(r\.diffSecs\)\}/);
   assert.match(SRC, /<span class="wk-chip is-over">\$\{wkSigned\(r\.surplusSecs\)\}/);
 });
+
+test('Stats table escapes saved login and logout times', () => {
+  assert.match(SRC, /`\$\{_escHtml\(r\.entry\)\} – \$\{r\.exit && r\.exit !== '—' \? _escHtml\(r\.exit\) : 'now'\}`/);
+});

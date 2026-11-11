@@ -3000,7 +3000,8 @@
         }
         const isFuture = daysArr[i] && daysArr[i].key > tk;
         const att = isFuture ? null : rptAttendance(r);
-        const time = r.entry && r.entry !== '—' ? `${r.entry} – ${r.exit && r.exit !== '—' ? r.exit : 'now'}` : '—';
+        // Times come from saved entries (also from restored backups), so escape them.
+        const time = r.entry && r.entry !== '—' ? `${_escHtml(r.entry)} – ${r.exit && r.exit !== '—' ? _escHtml(r.exit) : 'now'}` : '—';
         const none = '<span class="rpt-none">—</span>';
         html += `<tr class="${isFuture ? 'is-future' : ''}" style="--n:${Math.min(n++, 14)}">`
           + `<td class="rpt-day"${sorted('day')}><b>${r.day.slice(0, 3)}</b>${dDate ? `<span>${MONTHS[dDate.getMonth()].slice(0, 3)} ${dDate.getDate()}</span>` : ''}</td>`

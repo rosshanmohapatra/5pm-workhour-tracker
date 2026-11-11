@@ -1,90 +1,13 @@
-5pm Work Hour Tracker
-Changelog
+# Changelog
 
+Release notes for every version of 5pm are on the
+[GitHub Releases page](https://github.com/rosshanmohapatra/5pm-workhour-tracker/releases).
 
-v1.2.0
+They come from one file, [`lib/whats-new.js`](lib/whats-new.js), which also powers
+the "What's New" card shown in the app after an update. To print a version's notes:
 
-New
-- Manage Devices. Every device signed in to your account, now in one place in Settings. Rename any of them, see when each was last active, and sign out the ones you no longer use.
-- Sign out everywhere else in a single tap, without signing out here.
+```
+node scripts/release-notes.js 1.2.28
+```
 
-Improved
-- Your latest hours now load every time you open 5pm or come back to it, not only on a cold start.
-- Reloading no longer stops to ask whether you meant it. A running session survives the refresh either way.
-- The theme button now reads Switch Theme.
-
-Fixed
-- Signing out now saves any unsynced changes before clearing this device's copy. An edit made moments earlier could previously be lost.
-- A device signed out from somewhere else now clears its cached hours the next time it is opened, instead of leaving them on that machine.
-- The hours figure on the Today card is readable in light theme again. It was being drawn in white on the white card.
-- The dismiss button on a notification can now be reached on touch devices, where there is no hover to reveal it.
-- The penalties list scrolls again once it grows past the height of its card.
-- Resolved 59 security alerts raised by code scanning.
-
-
-v1.1.0
-
-New
-- Today's Details. Tap the info icon next to Time and Progress for a closer look at your day: hours worked, banked surplus, overtime needed, and break status when it applies.
-- Ignore Today. Not feeling the week's recommended pace? Reset just today back to your normal daily target, right from Today's Details.
-
-Improved
-- The right-hand number now tells you how much time is left, right when you hover over it.
-- Hovering the info icon opens Today's Details instantly, and it closes on its own when you move away.
-- Focus rings on every input now stay neatly inside their field, no more clipped edges.
-- The weekend summary card now fills the full width of the page.
-
-Fixed
-- Saving an entry with no time no longer quietly logs a default 9 to 6 shift. You'll get a clear heads up instead.
-- The dropdown next to Pause now opens properly and lets you end your session.
-
-
-v1.0.6
-
-Improved
-- Cleaner weekend page. Removed the Penalties and Overtime cards and the week label row.
-- The weekly badge now sits above View Stats, not below it.
-- Even 8px spacing between the KPIs, progress bar, and the Leave by line.
-
-Fixed
-- Switching from a past day back to today no longer flickers.
-- The Leave by time no longer looks like a button on hover.
-- Quick Start shortcut is a keyboard feature, so it's hidden on mobile now.
-
-
-v1.0.2
-
-Added
-- Saturday and Sunday now appear in the day strip. Tap either to leave a note
-  about how you spent the day.
-- A 30 Days tab in the report. Switch between 7 and 30 days anytime.
-
-Improved
-- The report PDF splits into one table per month when the range crosses two months.
-- Column headers in the report renamed from Entry and Exit to Login and Logout.
-- PDF text is now a uniform dark colour with lighter weight throughout.
-- Empty penalty cells show a dash instead of the word None.
-Fixed
-- The day strip opened on the wrong week when today is a Saturday.
-- Future work days in the strip no longer appear faded.
-- Tomorrow's Sunday now shows as the current weekend, not an upcoming one.
-
-
-v1.0.1
-
-Added
-- A 24 hour clock option in Settings under Advanced. Turn it on to show every time in 24 hour format and hide AM and PM across the app.
-- Paste support in the time field. Copy a time from Keka or any attendance system and it is read automatically, including formats like 09:30:15 AM, 9:30, and 21:30.
-- Automatic AM or PM detection. When you enter a time without saying which half of the day, the app fills it in based on the current time.
-
-Improved
-- The time picker now moves one value at a time as you scroll, so it always lands where you expect.
-- A smaller, lighter time picker that takes up less of the screen.
-- A cleaner time field with the clock on the left and space to type freely.
-- Elapsed time reads in minutes until you pass an hour, and stays clearly visible while a session is running.
-
-Fixed
-- Pasting a time no longer breaks the layout of the input.
-- Removed the extra confirmation step when you enter a time a little ahead of now.
-- The card shows 0m before you start instead of a dash.
-- A finished session now reads Ended instead of Paused.
+Notes for v1.2.0 and earlier are in this file's git history.

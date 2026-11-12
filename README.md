@@ -8,7 +8,9 @@
 
 5pm is a personal work-hour tracker that tells you exactly when to leave each day. It tracks your login time in real time, measures your hours against a daily and weekly target, and shows a live "leave at" time, so you work your hours honestly and not a minute more.
 
-**[Open Web App](https://whtracker.vercel.app/)** · **[Get it from Microsoft Store](https://apps.microsoft.com/detail/9ntmgrg95v3m)** · **[Download for Windows](https://github.com/rosshanmohapatra/5pm-workhour-tracker/releases/latest)**
+**[Open Web App](https://whtracker.vercel.app/)** · **[Download for Windows](https://github.com/rosshanmohapatra/5pm-workhour-tracker/releases/latest)**
+
+<a href="https://apps.microsoft.com/detail/9ntmgrg95v3m?mode=direct"><img src="https://get.microsoft.com/images/en-us%20light.svg" width="200" alt="Get it from Microsoft"/></a>
 
 ## Why 5pm?
 

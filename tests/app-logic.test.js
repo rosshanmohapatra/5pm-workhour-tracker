@@ -406,3 +406,16 @@ test('Stats Day column names the weekday from the date (30-day names are "14 Tue
   const abbr = load(extract('const _DAY_ABBR', ';'), {}, '_DAY_ABBR');
   assert.equal(abbr[new Date('2026-10-14T12:00').getDay()], 'Wed');
 });
+
+test('No looping animation runs where nobody can see it', () => {
+  const HTML = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
+  // The progress shine moves with transform (GPU only), never left (re-layout every frame).
+  const shimmer = HTML.match(/@keyframes rc-shimmer \{[^\n]*\}/)[0];
+  assert.match(shimmer, /transform: translateX/);
+  assert.doesNotMatch(shimmer, /left:/);
+  // Spinners inside panels that fade to opacity 0 stop while those panels are closed.
+  assert.match(HTML, /\.sync-pill:not\(\.show\) \.sync-pill-spin, \.overlay:not\(\.open\) \.leaving-spinner \{ animation-play-state: paused; \}/);
+  // The desktop app pauses every animation while hidden in the tray (idle.rs adds the class).
+  assert.match(HTML, /html\.app-hidden \*, html\.app-hidden \*::before, html\.app-hidden \*::after \{ animation-play-state: paused !important; \}/);
+  assert.doesNotMatch(HTML, /will-change: contents/);
+});

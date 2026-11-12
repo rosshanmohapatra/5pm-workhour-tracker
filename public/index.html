@@ -1121,10 +1121,11 @@
     .rc-progress-track { height: 5px; background: var(--border); border-radius: 100px; overflow: hidden; width: 100%; position: relative; }
     .rc-progress-fill { height: 100%; border-radius: 100px; background: var(--foreground);
       transition: width .5s cubic-bezier(.4,0,.2,1), background .3s; position: relative; overflow: hidden; }
-    .rc-progress-fill.running::after { content: ''; position: absolute; top: 0; bottom: 0; left: -80%;
+    .rc-progress-fill.running::after { content: ''; position: absolute; top: 0; bottom: 0; left: 0; transform: translateX(-133.33%);
       width: 60%; background: linear-gradient(90deg,transparent,rgba(255,255,255,.18),transparent);
       animation: rc-shimmer 2s ease-in-out infinite; }
-    @keyframes rc-shimmer { 0% { left: -80%; } 100% { left: 140%; } }
+    /* transform, not left: the GPU moves the shine; left re-laid out the bar 60 times a second */
+    @keyframes rc-shimmer { 0% { transform: translateX(-133.33%); } 100% { transform: translateX(233.33%); } }
     @media (prefers-reduced-motion: reduce) { .rc-progress-fill.running::after { animation: none; } }
     .rc-progress-fill.done { background: var(--success); }
     /* Overtime overlay — sits on top of the (already 100%-filled) bar, revealing
@@ -2865,7 +2866,12 @@
     .day-selector.wk-back { animation: ds-slide-back .22s ease both; }
 
     /* ── Animated number ticker ── */
-    .rc-worked, .rc-rem-inline { will-change: contents; }
+    /* Desktop app hidden in the tray: nothing on screen, so stop every looping animation
+       (live dots, shimmer, spinners). shell.rs toggles the class on hide/show. */
+    html.app-hidden *, html.app-hidden *::before, html.app-hidden *::after { animation-play-state: paused !important; }
+    /* The sync pill and the signing-out overlay fade to opacity 0 instead of leaving the
+       page, so their spinners kept turning all day, unseen. Spin only while shown. */
+    .sync-pill:not(.show) .sync-pill-spin, .overlay:not(.open) .leaving-spinner { animation-play-state: paused; }
 
     /* ── Saturday pill entrance animation ── */
     @keyframes plan-btn-in { from { opacity: 0; transform: scale(.8); } to { opacity: 1; transform: scale(1); } }

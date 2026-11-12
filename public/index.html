@@ -1303,7 +1303,9 @@
     .wk-footer { border-top: 1px solid var(--border); }
     .wk-stats { display: grid; grid-template-columns: 1fr 1fr; min-height: 60px; }
     .wk-stat { padding: 10px 16px; display: flex; flex-direction: column; justify-content: center; gap: 2px; min-width: 0; }
-    .wk-stat + .wk-stat { border-left: 1px solid var(--border); text-align: right; }
+    .wk-stat + .wk-stat { position: relative; text-align: right; }
+    /* Short, floating divider: centred on the two numbers, clear of the card edge above and View Stats below */
+    .wk-stat + .wk-stat::before { content: ''; position: absolute; left: 0; top: 14px; bottom: 14px; width: 1px; background: var(--border); }
     .wk-stat-k { font-size: 11px; color: var(--text-muted); }
     .wk-stat-v { font-size: 15px; font-weight: 600; letter-spacing: -.01em; font-variant-numeric: tabular-nums;
       color: var(--foreground); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

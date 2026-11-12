@@ -30,6 +30,29 @@ Copy-Item (Join-Path $tauri 'target\release\app.exe') (Join-Path $layout '5pm.ex
 foreach ($icon in 'StoreLogo', 'Square44x44Logo', 'Square71x71Logo', 'Square150x150Logo') {
   Copy-Item (Join-Path $tauri "icons\$icon.png") (Join-Path $layout 'Assets')
 }
+
+# Taskbar, Start list and Alt+Tab icons. Without targetsize "unplated" variants
+# Windows draws the app icon on a plate in the accent colour (the blue square
+# behind 5pm on the taskbar). Resized from icon.png at build time, so the
+# repo keeps one source image.
+Add-Type -AssemblyName System.Drawing
+$src = [System.Drawing.Image]::FromFile((Join-Path $tauri 'icons\icon.png'))
+try {
+  foreach ($size in 16, 20, 24, 30, 32, 36, 40, 48, 60, 64, 72, 80, 96, 256) {
+    $bmp = New-Object System.Drawing.Bitmap $size, $size
+    $g = [System.Drawing.Graphics]::FromImage($bmp)
+    $g.InterpolationMode = [System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
+    $g.PixelOffsetMode = [System.Drawing.Drawing2D.PixelOffsetMode]::HighQuality
+    $g.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::HighQuality
+    $g.CompositingQuality = [System.Drawing.Drawing2D.CompositingQuality]::HighQuality
+    $g.DrawImage($src, 0, 0, $size, $size)
+    $g.Dispose()
+    foreach ($suffix in '', '_altform-unplated', '_altform-lightunplated') {
+      $bmp.Save((Join-Path $layout "Assets\Square44x44Logo.targetsize-$size$suffix.png"), [System.Drawing.Imaging.ImageFormat]::Png)
+    }
+    $bmp.Dispose()
+  }
+} finally { $src.Dispose() }
 (Get-Content (Join-Path $PSScriptRoot 'AppxManifest.xml') -Raw).Replace('{VERSION}', $version) |
   Set-Content (Join-Path $layout 'AppxManifest.xml') -Encoding utf8
 

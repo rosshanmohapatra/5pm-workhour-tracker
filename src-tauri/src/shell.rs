@@ -254,6 +254,7 @@ pub fn show_main(app: &AppHandle) {
     if !SHOWN_ONCE.swap(true, std::sync::atomic::Ordering::Relaxed) {
       let _ = window.maximize();
     }
+    crate::idle::set_background(&window, false);
     let _ = window.show();
     let _ = window.unminimize();
     let _ = window.set_focus();

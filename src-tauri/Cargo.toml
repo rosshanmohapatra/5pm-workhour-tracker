@@ -41,3 +41,6 @@ tauri-winrt-notification = "0.8"
 # Store build (src/store.rs): package identity, StartupTask, activation kind.
 # Same version Tauri already uses, so nothing extra to compile.
 windows = { version = "0.62", features = ["ApplicationModel", "ApplicationModel_Activation", "Foundation"] }
+# Background mode (src/idle.rs): WebView2's memory target while hidden in the tray.
+# Same version wry already uses, so nothing extra to compile.
+webview2-com = "0.39"

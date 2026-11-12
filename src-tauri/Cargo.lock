@@ -81,6 +81,7 @@ dependencies = [
  "tauri-plugin-single-instance",
  "tauri-plugin-updater",
  "tauri-winrt-notification",
+ "webview2-com",
  "windows 0.62.2",
 ]
 

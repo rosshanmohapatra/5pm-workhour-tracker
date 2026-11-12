@@ -1,3 +1,4 @@
+mod idle;
 mod oauth;
 mod shell;
 mod store;
@@ -57,10 +58,30 @@ pub fn run() {
       open_external
     ])
     .on_window_event(|window, event| {
-      if let tauri::WindowEvent::CloseRequested { api, .. } = event {
-        api.prevent_close();
-        let _ = window.hide();
-        shell::tray_tip_once(tauri::Manager::app_handle(window));
+      use tauri::Manager;
+      let webview = window.app_handle().get_webview_window(window.label());
+      match event {
+        tauri::WindowEvent::CloseRequested { api, .. } => {
+          api.prevent_close();
+          let _ = window.hide();
+          if let Some(w) = &webview { idle::set_background(w, true); }
+          shell::tray_tip_once(window.app_handle());
+        }
+        // Minimise and restore both arrive as a resize.
+        tauri::WindowEvent::Resized(_) | tauri::WindowEvent::Focused(true) => {
+          if let Some(w) = &webview { idle::set_background(w, idle::is_out_of_sight(w)); }
+        }
+        _ => {}
+      }
+    })
+    // A launch at sign-in loads the page straight into the tray: start it in
+    // background mode. Also re-applies the class after a reload while hidden.
+    .on_page_load(|webview, payload| {
+      use tauri::Manager;
+      if payload.event() == tauri::webview::PageLoadEvent::Finished {
+        if let Some(w) = webview.app_handle().get_webview_window(webview.label()) {
+          if idle::is_out_of_sight(&w) { idle::set_background(&w, true); }
+        }
       }
     })
     .setup(|app| {

@@ -25,6 +25,75 @@
       meta:      'wh_meta',
     };
 
+    // ── DEVELOPER MODE › SAMPLE DATA ───────────────────
+    // A sandbox for screenshots and user-experience checks. While it's on, the app
+    // shows a typical user's last five weeks plus a session running since this
+    // morning. Every saved-data read and write (settings, days, session) goes to
+    // memory instead of this device's storage, and SbSync never touches the
+    // network: the real account and the data on this device stay exactly as they
+    // were. Starting, pausing, editing all work, and vanish on reload / turn-off.
+    const DEV_SAMPLE = (() => {
+      try { return localStorage.getItem('wh_dev_on') === '1' && localStorage.getItem('wh_dev_sample') === '1'; }
+      catch { return false; }
+    })();
+    const _SANDBOX_PREFIXES = [KEY.cfg, KEY.day, KEY.session, KEY.meta, KEY.dismissed];
+    const _sandbox = DEV_SAMPLE ? new Map() : null;
+    const _inSandbox = k => !!_sandbox && _SANDBOX_PREFIXES.some(p => k.startsWith(p));
+
+    // A believable regular: starts within ~45 min of their shift, lands near the
+    // daily target (Fridays a little shorter), plus one holiday, one day of leave,
+    // one half day and one auto-stopped day across the five weeks. Seeded by date,
+    // so the same day always gets the same hours and screenshots are repeatable.
+    // Returns { days: { 'YYYY-MM-DD': log }, session } in the app's own formats.
+    function devSampleData(c, now, fmt) {
+      const pad = n => String(n).padStart(2, '0');
+      const key = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+      const rnd = (s, salt) => { let h = 2166136261; for (const ch of s + salt) h = Math.imul(h ^ ch.charCodeAt(0), 16777619); return ((h >>> 0) % 10000) / 10000; };
+      const m = String(c.shiftStart || '09:00 AM').match(/(\d+):(\d+)\s*(AM|PM)?/i) || [];
+      let baseMin = ((+m[1] || 9) % 12 + (/pm/i.test(m[3] || '') ? 12 : 0)) * 60 + (+m[2] || 0);
+      if (!m[3] && m[1]) baseMin = +m[1] * 60 + +m[2]; // 24h "09:00"
+      const daily = (c.dailyH || 9) * 3600, workDays = c.workDays === 6 ? 6 : 5;
+      const isWork = d => { const w = d.getDay(); return w !== 0 && (w !== 6 || workDays === 6); };
+      const mon0 = new Date(now); mon0.setHours(0, 0, 0, 0);
+      mon0.setDate(mon0.getDate() - ((mon0.getDay() + 6) % 7) - 28); // Monday, four weeks before this one
+      const at = (d, mins) => { const t = new Date(d); t.setHours(0, 0, 0, 0); t.setMinutes(Math.round(mins)); return t; };
+      const done = (d, start, secs, extra) => {
+        const end = new Date(start.getTime() + secs * 1000);
+        return { loginTime: `${start.getHours()}:${start.getMinutes()}:${start.getSeconds()}`, loginDisplay: fmt(start),
+          checkoutTime: `${pad(end.getHours())}:${pad(end.getMinutes())}:${pad(end.getSeconds())}`, checkoutDisplay: fmt(end),
+          hoursWorked: Math.round(secs / 0.36) / 10000, override: null, lastUpdated: end.toISOString(), sessionTag: 'realtime', ...extra };
+      };
+      const days = {};
+      const todayK = key(now);
+      for (let i = 0; i < 35; i++) {
+        const d = new Date(mon0); d.setDate(mon0.getDate() + i);
+        const k = key(d);
+        if (k >= todayK) break;
+        if (!isWork(d)) continue;
+        const wk = Math.floor(i / 7), dow = i % 7; // dow 0 = Monday
+        const start = at(d, baseMin - 15 + rnd(k, 's') * 50);
+        if (wk === 1 && dow === 2) { days[k] = { override: 'holiday', lastUpdated: start.toISOString() }; continue; }
+        if (wk === 2 && dow === 4) { days[k] = { override: 'leave', lastUpdated: start.toISOString() }; continue; }
+        if (wk === 3 && dow === 3) { days[k] = done(d, start, daily / 2 + rnd(k, 'h') * 900, { override: 'halfday' }); continue; }
+        if (wk === 0 && dow === 1) { days[k] = done(d, start, daily + (c.autoStopBuf ?? 2) * 3600, { autostopped: true }); continue; }
+        const swing = dow === 4 ? -1800 + rnd(k, 'w') * 2400 : -2400 + rnd(k, 'w') * 4800; // Fri: −30…+10 min, else −40…+40
+        days[k] = done(d, start, daily + swing);
+      }
+      // Today: a session already under way. Opened mid-shift it starts at the shift
+      // start; opened early or very late it starts 5h 40m ago, so it always reads
+      // "running" rather than "not started" or "auto-stopped".
+      let session = null;
+      if (isWork(now)) {
+        const nowMin = now.getHours() * 60 + now.getMinutes();
+        const into = nowMin - baseMin;
+        const startMin = into >= 60 && into <= 420 ? baseMin : Math.max(5, nowMin - 340);
+        if (nowMin - startMin >= 10) {
+          session = { loginISO: at(now, startMin).toISOString(), accSecs: 0, sessionDate: todayK, autoStopped: false, sessionTag: 'realtime' };
+        }
+      }
+      return { days, session };
+    }
+
     // ── STATE ──────────────────────────────────────────
     let loginDate = null, ticker = null;
     let dark = false, wasDone = false, notifSent = false;
@@ -87,7 +156,7 @@
       const current = cfg().dismissed ?? [];
       const merged  = pruneDismissed([...new Set([...current, ...legacy])]);
       saveCfg({ ...cfg(), dismissed: merged });
-      localStorage.removeItem(KEY.dismissed); // wh_dismissed no longer needed
+      Store.remove(KEY.dismissed); // wh_dismissed no longer needed
     }
     // Drop IDs whose date suffix is older than 14 days — keeps cfg blob small
     function pruneDismissed(ids) {
@@ -5056,6 +5125,7 @@
       };
 
       log('//////Sync Diagnostic//////');
+      if (DEV_SAMPLE) { log('❌ Sample Data is on, so sync is paused. Turn it off to run Sync Check.'); return; }
 
       // 1. Session check
       try {
@@ -7207,15 +7277,19 @@ Kind regards,
     // Swap Store.* methods for IndexedDB/cloud in future.
     // ════════════════════════════════════════════════════
     const Store = {
+      // Sample Data (Developer Mode) swaps saved data for an in-memory copy; see DEV_SAMPLE.
       get(key, fb=null) {
+        if (_inSandbox(key)) { const r=_sandbox.get(key); return r?JSON.parse(r):fb; }
         try { const r=localStorage.getItem(key); return r?JSON.parse(r):fb; } catch { return fb; }
       },
       set(key, val) {
+        if (_inSandbox(key)) { _sandbox.set(key, JSON.stringify(val)); return true; }
         try { localStorage.setItem(key, JSON.stringify(val)); return true; }
         catch(e) { console.warn('[WH] Store.set failed:',key,e); return false; }
       },
-      remove(key) { try { localStorage.removeItem(key); } catch {} },
+      remove(key) { if (_inSandbox(key)) { _sandbox.delete(key); return; } try { localStorage.removeItem(key); } catch {} },
       keys(prefix) {
+        if (_inSandbox(prefix)) return [..._sandbox.keys()].filter(k=>k.startsWith(prefix));
         try { return Object.keys(localStorage).filter(k=>k.startsWith(prefix)); } catch { return []; }
       },
 
@@ -7337,6 +7411,17 @@ Kind regards,
     // ── SUPABASE SYNC ─────────────────────────────────────────────────────────
     // Bridges localStorage ↔ work_logs table. All methods are fire-and-forget —
     // they never block the UI. Silently no-ops when the user is not signed in.
+    // Sample Data: start the sandbox from a copy of the real settings (so targets,
+    // shift and name match this account) and the generated weeks + today's session.
+    if (_sandbox) {
+      for (const k of [KEY.cfg, KEY.meta, KEY.dismissed]) {
+        try { const v = localStorage.getItem(k); if (v != null) _sandbox.set(k, v); } catch {}
+      }
+      const sample = devSampleData({ ...CFG_DEF, ...(Store.getCfg() || {}) }, new Date(), short);
+      for (const [dk, log] of Object.entries(sample.days)) _sandbox.set(KEY.day + dk, JSON.stringify(log));
+      if (sample.session) _sandbox.set(KEY.session, JSON.stringify(sample.session));
+    }
+
     const SbSync = {
       // Valid override values in the DB CHECK constraint
       _OVERRIDES: new Set(['leave', 'holiday', 'wfh', 'halfday']),
@@ -7416,6 +7501,7 @@ Kind regards,
 
       // Push a single day. Returns true on success, false on failure.
       async pushDay(dk, entry) {
+        if (DEV_SAMPLE) return true; // Sample Data: nothing leaves this tab
         try {
           const uid = await this._uid();
           if (!uid) { this._lastErr = 'No active session'; return false; }
@@ -7436,6 +7522,7 @@ Kind regards,
 
       // Push all localStorage days — called after a bulk import
       async pushAll() {
+        if (DEV_SAMPLE) return;
         try {
           const uid = await this._uid();
           if (!uid) return;
@@ -7465,6 +7552,7 @@ Kind regards,
       // just before a slow commit isn't missed; rows seen twice are skipped as
       // identical. It's per account and starts with wh_, so sign-out wipes it.
       async pullAll(opts) {
+        if (DEV_SAMPLE) return false;
         try {
           const uid = await this._uid();
           if (!uid) return;
@@ -7548,6 +7636,7 @@ Kind regards,
 
       // Immediate upsert of the whole config blob under key='config'. Returns true/false.
       async pushSettings(cfgObj) {
+        if (DEV_SAMPLE) return true;
         try {
           const uid = await this._uid();
           if (!uid) { this._lastErr = 'No active session'; return false; }
@@ -7562,6 +7651,7 @@ Kind regards,
 
       // Fetch the stored config blob (or null if none yet)
       async pullSettings() {
+        if (DEV_SAMPLE) return null;
         try {
           const uid = await this._uid();
           if (!uid) return null;
@@ -7986,6 +8076,7 @@ Kind regards,
     // + free-tier bandwidth). Incoming data is piped straight into local state.
     let _sbRealtimeCh = null;
     function initRealtimeSync() {
+      if (DEV_SAMPLE) return; // Sample Data: no live updates from the real account
       SbSync._uid().then(uid => {
         if (!uid || _sbRealtimeCh) return;
         _sbRealtimeCh = window._sbClient
@@ -9019,6 +9110,16 @@ Kind regards,
       renderPenalties(); renderNotifs();
       showToast(_devSamplePenalties ? 'Sample penalties added' : 'Sample penalties removed', 'info');
     });
+    // Developer Mode: Sample Data on/off. Reloads, because the sandbox has to be in
+    // place before the app reads anything (see DEV_SAMPLE).
+    function _setDevSampleData(on) {
+      try { on ? localStorage.setItem('wh_dev_sample', '1') : localStorage.removeItem('wh_dev_sample'); } catch {}
+      location.reload();
+    }
+    if (el('devSampleData')) {
+      el('devSampleData').checked = DEV_SAMPLE;
+      el('devSampleData').addEventListener('change', e => _setDevSampleData(e.target.checked));
+    }
     el('devPreviewWeekPlan').addEventListener('click', openWeekPlanModal);
     el('devPreviewWhatsNew').addEventListener('click', () => openWhatsNew());
     // The desktop app's webview doesn't hand mailto: links to Windows; its shell does.
@@ -9134,6 +9235,7 @@ Kind regards,
         const parts = [];
         if (_devDateOverride) parts.push('Test date ' + _devDateLabel(_devDateOverride));
         if (_devSamplePenalties) parts.push('Sample penalties on');
+        if (DEV_SAMPLE) parts.push('Sample data on');
         const row = el('devOverridesRow');
         if (row) row.hidden = !parts.length;
         if (el('devOverridesText')) el('devOverridesText').textContent = parts.join(' · ');
@@ -9142,6 +9244,7 @@ Kind regards,
       el('devResetAll')?.addEventListener('click', () => {
         if (_devDateOverride) clearDevDateOverride();
         if (_devSamplePenalties) el('devSamplePenalties')?.click();
+        if (DEV_SAMPLE) { _setDevSampleData(false); return; }
         paint();
       });
 
@@ -9188,6 +9291,8 @@ Kind regards,
       // Reset date override when leaving dev mode
       if (_devDateOverride) { _devDateOverride = null; _applyDevDateOverride(); }
       if (_devSamplePenalties) { _devSamplePenalties = false; el('devSamplePenalties').checked = false; renderPenalties(); renderNotifs(); }
+      // Sample Data lives only while Developer Mode is on: back to the real data.
+      if (DEV_SAMPLE) { _setDevSampleData(false); return; }
       const lbl = el('devDatePickerLabel'); if (lbl) lbl.textContent = 'Pick a Date';
       // Hide the dev-only User ID row immediately
       const uidRow = el('profileUidRow'); if (uidRow) uidRow.style.display = 'none';
@@ -10809,6 +10914,7 @@ Kind regards,
       // devices doing occasional heartbeats; give each device its own row if
       // that stops being true.
       async _write(uid, map) {
+        if (DEV_SAMPLE) return; // Sample Data: the device list isn't touched either
         const { error } = await window._sbClient.from('user_kv').upsert(
           { user_id: uid, key: DEV_KV_KEY, value: { d: map, src: SbSync._clientId },
             updated_at: new Date().toISOString() },
@@ -11965,7 +12071,7 @@ Kind regards,
         const move = (list, nodes) => nodes.filter(Boolean).forEach(n => list.appendChild(n));
 
         const testing = section('Testing', 'Testing', true);
-        move(testing, [child(has('#devDatePickerBtn')), child(has('#devSamplePenalties')), el('devReplayRow'),
+        move(testing, [child(has('#devDatePickerBtn')), child(has('#devSamplePenalties')), child(has('#devSampleData')), el('devReplayRow'),
           child(has('[data-on-click="h9dee7dcd2e"]')), el('syncDiagWrap')]);
         const alerts = section('Alerts', 'Alert Previews', true);
         move(alerts, [child(labelled('Preview Alerts'))]);

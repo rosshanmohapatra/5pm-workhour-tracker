@@ -110,7 +110,7 @@ function syncSandbox() {
   const sb = load(extract('const SbSync = {', '\n    };'), {
     localStorage: { getItem: k => (ls.has(k) ? ls.get(k) : null), setItem: (k, v) => ls.set(k, String(v)) },
     Store: { getDay: k => days[k], setDay: (k, v) => { days[k] = v; }, allDays: () => ({ ...days }), remove: k => { delete days[k.replace('day_', '')]; } },
-    KEY: { day: 'day_' }, _isNoteDirty: () => false, _clearNoteDirty() {}, p2, short, todayKey: () => '2026-11-11',
+    KEY: { day: 'day_' }, DEV_SAMPLE: false, _isNoteDirty: () => false, _clearNoteDirty() {}, p2, short, todayKey: () => '2026-11-11',
     window: { crypto: { randomUUID: () => 'test' }, _sbClient: { auth: { getSession: async () => ({ data: { session: { user: { id: 'u1' } } } }) }, from: builder } },
     console: { warn() {} },
   });
@@ -418,4 +418,73 @@ test('No looping animation runs where nobody can see it', () => {
   // The desktop app pauses every animation while hidden in the tray (idle.rs adds the class).
   assert.match(HTML, /html\.app-hidden \*, html\.app-hidden \*::before, html\.app-hidden \*::after \{ animation-play-state: paused !important; \}/);
   assert.doesNotMatch(HTML, /will-change: contents/);
+});
+
+// ── Developer Mode › Sample Data ──
+const devSample = load(extract('function devSampleData('), {}, 'devSampleData');
+const fmtT = d => `${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`;
+const SAMPLE_CFG = { dailyH: 9, weeklyH: 45, workDays: 5, shiftStart: '09:00 AM', autoStopBuf: 2 };
+
+test('Sample data: five weeks of a regular user, before today, work days only', () => {
+  const now = new Date('2026-11-12T14:00'); // a Thursday
+  const { days } = devSample(SAMPLE_CFG, now, fmtT);
+  const keys = Object.keys(days).sort();
+  assert.ok(keys.length >= 20 && keys.length <= 25, `got ${keys.length} days`);
+  assert.ok(keys.every(k => k < '2026-11-12'), 'nothing on or after today');
+  assert.ok(keys.every(k => { const w = new Date(k + 'T12:00').getDay(); return w >= 1 && w <= 5; }), 'no weekends');
+  const logs = Object.values(days);
+  assert.equal(logs.filter(l => l.override === 'holiday').length, 1);
+  assert.equal(logs.filter(l => l.override === 'leave').length, 1);
+  assert.equal(logs.filter(l => l.override === 'halfday').length, 1);
+  assert.equal(logs.filter(l => l.autostopped).length, 1);
+  for (const [k, l] of Object.entries(days)) {
+    if (l.override === 'holiday' || l.override === 'leave') continue;
+    assert.match(l.loginTime, /^\d{1,2}:\d{1,2}:\d{1,2}$/);
+    assert.match(l.checkoutTime, /^\d{2}:\d{2}:\d{2}$/);
+    const [h, m] = l.loginTime.split(':').map(Number);
+    assert.ok(h * 60 + m >= 9 * 60 - 15 && h * 60 + m <= 9 * 60 + 35, `${k} starts ${l.loginTime}`);
+    if (l.override || l.autostopped) continue;
+    const diff = l.hoursWorked * 60 - 9 * 60, fri = new Date(k + 'T12:00').getDay() === 5;
+    assert.ok(fri ? diff >= -30 && diff <= 10 : diff >= -40 && diff <= 40, `${k} worked ${l.hoursWorked}h`);
+  }
+});
+
+test('Sample data is the same every time, so screenshots are repeatable', () => {
+  const now = new Date('2026-11-12T14:00');
+  assert.deepEqual(devSample(SAMPLE_CFG, now, fmtT).days, devSample(SAMPLE_CFG, new Date('2026-11-12T16:30'), fmtT).days);
+});
+
+test('Sample data: today is always a running session, never auto-stopped', () => {
+  for (const t of ['08:00', '09:30', '14:00', '19:00', '23:30', '00:20']) {
+    const now = new Date('2026-11-12T' + t);
+    const { session } = devSample(SAMPLE_CFG, now, fmtT);
+    assert.ok(session, `session at ${t}`);
+    assert.equal(session.sessionDate, '2026-11-12');
+    assert.equal(session.autoStopped, false);
+    const start = new Date(session.loginISO), mins = (now - start) / 60000;
+    assert.equal(start.getDate(), 12, `starts today at ${t}`);
+    assert.ok(mins >= 10 && mins < (9 + 2) * 60, `${t}: ${mins} min in`);
+  }
+  assert.equal(devSample(SAMPLE_CFG, new Date('2026-11-15T14:00'), fmtT).session, null, 'no session on a Sunday');
+});
+
+test('Sample data never syncs and never touches saved data', () => {
+  // Every saved-data read/write goes to the in-memory sandbox while it's on.
+  const store = extract('const Store = {', '\n    };');
+  for (const fn of ['get(key, fb=null) {', 'set(key, val) {', 'remove(key) {', 'keys(prefix) {']) {
+    const i = store.indexOf(fn);
+    assert.ok(i >= 0, fn);
+    assert.ok(store.slice(i, i + 60).includes('if (_inSandbox('), `Store.${fn} checks the sandbox first`);
+  }
+  // Every network method of SbSync and the realtime channel stop first.
+  const sync = extract('const SbSync = {', '\n    };');
+  for (const m of ['pushDay', 'pushAll', 'pullAll', 'pushSettings', 'pullSettings']) {
+    const i = sync.indexOf(`async ${m}(`);
+    assert.ok(i >= 0, m);
+    const firstLine = sync.slice(i).split('\n')[1].trim();
+    assert.ok(firstLine.startsWith('if (DEV_SAMPLE) return'), `SbSync.${m} stops first: ${firstLine}`);
+  }
+  assert.match(SRC, /function initRealtimeSync\(\) \{\n\s*if \(DEV_SAMPLE\) return;/);
+  // Only on while Developer Mode is on too.
+  assert.match(SRC, /localStorage\.getItem\('wh_dev_on'\) === '1' && localStorage\.getItem\('wh_dev_sample'\) === '1'/);
 });

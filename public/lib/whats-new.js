@@ -7,6 +7,17 @@
 // bug fixes as "Fixed <problem>". No em dashes.
 window.WHATS_NEW = [
   {
+    version: '1.2.31',
+    improvements: [],
+    fixes: [
+      "Fixed hours being lost when restarting outside your shift.",
+      "Fixed the Sign-In Methods section in Settings not loading for some accounts.",
+      "Fixed onboarding saving the wrong weekly hours.",
+      "Fixed the End Early modal showing a different target from the Today card.",
+      "Fixed the Appearance section in Settings stacking on phones.",
+    ],
+  },
+  {
     version: '1.2.30',
     improvements: [
       { icon: 'clock',    title: 'A calmer Today card',   line: "Switch between Clock and Hours. Once you're done, the bar settles and a banner takes over." },

@@ -1,4 +1,4 @@
-    const APP_VERSION = '1.2.30';
+    const APP_VERSION = '1.2.31';
     localStorage.setItem('wh_ver', APP_VERSION);
 
     // ── HELPERS ─────────────────────────────────────────

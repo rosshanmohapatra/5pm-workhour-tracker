@@ -12,6 +12,15 @@ const path = require('node:path');
 const vm = require('node:vm');
 const { execFileSync } = require('node:child_process');
 
+// Read source files with "\n" line endings, whatever the checkout uses. A Windows
+// checkout (the desktop worktree, the Store build) has "\r\n", and the tests
+// match source text line by line.
+const _readFile = fs.readFileSync;
+fs.readFileSync = (file, enc) => {
+  const out = _readFile(file, enc);
+  return typeof out === 'string' ? out.replace(/\r\n/g, '\n') : out;
+};
+
 const ROOT = path.join(__dirname, '..');
 const WEB = path.join(ROOT, 'public'); // the website
 const SRC = fs.readFileSync(path.join(WEB, 'lib', 'pages', 'index-app.js'), 'utf8');

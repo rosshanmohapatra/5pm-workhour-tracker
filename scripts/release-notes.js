@@ -14,6 +14,13 @@ const list = window.WHATS_NEW;
 assert.ok(Array.isArray(list) && list.length, 'WHATS_NEW must list at least one release');
 for (const e of list) {
   assert.ok(/^\d+\.\d+\.\d+$/.test(e.version), 'bad version: ' + e.version);
+  // An improvement is a plain line or { icon, title, line }; GitHub and the
+  // Store get the plain line.
+  e.improvements = (e.improvements || []).map(x => {
+    if (typeof x === 'string') return x;
+    assert.ok(x.title && x.line, `${e.version}: an improvement needs a title and a line`);
+    return x.line;
+  });
   for (const line of [...(e.improvements || []), ...(e.fixes || [])]) {
     assert.ok(!/—/.test(line), `${e.version}: no em dashes: ${line}`);
   }

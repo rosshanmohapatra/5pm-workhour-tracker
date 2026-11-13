@@ -343,7 +343,8 @@ test('week footer: In hand and On track for', () => {
 
 test('info bars share one component and auto-stop has a Resume button', () => {
   const html = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
-  for (const id of ['notifPermBar', 'stayHint', 'otBanner', 'doneBanner', 'autostopBanner', 'endSessionHalfDayNote']) {
+  // (The half-day note moved into the End early sheet as a soft note, 2026-11-13.)
+  for (const id of ['notifPermBar', 'stayHint', 'otBanner', 'doneBanner', 'autostopBanner']) {
     assert.match(html, new RegExp(`<div class="ib"[^>]*id="${id}"`), id + ' uses the .ib component');
   }
   assert.doesNotMatch(html, /class="banner\b|notif-perm-bar|stay-hint/, 'old banner styles are gone');
@@ -487,4 +488,207 @@ test('Sample data never syncs and never touches saved data', () => {
   assert.match(SRC, /function initRealtimeSync\(\) \{\n\s*if \(DEV_SAMPLE\) return;/);
   // Only on while Developer Mode is on too.
   assert.match(SRC, /localStorage\.getItem\('wh_dev_on'\) === '1' && localStorage\.getItem\('wh_dev_sample'\) === '1'/);
+});
+
+test('Raise Dispute: Draft Email works every time, and the desktop sheet never resizes', () => {
+  // The draft's content moves into the Update Entry sheet after the first draft,
+  // so nothing in _openEmailFor may look it up inside #emailModalOverlay.
+  const open = extract('function _openEmailFor(');
+  assert.doesNotMatch(open, /el\('emailModalOverlay'\)\.querySelector\('\.email-pv-scroll'\)/);
+  assert.match(open, /document\.querySelector\('\.email-pv-scroll'\)\.scrollTop = 0/);
+  // On desktop (rail-on) the page slide keeps the sheet's height.
+  assert.match(extract('function _dePageTo('), /const h1 = document\.body\.classList\.contains\('rail-on'\) \? h0 : to\.offsetHeight;/);
+});
+
+test('Notifications panel has a close button on desktop', () => {
+  const HTML = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
+  assert.match(HTML, /class="sheet-close" id="notifCloseBtn" aria-label="Close notifications"/);
+  assert.match(HTML, /body\.rail-on \.notif-panel \.sheet-close \{ display: grid;/);
+  assert.match(SRC, /el\('notifCloseBtn'\)\?\.addEventListener\('click', closeNotifPanel\);/);
+});
+
+test('Today card: numbers state facts (Clock / Hours), advice only in chip or banner', () => {
+  const paint = extract('function _rcPaintKpis(');
+  // Clock: Started | Now (live). Hours: Worked (live) | Target.
+  assert.match(paint, /el\('rcWorkedCap'\)\.textContent = 'Started';/);
+  assert.match(paint, /el\('rcTargetCap'\)\.innerHTML = live \+ 'Now';/);
+  assert.match(paint, /el\('rcWorkedCap'\)\.innerHTML = live \+ 'Worked';/);
+  assert.match(paint, /el\('rcTargetCap'\)\.textContent = 'Target';/);
+  // No leave / done / overtime words on the numbers themselves.
+  assert.doesNotMatch(paint, /leave|overtime|done/i);
+  // The chip is for the session only; after the target it's empty and the banner speaks.
+  assert.match(SRC, /_descRightTimes    = 'You can leave at ' \+ _logoutStr;/);
+  assert.match(SRC, /_descRightTimes = _descRightProgress = '';   \/\/ the banner takes over after the target/);
+  // Tabs read Clock / Hours, and the day-type switcher stays neutral.
+  const HTML = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
+  assert.match(HTML, />Clock<\/button>/); assert.match(HTML, />Hours<\/button>/);
+  assert.doesNotMatch(HTML, /\.rc-info-btn\[data-plan=/);
+});
+
+test('Done banner: one per moment, dismissable, swipe hint once', () => {
+  assert.match(SRC, /_showDoneBanner\('done', 'success', 'check', "You're done\. Head out!"/);
+  assert.match(SRC, /_showDoneBanner\('late', 'warning', 'clock', `Should've left at/);
+  assert.match(SRC, /_showDoneBanner\('over', 'warning', 'clock', `\$\{_rcRemainingFmt\(ot\)\} overtime`/);
+  assert.match(SRC, /_showDoneBanner\('ended', 'violet', 'moon', 'Done for today'/);
+  // Dismissed stays away until the next moment; the hint shows once per device.
+  assert.match(extract('function _showDoneBanner('), /_doneDismissed === todayKey\(\) \+ '\|' \+ moment/);
+  assert.match(extract('function _doneHint('), /wh_swipe_hint/);
+});
+
+test('Each notification has its own dismiss button that never opens the card', () => {
+  const render = extract('function renderNotifs(');
+  assert.match(render, /<button type="button" class="notif-dismiss" data-dismiss="\$\{safeId\}" aria-label="Dismiss notification">/);
+  // Capture phase + stopPropagation: the card's own click handler must not run.
+  assert.match(SRC, /const x = e\.target\.closest\('\.notif-dismiss'\); if \(!x\) return;\n\s*e\.stopPropagation\(\);\n\s*_dismissNotifItem\(x\.closest\('\.notif-item'\), x\.dataset\.dismiss, 1\);\n\s*\}, true\);/);
+  const HTML = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
+  assert.match(HTML, /@media \(hover: hover\) and \(pointer: fine\) \{\n\s*\.notif-dismiss \{ display: grid;/);
+});
+
+// ── Correcting today's start while a session runs ──
+function moveStartSandbox({ login, acc, logged, now }) {
+  const st = { loginDate: new Date(login), _sessionAccSecs: acc, wasDone: true, notifSent: true, scheduled: null };
+  const ctx = {
+    Date: class extends Date { constructor(...a) { if (a.length) super(...a); else super(now); } static now() { return +new Date(now); } },
+    Math, isNaN, String, todayKey: () => '2026-11-13', dayLog: () => (logged ? { loginTime: logged } : null),
+    persistSession() {}, scheduleNotifications(iso) { st.scheduled = iso; },
+  };
+  Object.defineProperties(ctx, Object.fromEntries(['loginDate', '_sessionAccSecs', 'wasDone', 'notifSent']
+    .map(k => [k, { get: () => st[k], set: v => { st[k] = v; }, enumerable: true }])));
+  const move = load(extract('function _moveDayStart('), ctx, '_moveDayStart');
+  const worked = () => Math.floor((+new Date(now) - +st.loginDate) / 1000) + st._sessionAccSecs;
+  return { st, move, worked };
+}
+
+test('A corrected start time moves the hours (no pause yet)', () => {
+  const now = '2026-11-13T14:00:00';
+  const s = moveStartSandbox({ login: '2026-11-13T10:00:00', acc: 0, now });
+  assert.equal(s.worked(), 4 * 3600);
+  s.move(new Date('2026-11-13T09:00:00'));               // started an hour earlier
+  assert.equal(s.worked(), 5 * 3600, 'an hour more worked');
+  assert.equal(s.st.wasDone, false);
+  assert.ok(s.st.scheduled, 'alerts rescheduled');
+  s.move(new Date('2026-11-13T15:00:00'));               // a start in the future is capped at now
+  assert.equal(s.worked(), 0);
+});
+
+test('A corrected start time moves the hours after a pause too', () => {
+  // Started 9:00, worked to 12:00 (3h banked), resumed 13:00, now 14:00 → 4h.
+  const now = '2026-11-13T14:00:00';
+  const s = moveStartSandbox({ login: '2026-11-13T13:00:00', acc: 3 * 3600, logged: '9:0:0', now });
+  assert.equal(s.worked(), 4 * 3600);
+  s.move(new Date('2026-11-13T08:00:00'));               // really started at 8:00
+  assert.equal(s.worked(), 5 * 3600);
+  assert.equal(new Date(s.st.loginDate).getHours(), 13, 'the running segment is untouched');
+  s.move(new Date('2026-11-13T13:30:00'));               // later than all the banked time
+  assert.equal(s.st._sessionAccSecs, 0);
+  assert.equal(s.worked(), 30 * 60);
+});
+
+test('Login picker: anchored to the field and starts on today\'s start', () => {
+  const open = extract('function openTpModal(');
+  assert.match(open, /parse\(typed \|\| \(targetInputId === 'tc-r7m2' && loginDate \? _dayStartDisplay\(\) : ''\)\)/);
+  assert.match(open, /let left = _isLoginInput \? refRect\.left : refRect\.left \+ refRect\.width \/ 2 - mW \/ 2;/);
+  // Both "corrected start" paths use the helper instead of keeping the hours fixed.
+  assert.equal((SRC.match(/_moveDayStart\((s|newLogin|parsed)\);/g) || []).length, 3);
+  assert.doesNotMatch(SRC, /_sessionAccSecs = Math\.max\(0, oldWorked - newCurrentSecs\)/);
+});
+
+test('Update Entry sheet: square close button, and no Delete on a missing entry', () => {
+  const HTML = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
+  assert.match(HTML, /body\.rail-on #dayEditOverlay \.sheet-close \{[^}]*width: 32px; height: 32px;[^}]*border-radius: 8px;/);
+  const open = extract('function openDayEditModal(');
+  assert.match(open, /_deCanDelete = !!\(log && \(log\.loginTime/);
+  assert.match(SRC, /el\('dayEditDeleteBtn'\)\.style\.visibility = which === 'edit' && _deCanDelete \? '' : 'hidden';/);
+});
+
+test('Today panel no longer shows "Overtime Required"', () => {
+  // It was today's recommended hours minus the daily target, so missed days earlier in
+  // the week made it huge (18h+) on every work day. Removed (user, 2026-11-13).
+  assert.doesNotMatch(SRC, /Overtime Required|overtimeReq/);
+});
+
+// ── Recommended hours: spread over the week, capped per day ──
+function weeklyEff({ today, logs, weeklyH = 45, dailyH = 9, buf = 2 }) {
+  const days = ['2026-11-09','2026-11-10','2026-11-11','2026-11-12','2026-11-13'].map(key => ({ key }));
+  const f = load(extract('function _weeklyEffSecs('), {
+    cfg: () => ({ dailyH, weeklyH, weeklyOn: true, recommendTimings: true, autoStopBuf: buf }),
+    week: () => days, todayKey: () => today, dayLog: k => logs[k] || null,
+    adjustedWeeklyTarget: () => weeklyH * 3600, Math,
+  }, '_weeklyEffSecs');
+  return f() / 3600;
+}
+
+test('Recommended hours never ask for more than a day plus the auto-stop buffer', () => {
+  // Friday, with Mon, Tue and Thu missed and 13h on Wednesday: 32h owed in one day.
+  const fri = weeklyEff({ today: '2026-11-13', logs: { '2026-11-11': { hoursWorked: 13.0872 } } });
+  assert.equal(fri, 11, 'capped at 9h + 2h');
+  // A different buffer moves the cap with it.
+  assert.equal(weeklyEff({ today: '2026-11-13', logs: {}, buf: 1 }), 10);
+});
+
+test('Recommended hours still spread a small shortfall over the days left', () => {
+  // Wednesday after a 7h Monday and 9h Tuesday: 29h left over 3 days ≈ 9h 40m.
+  const wed = weeklyEff({ today: '2026-11-11', logs: { '2026-11-09': { hoursWorked: 7 }, '2026-11-10': { hoursWorked: 9 } } });
+  assert.ok(Math.abs(wed - 29 / 3) < 1e-9, String(wed));
+  // Ahead of the week: nothing more needed today.
+  assert.equal(weeklyEff({ today: '2026-11-13', logs: Object.fromEntries(['09','10','11','12'].map(d => [`2026-11-${d}`, { hoursWorked: 12 }])) }), 0);
+});
+
+test('Daily modals: Done for everyone, End only asks early, auto-stop wheel opens on last active', () => {
+  // End early: no question once the target is in.
+  assert.match(extract('function openEndSessionModal('), /if \(remSecs <= 0\) \{ confirmEndSession\(\); return; \}/);
+  // The end-of-day summary shows for everyone (no Recommend Timings condition) and
+  // is skipped when Done for the day already ended the session.
+  assert.doesNotMatch(SRC, /if \(cfg\(\)\.recommendTimings !== false\) \{\n\s*showCheckoutModal/);
+  assert.match(extract('function showCheckoutModal('), /if \(_skipDaySummary\)/);
+  // Done for the day opens at the target for everyone; it pauses only with Recommend Timings off.
+  assert.match(SRC, /_openDayDone\(_workedNow\);/);
+  // Auto-stopped: the wheel starts on the last-active estimate when it's earlier than the stop.
+  assert.match(extract('function openAutoStopRecovery('), /_estimateDayEnd\(dayKey,[^)]*\)\?\.end;\n\s*if \(est && stop && est < stop\) start = est;/);
+});
+
+test("What's New: titled items get an icon and title; plain lines still work; fixes fold", () => {
+  const html = load(extract("    const WN_ICONS = {", '\n    };') + '\n' + extract('function wnBodyHtml('), { _escHtml: s => String(s) }, 'wnBodyHtml')({
+    version: '9.9.9',
+    improvements: [{ icon: 'clock', title: 'Fix your start time', line: 'Changing it updates your hours.' }, 'A plain line.'],
+    fixes: ['Fixed one.', 'Fixed two.'],
+  });
+  assert.match(html, /<div class="wn-ft">Fix your start time<\/div>/);
+  assert.match(html, /A plain line\./);
+  assert.match(html, /<span>2 fixes<\/span>/);
+  // GitHub / Store notes get the plain line for titled items.
+  const out = execFileSync(process.execPath, ['-e', `
+    const fs=require('fs'),path=require('path');const src=fs.readFileSync(path.join(${JSON.stringify(WEB)},'lib','whats-new.js'),'utf8');
+    const w={};new Function('window',src)(w);process.stdout.write(String(Array.isArray(w.WHATS_NEW)))`]).toString();
+  assert.equal(out, 'true');
+});
+
+test('Onboarding saves the same settings as before (shift, hours, week, days)', () => {
+  const saved = {};
+  const ctx = { _ob2: { start: 540, hours: 540, days: 5, name: 'Roshan' }, cfg: () => ({ weeklyOn: false }),
+    saveCfg: v => Object.assign(saved, v), deriveShiftType: s => 'morning', short: d => `${d.getHours()}:${String(d.getMinutes()).padStart(2,'0')}`, Date };
+  load('const _ob2Time = m => { const d = new Date(); d.setHours(Math.floor(m / 60) % 24, m % 60, 0, 0); return short(d); };\n' + extract('function _ob2Save('), ctx, '_ob2Save()');
+  assert.equal(saved.shiftStart, '9:00'); assert.equal(saved.shiftEnd, '18:00');
+  assert.equal(saved.dailyH, 9); assert.equal(saved.weeklyH, 45); assert.equal(saved.workDays, 5);
+  assert.equal(saved.name, 'Roshan'); assert.equal(saved.weeklyOn, false);
+});
+
+test('Ending a session keeps its end time (the live-log rewrite waits)', () => {
+  // A running day's live rewrite must not run while End / auto-stop saves the finished day.
+  let wrote = 0;
+  const ctx = { loginDate: new Date(), _sessionAccSecs: 0, _dropStaleLive: () => false, _writeLiveLog: () => { wrote++; } };
+  const f = load(extract('    let _sessionEnding = false;', '\n    }\n'), ctx, '({ run: () => _flushLiveLog(), set: v => { _sessionEnding = v; } })');
+  f.set(true); f.run(); assert.equal(wrote, 0);
+  f.set(false); f.run(); assert.equal(wrote, 1);
+  // Both End and auto-stop raise the flag around their save.
+  for (const fn of ['function checkout(', 'function doAutoStop(']) {
+    assert.match(extract(fn), /_sessionEnding = true;\n\s*saveDayLogAndSync\(tk,[\s\S]*?\}\);\n\s*_sessionEnding = false;/, fn);
+  }
+});
+
+test('Onboarding buttons are wired when it opens (its markup comes after the app script)', () => {
+  const HTML = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
+  assert.ok(HTML.indexOf('id="ob2Pri"') > HTML.indexOf('/lib/pages/index-app.js'), 'markup is after the script');
+  assert.match(extract('function openOnboarding('), /el\('ob2Pri'\)\.onclick = _ob2PriClick; el\('ob2Sec'\)\.onclick = _ob2SecClick;/);
+  assert.doesNotMatch(SRC, /el\('ob2(Pri|Sec)'\)\?\.addEventListener/);
 });

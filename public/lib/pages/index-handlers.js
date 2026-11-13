@@ -300,8 +300,8 @@ window.__H = Object.assign(window.__H || {}, {
   h2938640370: function (event) { openTpModal('obShiftEnd',event) },
   // onclick: openTpModal('obShiftStart',event)
   h745e056836: function (event) { openTpModal('obShiftStart',event) },
-  // onclick: openTpModal('tc-r7m2',event,'Log In',calculate)
-  h835997ffb5: function (event) { openTpModal('tc-r7m2',event,'Log In',calculate) },
+  // onclick: openTpModal('tc-r7m2',event,'Started at',calculate)
+  h835997ffb5: function (event) { openTpModal('tc-r7m2',event,'Started at',calculate) },
   // onclick: openWeekPicker(this)
   h9f54862d09: function (event) { openWeekPicker(this) },
   // onclick: openWeekReport()

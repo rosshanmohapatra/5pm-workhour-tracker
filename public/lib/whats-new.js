@@ -7,6 +7,41 @@
 // bug fixes as "Fixed <problem>". No em dashes.
 window.WHATS_NEW = [
   {
+    version: '1.2.31',
+    improvements: [],
+    fixes: [
+      "Fixed hours being lost when restarting outside your shift.",
+      "Fixed the Sign-In Methods section in Settings not loading for some accounts.",
+      "Fixed onboarding saving the wrong weekly hours.",
+      "Fixed the End Early modal showing a different target from the Today card.",
+      "Fixed the Appearance section in Settings stacking on phones.",
+    ],
+  },
+  {
+    version: '1.2.30',
+    improvements: [
+      { icon: 'clock',    title: 'A calmer Today card',   line: "Switch between Clock and Hours. Once you're done, the bar settles and a banner takes over." },
+      { icon: 'sparkle',  title: 'Done for the day',      line: 'One clear moment when you hit your hours, with your day and week at a glance.' },
+      { icon: 'calendar', title: 'Pick the exact minute', line: 'A new time wheel for your start, your end and auto-stopped days.' },
+      { icon: 'home',     title: 'Set up in seconds',     line: 'Three quick questions, and you watch your day fill in as you answer.' },
+      { icon: 'palette',  title: 'Appearance cards',      line: 'Choose Device Theme, Light or Dark from clear, simple cards.' },
+      { icon: 'shield',   title: 'Sign-In Methods',       line: 'See every way you sign in, and switch or disconnect accounts in one place.' },
+      { icon: 'bell',     title: 'Tidier notifications',  line: 'Dismiss notifications one by one, on desktop too.' },
+    ],
+    fixes: [
+      "Fixed the progress bar not moving after you corrected your start time.",
+      "Fixed recommended hours asking for more than a day's work after missed days.",
+      "Fixed your end time sometimes going missing right after you ended your day.",
+      "Fixed Raise Dispute only saving a draft once.",
+      "Fixed input fields being hard to see.",
+      "Fixed the time picker opening in the middle of the screen.",
+      "Fixed Update Entry offering Delete on days with nothing to delete.",
+      "Fixed weekday names in the 30-day Stats view.",
+      "Fixed missing days not counting as 0 hours in the week footer.",
+      "Fixed 5pm using memory and graphics while hidden.",
+    ],
+  },
+  {
     version: '1.2.29',
     improvements: [
       "A fresh new look, with softer colours and cleaner cards.",

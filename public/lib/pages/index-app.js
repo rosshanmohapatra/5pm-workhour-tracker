@@ -1,4 +1,4 @@
-    const APP_VERSION = '1.2.29';
+    const APP_VERSION = '1.2.31';
     localStorage.setItem('wh_ver', APP_VERSION);
 
     // ── HELPERS ─────────────────────────────────────────
@@ -25,6 +25,75 @@
       meta:      'wh_meta',
     };
 
+    // ── DEVELOPER MODE › SAMPLE DATA ───────────────────
+    // A sandbox for screenshots and user-experience checks. While it's on, the app
+    // shows a typical user's last five weeks plus a session running since this
+    // morning. Every saved-data read and write (settings, days, session) goes to
+    // memory instead of this device's storage, and SbSync never touches the
+    // network: the real account and the data on this device stay exactly as they
+    // were. Starting, pausing, editing all work, and vanish on reload / turn-off.
+    const DEV_SAMPLE = (() => {
+      try { return localStorage.getItem('wh_dev_on') === '1' && localStorage.getItem('wh_dev_sample') === '1'; }
+      catch { return false; }
+    })();
+    const _SANDBOX_PREFIXES = [KEY.cfg, KEY.day, KEY.session, KEY.meta, KEY.dismissed];
+    const _sandbox = DEV_SAMPLE ? new Map() : null;
+    const _inSandbox = k => !!_sandbox && _SANDBOX_PREFIXES.some(p => k.startsWith(p));
+
+    // A believable regular: starts within ~45 min of their shift, lands near the
+    // daily target (Fridays a little shorter), plus one holiday, one day of leave,
+    // one half day and one auto-stopped day across the five weeks. Seeded by date,
+    // so the same day always gets the same hours and screenshots are repeatable.
+    // Returns { days: { 'YYYY-MM-DD': log }, session } in the app's own formats.
+    function devSampleData(c, now, fmt) {
+      const pad = n => String(n).padStart(2, '0');
+      const key = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+      const rnd = (s, salt) => { let h = 2166136261; for (const ch of s + salt) h = Math.imul(h ^ ch.charCodeAt(0), 16777619); return ((h >>> 0) % 10000) / 10000; };
+      const m = String(c.shiftStart || '09:00 AM').match(/(\d+):(\d+)\s*(AM|PM)?/i) || [];
+      let baseMin = ((+m[1] || 9) % 12 + (/pm/i.test(m[3] || '') ? 12 : 0)) * 60 + (+m[2] || 0);
+      if (!m[3] && m[1]) baseMin = +m[1] * 60 + +m[2]; // 24h "09:00"
+      const daily = (c.dailyH || 9) * 3600, workDays = c.workDays === 6 ? 6 : 5;
+      const isWork = d => { const w = d.getDay(); return w !== 0 && (w !== 6 || workDays === 6); };
+      const mon0 = new Date(now); mon0.setHours(0, 0, 0, 0);
+      mon0.setDate(mon0.getDate() - ((mon0.getDay() + 6) % 7) - 28); // Monday, four weeks before this one
+      const at = (d, mins) => { const t = new Date(d); t.setHours(0, 0, 0, 0); t.setMinutes(Math.round(mins)); return t; };
+      const done = (d, start, secs, extra) => {
+        const end = new Date(start.getTime() + secs * 1000);
+        return { loginTime: `${start.getHours()}:${start.getMinutes()}:${start.getSeconds()}`, loginDisplay: fmt(start),
+          checkoutTime: `${pad(end.getHours())}:${pad(end.getMinutes())}:${pad(end.getSeconds())}`, checkoutDisplay: fmt(end),
+          hoursWorked: Math.round(secs / 0.36) / 10000, override: null, lastUpdated: end.toISOString(), sessionTag: 'realtime', ...extra };
+      };
+      const days = {};
+      const todayK = key(now);
+      for (let i = 0; i < 35; i++) {
+        const d = new Date(mon0); d.setDate(mon0.getDate() + i);
+        const k = key(d);
+        if (k >= todayK) break;
+        if (!isWork(d)) continue;
+        const wk = Math.floor(i / 7), dow = i % 7; // dow 0 = Monday
+        const start = at(d, baseMin - 15 + rnd(k, 's') * 50);
+        if (wk === 1 && dow === 2) { days[k] = { override: 'holiday', lastUpdated: start.toISOString() }; continue; }
+        if (wk === 2 && dow === 4) { days[k] = { override: 'leave', lastUpdated: start.toISOString() }; continue; }
+        if (wk === 3 && dow === 3) { days[k] = done(d, start, daily / 2 + rnd(k, 'h') * 900, { override: 'halfday' }); continue; }
+        if (wk === 0 && dow === 1) { days[k] = done(d, start, daily + (c.autoStopBuf ?? 2) * 3600, { autostopped: true }); continue; }
+        const swing = dow === 4 ? -1800 + rnd(k, 'w') * 2400 : -2400 + rnd(k, 'w') * 4800; // Fri: −30…+10 min, else −40…+40
+        days[k] = done(d, start, daily + swing);
+      }
+      // Today: a session already under way. Opened mid-shift it starts at the shift
+      // start; opened early or very late it starts 5h 40m ago, so it always reads
+      // "running" rather than "not started" or "auto-stopped".
+      let session = null;
+      if (isWork(now)) {
+        const nowMin = now.getHours() * 60 + now.getMinutes();
+        const into = nowMin - baseMin;
+        const startMin = into >= 60 && into <= 420 ? baseMin : Math.max(5, nowMin - 340);
+        if (nowMin - startMin >= 10) {
+          session = { loginISO: at(now, startMin).toISOString(), accSecs: 0, sessionDate: todayK, autoStopped: false, sessionTag: 'realtime' };
+        }
+      }
+      return { days, session };
+    }
+
     // ── STATE ──────────────────────────────────────────
     let loginDate = null, ticker = null;
     let dark = false, wasDone = false, notifSent = false;
@@ -37,6 +106,7 @@
     let daySelectorWeekOffset = 0; // 0 = current week, -1 = last week, …
     let autoStopped = false;        // true after auto-stop fires
     let _dayEditKey = null;         // key being edited in day-edit modal
+    let _deCanDelete = false;       // the day being edited has something saved to delete
     let _isWkndNoteModal = false;   // true when day-edit modal is open in weekend-note variant
     let _sessionAccSecs = 0;        // accumulated seconds from previous sessions today (for resume)
     let _sessionCheckoutTime = null;// timestamp of last End Session (for resume label)
@@ -87,7 +157,7 @@
       const current = cfg().dismissed ?? [];
       const merged  = pruneDismissed([...new Set([...current, ...legacy])]);
       saveCfg({ ...cfg(), dismissed: merged });
-      localStorage.removeItem(KEY.dismissed); // wh_dismissed no longer needed
+      Store.remove(KEY.dismissed); // wh_dismissed no longer needed
     }
     // Drop IDs whose date suffix is older than 14 days — keeps cfg blob small
     function pruneDismissed(ids) {
@@ -217,7 +287,12 @@
       if (!rem) return daily;
       const left = target - before;
       if (left <= 0) return 0;
-      return Math.max(0, left / rem);
+      // What's owed is spread over the days left, but one day never asks for more
+      // than a normal day plus the auto-stop buffer (9h + 2h by default). Without
+      // this, missed days landed on the last day of the week: "Recommended 27h 24m".
+      // Anything beyond the cap stays a shortfall (Penalties), not a target.
+      const cap = daily + (c.autoStopBuf ?? 2) * 3600;
+      return Math.min(cap, Math.max(0, left / rem));
     }
 
     // ── FORMAT UTILS ───────────────────────────────────
@@ -616,34 +691,34 @@
       return null;
     }
 
+    // End of the day, after End (approved 2026-11-13): the same "day done" moment
+    // as Done for the day, for everyone. A full day gets the drawn check; a short
+    // one a calm moon and how much is left to make up.
+    let _skipDaySummary = false;   // Done for the day already celebrated this End
     function showCheckoutModal(punchInStr, checkoutTime, workedSecs) {
-      const checkInStr  = typeof punchInStr === 'string' ? punchInStr : short(punchInStr);
-      const checkOutStr = short(checkoutTime);
-      el('coWorked').innerHTML    = durHtmlLong(workedSecs);
-      el('coTimeRange').innerHTML = `${timeHtml(checkInStr)} – ${timeHtml(checkOutStr)}`;
-      // Should've left note
-      const eff = effSecs();
-      const firstLoginLog = dayLog(todayKey());
-      const coShouldLeave    = el('coShouldLeave');
-      const coShouldLeaveWrap = el('coShouldLeaveWrap');
-      if (firstLoginLog?.loginDisplay && eff > 0) {
-        const firstLogin  = parse(firstLoginLog.loginDisplay) || checkoutTime;
-        const shouldLeave = new Date(firstLogin.getTime() + eff * 1000);
-        const diff    = workedSecs - eff;
-        const absDiff = Math.abs(diff);
-        if (diff >= 0) {
-          coShouldLeave.textContent = `Could've left ${dur(absDiff)} earlier — at ${short(shouldLeave)}.`;
-        } else {
-          coShouldLeave.textContent = `Left ${dur(absDiff)} short — target was ${short(shouldLeave)}.`;
-        }
-        coShouldLeaveWrap.style.display = 'block';
-      } else {
-        coShouldLeaveWrap.style.display = 'none';
-      }
+      if (_skipDaySummary) { _skipDaySummary = false; clearLogin(); return; }
+      const checkInStr = typeof punchInStr === 'string' ? punchInStr : short(punchInStr);
+      const eff = effSecs(), full = !(eff > 0) || workedSecs >= eff;
+      const hero = el('coHero');
+      hero.className = 'am-hero' + (full ? ' ok pop' : '');
+      hero.innerHTML = full
+        ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path class="am-check" d="M5 12.5l4.5 4.5L19 7.5"/></svg>'
+        : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>';
+      el('coTitle').textContent = full ? `That's your ${durWorked(workedSecs)}.` : `That's ${durWorked(workedSecs)} today.`;
+      el('coDesc').textContent = full ? "Every hour's in. The rest of the day is yours."
+        : `${durWorked(Math.ceil((eff - workedSecs) / 60) * 60)} short. It can be made up later this week.`; // rounded up, so worked + short = target
+      el('coStart').textContent = checkInStr;
+      el('coLeft').textContent = short(checkoutTime);
+      el('coWeek').textContent = durWorked(_weekWorkedSecs(workedSecs));
       const insight = tomorrowInsight();
-      el('coInsight').style.display = insight ? 'block' : 'none';
+      el('coInsight').style.display = insight ? '' : 'none';
       if (insight) el('coInsightText').textContent = insight;
       el('checkoutOverlay').classList.add('open');
+    }
+    // This week's worked time, with today counted as `todaySecs` (it may not be saved yet).
+    function _weekWorkedSecs(todaySecs) {
+      const tk = todayKey();
+      return week().reduce((t, d) => t + (d.key === tk ? todaySecs : Math.round((dayLog(d.key)?.hoursWorked || 0) * 3600)), 0);
     }
 
     function closeCheckoutModal() {
@@ -678,6 +753,7 @@
         SbSync.pushDay(_pk, _pe_snap).then(ok => { if (!ok) _markDirty(_pk); });
       }
       const punchInDisplay = ex.loginDisplay || short(loginDate); // first login of the day
+      _sessionEnding = true;
       saveDayLogAndSync(tk, { ...ex,
         loginTime:       `${loginDate.getHours()}:${loginDate.getMinutes()}:${loginDate.getSeconds()}`,
         loginDisplay:    ex.loginDisplay || short(loginDate),
@@ -687,13 +763,12 @@
         lastUpdated:     now.toISOString(),
         sessionTag:      ex.sessionTag || 'realtime'
       });
+      _sessionEnding = false;
       persist();
       // Daily Report only when Recommend Timings is ON — rec-off users see the
       // Daily Target Reached modal instead (which already has the key info).
       const firstLoginStr = ex.loginDisplay || short(loginDate);
-      if (cfg().recommendTimings !== false) {
-        showCheckoutModal(firstLoginStr, now, totalSecs);
-      }
+      showCheckoutModal(firstLoginStr, now, totalSecs);
       // Friday nudge — remind to check weekly report (once per week)
       const _dow = new Date().getDay();
       const _isFriday = _dow === 5 || (cfg().workDays >= 6 && _dow === 6);
@@ -908,6 +983,7 @@
         return `<div class="notif-item${n.cta ? ' notif-tappable' : ''}" id="ni-${safeId}"${tap}>
           <div class="notif-icon ${n.type}">${icon}</div>
           <div class="notif-body"><div class="notif-text">${_escHtml(n.text)}</div>${actions}</div>
+          <button type="button" class="notif-dismiss" data-dismiss="${safeId}" aria-label="Dismiss notification"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
         </div>`;
       }).join('');
     }
@@ -1022,6 +1098,15 @@
       el('notifScrim')?.classList.remove('open');
     }
     document.addEventListener('keydown', e => { if (e.key === 'Escape') closeNotifPanel(); });
+    el('notifCloseBtn')?.addEventListener('click', closeNotifPanel);
+    // One notification at a time with a mouse (touch has the swipe): the × on each
+    // card. Capture phase, because a tappable card has its own click handler on
+    // the card (csp-handlers.js) that would otherwise run first and open it.
+    el('notifList')?.addEventListener('click', e => {
+      const x = e.target.closest('.notif-dismiss'); if (!x) return;
+      e.stopPropagation();
+      _dismissNotifItem(x.closest('.notif-item'), x.dataset.dismiss, 1);
+    }, true);
 
     // ── TARGET HTML ────────────────────────────────────
     // Derive a human-readable login time from a stored day log (works even when
@@ -1424,6 +1509,28 @@
       if (wheelId === 'tpWheelH')       _tpHIdx  = idx;
       else if (wheelId === 'tpWheelM')  _tpMIdx  = idx;
       else if (wheelId === 'tpWheelAp') _tpApIdx = idx;
+      _tpLive();
+    }
+
+    // As the wheels turn: Set names the exact time, and one line says what it
+    // means: the leave time for a start, today's hours for an end.
+    function _tpLive() {
+      const set = el('tpSetBtn'), live = el('tpLive');
+      if (!set || !live) return;
+      if (_tpDurationMode) { set.textContent = 'Set'; live.textContent = ''; return; }
+      const toDate = (h, m, ap) => { const d = new Date();
+        d.setHours(_tp24Active ? h : ((h + 1) % 12) + (ap ? 12 : 0), m, 0, 0); return d; };
+      const d = toDate(_tpHIdx, _tpMIdx, _tpApIdx);
+      set.textContent = 'Set ' + short(d);
+      const startPick = _tpTabMode ? _tpActiveTab === 'login' : _tpTargetId === 'tc-r7m2';
+      if (startPick) {
+        const eff = effSecs();
+        live.innerHTML = eff > 0 ? `You can leave at <b>${short(new Date(d.getTime() + eff * 1000))}</b>` : '';
+      } else if (_tpTabMode && _tpActiveTab === 'logout') {
+        const s = toDate(_tpLoginState.h, _tpLoginState.m, _tpLoginState.ap);
+        let secs = Math.floor((d - s) / 1000); if (secs < 0) secs += 86400;
+        live.innerHTML = `That makes today <b>${durWorked(secs)}</b>`;
+      } else live.textContent = '';
     }
 
     // Reliable wheel scroller. Mouse/trackpad: intercept the wheel and move
@@ -1507,10 +1614,13 @@
       _tp24Active = _tpUse24();
       modal.classList.toggle('tp-24h', _tp24Active);
 
-      // Pre-fill from current field value
+      // Pre-fill from current field value. The login field is empty while a
+      // session runs (it only shows "Update Login Time"), so start the wheels on
+      // today's actual start rather than 12:00 AM.
       const inp = el(targetInputId);
       if (inp) {
-        const parsed = parse((inp.value || '').trim());
+        const typed = (inp.value || '').trim();
+        const parsed = parse(typed || (targetInputId === 'tc-r7m2' && loginDate ? _dayStartDisplay() : ''));
         if (parsed) {
           const h = parsed.getHours(), m = parsed.getMinutes();
           if (_tp24Active) { _tpHIdx = h; _tpApIdx = 0; }
@@ -1531,7 +1641,9 @@
         let top = _isLoginInput
           ? refRect.top - mH - GAP
           : refRect.bottom + GAP;
-        let left = refRect.left + refRect.width / 2 - mW / 2;
+        // Login field: a dropdown from the field's own left edge, not centred on
+        // the whole row (which put it in the middle of the card).
+        let left = _isLoginInput ? refRect.left : refRect.left + refRect.width / 2 - mW / 2;
         if (top < pad) top = refRect.bottom + GAP;          // fallback below if above clips
         if (top + mH > window.innerHeight - pad) top = Math.max(pad, refRect.top - mH - GAP);
         if (left + mW > window.innerWidth - pad) left = window.innerWidth - mW - pad;
@@ -1544,6 +1656,7 @@
       _tpPopulateWheel('tpWheelH',  _tpHoursArr(), _tpHIdx);
       _tpPopulateWheel('tpWheelM',  TP_MINS,  _tpMIdx);
       _tpPopulateWheel('tpWheelAp', TP_AMPM,  _tpApIdx);
+      _tpLive();
 
       setTimeout(() => document.addEventListener('mousedown', _tpOutsideClick), 10);
     }
@@ -1588,6 +1701,7 @@
       _tpPopulateWheel('tpWheelH',  _tpHoursArr(), _tpHIdx);
       _tpPopulateWheel('tpWheelM',  TP_MINS,  _tpMIdx);
       _tpPopulateWheel('tpWheelAp', TP_AMPM,  _tpApIdx);
+      _tpLive();
       modal.classList.add('open');
       setTimeout(() => document.addEventListener('mousedown', _tpOutsideClick), 10);
     }
@@ -1628,7 +1742,7 @@
       if (!modal) return;
       modal.classList.toggle('tp-24h', _tp24Active);
       const titleEl = el('tpModalTitle');
-      if (titleEl) titleEl.textContent = 'Log In';
+      if (titleEl) titleEl.textContent = 'Started at';
       const cancelBtn = el('tpCancelBtn');
       if (cancelBtn) cancelBtn.textContent = 'Cancel';
 
@@ -1647,6 +1761,7 @@
       _tpPopulateWheel('tpWheelH',  _tpHoursArr(), _tpHIdx);
       _tpPopulateWheel('tpWheelM',  TP_MINS,  _tpMIdx);
       _tpPopulateWheel('tpWheelAp', TP_AMPM,  _tpApIdx);
+      _tpLive();
       modal.classList.add('open', 'tab-mode');
       setTimeout(() => document.addEventListener('mousedown', _tpOutsideClick), 10);
     }
@@ -1668,11 +1783,12 @@
       el('tpTabLogin')?.classList.toggle('active',  tab === 'login');
       el('tpTabLogout')?.classList.toggle('active', tab === 'logout');
       const titleEl = el('tpModalTitle');
-      if (titleEl) titleEl.textContent = tab === 'login' ? 'Log In' : 'Log Out';
+      if (titleEl) titleEl.textContent = tab === 'login' ? 'Started at' : 'Left at';
       // Re-populate wheels
       _tpPopulateWheel('tpWheelH',  _tpHoursArr(), _tpHIdx);
       _tpPopulateWheel('tpWheelM',  TP_MINS,  _tpMIdx);
       _tpPopulateWheel('tpWheelAp', TP_AMPM,  _tpApIdx);
+      _tpLive();
     }
 
     // Removes the per-day target override, reverting to the weekly calc
@@ -1706,39 +1822,19 @@
     // extras), so switching Full Day and Half Day changes values, never positions.
     // Leave and Holiday have no target, so only Worked Duration shows.
     // `plan` previews a type picked but not yet confirmed.
+    // Today panel's one line: what the picked type means for today.
     function _tdBuildContent(plan = _tdCurrentPlan()) {
       const c = cfg(), daily = c.dailyH * 3600;
+      if (plan === 'leave' || plan === 'holiday') return `<b>No hours today.</b> Your week adjusts.`;
       const eff = plan === _tdCurrentPlan() ? effSecs()
         : plan === 'halfday' ? daily / 2
-        : plan === 'fullday' ? _weeklyEffSecs() : 0;
+        : _weeklyEffSecs();
       const worked = loginDate
         ? Math.max(0, Math.floor((new Date() - loginDate) / 1000)) + _sessionAccSecs
         : _sessionAccSecs;
-      const off = plan === 'leave' || plan === 'holiday';
-      const recOn = c.recommendTimings !== false;
-      const weekly = _weeklyEffSecs();
-      const surplus = recOn ? Math.max(0, daily - weekly) : 0;      // banked overtime
-      const overtimeReq = recOn ? Math.max(0, weekly - daily) : 0;
-      const onBreak = c.breakTime !== false && !loginDate && _sessionAccSecs > 0;
-      const customTarget = plan === _tdCurrentPlan() && (dayLog(todayKey()) || {}).todayTargetH != null && plan !== 'halfday';
-      const row = (label, val, cls) =>
-        `<div class="td-row"><span class="td-row-label">${label}</span><span class="td-row-val${cls ? ' ' + cls : ''}">${val}</span></div>`;
-
-      let html = '';
-      if (!off && eff > 0) html += row(recOn && !customTarget ? 'Recommended' : 'Target', dur(eff));
-      html += row('Worked Duration', durWorked(worked));
-      if (off) return html;
-
-      if (eff > 0) {
-        // Remaining is a plain number, 0 once overtime begins; overtime is its own row.
-        html += row(_tdProgressIcon(worked / eff) + 'Remaining', durWorked(Math.max(0, eff - worked)));
-      }
-      if (surplus > 60) html += row('Available Surplus', dur(surplus), 'success');
-      const ot = eff > 0 ? Math.max(0, worked - eff) : 0;
-      if (ot >= 60) html += row('Overtime', durWorked(ot), 'warn');
-      if (overtimeReq > 60) html += row('Overtime Required', dur(overtimeReq), 'warn');
-      if (onBreak) html += row('On Break', 'Yes');
-      return html;
+      if (eff > 0 && worked >= eff) return `<b>You're done for today.</b>`;
+      const leave = new Date(Date.now() + Math.max(0, eff - worked) * 1000);
+      return `You can leave at <b>${short(leave)}</b>`;
     }
 
     // The day-type button opens the Today panel, a centred modal over a blurred page.
@@ -1798,60 +1894,20 @@
         t.classList.toggle('active', t.dataset.plan === picked);
         t.setAttribute('aria-checked', String(t.dataset.plan === picked));
       });
-      const ok = el('tdConfirm'); if (ok) ok.disabled = picked === plan;
+      // The pill slides under the picked type.
+      const on = el('tdTypes')?.querySelector('.td-type.active'), pill = el('tdTypes')?.querySelector('.td-pill');
+      if (on && pill && on.offsetWidth) { pill.style.width = on.offsetWidth + 'px'; pill.style.transform = `translateX(${on.offsetLeft - 3}px)`; }
+      // The button names the action: "Keep Half Day" when nothing changed (it just closes).
+      const ok = el('tdConfirm');
+      if (ok) { ok.disabled = false; ok.textContent = (picked === plan ? 'Keep ' : 'Set ') + _TD_PLAN_LABELS[picked]; }
     }
 
     // Rebuild the numbers in the open panel; render()/renderEmptyState() only
     // refresh the card behind it.
     function _tdRefreshBody() {
-      if (el('tdPanel')?.classList.contains('open')) _tdSetKpis(_tdBuildContent(_tdPicked || undefined));
+      if (el('tdPanel')?.classList.contains('open')) el('tdKpis').innerHTML = _tdBuildContent(_tdPicked || undefined);
     }
 
-    // Swap the numbers and glide the card to its new height (rows hide on Leave
-    // and Holiday), so the modal resizes smoothly instead of jumping.
-    function _tdSetKpis(html) {
-      const box = el('tdKpis');
-      const from = box.offsetHeight;
-      box.style.height = '';
-      // Rows that stay (matched by label) are kept, so their values can roll;
-      // rows that come or go are swapped in.
-      const tpl = document.createElement('div');
-      tpl.innerHTML = html;
-      const label = r => r.querySelector('.td-row-label').textContent.trim();
-      const kept = new Map([...box.querySelectorAll('.td-row')].map(r => [label(r), r]));
-      const rolls = [], rings = [];
-      const rows = [...tpl.children].map(r => {
-        const k = kept.get(label(r));
-        if (!k) return r;
-        const v = k.querySelector('.td-row-val'), nv = r.querySelector('.td-row-val');
-        const ring = k.querySelector('.td-ring-fill'), nring = r.querySelector('.td-ring-fill');
-        if (ring && nring) {
-          // Fills in step with the numbers beside it: same duration and curve.
-          const ms = 900, dash = nring.style.strokeDasharray; // NumberFlow's own duration
-          rings.push(() => {
-            ring.style.transition = `stroke-dasharray ${ms}ms cubic-bezier(.65,0,.35,1)`;
-            getComputedStyle(ring).strokeDasharray; // register the transition before the change
-            ring.style.strokeDasharray = dash;
-          });
-        } else {
-          k.querySelector('.td-row-label').innerHTML = r.querySelector('.td-row-label').innerHTML;
-        }
-        v.className = nv.className;
-        rolls.push([v, nv.textContent]);
-        return k;
-      });
-      box.replaceChildren(...rows);
-      // Roll only once the rows are back in place: moving a node cancels its transitions.
-      rolls.forEach(([v, text]) => _odoSet(v, text));
-      rings.forEach(f => f());
-      const to = box.offsetHeight;
-      if (!from || from === to || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-      box.style.height = from + 'px';
-      void box.offsetHeight; // start from the old height
-      box.style.height = to + 'px';
-      clearTimeout(box._tdT);
-      box._tdT = setTimeout(() => { box.style.height = ''; }, 300);
-    }
 
     // Animated times ("8h 25m", "25m") use NumberFlow, a library built for
     // this: digits roll, the width eases, and a group keeps hours and minutes
@@ -1896,7 +1952,7 @@
     // Holiday go on to the Day Edit screen for a note before they apply.
     function _tdConfirm() {
       const type = _tdPicked, tk = todayKey(), ex = dayLog(tk) || {};
-      if (!type || type === _tdCurrentPlan()) return;
+      if (!type || type === _tdCurrentPlan()) { closeTodayDetails(); return; }
       closeTodayDetails();
       if (type === 'fullday' || type === 'halfday') {
         const u = { ...ex };
@@ -1965,12 +2021,8 @@
         const tk = todayKey(), ex = dayLog(tk) || {};
 
         if (loginDate) {
-          // Adjust accumulated time to keep total worked consistent
-          const now = new Date();
-          const oldWorked = Math.max(0, Math.floor((now - loginDate) / 1000)) + _sessionAccSecs;
-          loginDate = newLogin;
-          const newCurrentSecs = Math.max(0, Math.floor((now - loginDate) / 1000));
-          _sessionAccSecs = Math.max(0, oldWorked - newCurrentSecs);
+          // The corrected start moves the hours with it (see _moveDayStart).
+          _moveDayStart(newLogin);
           saveDayLog(tk, { ...ex,
             todayTargetH: diffSecs / 3600,
             loginTime: `${newLogin.getHours()}:${newLogin.getMinutes()}:${newLogin.getSeconds()}`,
@@ -2046,12 +2098,9 @@
       if (!parsed) { inp.style.borderColor = 'var(--destructive)'; return; }
       if (parsed > new Date()) { inp.style.borderColor = 'var(--destructive)'; return; }
       inp.style.borderColor = '';
-      // Adjust accumulated time: shift loginDate, keep total worked consistent
+      // The corrected start moves the hours with it (see _moveDayStart).
       const now = new Date();
-      const oldWorked = Math.max(0, Math.floor((now - loginDate) / 1000)) + _sessionAccSecs;
-      loginDate = parsed;
-      const newCurrentSecs = Math.max(0, Math.floor((now - loginDate) / 1000));
-      _sessionAccSecs = Math.max(0, oldWorked - newCurrentSecs);
+      _moveDayStart(parsed);
       // Save to day log with Edited tag
       const tk = todayKey(), ex = dayLog(tk) || {};
       saveDayLog(tk, { ...ex,
@@ -2238,7 +2287,8 @@
     }
 
     // ── TODAY CARD: PAIR TABS + PROGRESS BAR ──────────
-    let _rcCurrentPair = 'times';
+    // Clock (times) or Hours (progress): opens on Clock, remembers the last view.
+    let _rcCurrentPair = (() => { try { return localStorage.getItem('wh_rc_view') === 'progress' ? 'progress' : 'times'; } catch { return 'times'; } })();
     // Overtime overlay reveal — armed becomes true ~650ms after the target is first
     // reached, on its own timer rather than the 1s render tick, so the pause before
     // it appears feels deliberate. Resets whenever the day isn't in the done state.
@@ -2253,34 +2303,91 @@
 
     function _rcSwitchPair(pair, btn) {
       _rcCurrentPair = pair;
-      document.querySelectorAll('.rc-pair-tab').forEach(t => t.classList.remove('rc-pair-tab-active'));
-      if (btn) btn.classList.add('rc-pair-tab-active');
+      try { localStorage.setItem('wh_rc_view', pair); } catch {}
+      _rcMarkPairTab();
       const c = _rcCache;
       const _body = el('rcBody');
-      if (pair === 'times') {
-        if (c.notStarted) {
-          if (_body) { _body.classList.remove('ns-progress'); _body.classList.add('ns-times'); }
-        } else {
-          el('rcWorked').textContent = c.loginStr;
-          el('rcWorked').style.color = (c.rightClass === 'muted' || c.rightClass === 'warn') ? 'var(--muted-fg)' : 'var(--foreground)';
-        }
-        el('rcTarget').textContent = c.isDone ? c.rightStr : c.logoutStr;
-        el('rcTarget').style.color = c.isDone ? (c.rightClass === 'warn' ? 'var(--warning)' : 'var(--muted-fg)') : '';
-        _rcSetDesc(c.descRightTimes);
+      if (c.notStarted) {
+        if (_body) { _body.classList.toggle('ns-times', pair === 'times'); _body.classList.toggle('ns-progress', pair !== 'times'); }
+        return;
+      }
+      _rcPaintKpis(c);
+    }
+    function _rcMarkPairTab() {
+      document.querySelectorAll('.rc-pair-tab').forEach((t, i) =>
+        t.classList.toggle('rc-pair-tab-active', (i === 0) === (_rcCurrentPair === 'times')));
+    }
+    // The two numbers state facts only, one role each. Clock: Started | Now (live).
+    // Hours: Worked (live) | Target. Advice goes in the chip (during) or the banner.
+    function _rcPaintKpis(c) {
+      const live = '<i class="rc-live" aria-hidden="true"></i>';
+      el('rcWorked').style.color = 'var(--foreground)';
+      el('rcTarget').style.color = '';
+      if (_rcCurrentPair === 'times') {
+        el('rcWorked').textContent = c.loginStr;
+        el('rcWorkedCap').textContent = 'Started';
+        _stopAnim('rcTarget');
+        el('rcTarget').textContent = c.nowStr;
+        el('rcTargetCap').innerHTML = live + 'Now';
+        _rcSetDesc(c.chipTimes ? `<span class="rc-desc-chip pill">${c.chipTimes}</span>` : '');
       } else {
-        if (c.notStarted) {
-          if (_body) { _body.classList.remove('ns-times'); _body.classList.add('ns-progress'); }
-          el('rcWorked').textContent = c.elapsedStr;
-          el('rcWorked').style.color = 'var(--muted-fg)';
-        } else {
-          el('rcWorked').textContent = c.elapsedStr;
-          el('rcWorked').style.color = (c.rightClass === 'muted' || c.rightClass === 'warn') ? 'var(--muted-fg)' : 'var(--foreground)';
-        }
-        el('rcTarget').textContent = c.rightStr;
-        el('rcTarget').style.color = c.rightClass === 'ok' ? 'var(--success)' : c.rightClass === 'warn' ? 'var(--warning)' : c.rightClass === 'muted' ? 'var(--muted-fg)' : '';
-        _rcSetDesc(c.descRightProgress);
+        animateDuration('rcWorked', c.elapsedStr);
+        el('rcWorkedCap').innerHTML = live + 'Worked';
+        _stopAnim('rcTarget');
+        el('rcTarget').textContent = c.targetStr;
+        el('rcTargetCap').textContent = 'Target';
+        _rcSetDesc(c.chipProgress ? `<span class="rc-desc-chip pill">${c.chipProgress}</span>` : '');
       }
     }
+    // The done banner: after the target, with a coloured icon per moment. Dismissed
+    // (× or swipe) it stays away until the next moment (done → late → overtime → ended).
+    const _DONE_ICONS = {
+      check: '<circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/>',
+      clock: '<circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2M9 2h6"/>',
+      moon:  '<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>',
+    };
+    let _doneDismissed = null;  // `${day}|${moment}` the user swiped away
+    function _showDoneBanner(moment, tone, icon, title, sub) {
+      const b = el('doneBanner'); if (!b) return;
+      if (_doneDismissed === todayKey() + '|' + moment) { b.classList.remove('show'); _doneHint(false); return; }
+      const fresh = b.dataset.moment !== moment || !b.classList.contains('show');
+      b.dataset.moment = moment; b.dataset.tone = tone;
+      if (fresh) {
+        el('doneIcon').innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${_DONE_ICONS[icon]}</svg>`;
+        b.classList.remove('leaving'); b.style.transform = ''; b.style.opacity = '';
+      }
+      el('doneMsg').textContent = title;
+      el('doneSub').textContent = sub || '';
+      b.classList.add('show');
+      _doneHint(true);
+    }
+    function _hideDoneBanner() { el('doneBanner')?.classList.remove('show'); _doneHint(false); }
+    // "Swipe to dismiss" shows under the first banner on a touch screen, once per device.
+    function _doneHint(on) {
+      const h = el('doneHint'); if (!h) return;
+      let seen = false; try { seen = localStorage.getItem('wh_swipe_hint') === '1'; } catch {}
+      const show = on && !seen && window.matchMedia('(pointer: coarse)').matches;
+      h.classList.toggle('show', show);
+      if (show) { try { localStorage.setItem('wh_swipe_hint', '1'); } catch {} }
+      else if (!on) h.classList.remove('show');
+    }
+    function _dismissDoneBanner(dir) {
+      const b = el('doneBanner'); if (!b || !b.classList.contains('show')) return;
+      _doneDismissed = todayKey() + '|' + b.dataset.moment;
+      b.classList.add('leaving'); b.style.transform = `translateX(${(dir || 1) * 110}%)`;
+      el('doneHint')?.classList.remove('show');
+      setTimeout(() => { b.classList.remove('show', 'leaving'); b.style.transform = ''; }, 340);
+    }
+    el('doneDismiss')?.addEventListener('click', () => _dismissDoneBanner(1));
+    (() => {   // touch: swipe the banner sideways to dismiss
+      const b = el('doneBanner'); if (!b) return;
+      let x0 = null, dx = 0;
+      b.addEventListener('pointerdown', e => { if (e.pointerType === 'mouse' || e.target.closest('.ib-x')) return; x0 = e.clientX; dx = 0; b.classList.add('swiping'); });
+      b.addEventListener('pointermove', e => { if (x0 === null) return; dx = e.clientX - x0; b.style.transform = `translateX(${dx}px)`; b.style.opacity = String(1 - Math.min(Math.abs(dx) / b.offsetWidth, .8)); });
+      const end = () => { if (x0 === null) return; x0 = null; b.classList.remove('swiping');
+        if (Math.abs(dx) > b.offsetWidth * .3) _dismissDoneBanner(Math.sign(dx)); else { b.style.transform = ''; b.style.opacity = ''; } };
+      b.addEventListener('pointerup', end); b.addEventListener('pointercancel', end);
+    })();
 
     function _rcKpiTap(side, event) {
       if (side === 'left') {
@@ -2380,6 +2487,7 @@
         // _rcShowPastMode(false) call below ever runs.
         _rcShowPastMode(false);
         selectedDayKey = todayKey();
+        _hideDoneBanner();
         renderWeekendState(todayKey(), 'weekend');
         _updateDayNavBtns();
         return;
@@ -2387,6 +2495,11 @@
       if (_isPlannedDay) {
         _rcShowPastMode(false); // same past-day-class leak as the weekend branch above
         selectedDayKey = todayKey();
+        // A Half Day that was worked and ended still gets its "Done for today".
+        const _pl = dayLog(todayKey()) || {};
+        if (_pl.checkoutDisplay && _pl.hoursWorked) _showDoneBanner('ended', 'violet', 'moon', 'Done for today',
+          `${durWorked(Math.round(_pl.hoursWorked * 3600))} · left at ${_checkoutDisplayFromLog(_pl)} · see you tomorrow`);
+        else _hideDoneBanner();
         _setShiftCtaVisible(_todayOv === 'halfday');
         el('resultCard').style.display = '';
         renderWeekendState(todayKey(), _todayOv);
@@ -2419,7 +2532,9 @@
         el('rcToday').innerHTML = _pastDayKpiHtml(_loginStr, _logoutStr, endedSecs, eff > 0 ? eff : null);
         el('stayHint').style.display = 'none';
         el('otBanner').classList.remove('show');
-        el('doneBanner').classList.remove('show');
+        el('rcKpiGroup')?.classList.remove('rc-finished');
+        if (_logE.checkoutDisplay) _showDoneBanner('ended', 'violet', 'moon', 'Done for today', `${durWorked(endedSecs)} · left at ${_logoutStr} · see you tomorrow`);
+        else _hideDoneBanner();
         // Keep the auto-stop banner up — it's the only thing explaining why the day
         // ended on its own. (Previously cleared unconditionally here, which meant the
         // banner init/doAutoStop had just shown was wiped on the very next render.)
@@ -2448,11 +2563,12 @@
       el('rcToday').innerHTML = ''; el('rcToday').style.display = 'none';
       el('stayHint').style.display = 'none';
       el('otBanner').classList.remove('show');
-      el('doneBanner').classList.remove('show');
+      _hideDoneBanner();
       el('autostopBanner').classList.remove('show');
     }
 
     function _currentPairIs(pair) { return _rcCurrentPair === pair; }
+    _rcMarkPairTab();   // the remembered view's tab
 
     // ── WEEKEND STATE ─────────────────────────────────
     function isWeekend() {
@@ -3330,6 +3446,7 @@
       const tk = todayKey(), ex = dayLog(tk) || {};
       const sessionSecs = Math.floor((now - loginDate) / 1000);
       const worked = _sessionAccSecs + sessionSecs;
+      _sessionEnding = true;
       saveDayLogAndSync(tk, { ...ex,
         loginTime:    ex.loginTime || `${loginDate.getHours()}:${loginDate.getMinutes()}:${loginDate.getSeconds()}`,
         loginDisplay: ex.loginDisplay || short(loginDate),
@@ -3339,6 +3456,7 @@
         lastUpdated:  now.toISOString(),
         sessionTag:   'autostopped'
       });
+      _sessionEnding = false;
       // The session is genuinely over, so settle the bookkeeping the same way
       // endSession() does: park the full total in _sessionAccSecs and drop loginDate.
       // Without this a later render() would add elapsed-since-login on top of the
@@ -3415,6 +3533,12 @@
       elem.addEventListener('animationend', () => elem.classList.remove('p9-popping'), { once: true });
     }
 
+    // Stop a running count-up so plain text written next isn't overwritten by it.
+    function _stopAnim(elId) {
+      if (_animState[elId]) { cancelAnimationFrame(_animState[elId]); _animState[elId] = 0; }
+      const e = el(elId); if (e) delete e.dataset.animVal;
+    }
+
     // Animate the big hour display (parses "Xh YYm" format)
     function animateDuration(elId, newText) {
       const elem = el(elId);
@@ -3451,6 +3575,31 @@
       return new Date(loginDate.getTime() + (target - _sessionAccSecs) * 1000);
     }
     // Start of the day as shown: the first start, not the latest resume.
+    // Today's start time corrected while a session runs (Update Entry, or the
+    // Log In / Log Out picker). The hours move with it: an hour earlier is an hour
+    // more worked, and the bar, leave time and alerts follow. These paths used to
+    // keep the hours fixed, so a corrected start changed nothing on screen.
+    // Before any pause the day's start is loginDate itself. After one, it's the
+    // logged first start, and earlier segments live in _sessionAccSecs, so the
+    // difference goes there (and only moves loginDate if it runs past them).
+    function _moveDayStart(newStart) {
+      if (!loginDate || !newStart || isNaN(newStart)) return;
+      const now = Date.now();
+      if (_sessionAccSecs === 0) {
+        loginDate = new Date(Math.min(+newStart, now));
+      } else {
+        const pts = String(dayLog(todayKey())?.loginTime || '').split(':').map(Number);
+        let oldStart = loginDate;
+        if (pts.length >= 2 && !isNaN(pts[0]) && !isNaN(pts[1])) { oldStart = new Date(); oldStart.setHours(pts[0], pts[1], pts[2] || 0, 0); }
+        const acc = _sessionAccSecs + Math.round((oldStart - newStart) / 1000); // + = started earlier
+        if (acc >= 0) _sessionAccSecs = acc;
+        else { _sessionAccSecs = 0; loginDate = new Date(Math.min(loginDate.getTime() - acc * 1000, now)); }
+      }
+      wasDone = false; notifSent = false;
+      persistSession();
+      scheduleNotifications(loginDate.toISOString());
+    }
+
     function _dayStartDisplay() {
       const ex = dayLog(todayKey());
       return _sessionAccSecs > 0 && ex?.loginDisplay ? ex.loginDisplay : short(loginDate);
@@ -3540,7 +3689,13 @@
       if (closed) { _syncNow(); renderHistory(); renderDaySelector(); }
     }
 
+    // True only while End or auto-stop saves the finished day. The save syncs at
+    // once, and the sync's first step rewrites today as still running (loginDate
+    // is still set at that moment), which stripped the end time and the
+    // auto-stopped flag the instant they were saved (bug in 1.2.29 and earlier).
+    let _sessionEnding = false;
     function _flushLiveLog() {
+      if (_sessionEnding) return;
       if (loginDate && !_dropStaleLive()) _writeLiveLog(loginDate, Math.max(0, Math.floor((Date.now() - loginDate) / 1000)) + _sessionAccSecs);
     }
 
@@ -3591,8 +3746,10 @@
         _barClass   = 'running';
         // Time tab keeps the countdown chip; Progress tab shows the leave-by clock time
         // instead, since the leave time is already the Time tab's own right KPI.
-        _descRightTimes    = '<span class="rc-desc-chip">' + _rcRemainingFmt(rem) + ' remaining</span>';
-        _descRightProgress = '<span class="rc-desc-chip">leave by ' + _logoutStr + '</span>';
+        _descRightTimes    = 'You can leave at ' + _logoutStr;   // Clock view's chip
+        // A countdown rounds up (4h 2m 50s left reads "4h 3m"), so Worked + to go
+        // adds up to the Target shown next to it.
+        _descRightProgress = _rcRemainingFmt(rem >= 60 ? Math.ceil(rem / 60) * 60 : rem) + ' to go';     // Hours view's chip
         _otOverlayReset();
       } else if (isDone) {
         const ot = worked - eff;
@@ -3605,8 +3762,7 @@
         // No "Done for today" chip here — the doneBanner below the input ("You're
         // done. Head out!") already says that; this row only earns its keep once
         // there's a number worth reporting.
-        _descRightTimes = _descRightProgress =
-          ot > 60 ? '<span class="rc-desc-chip warn">' + _rcRemainingFmt(ot) + ' overtime</span>' : '';
+        _descRightTimes = _descRightProgress = '';   // the banner takes over after the target
         // Delay the overlay's first appearance ~650ms so it reads as a deliberate
         // reveal rather than snapping in the instant the target's crossed.
         if (!_otOverlayArmed && !_otOverlayTimer) {
@@ -3631,26 +3787,16 @@
         rightStr: _rightStr, rightClass: _rightClass, pct: eff > 0 ? worked / eff : 1,
         barClass: _barClass, descLeft: _loginStr + ' → ' + _logoutStr,
         descRightTimes: _descRightTimes, descRightProgress: _descRightProgress,
+        nowStr: short(now), targetStr: eff > 0 ? durWorked(eff) : '—',
+        chipTimes: _descRightTimes, chipProgress: _descRightProgress,
         isDone: isDone };
 
       // Hover tooltip on the right KPI — Remaining time, same on both Time/Progress tabs
       const _remSecs = eff > 0 ? Math.max(0, eff - worked) : 0;
       el('rcTarget').title = eff > 0 ? 'Remaining ' + (worked >= eff ? '0m' : dur(_remSecs)) : '';
 
-      if (_currentPairIs('times')) {
-        el('rcWorked').textContent = _loginStr;
-        el('rcWorked').style.color = isDone ? 'var(--muted-fg)' : 'var(--foreground)';
-        // Once the target's hit, "Leave by" is stale info (that time already passed) —
-        // show overtime worked instead, same as the Progress tab's right KPI.
-        el('rcTarget').textContent = isDone ? _rightStr : _logoutStr;
-        el('rcTarget').style.color = isDone ? (_rightClass === 'warn' ? 'var(--warning)' : 'var(--muted-fg)') : '';
-      } else {
-        animateDuration('rcWorked', _elapsedStr);
-        el('rcWorked').style.color = isDone ? 'var(--muted-fg)' : 'var(--foreground)';
-        el('rcTarget').style.color = _rightClass === 'warn' ? 'var(--warning)' : _rightClass === 'muted' ? 'var(--muted-fg)' : '';
-        if (eff > 0) animateDuration('rcTarget', _rightStr); else el('rcTarget').textContent = _rightStr;
-      }
-      _rcSetDesc(_currentPairIs('times') ? _descRightTimes : _descRightProgress);
+      _rcPaintKpis(_rcCache);
+      el('rcKpiGroup')?.classList.toggle('rc-finished', isDone && eff > 0);
 
       _rcSetProgress(eff > 0 ? worked / eff : 1, _barClass, _otFrac);
       // "Leave at" badge: prefer personal Out Time target if set
@@ -3666,18 +3812,18 @@
       else { el('stayHint').style.display = 'none'; }
 
       if (eff === 0) {
-        el('doneMsg').textContent = 'Weekly target already met — bonus hours!';
-        el('doneBanner').classList.add('show');
+        _showDoneBanner('week', 'success', 'check', 'Weekly target already met', 'Anything today is extra.');
       } else if (isDone) {
-        const ago = Math.floor((now - leaveDate) / 1000);
-        el('doneMsg').textContent = ago > 60 ? `Should've left at ${short(leaveDate)}` : "You're done. Head out!";
-        el('doneBanner').classList.add('show');
+        const ot = worked - eff;
+        if (ot <= 60) _showDoneBanner('done', 'success', 'check', "You're done. Head out!", `${durWorked(worked)} today · nicely on time`);
+        else if (ot < 15 * 60) _showDoneBanner('late', 'warning', 'clock', `Should've left at ${short(leaveDate)}`, 'Head out when you can');
+        else _showDoneBanner('over', 'warning', 'clock', `${_rcRemainingFmt(ot)} overtime`, `Should've left at ${short(leaveDate)}`);
         notify(eff);
         // Switch button to End once target is reached (only when still tracking)
         const _cbtn = el('calcBtn');
         if (_cbtn && _cbtn.dataset.state === 'running') setCalcBtnState('done');
       } else {
-        el('doneBanner').classList.remove('show');
+        _hideDoneBanner();
       }
 
       // Split button stays in its current running/ended state — End Session is in the dropdown
@@ -3688,15 +3834,17 @@
         _dtrMarkSeen(todayKey());
         // When Recommend Timings is OFF, pause the session and show the target modal.
         // The counter stops — gap while modal is open is not counted as work time.
+        // Done for the day, once, for everyone. With Recommend Timings off the
+        // session pauses at the target (as before); otherwise it keeps running.
+        const _workedNow = worked;
         if (cfg().recommendTimings === false) {
           if (ticker) { clearInterval(ticker); ticker = null; }
           // Freeze accumulated seconds at the exact moment target was reached
           _sessionAccSecs += Math.floor((now - loginDate) / 1000);
           loginDate = null; // session paused
           persistSession(); // clears the stored session so a reload can't resurrect the pre-pause loginDate
-          el('dailyTargetHours').textContent = dur(_sessionAccSecs);
-          el('dailyTargetReachedOverlay').classList.add('open');
         }
+        _openDayDone(_workedNow);
       } else if (!isDone) wasDone = false;
 
       // Saved every 30s, not every second (the screen still ticks from
@@ -4350,7 +4498,7 @@
         if (el('rcTargetLabel')) swapText('rcTargetLabel', 'Remaining');
         el('stayHint').style.display = 'none';
         el('otBanner').classList.remove('show');
-        el('doneBanner').classList.remove('show');
+        _hideDoneBanner();
         el('autostopBanner')?.classList.remove('show');
       }
       // holiday / leave / halfday are routed through weekendView by selectDay — dead path
@@ -4370,7 +4518,7 @@
         el('rcKpiGroup').style.display = 'none';
         _setTodayDateChip();
         el('stayHint').style.display = 'none';
-        el('otBanner').classList.remove('show'); el('doneBanner').classList.remove('show');
+        el('otBanner').classList.remove('show'); _hideDoneBanner();
         const _emptyMsg = isFutureDay ? '' : `<div style="display:flex;flex-direction:column;align-items:center;gap:14px;padding:8px 0">
           <span style="font-size:13px;color:var(--muted-fg)">No logs recorded</span>
           <button data-on-click="hf5017a9390" style="display:inline-flex;align-items:center;gap:6px;padding:7px 16px;border-radius:8px;border:1.5px solid var(--border);background:var(--muted);color:var(--foreground);font-family:var(--font);font-size:13px;font-weight:500;cursor:pointer;transition:background .15s"><svg width="13" height="13" viewBox="0 0 13 13" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M6.5 1v11M1 6.5h11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>Add Entry</button>
@@ -4386,7 +4534,7 @@
       swapText('rcElapsedLabel', '', { color: '' });
       const worked = Math.round(log.hoursWorked * 3600);
       el('otBanner').classList.remove('show');
-      el('doneBanner').classList.remove('show');
+      _hideDoneBanner();
       _setTodayDateChip();
       el('stayHint').style.display = 'none';
       const loginDisp = log.loginDisplay || _loginDisplayFromLog(log);
@@ -4769,7 +4917,21 @@
       const p = _pendingLoginP;
       el('outsideShiftOverlay')?.classList.remove('open');
       _pendingLoginP = null;
-      if (p) _startSession(p);
+      if (p) _startOrContinue(p);
+    }
+    // Start, unless today already has hours from an ended session: then ask to
+    // continue it, so a new start never wipes them. Override (outside your shift)
+    // used to skip this and start from zero (bug in 1.2.29 and earlier).
+    function _startOrContinue(p) {
+      const todayLog = dayLog(todayKey());
+      const existingSecs = _sessionAccSecs > 0
+        ? _sessionAccSecs
+        : (todayLog?.hoursWorked ? Math.round(todayLog.hoursWorked * 3600) : 0);
+      if (existingSecs > 0 && !loginDate) {
+        openContinueWorkingModal(p, existingSecs);
+        return;
+      }
+      _startSession(p);
     }
     function calculate() {
       const raw = el('tc-r7m2').value.trim();
@@ -4785,25 +4947,19 @@
       const isSmallCorrection = loginDate && Math.abs(p - loginDate) <= 3600000;
       if (isOutsideShift(p) && !isSmallCorrection) { showOutsideShiftModal(p); return; }
 
-      // If hours already exist for today (ended session), show "Continue?" modal
-      const todayLog = dayLog(todayKey());
-      const existingSecs = _sessionAccSecs > 0
-        ? _sessionAccSecs
-        : (todayLog?.hoursWorked ? Math.round(todayLog.hoursWorked * 3600) : 0);
-      if (existingSecs > 0 && !loginDate) {
-        openContinueWorkingModal(p, existingSecs);
-        return;
-      }
-      _startSession(p);
+      _startOrContinue(p);
     }
 
     // ── CONTINUE WORKING MODAL ────────────────────────
     let _cwPendingLogin = null;
     function openContinueWorkingModal(pendingLogin, existingSecs) {
       _cwPendingLogin = pendingLogin;
-      el('continueWorkingHours').textContent = dur(existingSecs);
-      el('continueWorkingDesc').textContent =
-        `You've already logged ${dur(existingSecs)} today. New hours will be added on top.`;
+      const left = Math.max(0, effSecs() - existingSecs);
+      el('cwDone').textContent = `${durWorked(existingSecs)} done`;
+      el('cwLeft').textContent = left > 0 ? `${durWorked(Math.ceil(left / 60) * 60)} to go` : 'Target already in';
+      el('cwBarDone').style.flex = String(Math.max(1, existingSecs));
+      el('cwBarLeft').style.flex = String(left);
+      el('cwBarLeft').style.display = left > 0 ? '' : 'none';
       el('continueWorkingOverlay').classList.add('open');
     }
 
@@ -4866,7 +5022,16 @@
       });
     }
 
+    // Filling the form calls the same switches the user taps, and those auto-save.
+    // Saving halfway through wrote back old form values: after onboarding, 6 work
+    // days at 10h were saved as 50h a week instead of 60h, and opening Settings
+    // could undo a change synced from another device (bug in 1.2.29 and earlier).
+    let _populatingSettings = false;
     function populateSettings() {
+      _populatingSettings = true;
+      try { _populateSettingsForm(); } finally { _populatingSettings = false; }
+    }
+    function _populateSettingsForm() {
       const c = cfg();
       initCollapsibleSettings();
       el('inpDisplay').value   = c.name || '';
@@ -5056,6 +5221,7 @@
       };
 
       log('//////Sync Diagnostic//////');
+      if (DEV_SAMPLE) { log('❌ Sample Data is on, so sync is paused. Turn it off to run Sync Check.'); return; }
 
       // 1. Session check
       try {
@@ -5526,6 +5692,7 @@
     }
 
     function autoSaveSettings() {
+      if (_populatingSettings) return;   // the form is being filled from settings, nothing to save
       const _dailyHVal = parseInt(el('inpDailyH').value, 10) || 0;
       const _dailyMVal = parseInt(el('inpDailyM').value, 10) || 0;
       const daily = _dailyHVal + (_dailyMVal / 60);
@@ -6566,7 +6733,9 @@ Kind regards,
       document.querySelector('#emailPreviewPane .email-tone').hidden = bug;
       el('emailCustomiseBtn').hidden = bug;
       el('emailModalOverlay').classList.toggle('is-bug', bug);
-      el('emailModalOverlay').querySelector('.email-pv-scroll').scrollTop = 0;
+      // Not via #emailModalOverlay: after a dispute draft its content lives in the
+      // Update Entry sheet, and a null here stopped Draft Email working twice.
+      document.querySelector('.email-pv-scroll').scrollTop = 0;
       el('emailCustomiseBtn').closest('.email-actions').classList.toggle('single', bug);
       // The per-email reason only fits shortfalls; a dispute picked its reason already.
       const shortfall = p.type === 'daily' || p.type === 'weekly';
@@ -6610,7 +6779,9 @@ Kind regards,
       to.hidden = false;
       to.classList.add('de-abs');
       to.style.transform = `translateX(${dir * 100}%)`;
-      const h1 = to.offsetHeight;
+      // The desktop side sheet is always full height: only slide, never resize,
+      // or it shrank to the email page's height and snapped back when done.
+      const h1 = document.body.classList.contains('rail-on') ? h0 : to.offsetHeight;
       dlg.style.height = h0 + 'px';
       dlg.classList.add('de-sliding');
       void dlg.offsetHeight;                       // start from where things are now
@@ -6654,13 +6825,44 @@ Kind regards,
       const e = _wnEntry(version || APP_VERSION) || (window.WHATS_NEW || [])[0];
       if (!e) return;
       el('wnVersion').textContent = 'Version ' + e.version;
-      const section = (title, items) => items?.length
-        ? `<div class="wn-section"><div class="email-label">${title}</div><ul class="wn-list">${
-            items.map(t => `<li>${_escHtml(t)}</li>`).join('')}</ul></div>` : '';
-      el('wnBody').innerHTML = section('Improvements', e.improvements) + section('Bug Fixes', e.fixes);
+      el('wnBody').innerHTML = wnBodyHtml(e);
+      el('wnBody').querySelector('.wn-fixes-head')?.addEventListener('click', ev => {
+        const box = ev.currentTarget.parentElement, open = box.classList.toggle('open');
+        ev.currentTarget.setAttribute('aria-expanded', String(open));
+      });
       el('whatsNewOverlay').classList.add('open');
     }
     function closeWhatsNew() { el('whatsNewOverlay').classList.remove('open'); }
+
+    // What's New body. An improvement is either a plain line (older releases) or
+    // { icon, title, line }: an icon bubble, a short title and one line, as in
+    // Apple's "What's new". Fixes fold into one row ("3 fixes").
+    const WN_ICONS = {
+      home:     ['--violet',  '<path d="M3 10.5 12 3l9 7.5V21H3z"/><path d="M9 21v-6h6v6"/>'],
+      bell:     ['--blue',    '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.9 1.9 0 0 0 3.4 0"/>'],
+      clock:    ['--success', '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>'],
+      sparkle:  ['--orchid',  '<path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/>'],
+      calendar: ['--teal',    '<rect x="3" y="4" width="18" height="17" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>'],
+      shield:   ['--blue',    '<path d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6z"/>'],
+      palette:  ['--orchid',  '<circle cx="13.5" cy="6.5" r="1.5"/><circle cx="17.5" cy="10.5" r="1.5"/><circle cx="8.5" cy="7.5" r="1.5"/><path d="M12 22a10 10 0 1 1 10-10c0 3-3 3-5 3h-2a2 2 0 0 0-1 3.7A2 2 0 0 1 12 22z"/>'],
+    };
+    function wnBodyHtml(e) {
+      const svg = d => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
+      const feat = item => {
+        const o = typeof item === 'string' ? { line: item } : item;
+        const [tone, path] = WN_ICONS[o.icon] || WN_ICONS.sparkle;
+        const title = o.title ? `<div class="wn-ft">${_escHtml(o.title)}</div>` : '';
+        const lineStyle = o.title ? '' : ' style="color:var(--foreground);margin:0"';
+        return `<div class="wn-feat"><span class="wn-fi" style="--wn-c:var(${tone})">${svg(path)}</span><div style="min-width:0">${title}<div class="wn-fs"${lineStyle}>${_escHtml(o.line)}</div></div></div>`;
+      };
+      const fixes = e.fixes || [];
+      const feats = e.improvements?.length ? `<div class="wn-feats">${e.improvements.map(feat).join('')}</div>` : '';
+      const fixBox = fixes.length
+        ? `<div class="wn-fixes"><button type="button" class="wn-fixes-head" aria-expanded="false"><span>${fixes.length} ${fixes.length === 1 ? 'fix' : 'fixes'}</span>${svg('<path d="m6 9 6 6 6-6"/>')}</button>`
+          + `<div class="wn-fixes-body"><ul>${fixes.map(t => `<li>${_escHtml(t)}</li>`).join('')}</ul></div></div>`
+        : '';
+      return feats + fixBox;
+    }
 
     // After an update only: a brand-new user (nothing set up yet) gets the
     // version marked as seen instead. If another modal is up, it waits for the
@@ -6816,23 +7018,22 @@ Kind regards,
       // Compute how much has been worked so far
       let workedSecs = _sessionAccSecs;
       if (loginDate) workedSecs += Math.max(0, Math.floor((new Date() - loginDate) / 1000));
-      const remSecs = Math.max(0, dailySecs - workedSecs);
+      // The target is the same one the Today card shows (this week's spread),
+      // and "early" rounds up like the card's countdown, so it matches the chip.
+      const targetSecs = effSecs() || dailySecs;
+      const remSecs = Math.max(0, targetSecs - workedSecs);
+      const remShown = Math.ceil(remSecs / 60) * 60;   // rounded up, like the card's countdown
       const isHalfDay = workedSecs <= halfSecs;
       const desc = el('endSessionDesc');
       const note = el('endSessionHalfDayNote');
       const confirmBtn = el('endSessionConfirmBtn');
-      if (remSecs > 0) {
-        desc.textContent = `You still have ${dur(remSecs)} remaining until your daily target.`;
-      } else {
-        desc.textContent = "You've hit your daily target. Great work today!";
-      }
-      if (isHalfDay && workedSecs > 0) {
-        note.style.display = '';
-        confirmBtn.textContent = 'End Session';
-      } else {
-        note.style.display = 'none';
-        confirmBtn.textContent = 'End Session';
-      }
+      // Only ask when leaving early. With the target in, End just ends the day.
+      if (remSecs <= 0) { confirmEndSession(); return; }
+      const half = isHalfDay && workedSecs > 0;
+      el('endSessionTitle').textContent = half ? 'Leave before halfway?' : `Leave ${durWorked(remShown)} early?`;
+      desc.textContent = `You've worked ${durWorked(workedSecs)} of your ${durWorked(targetSecs)}.` + (half ? '' : ' The rest can be made up later this week.');
+      note.style.display = half ? '' : 'none';
+      confirmBtn.textContent = 'End for today';
       el('endSessionOverlay').classList.add('open');
     }
 
@@ -6974,6 +7175,9 @@ Kind regards,
       // Raise Dispute only makes sense for a day that has happened.
       const _canDispute = !wkndNote && (key || todayKey()) <= todayKey();
       el('deTabs').hidden = !_canDispute;
+      // Delete only when there's something saved: a missing entry has nothing to remove.
+      _deCanDelete = !!(log && (log.loginTime || log.checkoutTime || log.hoursWorked || log.override
+        || log.futurePlan || log.note || log.futureReason));
       _dePageReset();
       _deTab('edit');
       _deChip('missed');
@@ -7207,15 +7411,19 @@ Kind regards,
     // Swap Store.* methods for IndexedDB/cloud in future.
     // ════════════════════════════════════════════════════
     const Store = {
+      // Sample Data (Developer Mode) swaps saved data for an in-memory copy; see DEV_SAMPLE.
       get(key, fb=null) {
+        if (_inSandbox(key)) { const r=_sandbox.get(key); return r?JSON.parse(r):fb; }
         try { const r=localStorage.getItem(key); return r?JSON.parse(r):fb; } catch { return fb; }
       },
       set(key, val) {
+        if (_inSandbox(key)) { _sandbox.set(key, JSON.stringify(val)); return true; }
         try { localStorage.setItem(key, JSON.stringify(val)); return true; }
         catch(e) { console.warn('[WH] Store.set failed:',key,e); return false; }
       },
-      remove(key) { try { localStorage.removeItem(key); } catch {} },
+      remove(key) { if (_inSandbox(key)) { _sandbox.delete(key); return; } try { localStorage.removeItem(key); } catch {} },
       keys(prefix) {
+        if (_inSandbox(prefix)) return [..._sandbox.keys()].filter(k=>k.startsWith(prefix));
         try { return Object.keys(localStorage).filter(k=>k.startsWith(prefix)); } catch { return []; }
       },
 
@@ -7337,6 +7545,17 @@ Kind regards,
     // ── SUPABASE SYNC ─────────────────────────────────────────────────────────
     // Bridges localStorage ↔ work_logs table. All methods are fire-and-forget —
     // they never block the UI. Silently no-ops when the user is not signed in.
+    // Sample Data: start the sandbox from a copy of the real settings (so targets,
+    // shift and name match this account) and the generated weeks + today's session.
+    if (_sandbox) {
+      for (const k of [KEY.cfg, KEY.meta, KEY.dismissed]) {
+        try { const v = localStorage.getItem(k); if (v != null) _sandbox.set(k, v); } catch {}
+      }
+      const sample = devSampleData({ ...CFG_DEF, ...(Store.getCfg() || {}) }, new Date(), short);
+      for (const [dk, log] of Object.entries(sample.days)) _sandbox.set(KEY.day + dk, JSON.stringify(log));
+      if (sample.session) _sandbox.set(KEY.session, JSON.stringify(sample.session));
+    }
+
     const SbSync = {
       // Valid override values in the DB CHECK constraint
       _OVERRIDES: new Set(['leave', 'holiday', 'wfh', 'halfday']),
@@ -7416,6 +7635,7 @@ Kind regards,
 
       // Push a single day. Returns true on success, false on failure.
       async pushDay(dk, entry) {
+        if (DEV_SAMPLE) return true; // Sample Data: nothing leaves this tab
         try {
           const uid = await this._uid();
           if (!uid) { this._lastErr = 'No active session'; return false; }
@@ -7436,6 +7656,7 @@ Kind regards,
 
       // Push all localStorage days — called after a bulk import
       async pushAll() {
+        if (DEV_SAMPLE) return;
         try {
           const uid = await this._uid();
           if (!uid) return;
@@ -7465,6 +7686,7 @@ Kind regards,
       // just before a slow commit isn't missed; rows seen twice are skipped as
       // identical. It's per account and starts with wh_, so sign-out wipes it.
       async pullAll(opts) {
+        if (DEV_SAMPLE) return false;
         try {
           const uid = await this._uid();
           if (!uid) return;
@@ -7548,6 +7770,7 @@ Kind regards,
 
       // Immediate upsert of the whole config blob under key='config'. Returns true/false.
       async pushSettings(cfgObj) {
+        if (DEV_SAMPLE) return true;
         try {
           const uid = await this._uid();
           if (!uid) { this._lastErr = 'No active session'; return false; }
@@ -7562,6 +7785,7 @@ Kind regards,
 
       // Fetch the stored config blob (or null if none yet)
       async pullSettings() {
+        if (DEV_SAMPLE) return null;
         try {
           const uid = await this._uid();
           if (!uid) return null;
@@ -7986,6 +8210,7 @@ Kind regards,
     // + free-tier bandwidth). Incoming data is piped straight into local state.
     let _sbRealtimeCh = null;
     function initRealtimeSync() {
+      if (DEV_SAMPLE) return; // Sample Data: no live updates from the real account
       SbSync._uid().then(uid => {
         if (!uid || _sbRealtimeCh) return;
         _sbRealtimeCh = window._sbClient
@@ -8311,11 +8536,8 @@ Kind regards,
       } else if (s && !e && isToday) {
         // Today — end time is optional (session may not be done yet)
         if (loginDate) {
-          // Session active — update login time, preserve accumulated work
-          const oldWorked = Math.max(0, Math.floor((new Date() - loginDate) / 1000)) + _sessionAccSecs;
-          loginDate = s;
-          const newCurrentSecs = Math.max(0, Math.floor((new Date() - loginDate) / 1000));
-          _sessionAccSecs = Math.max(0, oldWorked - newCurrentSecs);
+          // Session active: the corrected start moves the hours with it.
+          _moveDayStart(s);
           el('shiftActiveLabel').textContent = `Started at ${short(s)}`;
           persistSession();
         } else {
@@ -8532,22 +8754,49 @@ Kind regards,
     function openAutoStopRecovery(dayKey) {
       _asrDayKey = dayKey || null;
       const log = dayKey ? (dayLog(dayKey) || {}) : null;
-      const prefill = (log && log.checkoutDisplay) ? log.checkoutDisplay : '10:00 PM';
-      const inp = el('asrEndTime');
-      inp.value = prefill;
-      _asrOriginal = prefill;
+      const stopStr = (log && log.checkoutDisplay) ? log.checkoutDisplay : '10:00 PM';
+      _asrOriginal = stopStr;
       el('asrErr').classList.remove('show');
-      el('asrUpdateBtn').disabled = true;
-      // Show which day was auto-stopped (e.g. "Your Monday shift was auto-stopped")
-      if (dayKey) {
-        const d = new Date(dayKey + 'T12:00');
-        const dayName = FULL_DAYS_EN[d.getDay()];
-        el('asrDesc').textContent = `Your ${dayName} session was automatically stopped after your daily target + buffer.`;
-      } else {
-        el('asrDesc').textContent = 'It automatically ended after your daily target + buffer.';
+      const dayName = dayKey ? FULL_DAYS_EN[new Date(dayKey + 'T12:00').getDay()] : 'Today';
+      const buf = durWorked((cfg().autoStopBuf ?? 2) * 3600).replace(' 00m', '');
+      el('asrDesc').textContent = `${dayName}'s session was still running at ${stopStr}, ${buf} past your target, so 5pm stopped it.`;
+      el('asrKeepBtn').textContent = `Keep ${stopStr}`;
+      // The wheel opens on when this device last saw you working (the same estimate
+      // Update Entry uses), not on the stop time; the stop time if there's no signal.
+      const stop = parse(stopStr);
+      let start = stop;
+      if (dayKey && log?.loginTime) {
+        const est = _estimateDayEnd(dayKey, { ...log, checkoutDisplay: null, checkoutTime: null })?.end;
+        if (est && stop && est < stop) start = est;
       }
+      const startMins = start ? start.getHours() * 60 + start.getMinutes() : 22 * 60;
+      const loginMins = (() => { const p = (log?.loginTime || '').split(':').map(Number); return p.length > 1 ? p[0] * 60 + p[1] : null; })();
+      const paintAsr = mins => {
+        const d = new Date(); d.setHours(Math.floor(mins / 60), mins % 60, 0, 0);
+        el('asrEndTime').value = short(d);
+        const changed = el('asrEndTime').value !== _asrOriginal;
+        el('asrUpdateBtn').textContent = changed ? `Save ${short(d)}` : 'Save';
+        el('asrUpdateBtn').disabled = !changed;
+        el('asrCalc').innerHTML = loginMins != null
+          ? `That makes ${dayName} <b>${durWorked(Math.max(0, ((mins - loginMins + 1440) % 1440) * 60))}</b>` : '';
+      };
+      _miniWheel(el('asrWheel'), startMins, paintAsr);
+      paintAsr(startMins);
       _asrMarkSeen(dayKey); // shows once per auto-stopped session
       el('autoStopRecoveryOverlay').classList.add('open');
+    }
+    // A one-minute iOS-style wheel: hour · minute · AM/PM, scroll-snapped.
+    // onChange(minutesSinceMidnight) fires as it settles.
+    function _miniWheel(box, mins, onChange) {
+      const R = 36, col = (n, f) => `<div class="am-col"><div class="pad"></div>${Array.from({ length: n }, (_, i) => `<div>${f(i)}</div>`).join('')}<div class="pad"></div></div>`;
+      box.innerHTML = col(12, i => i + 1) + col(60, i => String(i).padStart(2, '0')) + col(2, i => i ? 'PM' : 'AM');
+      const [h, m, a] = box.querySelectorAll('.am-col');
+      const set = v => { h.scrollTop = ((Math.floor(v / 60) % 12 || 12) - 1) * R; m.scrollTop = (v % 60) * R; a.scrollTop = (v >= 720 ? 1 : 0) * R; };
+      requestAnimationFrame(() => set(mins));
+      let t = 0;
+      const read = () => { clearTimeout(t); t = setTimeout(() =>
+        onChange(((Math.round(h.scrollTop / R) + 1) % 12 + (Math.round(a.scrollTop / R) ? 12 : 0)) * 60 + Math.round(m.scrollTop / R)), 80); };
+      [h, m, a].forEach(c => c.addEventListener('scroll', read, { passive: true }));
     }
     function closeAutoStopRecovery() {
       el('autoStopRecoveryOverlay').classList.remove('open');
@@ -8778,9 +9027,24 @@ Kind regards,
       const pref = themePref();
       ['auto', 'light', 'dark'].forEach(p => {
         const tab = el('themeTab' + p[0].toUpperCase() + p.slice(1));
-        if (tab) tab.classList.toggle('active', p === pref);
+        if (tab) { tab.classList.toggle('active', p === pref); tab.setAttribute('aria-checked', String(p === pref)); }
       });
+      _placeThemeRing();
     }
+    // The ring glides to the chosen card. Measured, so it follows the grid / list
+    // switch; placed without animation the first time it becomes visible.
+    let _themeRingShown = false;
+    function _placeThemeRing() {
+      const wrap = el('themeTabs'), ring = wrap?.querySelector('.rc-ring'), on = wrap?.querySelector('.rc-card.active');
+      if (!ring || !on || !on.offsetWidth) return;   // Settings not on screen yet
+      if (!_themeRingShown) wrap.classList.add('no-anim');
+      ring.style.transform = `translate(${on.offsetLeft - 3}px, ${on.offsetTop - 3}px)`;
+      ring.style.width = on.offsetWidth + 6 + 'px';
+      ring.style.height = on.offsetHeight + 6 + 'px';
+      wrap.classList.add('ringed');
+      if (!_themeRingShown) { _themeRingShown = true; void wrap.offsetWidth; wrap.classList.remove('no-anim'); }
+    }
+    if (window.ResizeObserver && el('themeTabs')) new ResizeObserver(() => { _themeRingShown = false; _placeThemeRing(); }).observe(el('themeTabs'));
 
     function setAppTheme(pref, originEl) {
       const nextDark = pref === 'auto' ? _systemDark.matches : pref === 'dark';
@@ -8985,7 +9249,7 @@ Kind regards,
       // The title names the tab you're on.
       const t = el('dayEditTitle');
       t.textContent = which === 'dispute' ? 'Raise Dispute' : (t.dataset.editTitle || 'Update Entry');
-      el('dayEditDeleteBtn').style.visibility = which === 'edit' ? '' : 'hidden';
+      el('dayEditDeleteBtn').style.visibility = which === 'edit' && _deCanDelete ? '' : 'hidden';
     }
     el('deTabs').addEventListener('click', e => { const b = e.target.closest('[data-de-tab]'); if (b) _deTab(b.dataset.deTab); });
     // One chip at a time; writing your own reason clears the chips, and
@@ -9019,6 +9283,16 @@ Kind regards,
       renderPenalties(); renderNotifs();
       showToast(_devSamplePenalties ? 'Sample penalties added' : 'Sample penalties removed', 'info');
     });
+    // Developer Mode: Sample Data on/off. Reloads, because the sandbox has to be in
+    // place before the app reads anything (see DEV_SAMPLE).
+    function _setDevSampleData(on) {
+      try { on ? localStorage.setItem('wh_dev_sample', '1') : localStorage.removeItem('wh_dev_sample'); } catch {}
+      location.reload();
+    }
+    if (el('devSampleData')) {
+      el('devSampleData').checked = DEV_SAMPLE;
+      el('devSampleData').addEventListener('change', e => _setDevSampleData(e.target.checked));
+    }
     el('devPreviewWeekPlan').addEventListener('click', openWeekPlanModal);
     el('devPreviewWhatsNew').addEventListener('click', () => openWhatsNew());
     // The desktop app's webview doesn't hand mailto: links to Windows; its shell does.
@@ -9134,6 +9408,7 @@ Kind regards,
         const parts = [];
         if (_devDateOverride) parts.push('Test date ' + _devDateLabel(_devDateOverride));
         if (_devSamplePenalties) parts.push('Sample penalties on');
+        if (DEV_SAMPLE) parts.push('Sample data on');
         const row = el('devOverridesRow');
         if (row) row.hidden = !parts.length;
         if (el('devOverridesText')) el('devOverridesText').textContent = parts.join(' · ');
@@ -9142,6 +9417,7 @@ Kind regards,
       el('devResetAll')?.addEventListener('click', () => {
         if (_devDateOverride) clearDevDateOverride();
         if (_devSamplePenalties) el('devSamplePenalties')?.click();
+        if (DEV_SAMPLE) { _setDevSampleData(false); return; }
         paint();
       });
 
@@ -9188,6 +9464,8 @@ Kind regards,
       // Reset date override when leaving dev mode
       if (_devDateOverride) { _devDateOverride = null; _applyDevDateOverride(); }
       if (_devSamplePenalties) { _devSamplePenalties = false; el('devSamplePenalties').checked = false; renderPenalties(); renderNotifs(); }
+      // Sample Data lives only while Developer Mode is on: back to the real data.
+      if (DEV_SAMPLE) { _setDevSampleData(false); return; }
       const lbl = el('devDatePickerLabel'); if (lbl) lbl.textContent = 'Pick a Date';
       // Hide the dev-only User ID row immediately
       const uidRow = el('profileUidRow'); if (uidRow) uidRow.style.display = 'none';
@@ -9270,17 +9548,35 @@ Kind regards,
     });
 
     // Daily Target Reached modal (Recommend Timings OFF)
+    function _openDayDone(workedSecs) {
+      const hero = el('dtrHero'); hero.innerHTML = hero.innerHTML;   // replays the pop and the drawn check
+      el('dtrTitle').textContent = `That's your ${durWorked(workedSecs)}.`;
+      el('dtrStart').textContent = _dayStartDisplay();
+      el('dailyTargetHours').textContent = durWorked(workedSecs);
+      el('dtrWeek').textContent = durWorked(_weekWorkedSecs(workedSecs));
+      el('dailyTargetReachedOverlay').classList.add('open');
+    }
+    // Phones: the Apple-style sheets follow your finger; pulling one down does what
+    // its quiet button does (data-dismiss).
+    document.querySelectorAll('.overlay.am-host').forEach(ov => window.Sheet?.attach(ov.querySelector('.dialog'), {
+      close: () => { const b = el(ov.dataset.dismiss); if (b) b.click(); else ov.classList.remove('open'); },
+      isOpen: () => ov.classList.contains('open'),
+    }));
     el('dailyTargetCancelBtn').addEventListener('click', () => {
-      // "Keep Going" — resume session from this moment; gap while modal was open is not counted
+      // "Keep working". Still running (Recommend Timings on): just close.
       el('dailyTargetReachedOverlay').classList.remove('open');
+      if (loginDate) return;
+      // Paused at the target (Recommend Timings off): resume from now; the gap isn't counted.
       loginDate = new Date();
       persistSession(); // save the new post-pause loginDate so a reload restores overtime, not the stale pre-pause session
       if (ticker) clearInterval(ticker);
       ticker = setInterval(render, 1000);
     });
     el('dailyTargetEndBtn').addEventListener('click', () => {
-      // "End Session" — session already paused; save log silently (no Daily Report)
       el('dailyTargetReachedOverlay').classList.remove('open');
+      // Still running: end it the usual way, without a second "day done" sheet.
+      if (loginDate) { _skipDaySummary = true; checkout(); return; }
+      // Paused at the target (Recommend Timings off): save the log silently.
       cancelScheduledNotifications();
       const now = new Date();
       const tk = todayKey(), ex = dayLog(tk) || {};
@@ -9992,75 +10288,55 @@ Kind regards,
         const devN = devRows ? devRows.filter(r => !r.revoked_at).length : 0, devSub = el('devCountSub');
         if (devSub && devN) devSub.textContent = devN + (devN === 1 ? ' Device' : ' Devices');
 
-        // Password
+        // Sign-In Methods, option C (approved 2026-11-13): a badge only when
+        // something is on; one action = a plain button, two or more = a ⋯ menu;
+        // destructive items only inside menus.
+        const lastWay = connectedCount <= 1;
+        const NOT_LAST = 'Add another way to sign in first.';
+        const _gIcon = `<svg viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>`;
+        const _ghIcon = `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/></svg>`;
+        const line = d => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
+        const provider = (key, label, id, icon, account) => id
+          ? _simBuildRow({ icon, name: label, status: account, badge: 'Connected', menu: [
+              { label: 'Switch account', icon: 'refresh', disabled: lastWay, why: NOT_LAST, onClick: () => _switchProvider(key, id, connectedCount) },
+              { label: 'Disconnect', icon: 'unlink', danger: true, disabled: lastWay, why: NOT_LAST, onClick: () => _disconnectProvider(key, id, connectedCount) },
+            ] })
+          : _simBuildRow({ icon, name: label, status: 'Not connected', action: 'Connect', onAction: () => _connectProvider(key) });
+
+        // Password: when it was last changed, never a badge.
         rows.push(_simBuildRow({
-          icon: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>`,
+          icon: line('<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>'),
           name: 'Password',
-          status: emailId ? (_simRelativeTime(emailId.updated_at) || 'Connected') : (user.email || 'Not set'),
-          statusClass: 'muted',
-          connected: !!emailId,
-          action: emailId ? 'Update Password' : 'Set Password',
+          status: emailId ? (_simChanged(emailId.updated_at) || 'Set') : 'Not set',
+          action: emailId ? 'Change' : 'Set password',
           onAction: emailId ? openUpwdModal : openCreatePwdModal,
-          destructive: false,
         }));
+        rows.push(provider('google', 'Google', googleId, _gIcon, googleId?.identity_data?.email || 'Connected'));
+        const ghHandle = githubId && (githubId.identity_data?.user_name || githubId.identity_data?.preferred_username);
+        rows.push(provider('github', 'GitHub', githubId, _ghIcon, ghHandle ? '@' + ghHandle : 'Connected'));
 
-        // Google
-        rows.push(_simBuildRow({
-          icon: `<svg width="15" height="15" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>`,
-          name: 'Google',
-          // Which account, not just that there is one.
-          status: googleId ? (googleId.identity_data?.email || 'Connected') : 'Not Connected',
-          statusClass: googleId && googleId.identity_data?.email ? 'muted' : undefined,
-          connected: !!googleId,
-          action: googleId ? 'Disconnect' : 'Connect',
-          onAction: googleId
-            ? () => _disconnectProvider('google', googleId, connectedCount)
-            : () => _connectProvider('google'),
-          destructive: !!googleId,
-        }));
-
-        // GitHub
-        rows.push(_simBuildRow({
-          icon: `<svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/></svg>`,
-          name: 'GitHub',
-          status: githubId
-            ? (() => {
-                const handle = githubId.identity_data?.user_name || githubId.identity_data?.preferred_username;
-                return handle ? '@' + handle : 'Connected';
-              })()
-            : 'Not Connected',
-          statusClass: githubId ? 'muted' : undefined,
-          connected: !!githubId,
-          action: githubId ? 'Disconnect' : 'Connect',
-          onAction: githubId
-            ? () => _disconnectProvider('github', githubId, connectedCount)
-            : () => _connectProvider('github'),
-          destructive: !!githubId,
-        }));
-
-        // Passkeys: opens its own page. A passkey never counts toward
+        // Passkeys: the count says it, no badge. A passkey never counts toward
         // connectedCount, so removing one can't leave you without a way in.
         const pkOff = pkRes.error?.code === 'passkey_disabled'; // switched off for the project: no row
         const pkCount = (pkRes.data || []).length;
-        if (!pkOff) rows.push(_simBuildRow({
-          icon: _PK_ICON,
-          name: 'Passkeys',
-          status: pkCount ? pkCount + (pkCount === 1 ? ' Passkey' : ' Passkeys') : 'Not set',
-          statusClass: 'muted',
-          onRow: openPasskeysPage,
-        }));
+        if (!pkOff) rows.push(pkCount
+          ? _simBuildRow({ icon: _PK_ICON, name: 'Passkeys', status: pkCount + (pkCount === 1 ? ' passkey' : ' passkeys'), menu: [
+              { label: 'Add a passkey', icon: 'plus', onClick: openPasskeysPage },
+              { label: 'Manage passkeys', icon: 'list', onClick: openPasskeysPage },
+            ] })
+          : _simBuildRow({ icon: _PK_ICON, name: 'Passkeys', status: 'Fingerprint or Face ID', action: 'Add', onAction: openPasskeysPage }));
 
-        // Authenticator App (TOTP 2FA) — second factor, not a sign-in provider
+        // Authenticator (TOTP 2FA): a second factor, not a way in.
         const totpFactor = (mfaRes.data?.totp || []).find(x => x.status === 'verified') || null;
-        rows.push(_simBuildRow({
-          icon: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l8 4v5c0 5-3.4 8.5-8 11-4.6-2.5-8-6-8-11V6l8-4z"/><path d="M9 12l2 2 4-4"/></svg>`,
-          name: 'Authenticator App',
-          status: totpFactor ? 'Enabled' : 'Not set',
-          connected: !!totpFactor,
-          action: totpFactor ? 'Manage' : 'Set Up',
-          onAction: totpFactor ? () => openMfaManage(totpFactor) : openMfaSetup,
-          destructive: false,
-        }));
+        const shieldIcon = line('<path d="M12 2l8 4v5c0 5-3.4 8.5-8 11-4.6-2.5-8-6-8-11V6l8-4z"/><path d="M9 12l2 2 4-4"/>');
+        rows.push(totpFactor
+          ? _simBuildRow({ icon: shieldIcon, name: 'Authenticator',
+              status: totpFactor.created_at ? 'Added ' + new Date(totpFactor.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'On',
+              badge: 'On', menu: [
+                { label: 'Backup codes', icon: 'file', onClick: () => openMfaManage(totpFactor) },
+                { label: 'Turn off', icon: 'power', danger: true, onClick: () => { openMfaManage(totpFactor); mfaShowDisable(); } },
+              ] })
+          : _simBuildRow({ icon: shieldIcon, name: 'Authenticator', status: 'Two-step verification codes', action: 'Set up', onAction: openMfaSetup }));
         list.replaceChildren(...rows);
       } catch(e) {
         if (run !== _simRun) return;
@@ -10079,42 +10355,80 @@ Kind regards,
       return 'last updated ' + days + ' day' + (days === 1 ? '' : 's') + ' ago';
     }
 
-    function _simBuildRow({ icon, name, status, statusClass, connected, action, onAction, destructive, onRow }) {
+    // "Changed 5 days ago" for the Password row.
+    function _simChanged(dateStr) {
+      if (!dateStr) return null;
+      const days = Math.floor((Date.now() - new Date(dateStr)) / 86400000);
+      return days < 1 ? 'Changed today' : days === 1 ? 'Changed yesterday' : `Changed ${days} days ago`;
+    }
+
+    const _SIM_MENU_ICONS = {
+      refresh: '<path d="M21 12a9 9 0 0 1-15.5 6.2L3 16"/><path d="M3 21v-5h5"/><path d="M3 12a9 9 0 0 1 15.5-6.2L21 8"/><path d="M21 3v5h-5"/>',
+      unlink:  '<path d="m18.8 13.3 1.9-1.9a5 5 0 0 0-7.1-7.1l-1.9 1.9M5.2 10.7l-1.9 1.9a5 5 0 0 0 7.1 7.1l1.9-1.9M8 2v3M2 8h3M16 22v-3M22 16h-3"/>',
+      plus:    '<path d="M12 5v14M5 12h14"/>',
+      list:    '<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>',
+      file:    '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h5"/>',
+      power:   '<path d="M12 2v10"/><path d="M18.4 6.6a9 9 0 1 1-12.8 0"/>',
+    };
+    // One Sign-In Methods row: a 20px mark, the name and a status line, then
+    // either one plain button, or a badge plus a ⋯ menu when there are 2+ actions.
+    function _simBuildRow({ icon, name, status, badge, action, onAction, menu }) {
       const row = document.createElement('div');
       row.className = 'sim-row';
-
-      const left = document.createElement('div');
-      left.className = 'sim-provider';
-      const iconWrap = document.createElement('div');
-      iconWrap.className = 'sim-icon';
-      iconWrap.innerHTML = icon;
-      const info = document.createElement('div');
-      const nameEl = document.createElement('div');
-      nameEl.className = 'sim-name';
-      nameEl.textContent = name;
-      const statusEl = document.createElement('div');
-      statusEl.className = 'sim-status ' + (statusClass || (connected ? 'connected' : (status === 'Not Set' ? 'not-set' : 'not-connected')));
-      statusEl.textContent = status;
-      info.appendChild(nameEl);
-      info.appendChild(statusEl);
-      left.appendChild(iconWrap);
-      left.appendChild(info);
-      row.appendChild(left);
-
-      if (onRow) {
-        row.classList.add('link');
-        row.addEventListener('click', onRow);
-        row.insertAdjacentHTML('beforeend', '<svg class="sim-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg>');
-        return row;
+      row.innerHTML = `<div class="sim-provider"><div class="sim-icon">${icon}</div><div style="min-width:0"><div class="sim-name"></div><div class="sim-status muted"></div></div></div>`;
+      row.querySelector('.sim-name').textContent = name;
+      row.querySelector('.sim-status').textContent = status;
+      if (badge) row.insertAdjacentHTML('beforeend', `<span class="sim-badge"><i></i>${badge}</span>`);
+      if (menu) {
+        const wrap = document.createElement('div'); wrap.className = 'sim-more';
+        wrap.innerHTML = `<button type="button" class="sim-kebab" aria-haspopup="menu" aria-expanded="false" aria-label="${name} options"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg></button><div class="sim-menu" role="menu"></div>`;
+        const box = wrap.querySelector('.sim-menu'), kebab = wrap.querySelector('.sim-kebab');
+        menu.forEach((m, k) => {
+          if (k && m.danger) box.insertAdjacentHTML('beforeend', '<hr>');
+          const it = document.createElement('button');
+          it.type = 'button'; it.role = 'menuitem'; it.className = 'sim-mi' + (m.danger ? ' danger' : '');
+          it.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${_SIM_MENU_ICONS[m.icon] || ''}</svg><span></span>`;
+          it.querySelector('span').textContent = m.label;
+          box.appendChild(it);
+          if (m.disabled) {
+            // Disabled items say why under them (e.g. your only way to sign in).
+            it.disabled = true;
+            const why = document.createElement('p'); why.className = 'sim-why'; why.textContent = m.why || '';
+            box.appendChild(why);
+          } else it.addEventListener('click', () => { _simCloseMenus(); m.onClick(); });
+        });
+        kebab.addEventListener('click', e => {
+          e.stopPropagation();
+          const open = !wrap.classList.contains('open');
+          _simCloseMenus();
+          wrap.classList.toggle('open', open); kebab.setAttribute('aria-expanded', String(open));
+        });
+        row.appendChild(wrap);
+      } else if (action) {
+        const btn = document.createElement('button');
+        btn.className = 'btn-secondary sim-btn';
+        btn.textContent = action;
+        if (onAction) btn.addEventListener('click', onAction);
+        row.appendChild(btn);
       }
-
-      const btn = document.createElement('button');
-      btn.className = destructive ? 'btn-ghost-destructive' : 'btn-secondary';
-      btn.style.cssText = 'flex-shrink:0;font-size:12px;height:30px;padding:0 12px';
-      btn.textContent = action;
-      if (onAction) btn.addEventListener('click', onAction);
-      row.appendChild(btn);
       return row;
+    }
+    function _simCloseMenus() {
+      document.querySelectorAll('.sim-more.open').forEach(w => { w.classList.remove('open'); w.querySelector('.sim-kebab')?.setAttribute('aria-expanded', 'false'); });
+    }
+    document.addEventListener('click', e => { if (!e.target.closest('.sim-more')) _simCloseMenus(); });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') _simCloseMenus(); });
+
+    // Switch account: unlink this one, then link another (Google shows its picker).
+    async function _switchProvider(provider, identity, connectedCount) {
+      if (connectedCount <= 1) return;
+      try {
+        const { error } = await window._sbClient.auth.unlinkIdentity(identity);
+        if (error) throw error;
+        _connectProvider(provider);
+      } catch (e) {
+        showToast("Couldn't switch account", 'error', e.message || 'Please try again.');
+      }
     }
 
     async function _connectProvider(provider) {
@@ -10814,6 +11128,7 @@ Kind regards,
       // devices doing occasional heartbeats; give each device its own row if
       // that stops being true.
       async _write(uid, map) {
+        if (DEV_SAMPLE) return; // Sample Data: the device list isn't touched either
         const { error } = await window._sbClient.from('user_kv').upsert(
           { user_id: uid, key: DEV_KV_KEY, value: { d: map, src: SbSync._clientId },
             updated_at: new Date().toISOString() },
@@ -11216,13 +11531,128 @@ Kind regards,
       window.Tour?.afterOnboarding();   // the Product Tour, once per account (lib/pages/tour.js)
     }
 
-    function openOnboarding() {
-      _obStep = 1;
-      obSwitchTab('daily');
-      obUpdateSteps(1);
-      el('obOverlay').style.display = 'flex';
-      _sizeObIntroLogo();
+    // ── ONBOARDING (one surface, approved 2026-11-13) ─────────────────────────
+    // Welcome → three tap-to-answer questions → optional name → Start using 5pm.
+    // Answers fold into a grouped card; a mini Home card fills in as you answer.
+    // Saves the same settings the old four steps did.
+    const _OB2_Q = [
+      { key: 'start', q: 'When do you usually start?', short: 'Starts at', tone: '--blue',
+        icon: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>', opts: [[480, '8:00 AM'], [540, '9:00 AM'], [600, '10:00 AM'], [630, '10:30 AM']] },
+      { key: 'hours', q: 'How long is your workday?', short: 'Workday', tone: '--success',
+        icon: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/>', opts: [[480, '8 hours'], [510, '8h 30m'], [540, '9 hours'], [600, '10 hours']] },
+      { key: 'days', q: 'Which days do you work?', short: 'Work days', tone: '--violet',
+        icon: '<rect x="3" y="4" width="18" height="17" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>', opts: [[5, 'Mon – Fri'], [6, 'Mon – Sat']] },
+      { key: 'name', q: 'And what should we call you?', short: 'Name', tone: '--warning', name: true,
+        icon: '<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>' },
+    ];
+    let _ob2 = null;
+    const _ob2Time = m => { const d = new Date(); d.setHours(Math.floor(m / 60) % 24, m % 60, 0, 0); return short(d); };
+    const _ob2Label = (k, v) => k === 'start' ? _ob2Time(v) : k === 'hours' ? durWorked(v * 60).replace(' 00m', '') : k === 'days' ? (v === 5 ? 'Mon – Fri' : 'Mon – Sat') : v;
+    function _ob2Svg(d) { return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`; }
+    function _ob2Roll(node, txt) {
+      if (!node || node.dataset.t === txt) return; node.dataset.t = txt;
+      const r = node.querySelector('.ob2-roll');
+      if (!r) { node.innerHTML = `<span class="ob2-roll"></span>`; node.firstChild.textContent = txt; return; }
+      r.classList.add('out'); setTimeout(() => { r.textContent = txt; r.classList.remove('out'); }, 220);
     }
+    function openOnboarding() {
+      const c = cfg();
+      _ob2 = { at: -1, start: null, hours: null, days: null, name: (c.name || '').trim() || null, finished: false };
+      el('obOverlay').style.display = 'flex';
+      // The onboarding markup comes after this script in index.html, so its
+      // buttons are wired here, when it opens, not at load.
+      el('ob2Pri').onclick = _ob2PriClick; el('ob2Sec').onclick = _ob2SecClick;
+      _ob2Draw();
+    }
+    function _ob2Preview() {
+      const S = _ob2, m = el('ob2Main');
+      _ob2Roll(m.querySelector('[data-l]'), S.start !== null ? _ob2Time(S.start) : '—:—');
+      _ob2Roll(m.querySelector('[data-r]'), S.start !== null && S.hours !== null ? _ob2Time(S.start + S.hours) : '—:—');
+      m.querySelector('[data-bar]').style.width = [S.start, S.hours, S.days].filter(v => v !== null).length / 3 * 100 + '%';
+      m.querySelector('[data-chip]').textContent = S.hours === null ? 'Your day, as you answer'
+        : `${_ob2Label('hours', S.hours)} a day` + (S.days ? ` · ${durWorked(S.hours * S.days * 60).replace(' 00m', '')} a week` : '');
+      m.querySelector('[data-who]').textContent = S.name ? `${S.name.split(/\s+/)[0].toUpperCase()}'S DAY` : 'YOUR DAY';
+      m.querySelector('[data-dt]').textContent = S.days ? _ob2Label('days', S.days) : 'Full Day';
+    }
+    function _ob2Group() {
+      const S = _ob2, g = el('ob2Main').querySelector('.ob2-group');
+      const rows = _OB2_Q.filter((q, i) => S[q.key] !== null && i !== S.at);
+      g.classList.toggle('has', rows.length > 0);
+      g.firstElementChild.innerHTML = rows.map(q => `<button type="button" class="ob2-row" data-i="${_OB2_Q.indexOf(q)}"><span class="ob2-gi" style="--ob2-c:var(${q.tone})">${_ob2Svg(q.icon)}</span><span class="ob2-gk">${q.short}</span><span class="ob2-gv"></span>${_ob2Svg('<path d="m9 18 6-6-6-6"/>').replace('<svg', '<svg width="14" height="14" style="color:var(--muted-fg)"')}</button>`).join('');
+      g.querySelectorAll('[data-i]').forEach(r => { const q = _OB2_Q[+r.dataset.i]; r.querySelector('.ob2-gv').textContent = _ob2Label(q.key, S[q.key]);
+        r.onclick = () => { S.at = +r.dataset.i; S.finished = false; _ob2Draw(); }; });
+    }
+    function _ob2Ask() {
+      const S = _ob2, a = el('ob2Main').querySelector('.ob2-ask'), q = _OB2_Q[S.at];
+      a.classList.remove('in');
+      if (!q) { a.innerHTML = ''; return; }
+      if (q.name) {
+        a.innerHTML = `<p class="ob2-qt">${q.q}</p><input class="ob2-name" maxlength="40" autocomplete="given-name" placeholder="Your first name">`;
+        const inp = a.querySelector('input'); inp.value = S.name || '';
+        inp.oninput = () => { S.name = inp.value.trim() || null; _ob2Preview(); };
+        setTimeout(() => inp.focus({ preventScroll: true }), 450);
+      } else {
+        a.innerHTML = `<p class="ob2-qt">${q.q}</p><div class="ob2-chips">${q.opts.map(([v, l]) => `<button type="button" class="ob2-c${S[q.key] === v ? ' on' : ''}" data-v="${v}">${l}</button>`).join('')}<button type="button" class="ob2-c other" data-other>Other…</button></div><div data-otherbox></div>`;
+        a.querySelectorAll('[data-v]').forEach(c => c.onclick = () => _ob2Pick(q.key, +c.dataset.v, a, c));
+        a.querySelector('[data-other]').onclick = () => _ob2Other(q, a);
+      }
+      requestAnimationFrame(() => requestAnimationFrame(() => a.classList.add('in')));
+    }
+    function _ob2Pick(key, v, a, chip) {
+      const S = _ob2; S[key] = v;
+      a.querySelectorAll('.ob2-c').forEach(x => x.classList.toggle('on', x === chip));
+      _ob2Preview();
+      setTimeout(() => { const n = _OB2_Q.findIndex(q => S[q.key] === null && !q.name); S.at = n === -1 ? 3 : n; _ob2Draw(); }, chip ? 360 : 0);
+    }
+    // "Other…": the one-minute wheel for a start time; a ± stepper for the day's length.
+    function _ob2Other(q, a) {
+      const box = a.querySelector('[data-otherbox]'), S = _ob2;
+      a.querySelectorAll('.ob2-c').forEach(x => x.classList.toggle('on', x.hasAttribute('data-other')));
+      if (q.key === 'start') {
+        box.innerHTML = '<div class="am-wheel"></div><div class="ob2-step"><button type="button" class="btn btn-primary" style="width:auto;padding:0 18px;font-size:14px" data-ok>Use this time</button></div>';
+        let v = S.start ?? 540; _miniWheel(box.querySelector('.am-wheel'), v, m => { v = m; });
+        box.querySelector('[data-ok]').onclick = () => _ob2Pick('start', v, a, null);
+      } else if (q.key === 'hours') {
+        let v = S.hours ?? 540;
+        box.innerHTML = '<div class="ob2-step"><button type="button" data-d="-15">−</button><b></b><button type="button" data-d="15">+</button></div><div class="ob2-step"><button type="button" class="btn btn-primary" style="width:auto;padding:0 18px;font-size:14px" data-ok>Use this</button></div>';
+        const out = box.querySelector('b'); const paint = () => out.textContent = _ob2Label('hours', v); paint();
+        box.querySelectorAll('[data-d]').forEach(b => b.onclick = () => { v = Math.min(14 * 60, Math.max(60, v + +b.dataset.d)); paint(); });
+        box.querySelector('[data-ok]').onclick = () => _ob2Pick('hours', v, a, null);
+      }
+    }
+    function _ob2Buttons() {
+      const S = _ob2, pri = el('ob2Pri'), sec = el('ob2Sec');
+      if (S.at === -1) { pri.hidden = false; pri.textContent = 'Set up my day'; sec.hidden = true; return; }
+      const last = S.at === 3 && !S.finished;
+      pri.hidden = !last; sec.hidden = !last;
+      pri.textContent = 'Start using 5pm'; sec.textContent = 'Skip for now';
+    }
+    function _ob2Draw() {
+      const S = _ob2, m = el('ob2Main');
+      if (S.at === -1) {
+        m.innerHTML = `<div class="ob2-welcome"><img src="/apple-touch-icon.png" alt=""><h2>Leave on time,<br>every time.</h2><p>Three quick questions and 5pm will know when you can leave.</p></div>`;
+        _ob2Buttons(); return;
+      }
+      if (!m.querySelector('.ob2-group')) m.innerHTML = `<div class="ob2-hd"><img src="/apple-touch-icon.png" alt=""><div><p class="ob2-tt">Let's set up your day</p><p class="ob2-st">Your Home card, filling in as you answer</p></div></div>
+        <div class="ob2-pv"><div class="ob2-pvtop"><span class="ob2-who" data-who>YOUR DAY</span><span class="ob2-pill" data-dt>Full Day</span></div>
+          <div class="ob2-kp"><div><div class="ob2-K" data-l></div><div class="ob2-cap">Starts</div></div><div style="text-align:right"><div class="ob2-K" data-r></div><div class="ob2-cap">You can leave</div></div></div>
+          <div class="ob2-bar"><i data-bar></i></div><div class="ob2-chip"><span data-chip></span></div></div>
+        <div class="ob2-body"><div class="ob2-group"><div></div></div><div class="ob2-ask"></div></div>`;
+      _ob2Preview(); _ob2Group(); _ob2Ask(); _ob2Buttons();
+    }
+    function _ob2Save() {
+      const S = _ob2, c = cfg();
+      const start = S.start ?? 540, hours = S.hours ?? 540, days = S.days ?? 5;
+      const shiftStart = _ob2Time(start), shiftEnd = _ob2Time(start + hours);
+      saveCfg({ ...c, name: S.name || c.name || '', shiftStart, shiftEnd, shiftType: deriveShiftType(shiftStart),
+        dailyH: hours / 60, weeklyH: hours * days / 60, workDays: days, weeklyOn: c.weeklyOn ?? false });
+    }
+    function _ob2PriClick() {
+      if (!_ob2) return;
+      if (_ob2.at === -1) { _ob2.at = 0; _ob2Draw(); return; }
+      if (_ob2.at === 3) { _ob2Save(); _ob2.finished = true; obFinish(); }
+    }
+    function _ob2SecClick() { if (!_ob2) return; _ob2.name = null; _ob2Save(); _ob2.finished = true; obFinish(); }
 
     // ── INIT ───────────────────────────────────────────
     (function init() {
@@ -11980,7 +12410,7 @@ Kind regards,
         const move = (list, nodes) => nodes.filter(Boolean).forEach(n => list.appendChild(n));
 
         const testing = section('Testing', 'Testing', true);
-        move(testing, [child(has('#devDatePickerBtn')), child(has('#devSamplePenalties')), el('devReplayRow'),
+        move(testing, [child(has('#devDatePickerBtn')), child(has('#devSamplePenalties')), child(has('#devSampleData')), el('devReplayRow'),
           child(has('[data-on-click="h9dee7dcd2e"]')), el('syncDiagWrap')]);
         const alerts = section('Alerts', 'Alert Previews', true);
         move(alerts, [child(labelled('Preview Alerts'))]);

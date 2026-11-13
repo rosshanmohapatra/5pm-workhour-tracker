@@ -93,7 +93,7 @@
       --surface-raised: #ffffff;
       --muted: #f8f8f8; --muted-fg: #585858; --text-muted: #7d7d7d;
       --border: #e9e9e9; --border-subtle: #f3f3f3; --border-strong: #c4c4c4;
-      --input: #c4c4c4; --input-bg: #ffffff; --ring: #0b0b0b;
+      --input: #c4c4c4; --input-bg: #f8f8f8; --ring: #0b0b0b;
       --accent: #353535; --accent-subtle: rgba(53,53,53,.1);
       --btn-primary-bg: #0b0b0b;
       --btn-secondary-bg: #f1f1f1; --btn-secondary-fg: #0b0b0b; --btn-secondary-hover: #e3e3e3;
@@ -125,7 +125,7 @@
       --border: #2b2b2b; --border-subtle: #222222; --border-strong: #484848;
       --btn-primary-bg: var(--foreground);
       --btn-secondary-bg: #242424; --btn-secondary-fg: #f2f2f2; --btn-secondary-hover: #303030;
-      --input: #484848; --input-bg: #191919; --ring: #bebebe;
+      --input: #484848; --input-bg: #202020; --ring: #bebebe;
       --accent: #bebebe; --accent-subtle: rgba(190,190,190,.14);
       --success: #55d69f; --success-bg: #24302a; --success-border: #2f4c3d;
       --warning: #f2bd68; --warning-bg: #332d25; --warning-border: #524531;
@@ -703,6 +703,17 @@
     .notif-icon.ok   { background: var(--success-bg); color: var(--success); }
     .notif-icon.info { background: var(--muted); color: var(--muted-fg); }
     .notif-body { flex: 1; min-width: 0; }
+    /* Per-notification dismiss: mouse and trackpad only (touch swipes instead).
+       Quiet until the card is hovered or the button is focused. */
+    .notif-dismiss { display: none; }
+    @media (hover: hover) and (pointer: fine) {
+      .notif-dismiss { display: grid; place-items: center; flex-shrink: 0; align-self: center; width: 24px; height: 24px; padding: 0;
+        border: none; border-radius: 50%; background: transparent; color: var(--muted-fg); cursor: pointer; opacity: .55;
+        transition: opacity .14s, background .14s, color .14s; }
+      .notif-dismiss svg { width: 12px; height: 12px; }
+      .notif-item:hover .notif-dismiss, .notif-dismiss:focus-visible { opacity: 1; }
+      .notif-dismiss:hover { background: var(--muted); color: var(--foreground); }
+    }
     .notif-text { font-size: 13px; color: var(--foreground); line-height: 1.45; }
     .notif-actions { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
     .notif-surplus { font-size: 13px; font-weight: 600; color: var(--success); }
@@ -994,16 +1005,14 @@
     .rc-pair-tab-active { background: var(--card); color: var(--foreground); box-shadow: 0 1px 3px rgba(0,0,0,.08); }
     .dark .rc-pair-tab-active { background: var(--muted); }
     /* ── Day type button (was "Info"): today's type, opens the Today panel ──
-       Coloured like the weekly log, so the kind of day reads at a glance. */
+       Neutral for every type, like the Time | Progress tabs beside it: the label
+       already names the day, so it doesn't need a colour as well. */
     .rc-info-btn { height: 26px; display: inline-flex; align-items: center; gap: 4px; padding: 0 6px 0 10px;
       background: var(--background); border: none; border-radius: 7px; color: var(--foreground); cursor: pointer;
       font-family: var(--font); font-size: 12px; font-weight: 600; white-space: nowrap;
       transition: background .15s, color .15s; flex-shrink: 0; }
     .rc-info-btn:hover { background: var(--muted); }
     .rc-info-btn svg { flex-shrink: 0; }
-    .rc-info-btn[data-plan="halfday"] { color: #0ea5e9; background: rgba(14,165,233,.12); }
-    .rc-info-btn[data-plan="leave"]   { color: #3b82f6; background: rgba(59,130,246,.12); }
-    .rc-info-btn[data-plan="holiday"] { color: #a855f7; background: rgba(168,85,247,.12); }
     /* ── Today panel: today's numbers on top, day types below within thumb
        reach, Confirm last. A centred modal on wider screens, a draggable bottom
        sheet on phones. A type is only picked until Confirm applies it. ── */
@@ -1035,6 +1044,22 @@
     .td-kpis { border: 1px solid var(--border); border-radius: 12px; padding: 4px 14px; overflow: hidden;
       transition: height .28s cubic-bezier(.4,0,.2,1); }
     .td-confirm { height: 42px; font-size: 14px; }
+    /* Today panel, option B: "Today is a…", one segmented control (icons over
+       labels, a sliding pill), one live line, and a button naming the action. */
+    .td-head { margin: 0; font-size: 14px; font-weight: 600; color: var(--foreground); }
+    .td-types.td-seg { position: relative; display: grid; grid-template-columns: repeat(4, 1fr); gap: 0;
+      background: var(--muted); border-radius: 12px; padding: 3px; }
+    .td-seg .td-pill { position: absolute; top: 3px; bottom: 3px; left: 3px; width: 0; border-radius: 9px; background: var(--card);
+      box-shadow: 0 1px 3px rgba(0,0,0,.12); transition: transform .35s var(--ease-sheet), width .35s var(--ease-sheet); }
+    .dark .td-seg .td-pill { background: var(--btn-secondary-hover); }
+    .td-seg .td-type { position: relative; flex-direction: column; justify-content: center; gap: 4px; padding: 9px 2px 8px;
+      font-size: 11.5px; color: var(--muted-fg); background: transparent !important; border-radius: 9px; text-align: center;
+      transition: color .2s; }
+    .td-seg .td-type svg { width: 18px; height: 18px; }
+    .td-seg .td-type.active { color: var(--foreground); }
+    .td-seg .td-type.active::after { display: none; }
+    .td-kpis.td-line { border: none; padding: 2px 0; text-align: center; font-size: 13.5px; color: var(--muted-fg); min-height: 20px; }
+    .td-line b { color: var(--foreground); font-weight: 600; font-variant-numeric: tabular-nums; }
     .td-scrim { position: fixed; inset: 0; z-index: 249; background: rgba(0,0,0,.28);
       backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
       opacity: 0; pointer-events: none; transition: opacity .2s ease; }
@@ -1125,10 +1150,11 @@
     .rc-progress-track { height: 5px; background: var(--border); border-radius: 100px; overflow: hidden; width: 100%; position: relative; }
     .rc-progress-fill { height: 100%; border-radius: 100px; background: var(--foreground);
       transition: width .5s cubic-bezier(.4,0,.2,1), background .3s; position: relative; overflow: hidden; }
-    .rc-progress-fill.running::after { content: ''; position: absolute; top: 0; bottom: 0; left: -80%;
+    .rc-progress-fill.running::after { content: ''; position: absolute; top: 0; bottom: 0; left: 0; transform: translateX(-133.33%);
       width: 60%; background: linear-gradient(90deg,transparent,rgba(255,255,255,.18),transparent);
       animation: rc-shimmer 2s ease-in-out infinite; }
-    @keyframes rc-shimmer { 0% { left: -80%; } 100% { left: 140%; } }
+    /* transform, not left: the GPU moves the shine; left re-laid out the bar 60 times a second */
+    @keyframes rc-shimmer { 0% { transform: translateX(-133.33%); } 100% { transform: translateX(233.33%); } }
     @media (prefers-reduced-motion: reduce) { .rc-progress-fill.running::after { animation: none; } }
     .rc-progress-fill.done { background: var(--success); }
     /* Overtime overlay — sits on top of the (already 100%-filled) bar, revealing
@@ -1146,6 +1172,37 @@
       padding: 8px 9px; border-radius: 8px; background: transparent;
       transition: background .15s; cursor: default; }
     .rc-desc-chip { font-size: 12px; font-weight: 500; color: inherit; background: none; padding: 0; border-radius: 0; cursor: default; }
+    /* Today card (approved 2026-11-13): each number states a fact and keeps one
+       role (Clock: Started | Now → Left at; Hours: Worked | Target). Advice lives
+       only in the centre chip during the session and the done banner after it. */
+    .rc-kcap { display: flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 500; color: var(--muted-fg); margin-top: 2px; }
+    .rc-right-col .rc-kcap { justify-content: flex-end; }
+    .rc-live { width: 5px; height: 5px; border-radius: 50%; background: currentColor; animation: rc-live 2.4s cubic-bezier(.45,0,.55,1) infinite; }
+    @keyframes rc-live { 50% { opacity: .3; } }
+    @media (prefers-reduced-motion: reduce) { .rc-live { animation: none; } }
+    .rc-desc-chip.pill { display: inline-flex; align-items: center; height: 22px; padding: 0 9px; border-radius: 6px;
+      background: var(--muted); color: var(--muted-fg); font-variant-numeric: tabular-nums; }
+    /* At the target the bar thins into an edge-to-edge divider and the chip folds
+       away; the done banner rises below the field. Neutral throughout. */
+    .rc-progress-track { transition: height .7s var(--ease-sheet), margin .7s var(--ease-sheet), width .7s var(--ease-sheet), border-radius .7s, background .7s; }
+    .rc-progress-fill { transition: width .5s cubic-bezier(.4,0,.2,1), background .7s, border-radius .7s; }
+    #rcKpiGroup.rc-finished .rc-progress-track { height: 1px; border-radius: 0; margin: 0 -16px; width: calc(100% + 32px); background: var(--border); }
+    #rcKpiGroup.rc-finished .rc-progress-fill { background: var(--border); border-radius: 0; }
+    #rcKpiGroup.rc-finished .rc-progress-fill::after, #rcKpiGroup.rc-finished .rc-progress-fill-ot { display: none; }
+    .rc-desc-row { transition: padding .5s var(--ease-sheet), opacity .35s, min-height .5s var(--ease-sheet); }
+    #rcKpiGroup.rc-finished .rc-desc-row { padding: 0; min-height: 0; opacity: 0; }
+    .ib[data-tone="violet"] { --ib-tone: var(--violet); --ib-tone-bg: color-mix(in srgb, var(--violet) 14%, transparent); }
+    .ib-x { margin-left: auto; flex-shrink: 0; width: 28px; height: 28px; padding: 0; border: none; border-radius: 8px; background: none;
+      color: var(--muted-fg); display: grid; place-items: center; cursor: pointer; align-self: center; }
+    .ib-x svg { width: 13px; height: 13px; }
+    @media (hover: hover) { .ib-x:hover { background: var(--muted); color: var(--foreground); } }
+    #doneBanner.show { animation: done-rise .6s var(--ease-sheet) both; }
+    @keyframes done-rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+    #doneBanner.swiping { transition: none; animation: none; }
+    #doneBanner.leaving { transition: transform .35s cubic-bezier(.4,0,1,1), opacity .3s; opacity: 0; }
+    #doneBanner { touch-action: pan-y; }
+    .ib-hint { display: none; margin: 6px 0 0; font-size: 10.5px; color: var(--muted-fg); text-align: center; }
+    .ib-hint.show { display: block; }
     .rc-desc-chip.ok   { color: var(--success); }
     .rc-desc-chip.warn { color: var(--warning); }
     /* ── Empty state (no session started today) ── */
@@ -1306,7 +1363,9 @@
     .wk-footer { border-top: 1px solid var(--border); }
     .wk-stats { display: grid; grid-template-columns: 1fr 1fr; min-height: 60px; }
     .wk-stat { padding: 10px 16px; display: flex; flex-direction: column; justify-content: center; gap: 2px; min-width: 0; }
-    .wk-stat + .wk-stat { border-left: 1px solid var(--border); text-align: right; }
+    .wk-stat + .wk-stat { position: relative; text-align: right; }
+    /* Short, floating divider: centred on the two numbers, clear of the card edge above and View Stats below */
+    .wk-stat + .wk-stat::before { content: ''; position: absolute; left: 0; top: 14px; bottom: 14px; width: 1px; background: var(--border); }
     .wk-stat-k { font-size: 11px; color: var(--text-muted); }
     .wk-stat-v { font-size: 15px; font-weight: 600; letter-spacing: -.01em; font-variant-numeric: tabular-nums;
       color: var(--foreground); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -1372,6 +1431,38 @@
     .sliding-field.open   { max-height: 360px; opacity: 1; }
     .sliding-inner { padding: 14px; display: flex; flex-direction: column; gap: 12px; }
     /* Set Target tabs */
+    /* ── Appearance: uiarc Radio cards ── */
+    .appear-row { display: flex; flex-direction: column; gap: 10px; container-type: inline-size; }
+    .rc-cards { position: relative; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+    .rc-card { position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 8px; text-align: left;
+      padding: 12px; border-radius: 12px; border: 1px solid var(--border); background: transparent; color: var(--foreground);
+      font-family: var(--font); cursor: pointer; transition: background .15s; }
+    @media (hover: hover) { .rc-card:hover { background: var(--muted); } }
+    .rc-ic { display: grid; color: var(--muted-fg); transition: color .2s; }
+    .rc-ic svg { width: 17px; height: 17px; }
+    .rc-card.active .rc-ic { color: var(--foreground); }
+    .rc-txt { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+    .rc-l { font-size: 13px; font-weight: 600; }
+    .rc-d { font-size: 11.5px; color: var(--muted-fg); }
+    .rc-dot { position: absolute; top: 12px; right: 12px; width: 14px; height: 14px; border-radius: 50%;
+      box-shadow: inset 0 0 0 1.5px var(--border-strong); display: grid; place-items: center; }
+    .rc-dot i { width: 6px; height: 6px; border-radius: 50%; background: var(--foreground); transform: scale(0);
+      transition: transform .28s cubic-bezier(.34,1.56,.64,1); }
+    .rc-card.active .rc-dot { box-shadow: inset 0 0 0 1.5px var(--foreground); }
+    .rc-card.active .rc-dot i { transform: scale(1); }
+    .rc-ring { position: absolute; left: 0; top: 0; width: 0; height: 0; border: 2px solid var(--foreground); border-radius: 14px;
+      pointer-events: none; opacity: 0; transition: transform .42s var(--ease-sheet), width .42s var(--ease-sheet), height .42s var(--ease-sheet), opacity .2s; }
+    .rc-cards.ringed .rc-ring { opacity: 1; }
+    .rc-cards.no-anim .rc-ring { transition: none; }
+    /* Narrow (phones): the same three cards in a row, titles only (user, 2026-11-13). */
+    @container (max-width: 420px) {
+      .rc-card { padding: 11px 10px; gap: 10px; }
+      .rc-dot { top: 11px; right: 10px; }
+      .rc-d { display: none; }
+      .rc-l { font-size: 12.5px; line-height: 1.3; }   /* wraps, never cut ("Device Theme" on 375px) */
+      .rc-txt { width: 100%; }
+    }
+    @media (prefers-reduced-motion: reduce) { .rc-ring, .rc-dot i { transition: none; } }
     .st-tabs { display: flex; background: var(--background); border-radius: 8px; padding: 3px; gap: 2px; flex-shrink: 0; }
     .st-tab { background: transparent; border: none; border-radius: 6px; padding: 5px 12px;
       font-size: 12px; font-weight: 500; font-family: var(--font); color: var(--muted-fg);
@@ -1473,7 +1564,30 @@
     /* ── Sign-In Methods ── */
     .sim-row { display:flex;align-items:center;justify-content:space-between;gap:12px; }
     .sim-provider { display:flex;align-items:center;gap:10px;min-width:0; }
-    .sim-icon { width:32px;height:32px;border-radius:8px;border:1px solid var(--border);display:flex;align-items:center;justify-content:center;flex-shrink:0;background:var(--muted); }
+    /* Option C (approved 2026-11-13): 20px marks, no tiles; a badge only when on. */
+    .sim-row { min-height: 40px; }
+    .sim-icon { width:20px;height:20px;display:grid;place-items:center;flex-shrink:0;color:var(--foreground); }
+    .sim-icon svg { width:18px;height:18px; }
+    .sim-badge { display:inline-flex;align-items:center;gap:5px;height:20px;padding:0 7px;border-radius:5px;font-size:11px;font-weight:500;
+      background:var(--success-bg);color:var(--success);flex-shrink:0;margin-left:auto; }
+    .sim-badge i { width:5px;height:5px;border-radius:50%;background:currentColor; }
+    .sim-btn { flex-shrink:0;font-size:12px;height:30px;padding:0 12px; }
+    .sim-more { position:relative;flex-shrink:0; }
+    .sim-badge + .sim-more { margin-left:4px; }
+    .sim-kebab { width:30px;height:30px;padding:0;border:none;border-radius:8px;background:none;color:var(--muted-fg);display:grid;place-items:center;cursor:pointer; }
+    .sim-kebab svg { width:16px;height:16px; }
+    .sim-kebab:hover, .sim-more.open .sim-kebab { background:var(--muted);color:var(--foreground); }
+    .sim-menu { display:none;position:absolute;right:0;top:calc(100% + 4px);z-index:30;min-width:190px;padding:4px;border-radius:10px;
+      background:var(--card);border:1px solid var(--border);box-shadow:0 8px 24px rgba(0,0,0,.18); }
+    .sim-more.open .sim-menu { display:block; }
+    .sim-menu hr { border:none;border-top:1px solid var(--border);margin:4px 0; }
+    .sim-mi { width:100%;display:flex;align-items:center;gap:8px;padding:8px 10px;border:none;border-radius:7px;background:none;
+      font:500 12.5px var(--font);color:var(--foreground);cursor:pointer;text-align:left; }
+    .sim-mi svg { width:14px;height:14px;flex-shrink:0;color:var(--muted-fg); }
+    .sim-mi:hover:not(:disabled) { background:var(--muted); }
+    .sim-mi.danger, .sim-mi.danger svg { color:var(--destructive); }
+    .sim-mi:disabled { opacity:.45;cursor:default; }
+    .sim-why { margin:0;padding:0 10px 6px 32px;font-size:11px;color:var(--muted-fg); }
     .sim-name { font-size:13px;font-weight:500;color:var(--foreground); }
     .sim-status { font-size:11px;font-weight:500;margin-top:1px; }
     .sim-status.connected { color:var(--success); }
@@ -1631,6 +1745,62 @@
       transform: scale(.97) translateY(6px);
       transition: transform .24s cubic-bezier(.34,1.32,.64,1); }
     .overlay.open .dialog { transform: scale(1) translateY(0); }
+    /* ── Apple-style modals (.am): Done, End early, Auto-stopped, Continue session.
+       A centred dialog on desktop; on phones the same .dialog becomes a bottom
+       sheet with a grabber that follows your finger (Sheet.attach, sheet.js). ── */
+    .dialog.am { max-width: 360px; min-width: 0; padding: 26px 22px 18px; text-align: center; }
+    .am-hero { width: 60px; height: 60px; border-radius: 50%; margin: 0 auto 14px; display: grid; place-items: center;
+      background: var(--muted); color: var(--foreground); }
+    .am-hero svg { width: 26px; height: 26px; }
+    .am-hero.ok { background: var(--success-bg); color: var(--success); }
+    .am-hero.warn { background: var(--warning-bg); color: var(--warning); }
+    .am-hero.pop { animation: am-pop .5s cubic-bezier(.34,1.56,.64,1) both; }
+    .am-hero .am-check { stroke-dasharray: 30; stroke-dashoffset: 30; animation: am-draw .55s cubic-bezier(.65,0,.35,1) .35s forwards; }
+    @keyframes am-pop { from { transform: scale(.6); opacity: 0; } to { transform: none; opacity: 1; } }
+    @keyframes am-draw { to { stroke-dashoffset: 0; } }
+    @media (prefers-reduced-motion: reduce) { .am-hero.pop, .am-hero .am-check { animation: none; stroke-dashoffset: 0; } }
+    .am-t { font-size: 19px; font-weight: 600; letter-spacing: -.02em; color: var(--foreground); margin: 0; }
+    .am-d { font-size: 13.5px; color: var(--muted-fg); line-height: 1.45; margin: 6px auto 0; max-width: 290px; }
+    .am-facts { display: grid; grid-template-columns: repeat(3, 1fr); margin-top: 18px; border-radius: 14px; background: var(--muted); padding: 12px 4px; }
+    .am-facts > div + div { border-left: 1px solid var(--border); }
+    .am-k { font-size: 10.5px; color: var(--muted-fg); }
+    .am-v { font-size: 14.5px; font-weight: 600; color: var(--foreground); margin-top: 2px; font-variant-numeric: tabular-nums; }
+    .am-tip { display: flex; gap: 10px; align-items: flex-start; text-align: left; margin-top: 10px; padding: 11px 12px; border-radius: 12px;
+      background: var(--muted); font-size: 12.5px; line-height: 1.4; color: var(--foreground); }
+    .am-tip svg { width: 16px; height: 16px; flex-shrink: 0; margin-top: 1px; color: var(--violet); }
+    .am-note { display: flex; gap: 10px; align-items: center; text-align: left; margin-top: 14px; padding: 10px 12px; border-radius: 12px;
+      background: var(--warning-bg); color: var(--warning); font-size: 12.5px; }
+    .am-note svg { width: 16px; height: 16px; flex-shrink: 0; }
+    .am-bars { display: flex; gap: 6px; margin: 18px 2px 0; }
+    .am-bars i { height: 6px; border-radius: 3px; background: var(--foreground); }
+    .am-bars i.rest { background: var(--border-strong); }
+    .am-bl { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted-fg); margin: 7px 2px 0; font-variant-numeric: tabular-nums; }
+    .am-q { font-size: 13.5px; font-weight: 600; color: var(--foreground); margin: 16px 0 0; }
+    .am-calc { font-size: 12.5px; color: var(--muted-fg); margin: 8px 0 0; min-height: 18px; font-variant-numeric: tabular-nums; }
+    .am-calc b { color: var(--foreground); font-weight: 600; }
+    /* One-minute wheel (hour · minute · AM/PM), scroll-snapped, like iOS. */
+    .am-wheel { position: relative; display: flex; justify-content: center; gap: 4px; height: 150px; width: 230px; margin: 10px auto 0; }
+    .am-wheel::before { content: ''; position: absolute; left: 0; right: 0; top: 57px; height: 36px; border-radius: 10px; background: var(--muted); }
+    .am-col { position: relative; width: 62px; height: 150px; overflow-y: scroll; scroll-snap-type: y mandatory; scrollbar-width: none;
+      -webkit-mask: linear-gradient(transparent, #000 32%, #000 68%, transparent); mask: linear-gradient(transparent, #000 32%, #000 68%, transparent); }
+    .am-col::-webkit-scrollbar { display: none; }
+    .am-col div { height: 36px; line-height: 36px; scroll-snap-align: center; font-size: 20px; font-weight: 600; color: var(--foreground); font-variant-numeric: tabular-nums; }
+    .am-col .pad { height: 57px; }
+    .am-btns { display: grid; gap: 8px; margin-top: 18px; }
+    .am-btns .btn.btn-primary { width: 100%; height: 46px; font-size: 14.5px; border-radius: 13px; }
+    .am-quiet { height: 38px; border: none; background: none; font: 500 14px var(--font); color: var(--muted-fg); cursor: pointer; border-radius: 10px; }
+    .am-quiet:hover { color: var(--foreground); }
+    .am-quiet.danger { color: var(--destructive); font-weight: 600; }
+    @media (max-width: 640px) {
+      .overlay.am-host { align-items: flex-end; padding: 0; }
+      .overlay.am-host > .dialog.am { max-width: none; width: 100%; border-radius: 24px 24px 0 0; border-bottom: none;
+        padding: 10px 18px calc(18px + env(safe-area-inset-bottom)); transform: translateY(100%);
+        transition: transform .45s var(--ease-sheet); }
+      .overlay.am-host.open > .dialog.am { transform: none; }
+      .overlay.am-host > .dialog.am::before { content: ''; display: block; width: 36px; height: 5px; border-radius: 3px;
+        background: var(--border-strong); margin: 0 auto 16px; }
+      .overlay.am-host > .dialog.am.sheet-dragging { transition: none !important; }
+    }
     .dialog-head { padding: 22px 22px 16px; position: relative; }
     /* Toast */
     #appToast.toast-show { opacity: 1 !important; pointer-events: all !important; transform: translateX(-50%) translateY(0) !important; }
@@ -1856,6 +2026,27 @@
     .email-pv-meta { font-size: 12px; color: var(--muted-fg); overflow-wrap: anywhere; }
     .email-pv-subject { font-size: 14px; font-weight: 600; color: var(--foreground); overflow-wrap: anywhere; }
     /* What's New: the release notes, one line each under two quiet labels. */
+    .wn-head { display: flex; align-items: center; gap: 12px; margin: 4px 0 6px; }
+    .wn-appicon { width: 44px; height: 44px; border-radius: 11px; flex-shrink: 0; }
+    .wn-title { font-size: 18px; font-weight: 600; letter-spacing: -.02em; color: var(--foreground); }
+    .wn-version { font-size: 12.5px; color: var(--muted-fg); margin-top: 2px; }
+    .wn-feats { display: flex; flex-direction: column; }
+    .wn-feat { display: flex; gap: 12px; align-items: flex-start; padding: 11px 0; }
+    .wn-feat + .wn-feat { border-top: 1px solid var(--border); }
+    .wn-fi { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; flex-shrink: 0;
+      background: color-mix(in srgb, var(--wn-c) 14%, transparent); color: var(--wn-c); }
+    .wn-fi svg { width: 17px; height: 17px; }
+    .wn-ft { font-size: 14px; font-weight: 600; color: var(--foreground); }
+    .wn-fs { font-size: 13px; color: var(--muted-fg); line-height: 1.45; margin-top: 2px; }
+    .wn-fixes { margin-top: 6px; border-radius: 12px; background: var(--muted); }
+    .wn-fixes-head { width: 100%; display: flex; align-items: center; justify-content: space-between; padding: 12px 14px;
+      background: none; border: none; font: 500 13px var(--font); color: var(--foreground); cursor: pointer; }
+    .wn-fixes-head svg { width: 14px; height: 14px; color: var(--muted-fg); transition: transform .3s var(--ease-sheet); }
+    .wn-fixes.open .wn-fixes-head svg { transform: rotate(180deg); }
+    .wn-fixes-body { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .4s var(--ease-sheet); }
+    .wn-fixes.open .wn-fixes-body { grid-template-rows: 1fr; }
+    .wn-fixes-body > ul { overflow: hidden; margin: 0; padding: 0 14px 0 30px; font-size: 13px; line-height: 1.55; color: var(--muted-fg); }
+    .wn-fixes.open .wn-fixes-body > ul { padding-bottom: 12px; }
     .wn-body { display: flex; flex-direction: column; gap: 18px; }
     .wn-section { display: flex; flex-direction: column; gap: 10px; }
     .wn-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
@@ -2740,6 +2931,20 @@
       background: linear-gradient(to top, var(--card) 20%, transparent);
     }
     .tp-footer { display: flex; gap: 8px; padding: 10px 12px; border-top: 1px solid var(--border); }
+    /* What the picked time means, live as the wheels turn (approved 2026-11-13). */
+    .tp-live { margin: 0; padding: 8px 12px 0; font-size: 12px; color: var(--muted-fg); text-align: center; font-variant-numeric: tabular-nums; }
+    .tp-live:empty { display: none; }
+    .tp-live b { color: var(--foreground); font-weight: 600; }
+    .tp-modal { width: 240px; }
+    /* Phones: the picker is a bottom sheet. */
+    @media (max-width: 640px) {
+      .tp-modal { left: 0 !important; right: 0 !important; top: auto !important; bottom: 0 !important; width: 100%;
+        border-radius: 22px 22px 0 0; border-bottom: none; padding-bottom: env(safe-area-inset-bottom);
+        box-shadow: 0 -10px 40px rgba(0,0,0,.35); animation: tp-sheet-in .4s var(--ease-sheet) both; }
+      .tp-modal .tp-cancel-btn, .tp-modal .tp-set-btn { height: 44px; font-size: 15px; border-radius: 12px; }
+      .tp-live { font-size: 13px; padding-top: 10px; }
+    }
+    @keyframes tp-sheet-in { from { transform: translateY(100%); } to { transform: none; } }
     .tp-cancel-btn {
       flex: 1; height: 34px; border-radius: 8px; border: none;
       background: var(--muted); color: var(--foreground); font-size: 13px; font-weight: 500;
@@ -2775,6 +2980,61 @@
     .rc-io-duration-arrow { color:var(--muted-fg); flex-shrink:0; display:flex; align-items:center; }
 
     /* ── Onboarding ── */
+    /* ── Onboarding (one surface) ── */
+    .ob2-overlay { align-items: center; justify-content: center; }
+    .ob2 { width: 380px; max-width: calc(100vw - 32px); height: min(620px, calc(100dvh - 32px)); display: flex; flex-direction: column;
+      background: var(--background); border: 1px solid var(--border); border-radius: 24px; padding: 20px; box-sizing: border-box;
+      box-shadow: 0 20px 60px rgba(0,0,0,.35); font-family: var(--font); color: var(--foreground); }
+    @media (max-width: 640px) { .ob2 { width: 100%; max-width: none; height: 100dvh; border: none; border-radius: 0;
+      padding: calc(20px + env(safe-area-inset-top)) 16px calc(14px + env(safe-area-inset-bottom)); } }
+    .ob2-main { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+    .ob2-welcome { margin: auto 0; text-align: center; }
+    .ob2-welcome img { width: 68px; height: 68px; border-radius: 17px; }
+    .ob2-welcome h2 { font-size: 24px; font-weight: 600; letter-spacing: -.03em; line-height: 1.2; margin: 18px 0 0; }
+    .ob2-welcome p { font-size: 13.5px; color: var(--muted-fg); margin: 8px 0 0; }
+    .ob2-hd { display: flex; align-items: center; gap: 12px; }
+    .ob2-hd img { width: 40px; height: 40px; border-radius: 11px; }
+    .ob2-tt { font-size: 17px; font-weight: 600; margin: 0; } .ob2-st { font-size: 12px; color: var(--muted-fg); margin: 2px 0 0; }
+    .ob2-pv { margin-top: 14px; border-radius: 16px; background: var(--card); border: 1px solid var(--border); padding: 12px 14px; }
+    .ob2-pvtop { display: flex; justify-content: space-between; align-items: center; }
+    .ob2-who { font-size: 10.5px; font-weight: 600; color: var(--muted-fg); letter-spacing: .06em; }
+    .ob2-pill { font-size: 11px; font-weight: 600; background: var(--muted); border-radius: 6px; padding: 3px 8px; }
+    .ob2-kp { display: flex; justify-content: space-between; align-items: flex-end; margin-top: 12px; }
+    .ob2-K { font-size: 20px; font-weight: 600; letter-spacing: -.02em; height: 25px; overflow: hidden; font-variant-numeric: tabular-nums; }
+    .ob2-cap { font-size: 10.5px; color: var(--muted-fg); margin-top: 2px; }
+    .ob2-roll { display: inline-block; transition: transform .45s var(--ease-sheet), opacity .3s; }
+    .ob2-roll.out { transform: translateY(-70%); opacity: 0; }
+    .ob2-bar { height: 4px; border-radius: 99px; background: var(--border); margin-top: 10px; overflow: hidden; }
+    .ob2-bar i { display: block; height: 100%; width: 0; border-radius: 99px; background: var(--foreground); transition: width .8s var(--ease-sheet); }
+    .ob2-chip { text-align: center; margin-top: 9px; } .ob2-chip span { display: inline-flex; height: 20px; align-items: center; padding: 0 8px; border-radius: 6px; background: var(--muted); font-size: 11px; color: var(--muted-fg); }
+    .ob2-body { flex: 1; min-height: 0; overflow-y: auto; margin-top: 12px; }
+    .ob2-group { border-radius: 14px; background: var(--card); border: 1px solid var(--border); overflow: hidden; display: grid; grid-template-rows: 0fr; transition: grid-template-rows .5s var(--ease-sheet); }
+    .ob2-group > div { overflow: hidden; } .ob2-group.has { grid-template-rows: 1fr; }
+    .ob2-row { display: flex; align-items: center; gap: 10px; width: 100%; height: 44px; padding: 0 14px; border: none; background: none;
+      font: 400 13.5px var(--font); color: var(--foreground); cursor: pointer; text-align: left; animation: ob2-in .45s var(--ease-sheet); }
+    .ob2-row + .ob2-row { border-top: 1px solid var(--border); }
+    .ob2-gi { width: 26px; height: 26px; border-radius: 7px; display: grid; place-items: center; flex-shrink: 0;
+      background: color-mix(in srgb, var(--ob2-c) 15%, transparent); color: var(--ob2-c); }
+    .ob2-gi svg { width: 14px; height: 14px; }
+    .ob2-gk { flex: 1; color: var(--muted-fg); } .ob2-gv { font-weight: 600; font-variant-numeric: tabular-nums; }
+    .ob2-ask { margin-top: 14px; opacity: 0; transform: translateY(12px); transition: opacity .4s, transform .5s var(--ease-sheet); }
+    .ob2-ask.in { opacity: 1; transform: none; }
+    .ob2-qt { font-size: 16px; font-weight: 600; margin: 0 0 10px; letter-spacing: -.01em; }
+    .ob2-chips { display: flex; flex-wrap: wrap; gap: 7px; }
+    .ob2-c { height: 36px; padding: 0 14px; border-radius: 18px; border: none; background: var(--muted); color: var(--foreground);
+      font: 500 13.5px var(--font); cursor: pointer; transition: background .25s, color .25s, transform .12s; }
+    .ob2-c:active { transform: scale(.95); } .ob2-c.on { background: var(--foreground); color: var(--background); }
+    .ob2-c.other { background: transparent; box-shadow: inset 0 0 0 1px var(--border-strong); color: var(--muted-fg); }
+    .ob2-name { width: 100%; height: 46px; border-radius: 12px; padding: 0 14px; box-sizing: border-box; font: 400 15px var(--font);
+      background: var(--card); border: 1px solid var(--border); color: var(--foreground); outline: none; }
+    .ob2-name:focus { border-color: var(--border-strong); }
+    .ob2-step { display: flex; align-items: center; justify-content: center; gap: 14px; margin-top: 12px; }
+    .ob2-step button { width: 40px; height: 40px; border-radius: 12px; border: none; background: var(--muted); color: var(--foreground); font-size: 18px; cursor: pointer; }
+    .ob2-step b { font-size: 22px; font-weight: 600; min-width: 110px; text-align: center; font-variant-numeric: tabular-nums; }
+    @keyframes ob2-in { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+    .ob2-foot { display: grid; gap: 8px; margin-top: 12px; flex-shrink: 0; }
+    .ob2-b { width: 100%; height: 46px; border-radius: 13px; font-size: 15px; justify-content: center; }
+    .ob2-b[hidden] { display: none; }
     .ob-overlay { position: fixed; inset: 0; z-index: 2000; background: rgba(0,0,0,.55);
       backdrop-filter: blur(6px); display: flex; align-items: center; justify-content: center; padding: 16px; }
     .ob-dialog { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-xl);
@@ -2880,7 +3140,12 @@
     .day-selector.wk-back { animation: ds-slide-back .22s ease both; }
 
     /* ── Animated number ticker ── */
-    .rc-worked, .rc-rem-inline { will-change: contents; }
+    /* Desktop app hidden in the tray: nothing on screen, so stop every looping animation
+       (live dots, shimmer, spinners). shell.rs toggles the class on hide/show. */
+    html.app-hidden *, html.app-hidden *::before, html.app-hidden *::after { animation-play-state: paused !important; }
+    /* The sync pill and the signing-out overlay fade to opacity 0 instead of leaving the
+       page, so their spinners kept turning all day, unseen. Spin only while shown. */
+    .sync-pill:not(.show) .sync-pill-spin, .overlay:not(.open) .leaving-spinner { animation-play-state: paused; }
 
     /* ── Saturday pill entrance animation ── */
     @keyframes plan-btn-in { from { opacity: 0; transform: scale(.8); } to { opacity: 1; transform: scale(1); } }
@@ -3185,12 +3450,19 @@
     body.rail-on #dayEditCancel { display: none; }
     body.rail-on #dayEditSave { flex: 1; width: 100%; }
     .sheet-close { display: none; }
-    body.rail-on #dayEditOverlay .sheet-close { display: grid; place-items: center; position: absolute; top: 14px; right: 14px;
-      width: 28px; height: 28px; padding: 0; border: none; border-radius: 50%; background: var(--muted); color: var(--muted-fg); cursor: pointer;
-      transition: background .14s, color .14s; z-index: 2; }
+    /* Same square as the Delete button beside it: 32px, 8px corners, muted fill. */
+    body.rail-on #dayEditOverlay .sheet-close { display: grid; place-items: center; position: absolute; top: 10px; right: 10px;
+      width: 32px; height: 32px; padding: 0; border: none; border-radius: 8px; background: var(--muted); color: var(--muted-fg); cursor: pointer;
+      transition: background .15s, color .15s; z-index: 2; }
     body.rail-on #dayEditOverlay .sheet-close:hover { background: var(--btn-secondary-hover); color: var(--foreground); }
-    body.rail-on #dayEditOverlay .sheet-close svg { width: 13px; height: 13px; }
+    body.rail-on #dayEditOverlay .sheet-close svg { width: 15px; height: 15px; }
     body.rail-on #dayEditDeleteBtn { right: 48px !important; }
+    .notif-head-actions { display: flex; align-items: center; gap: 8px; }
+    body.rail-on .notif-panel .sheet-close { display: grid; place-items: center; flex-shrink: 0;
+      width: 30px; height: 30px; padding: 0; border: none; border-radius: 8px; background: var(--muted); color: var(--muted-fg); cursor: pointer;
+      transition: background .14s, color .14s; }
+    body.rail-on .notif-panel .sheet-close:hover { background: var(--btn-secondary-hover); color: var(--foreground); }
+    body.rail-on .notif-panel .sheet-close svg { width: 13px; height: 13px; }
     /* Toasts: bottom-right on desktop, sliding up with the sheet easing. */
     body.rail-on .wh-toast { left: auto; right: 24px; bottom: 24px; transform: translateY(14px);
       transition: transform .48s var(--ease-sheet), opacity .32s var(--ease-sheet); }
@@ -3215,37 +3487,14 @@
   </div>
 
   <!-- ── Daily Report modal ── -->
-  <div class="overlay" id="checkoutOverlay">
-    <div class="dialog">
-      <div class="co-daily-head">
-        <div class="dialog-title">Daily Report</div>
-        <button class="btn-icon" data-on-click="h450089b5c0" title="Close" style="margin:-4px -4px -4px 0">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-        </button>
-      </div>
-      <div class="dialog-body">
-        <div class="co-stats-row">
-          <div class="co-stat">
-            <div class="co-stat-label">Total Hours</div>
-            <div class="co-stat-val" id="coWorked">—</div>
-          </div>
-          <div class="co-stat-divider"></div>
-          <div class="co-stat">
-            <div class="co-stat-label">Duration</div>
-            <div class="co-stat-val" id="coTimeRange">—</div>
-          </div>
-        </div>
-        <div class="co-footer-note" id="coShouldLeaveWrap" style="display:none">
-          <span id="coShouldLeave"></span>
-        </div>
-        <div class="co-insight" id="coInsight" style="display:none">
-          <div class="co-insight-label">Tomorrow's Insight</div>
-          <div class="co-insight-text" id="coInsightText"></div>
-        </div>
-      </div>
-      <div class="dialog-foot" style="flex-direction:row;justify-content:flex-end;padding-top:4px">
-        <button class="btn btn-primary" id="coDone" style="min-width:72px">Done</button>
-      </div>
+  <div class="overlay am-host" id="checkoutOverlay" data-dismiss="coDone">
+    <div class="dialog am" role="dialog" aria-modal="true" aria-labelledby="coTitle">
+      <div class="am-hero" id="coHero"></div>
+      <p class="am-t" id="coTitle"></p>
+      <p class="am-d" id="coDesc"></p>
+      <div class="am-facts"><div><div class="am-k">Started</div><div class="am-v" id="coStart">—</div></div><div><div class="am-k">Left at</div><div class="am-v" id="coLeft">—</div></div><div><div class="am-k">This week</div><div class="am-v" id="coWeek">—</div></div></div>
+      <div class="am-tip" id="coInsight"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18h6M10 22h4M12 2a7 7 0 0 0-4 12.7V17h8v-2.3A7 7 0 0 0 12 2z"/></svg><span id="coInsightText"></span></div>
+      <div class="am-btns"><button class="btn btn-primary" id="coDone">Done</button></div>
     </div>
   </div>
 
@@ -3332,7 +3581,11 @@
     <div class="notif-card">
       <div class="notif-head">
         <span class="section-label">Notifications</span>
-        <button class="btn-secondary" id="notifClearAll" style="font-size:11px;height:30px;padding:0 10px">Clear All</button>
+        <div class="notif-head-actions">
+          <button class="btn-secondary" id="notifClearAll" style="font-size:11px;height:30px;padding:0 10px">Clear All</button>
+          <!-- Desktop drawer only: the same round close button as the Update Entry sheet -->
+          <button type="button" class="sheet-close" id="notifCloseBtn" aria-label="Close notifications"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
+        </div>
       </div>
       <div id="notifList"><div class="notif-empty">No notifications right now.</div></div>
     </div>
@@ -3448,8 +3701,8 @@
           </div>
           <div class="rc-pair-tabs-row" id="rcPairTabsRow">
             <div class="rc-pair-tabs" id="rcPairTabs">
-              <button class="rc-pair-tab rc-pair-tab-active" data-on-click="ha2f6205fb2">Time</button>
-              <button class="rc-pair-tab" data-on-click="h0b009e2a27">Progress</button>
+              <button class="rc-pair-tab rc-pair-tab-active" data-on-click="ha2f6205fb2">Clock</button>
+              <button class="rc-pair-tab" data-on-click="h0b009e2a27">Hours</button>
             </div>
             <!-- Today's day type; opens the Today panel (day types + today's numbers) -->
             <button class="rc-info-btn" id="rcInfoBtn" data-plan="fullday"
@@ -3463,9 +3716,11 @@
           <div class="rc-numbers">
             <div class="rc-left-col">
               <div class="rc-worked" id="rcWorked">—</div>
+              <div class="rc-kcap" id="rcWorkedCap"></div>
             </div>
             <div class="rc-right-col">
               <div class="rc-target-val" id="rcTarget" style="color:var(--muted-fg)">—</div>
+              <div class="rc-kcap" id="rcTargetCap"></div>
             </div>
           </div>
           <div class="rc-progress-track" id="rcProgressTrack">
@@ -3536,9 +3791,11 @@
             <span class="ib-meta" id="otQuip"></span>
           </div>
           <div class="ib" data-tone="success" data-action="none" data-toggle id="doneBanner">
-            <span class="ib-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg></span>
-            <div class="ib-body"><span class="ib-title" id="doneMsg">You're done. Head out!</span></div>
+            <span class="ib-icon" id="doneIcon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg></span>
+            <div class="ib-body"><span class="ib-title" id="doneMsg">You're done. Head out!</span><span class="ib-text" id="doneSub"></span></div>
+            <button type="button" class="ib-x" id="doneDismiss" aria-label="Dismiss"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
           </div>
+          <p class="ib-hint" id="doneHint">Swipe to dismiss</p>
           <div class="ib" data-tone="warning" data-action="label" data-toggle id="autostopBanner">
             <span class="ib-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 2h4"/><path d="M4.6 11a8 8 0 0 0 1.7 8.7 8 8 0 0 0 8.7 1.7"/><path d="M7.4 7.4a8 8 0 0 1 10.3 1 8 8 0 0 1 .9 10.2"/><path d="m2 2 20 20"/><path d="M12 12v-2"/></svg></span>
             <div class="ib-body"><span class="ib-title" id="autostopTitle">Stopped automatically</span><span class="ib-text" id="autostopMsg">You reached your target plus the buffer.</span></div>
@@ -3841,12 +4098,24 @@
           <div class="settings-group">
 
             <!-- App Theme -->
-            <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+            <!-- uiarc Radio cards: a grid of three, a list on narrow screens. One ring
+                 glides to the chosen card and its dot springs in (_renderThemeTabs). -->
+            <div class="appear-row">
               <div class="form-label">Appearance</div>
-              <div class="st-tabs" id="themeTabs">
-                <button type="button" class="st-tab" id="themeTabAuto"  data-on-click="ha1e6c02f2c">Auto</button>
-                <button type="button" class="st-tab" id="themeTabLight" data-on-click="hbaac90494f">Light</button>
-                <button type="button" class="st-tab" id="themeTabDark"  data-on-click="h70155e2dab">Dark</button>
+              <div class="rc-cards" id="themeTabs" role="radiogroup" aria-label="Appearance">
+                <button type="button" class="rc-card" id="themeTabAuto" role="radio" aria-checked="false" data-on-click="ha1e6c02f2c">
+                  <span class="rc-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg></span><span class="rc-dot" aria-hidden="true"><i></i></span>
+                  <span class="rc-txt"><span class="rc-l">Device Theme</span><span class="rc-d">Matches your device</span></span>
+                </button>
+                <button type="button" class="rc-card" id="themeTabLight" role="radio" aria-checked="false" data-on-click="hbaac90494f">
+                  <span class="rc-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></span><span class="rc-dot" aria-hidden="true"><i></i></span>
+                  <span class="rc-txt"><span class="rc-l">Light</span><span class="rc-d">Always light</span></span>
+                </button>
+                <button type="button" class="rc-card" id="themeTabDark" role="radio" aria-checked="false" data-on-click="h70155e2dab">
+                  <span class="rc-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg></span><span class="rc-dot" aria-hidden="true"><i></i></span>
+                  <span class="rc-txt"><span class="rc-l">Dark</span><span class="rc-d">Always dark</span></span>
+                </button>
+                <span class="rc-ring" aria-hidden="true"></span>
               </div>
             </div>
 
@@ -4325,6 +4594,17 @@
                 </span>
               </label>
 
+              <label class="dev-row" style="cursor:pointer">
+                <div>
+                  <div class="form-label">Sample Data</div>
+                  <div class="form-sub">Shows a typical user's last 5 weeks and a session running today, for screenshots and testing. Your real data is untouched and nothing syncs while it's on. Reloads the app.</div>
+                </div>
+                <span class="toggle" style="flex-shrink:0">
+                  <input type="checkbox" id="devSampleData">
+                  <span class="toggle-track"></span>
+                </span>
+              </label>
+
               <!-- Sync — function row (kept at the bottom) -->
               <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
                 <div>
@@ -4505,7 +4785,7 @@
   <a href="https://github.com/rosshanmohapatra/5pm-workhour-tracker/releases" target="_blank" rel="noopener" class="version-pill">
     <span style="font-size:11px;font-weight:600;color:var(--muted-fg);letter-spacing:.01em">5pm</span>
     <span style="font-size:10px;font-weight:600;letter-spacing:.05em;
-      background:var(--muted);color:var(--muted-fg);padding:4px 7px;border-radius:100px">v1.2.29</span>
+      background:var(--muted);color:var(--muted-fg);padding:4px 7px;border-radius:100px">v1.2.31</span>
   </a>
 
   <!-- ── Weekly Report Modal ── -->
@@ -4537,48 +4817,31 @@
   </div>
 
   <!-- ── Continue Working Modal (Quick Start after hours already logged) ── -->
-  <div class="overlay" id="continueWorkingOverlay" data-on-click="hc056d60086">
-    <div class="dialog" style="max-width:360px">
-      <div class="dialog-head" style="display:flex;align-items:flex-start;justify-content:space-between">
-        <div>
-          <div class="dialog-title">Continue Working?</div>
-          <div class="dialog-desc" id="continueWorkingDesc">You've already logged hours today.</div>
-        </div>
-        <button class="btn-icon" data-on-click="h9ff643fe8d" title="Close" style="margin:-4px -4px -4px 8px;flex-shrink:0">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-        </button>
-      </div>
-      <div style="padding:0 14px 14px">
-        <div style="background:var(--muted);border-radius:10px;padding:14px 16px;display:flex;align-items:center;justify-content:space-between">
-          <span style="font-size:12px;color:var(--muted-fg);font-weight:500">Logged Today</span>
-          <span id="continueWorkingHours" style="font-size:18px;font-weight:700;color:var(--foreground);letter-spacing:-.02em">—</span>
-        </div>
-      </div>
-      <div style="padding:0 14px 14px;display:flex;gap:8px">
-        <button class="btn-secondary" id="continueWorkingCancelBtn" style="flex:1">Cancel</button>
-        <button class="btn btn-primary" id="continueWorkingProceedBtn" style="flex:1;height:38px;padding:0 16px;font-size:13px">Proceed</button>
+  <!-- Continue today's session: the day's session was ended (on purpose or by
+       accident) and is being started again. Both parts become one session; the
+       time in between doesn't count. -->
+  <div class="overlay am-host" id="continueWorkingOverlay" data-on-click="hc056d60086">
+    <div class="dialog am" role="dialog" aria-modal="true" aria-labelledby="cwTitle">
+      <p class="am-t" id="cwTitle">Continue today's session?</p>
+      <div class="am-bars" aria-hidden="true"><i id="cwBarDone"></i><i class="rest" id="cwBarLeft"></i></div>
+      <div class="am-bl"><span id="cwDone"></span><span id="cwLeft"></span></div>
+      <div class="am-btns">
+        <button class="btn btn-primary" id="continueWorkingProceedBtn">Continue session</button>
+        <button type="button" class="am-quiet" id="continueWorkingCancelBtn">Not now</button>
       </div>
     </div>
   </div>
 
   <!-- ── Daily Target Reached Modal (Recommend Timings OFF) ── -->
-  <div class="overlay" id="dailyTargetReachedOverlay">
-    <div class="dialog" style="max-width:360px">
-      <div class="dialog-head" style="display:flex;align-items:flex-start;justify-content:space-between">
-        <div>
-          <div class="dialog-title">Daily Target Reached! 🎉</div>
-          <div class="dialog-desc">Great work today. You've hit your hours.</div>
-        </div>
-      </div>
-      <div style="padding:0 14px 14px">
-        <div style="background:var(--success-bg);border:1px solid var(--success-border);border-radius:10px;padding:14px 16px;display:flex;align-items:center;justify-content:space-between">
-          <span style="font-size:12px;color:var(--success);font-weight:600">Hours Logged</span>
-          <span id="dailyTargetHours" style="font-size:18px;font-weight:700;color:var(--success);letter-spacing:-.02em">—</span>
-        </div>
-      </div>
-      <div style="padding:0 14px 14px;display:flex;gap:8px">
-        <button class="btn-secondary" id="dailyTargetCancelBtn" style="flex:1">Keep Going</button>
-        <button class="btn btn-primary" id="dailyTargetEndBtn" style="flex:1;height:38px;padding:0 16px;font-size:13px">End Session</button>
+  <div class="overlay am-host" id="dailyTargetReachedOverlay" data-dismiss="dailyTargetCancelBtn">
+    <div class="dialog am" role="dialog" aria-modal="true" aria-labelledby="dtrTitle">
+      <div class="am-hero ok pop" id="dtrHero"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path class="am-check" d="M5 12.5l4.5 4.5L19 7.5"/></svg></div>
+      <p class="am-t" id="dtrTitle">That's your day.</p>
+      <p class="am-d">Every hour's in. The rest of the day is yours.</p>
+      <div class="am-facts"><div><div class="am-k">Started</div><div class="am-v" id="dtrStart">—</div></div><div><div class="am-k">Worked</div><div class="am-v" id="dailyTargetHours">—</div></div><div><div class="am-k">This week</div><div class="am-v" id="dtrWeek">—</div></div></div>
+      <div class="am-btns">
+        <button class="btn btn-primary" id="dailyTargetEndBtn">End for today</button>
+        <button type="button" class="am-quiet" id="dailyTargetCancelBtn">Keep working</button>
       </div>
     </div>
   </div>
@@ -4603,24 +4866,15 @@
   </div>
 
   <!-- ── End Session Confirmation Modal ── -->
-  <div class="overlay" id="endSessionOverlay">
-    <div class="dialog" style="max-width:360px">
-      <div class="dialog-head" style="display:flex;align-items:flex-start;justify-content:space-between">
-        <div>
-          <div class="dialog-title">End Session?</div>
-          <div class="dialog-desc" id="endSessionDesc">You still have time remaining until your daily target.</div>
-        </div>
-        <button class="btn-icon" data-on-click="h77a742fb72" title="Close" style="margin:-4px -4px -4px 8px;flex-shrink:0">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-        </button>
-      </div>
-      <div class="ib" data-tone="warning" data-action="none" id="endSessionHalfDayNote" style="display:none;margin:0 14px 4px">
-        <span class="ib-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg></span>
-        <div class="ib-body"><span class="ib-title">This will count as a Half Day</span><span class="ib-text">You're leaving before the halfway mark.</span></div>
-      </div>
-      <div style="padding:14px;display:flex;justify-content:flex-end;gap:8px">
-        <button class="btn-secondary" id="endSessionCancelBtn">Keep Going</button>
-        <button class="btn-ghost-destructive" id="endSessionConfirmBtn">End Session</button>
+  <div class="overlay am-host" id="endSessionOverlay" data-dismiss="endSessionCancelBtn">
+    <div class="dialog am" role="dialog" aria-modal="true" aria-labelledby="endSessionTitle">
+      <div class="am-hero"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div>
+      <p class="am-t" id="endSessionTitle">Leave early?</p>
+      <p class="am-d" id="endSessionDesc"></p>
+      <div class="am-note" id="endSessionHalfDayNote" style="display:none"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 16h.01"/></svg>This will count as a half day.</div>
+      <div class="am-btns">
+        <button class="btn btn-primary" id="endSessionCancelBtn">Keep working</button>
+        <button type="button" class="am-quiet danger" id="endSessionConfirmBtn">End for today</button>
       </div>
     </div>
   </div>
@@ -5108,8 +5362,8 @@
     <div class="tp-modal-header">
       <span class="tp-modal-title" id="tpModalTitle">Set Time</span>
       <div id="tpTabBar" class="tp-tab-bar" style="display:none">
-        <button class="tp-tab" id="tpTabLogin" data-on-click="hf5998e6104">Log In</button>
-        <button class="tp-tab" id="tpTabLogout" data-on-click="hb8a39e6460">Log Out</button>
+        <button class="tp-tab" id="tpTabLogin" data-on-click="hf5998e6104">Started at</button>
+        <button class="tp-tab" id="tpTabLogout" data-on-click="hb8a39e6460">Left at</button>
       </div>
     </div>
     <div class="tp-wheels-wrap">
@@ -5122,9 +5376,10 @@
       <div class="tp-fade-top"></div>
       <div class="tp-fade-bot"></div>
     </div>
+    <p class="tp-live" id="tpLive" aria-live="polite"></p>
     <div class="tp-footer">
       <button class="tp-cancel-btn" id="tpCancelBtn" data-on-click="h26a5552a4b">Cancel</button>
-      <button class="tp-set-btn" data-on-click="h11d2982109">Set</button>
+      <button class="tp-set-btn" id="tpSetBtn" data-on-click="h11d2982109">Set</button>
     </div>
   </div>
 
@@ -5332,13 +5587,15 @@
        bottom sheet on phones (the scrim only shows there). ── -->
   <div class="td-scrim" id="tdScrim" data-on-click="hfbcc321d43"></div>
   <div class="td-panel" id="tdPanel" role="dialog" aria-modal="true" aria-label="Today">
-    <div class="td-kpis" id="tdKpis"></div>
-    <div class="td-types" id="tdTypes" role="radiogroup" aria-label="Day type">
-      <button type="button" class="td-type" data-plan="fullday" role="radio" data-on-click="h6111ed02c2">Full Day</button>
-      <button type="button" class="td-type" data-plan="halfday" role="radio" data-on-click="ha3743ad448">Half Day</button>
-      <button type="button" class="td-type" data-plan="leave" role="radio" data-on-click="h1c1853eeb9">On Leave</button>
-      <button type="button" class="td-type" data-plan="holiday" role="radio" data-on-click="ha06142f505">Holiday</button>
+    <p class="td-head">Today is a…</p>
+    <div class="td-types td-seg" id="tdTypes" role="radiogroup" aria-label="Day type">
+      <span class="td-pill" aria-hidden="true"></span>
+      <button type="button" class="td-type" data-plan="fullday" role="radio" data-on-click="h6111ed02c2"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span>Full Day</span></button>
+      <button type="button" class="td-type" data-plan="halfday" role="radio" data-on-click="ha3743ad448"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 1 0 18z" fill="currentColor"/></svg><span>Half Day</span></button>
+      <button type="button" class="td-type" data-plan="leave" role="radio" data-on-click="h1c1853eeb9"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 21h18M5 21V10l7-6 7 6v11"/></svg><span>On Leave</span></button>
+      <button type="button" class="td-type" data-plan="holiday" role="radio" data-on-click="ha06142f505"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg><span>Holiday</span></button>
     </div>
+    <div class="td-kpis td-line" id="tdKpis" aria-live="polite"></div>
     <button type="button" class="btn btn-primary td-confirm" id="tdConfirm" data-on-click="h3d8c4a4b3a" disabled>Confirm</button>
   </div>
 
@@ -5391,30 +5648,19 @@
   <!-- Forgot to Log Out Modal -->
 
   <!-- Auto-Stop Recovery Modal -->
-  <div class="overlay" id="autoStopRecoveryOverlay" style="z-index:2100" data-on-click="haef0170aaa">
-    <div class="dialog" style="max-width:380px">
-      <div class="dialog-head" style="display:flex;align-items:flex-start;justify-content:space-between;padding:14px">
-        <div>
-          <div class="dialog-title">Your shift was auto-stopped</div>
-          <div class="dialog-desc" id="asrDesc">It automatically ended an hour after your daily target.</div>
-        </div>
-        <button class="btn-icon" data-on-click="h6bf3bb701d" title="Close" style="margin:-4px -4px -4px 8px;flex-shrink:0">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-        </button>
-      </div>
-      <div class="dialog-body" style="padding:0 14px 14px;gap:6px">
-        <div class="form-label" style="font-size:13px;font-weight:500;color:var(--foreground)">When did you leave?</div>
-        <div style="position:relative" class="time-input-wrap">
-          <input type="text" class="field-input" id="asrEndTime" placeholder="End time" autocomplete="off" style="padding-left:38px;width:100%">
-          <button type="button" class="tp-icon-btn" data-on-click="h16a0fbc574" title="Pick time">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M16.5 13C17.0523 13 17.5 12.5523 17.5 12C17.5 11.4477 17.0523 11 16.5 11H13V5.5C13 4.94772 12.5523 4.5 12 4.5C11.4477 4.5 11 4.94772 11 5.5V12C11 12.5523 11.4477 13 12 13H16.5Z" fill="currentColor"/><path fill-rule="evenodd" clip-rule="evenodd" d="M12 1C5.92487 1 1 5.92487 1 12C1 18.0751 5.92487 23 12 23C18.0751 23 23 18.0751 23 12C23 5.92487 18.0751 1 12 1ZM3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12Z" fill="currentColor"/></svg>
-          </button>
-        </div>
-        <div class="err-msg" id="asrErr">Couldn't parse that time.</div>
-      </div>
-      <div class="dialog-foot-row" style="padding:0 14px 14px">
-        <button class="btn btn-cancel" data-on-click="h6bf3bb701d">Keep</button>
-        <button class="btn btn-primary" id="asrUpdateBtn" disabled data-on-click="hfc7764bd8f">Update</button>
+  <div class="overlay am-host" id="autoStopRecoveryOverlay" style="z-index:2100" data-on-click="haef0170aaa" data-dismiss="asrKeepBtn">
+    <div class="dialog am" role="dialog" aria-modal="true" aria-labelledby="asrTitle">
+      <div class="am-hero warn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 1.5M9 2h6M12 2v3"/></svg></div>
+      <p class="am-t" id="asrTitle">We stopped your timer.</p>
+      <p class="am-d" id="asrDesc"></p>
+      <p class="am-q">When did you actually leave?</p>
+      <div class="am-wheel" id="asrWheel"></div>
+      <input type="hidden" id="asrEndTime">
+      <p class="am-calc" id="asrCalc"></p>
+      <div class="err-msg" id="asrErr">Couldn't read that time.</div>
+      <div class="am-btns">
+        <button class="btn btn-primary" id="asrUpdateBtn" data-on-click="hfc7764bd8f">Save</button>
+        <button type="button" class="am-quiet" id="asrKeepBtn" data-on-click="h6bf3bb701d">Keep</button>
       </div>
     </div>
   </div>
@@ -5525,15 +5771,17 @@
   <div class="email-modal-overlay" id="whatsNewOverlay">
     <div class="email-modal wn-modal" role="dialog" aria-modal="true" aria-labelledby="wnTitle" style="position:relative">
       <button class="email-modal-close" id="wnClose" aria-label="Close"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
-      <div class="email-modal-head">
-        <div style="flex:1;min-width:0">
-          <div class="email-modal-title" id="wnTitle">What's New</div>
-          <div class="email-modal-date" id="wnVersion"></div>
+      <!-- Apple "What's new": app icon + title, then each improvement as an icon,
+           a short title and one line; fixes fold into one row. -->
+      <div class="wn-head">
+        <img class="wn-appicon" src="/apple-touch-icon.png" alt="" width="44" height="44">
+        <div style="min-width:0">
+          <div class="wn-title" id="wnTitle">What's new in 5pm</div>
+          <div class="wn-version" id="wnVersion"></div>
         </div>
       </div>
-      <div class="email-modal-sep"></div>
       <div class="wn-body" id="wnBody"></div>
-      <button type="button" class="btn btn-primary wn-continue" id="wnContinue">Looks Good</button>
+      <button type="button" class="btn btn-primary wn-continue" id="wnContinue">Continue</button>
     </div>
   </div>
 
@@ -5548,191 +5796,15 @@
   <script src="/lib/pages/tour.js"></script>
 
 <!-- ── ONBOARDING MODAL ── -->
-<div class="ob-overlay" id="obOverlay" style="display:none">
-  <div class="ob-dialog">
-    <div class="ob-head">
-      <div class="ob-stories-wrap" id="obStoriesWrap">
-        <div class="ob-story-seg current" id="obSeg1"><div class="ob-story-fill"></div></div>
-        <div class="ob-story-seg" id="obSeg2"><div class="ob-story-fill"></div></div>
-        <div class="ob-story-seg" id="obSeg3"><div class="ob-story-fill"></div></div>
-        <div class="ob-story-seg" id="obSeg4"><div class="ob-story-fill"></div></div>
-      </div>
-    </div>
-    <div class="ob-body">
-
-      <!-- Step 1: Introduction -->
-      <div class="ob-panel active" id="obPanel1">
-        <div class="ob-intro-head">
-          <img class="ob-intro-logo ob-intro-logo-light" src="/icons/brand-light.svg" alt="5pm">
-          <img class="ob-intro-logo ob-intro-logo-dark" src="/icons/brand-dark.svg" alt="5pm">
-          <div class="ob-intro-text">
-            <div class="ob-title">5pm</div>
-            <div class="ob-desc">Your work hour tracker, built to keep a healthier work-life balance.</div>
-          </div>
-        </div>
-        <div class="ob-feature-list">
-          <div class="ob-feature-card">
-            <div class="ob-feature-icon">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-            </div>
-            <div>
-              <div class="ob-feature-title">Track Your Work Hours</div>
-              <div class="ob-feature-desc">See when your day starts, when it ends, and how your hours add up.</div>
-            </div>
-          </div>
-          <div class="ob-feature-card">
-            <div class="ob-feature-icon">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-            </div>
-            <div>
-              <div class="ob-feature-title">Balanced Routine</div>
-              <div class="ob-feature-desc">Get notified when you've completed your target hours and it's time to head out.</div>
-            </div>
-          </div>
-          <div class="ob-feature-card">
-            <div class="ob-feature-icon">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07M8.46 8.46a5 5 0 0 0 0 7.07"/></svg>
-            </div>
-            <div>
-              <div class="ob-feature-title">Live Tracking</div>
-              <div class="ob-feature-desc">Track your work hours in real time throughout the day.</div>
-            </div>
-          </div>
-          <div class="ob-feature-card">
-            <div class="ob-feature-icon">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>
-            </div>
-            <div>
-              <div class="ob-feature-title">Built For You</div>
-              <div class="ob-feature-desc">Configure your shift, workweek, targets, and preferences to match how you work.</div>
-            </div>
-          </div>
-          <div class="ob-feature-card">
-            <div class="ob-feature-icon">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-            </div>
-            <div>
-              <div class="ob-feature-title">Privacy Focused</div>
-              <div class="ob-feature-desc">Your name and email keep your account connected. Everything else is optional and can be added anytime.</div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Step 2: Customize Your Workspace -->
-      <div class="ob-panel" id="obPanel2">
-        <div class="ob-title">Customize Your Workspace</div>
-        <div class="ob-desc">Tell us a bit about yourself. All fields are optional.</div>
-        <div class="form-field">
-          <div class="ob-section-label">Display Name</div>
-          <input type="text" class="field-input" id="obDisplay" placeholder="Full Name" maxlength="40" autocomplete="off">
-        </div>
-        <div class="form-field">
-          <div class="ob-section-label">Company</div>
-          <input type="text" class="field-input" id="obCompany" placeholder="Where do you work?" maxlength="60" autocomplete="off">
-        </div>
-        <div class="form-field">
-          <div class="ob-section-label">Position</div>
-          <input type="text" class="field-input" id="obPosition" placeholder="What do you do?" maxlength="60" autocomplete="off">
-        </div>
-      </div>
-
-      <!-- Step 3: Work Schedule -->
-      <div class="ob-panel" id="obPanel3">
-        <div class="ob-title">Work Schedule</div>
-        <div class="ob-desc">Set your shift times and daily target hours.</div>
-        <!-- Shift Hours -->
-        <div class="form-field">
-          <div class="ob-section-label">Shift Hours</div>
-          <div style="display:flex;align-items:center;gap:8px">
-            <div class="time-input-wrap" style="flex:1">
-              <input type="text" id="obShiftStart" placeholder="From  09:00 AM" autocomplete="off"
-                style="height:40px;padding:0 12px 0 38px;font-size:13px;border-radius:8px;border:1px solid var(--border);background:var(--input-bg);color:var(--foreground);width:100%">
-              <button type="button" class="tp-icon-btn" data-on-click="h745e056836" title="Pick time">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M16.5 13C17.0523 13 17.5 12.5523 17.5 12C17.5 11.4477 17.0523 11 16.5 11H13V5.5C13 4.94772 12.5523 4.5 12 4.5C11.4477 4.5 11 4.94772 11 5.5V12C11 12.5523 11.4477 13 12 13H16.5Z" fill="currentColor"/><path fill-rule="evenodd" clip-rule="evenodd" d="M12 1C5.92487 1 1 5.92487 1 12C1 18.0751 5.92487 23 12 23C18.0751 23 23 18.0751 23 12C23 5.92487 18.0751 1 12 1ZM3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12Z" fill="currentColor"/></svg>
-              </button>
-            </div>
-            <span style="color:var(--muted-fg);font-size:13px;flex-shrink:0">–</span>
-            <div class="time-input-wrap" style="flex:1">
-              <input type="text" id="obShiftEnd" placeholder="To  06:00 PM" autocomplete="off"
-                style="height:40px;padding:0 12px 0 38px;font-size:13px;border-radius:8px;border:1px solid var(--border);background:var(--input-bg);color:var(--foreground);width:100%">
-              <button type="button" class="tp-icon-btn" data-on-click="h2938640370" title="Pick time">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M16.5 13C17.0523 13 17.5 12.5523 17.5 12C17.5 11.4477 17.0523 11 16.5 11H13V5.5C13 4.94772 12.5523 4.5 12 4.5C11.4477 4.5 11 4.94772 11 5.5V12C11 12.5523 11.4477 13 12 13H16.5Z" fill="currentColor"/><path fill-rule="evenodd" clip-rule="evenodd" d="M12 1C5.92487 1 1 5.92487 1 12C1 18.0751 5.92487 23 12 23C18.0751 23 23 18.0751 23 12C23 5.92487 18.0751 1 12 1ZM3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12Z" fill="currentColor"/></svg>
-              </button>
-            </div>
-          </div>
-        </div>
-        <!-- Target tabs -->
-        <div class="form-field">
-          <input type="hidden" id="obWorkDays" value="5">
-          <input type="hidden" id="obWeeklyH" value="45">
-          <input type="hidden" id="obWeeklyM" value="0">
-          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
-            <div class="ob-section-label" id="obTargetLabel">Daily Target</div>
-            <div class="st-tabs" id="obStTabs">
-              <button type="button" class="st-tab" id="obTabDaily" data-on-click="hb6b5e5ec42">Daily</button>
-              <button type="button" class="st-tab" id="obTabWeekly" data-on-click="h560bb462a2">Weekly</button>
-            </div>
-          </div>
-          <div style="margin-top:10px">
-            <div style="display:flex;gap:8px">
-              <div class="input-suffix-wrap" style="flex:1">
-                <input type="number" class="field-input" id="obDailyH" min="0" max="23" step="1" value="9" placeholder="0" data-on-input="ha4dcc2a851">
-                <span class="input-suffix-text">hrs</span>
-              </div>
-              <div class="input-suffix-wrap" style="flex:1">
-                <input type="number" class="field-input" id="obDailyM" min="0" max="59" step="5" value="0" placeholder="0" data-on-input="ha4dcc2a851">
-                <span class="input-suffix-text">min</span>
-              </div>
-            </div>
-            <div id="obWeeklyCalcInfo" style="margin-top:8px;padding:8px 12px;background:var(--muted);border-radius:8px;font-size:12px;color:var(--muted-fg);line-height:1.5"></div>
-          </div>
-        </div>
-        <!-- Working Days -->
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;cursor:pointer" data-on-click="h3da55a4fae">
-          <div>
-            <div class="ob-section-label" style="text-transform:none;letter-spacing:0;font-size:13px;font-weight:500;color:var(--foreground)">Include Saturday</div>
-            <div style="font-size:12px;color:var(--muted-fg);margin-top:2px">Enable if Saturday is a working day.</div>
-          </div>
-          <label class="toggle" data-on-click="h6d554283fa">
-            <input type="checkbox" id="obIncludeSat" data-on-change="h9146bd9f54">
-            <span class="toggle-track"></span>
-          </label>
-        </div>
-      </div>
-
-      <!-- Step 4: All Done -->
-      <div class="ob-panel" id="obPanel4">
-        <div class="ob-done-card">
-          <div style="width:52px;height:52px;border-radius:50%;background:#16a34a;display:flex;align-items:center;justify-content:center;margin-bottom:4px;flex-shrink:0">
-            <svg width="26" height="26" viewBox="0 0 24 24" fill="none"><path fill-rule="evenodd" clip-rule="evenodd" d="M20.6566 5.47308C21.1068 5.88339 21.1415 6.5758 20.7312 7.02605L9.73116 19.0261C9.52896 19.2491 9.24358 19.3797 8.94191 19.387C8.64025 19.3943 8.34879 19.2776 8.13606 19.0648L3.13606 14.0648C2.71462 13.6434 2.71462 12.9617 3.13606 12.5403C3.5575 12.1189 4.23921 12.1189 4.66065 12.5403L8.87631 16.7559L19.1439 5.47395C19.5542 5.0237 20.2466 4.98278 20.6969 5.39309L20.6566 5.47308Z" fill="white"/></svg>
-          </div>
-          <div style="font-size:18px;font-weight:700;color:var(--foreground)">You're all set!</div>
-          <div style="font-size:13px;color:var(--muted-fg);line-height:1.6">Your workspace is configured and ready.<br>Start tracking your hours.</div>
-        </div>
-        <div style="display:flex;flex-direction:column;gap:6px;font-size:13px;color:var(--muted-fg)">
-          <div style="display:flex;align-items:center;gap:8px">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path fill-rule="evenodd" clip-rule="evenodd" d="M21.2285 6.60358C21.619 6.9941 21.619 7.62726 21.2285 8.01779L10.2557 18.9906C9.86764 19.3786 9.23938 19.3815 8.84786 18.997L2.66233 12.9219C2.2683 12.5349 2.2626 11.9017 2.64959 11.5077L3.3503 10.7943C3.73729 10.4002 4.37043 10.3945 4.76445 10.7815L9.53589 15.4678L19.1072 5.89647C19.4977 5.50595 20.1309 5.50595 20.5214 5.89647L21.2285 6.60358Z" fill="currentColor"/></svg>
-            Log your daily work hours
-          </div>
-          <div style="display:flex;align-items:center;gap:8px">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path fill-rule="evenodd" clip-rule="evenodd" d="M21.2285 6.60358C21.619 6.9941 21.619 7.62726 21.2285 8.01779L10.2557 18.9906C9.86764 19.3786 9.23938 19.3815 8.84786 18.997L2.66233 12.9219C2.2683 12.5349 2.2626 11.9017 2.64959 11.5077L3.3503 10.7943C3.73729 10.4002 4.37043 10.3945 4.76445 10.7815L9.53589 15.4678L19.1072 5.89647C19.4977 5.50595 20.1309 5.50595 20.5214 5.89647L21.2285 6.60358Z" fill="currentColor"/></svg>
-            Track weekly progress on the Dashboard
-          </div>
-          <div style="display:flex;align-items:center;gap:8px">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path fill-rule="evenodd" clip-rule="evenodd" d="M21.2285 6.60358C21.619 6.9941 21.619 7.62726 21.2285 8.01779L10.2557 18.9906C9.86764 19.3786 9.23938 19.3815 8.84786 18.997L2.66233 12.9219C2.2683 12.5349 2.2626 11.9017 2.64959 11.5077L3.3503 10.7943C3.73729 10.4002 4.37043 10.3945 4.76445 10.7815L9.53589 15.4678L19.1072 5.89647C19.4977 5.50595 20.1309 5.50595 20.5214 5.89647L21.2285 6.60358Z" fill="currentColor"/></svg>
-            Adjust settings anytime in Settings
-          </div>
-        </div>
-      </div>
-
-    </div><!-- /ob-body -->
-    <div class="ob-foot">
-      <button class="ob-btn-ghost" id="obBackBtn" data-on-click="h12e82dc530" style="visibility:hidden">Back</button>
-      <div style="display:flex;gap:8px;align-items:center">
-        <button class="ob-btn-link" id="obSkipBtn" data-on-click="h33bd4b028a">Skip</button>
-        <button class="ob-btn-primary" id="obNextBtn" data-on-click="h7e2e5de73d">Next Step</button>
-      </div>
+<div class="ob-overlay ob2-overlay" id="obOverlay" style="display:none">
+  <!-- Onboarding, reimagined (approved 2026-11-13): one surface, no pages. A
+       welcome, then one question at a time answered with chips; answers fold
+       into a grouped card, and a mini Home card fills in as you go. -->
+  <div class="ob2" id="ob2" role="dialog" aria-modal="true" aria-label="Set up 5pm">
+    <div class="ob2-main" id="ob2Main"></div>
+    <div class="ob2-foot">
+      <button type="button" class="btn-secondary ob2-b" id="ob2Sec" hidden>Skip for now</button>
+      <button type="button" class="btn btn-primary ob2-b" id="ob2Pri">Set up my day</button>
     </div>
   </div>
 </div>

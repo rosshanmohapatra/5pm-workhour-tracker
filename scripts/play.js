@@ -94,7 +94,14 @@ server.listen(PORT, HOST, () => {
   // Open it in Chrome (skip with --no-open).
   if (process.argv.includes('--no-open')) return;
   const { spawn } = require('child_process');
-  const cmd = process.platform === 'win32' ? ['cmd', ['/c', 'start', '', 'chrome', url]]
+  // Windows: launch Google Chrome by its install path. `start chrome` resolves the
+  // name through App Paths, and other Chromium browsers (Helium, for one) register
+  // their own chrome.exe there, which then wins.
+  const winChrome = ['PROGRAMFILES', 'PROGRAMFILES(X86)', 'LOCALAPPDATA']
+    .map(v => process.env[v] && path.join(process.env[v], 'Google', 'Chrome', 'Application', 'chrome.exe'))
+    .find(p => p && fs.existsSync(p));
+  const cmd = process.platform === 'win32'
+    ? (winChrome ? [winChrome, [url]] : ['cmd', ['/c', 'start', '', url]]) // no Chrome: default browser
     : process.platform === 'darwin' ? ['open', ['-a', 'Google Chrome', url]] : null;
   if (cmd) spawn(cmd[0], cmd[1], { stdio: 'ignore', detached: true }).on('error', () => {}).unref();
 });

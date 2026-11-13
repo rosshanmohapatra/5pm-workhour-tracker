@@ -706,7 +706,7 @@
         : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>';
       el('coTitle').textContent = full ? `That's your ${durWorked(workedSecs)}.` : `That's ${durWorked(workedSecs)} today.`;
       el('coDesc').textContent = full ? "Every hour's in. The rest of the day is yours."
-        : `${durWorked(eff - workedSecs)} short. It can be made up later this week.`;
+        : `${durWorked(Math.ceil((eff - workedSecs) / 60) * 60)} short. It can be made up later this week.`; // rounded up, so worked + short = target
       el('coStart').textContent = checkInStr;
       el('coLeft').textContent = short(checkoutTime);
       el('coWeek').textContent = durWorked(_weekWorkedSecs(workedSecs));
@@ -3747,7 +3747,9 @@
         // Time tab keeps the countdown chip; Progress tab shows the leave-by clock time
         // instead, since the leave time is already the Time tab's own right KPI.
         _descRightTimes    = 'You can leave at ' + _logoutStr;   // Clock view's chip
-        _descRightProgress = _rcRemainingFmt(rem) + ' to go';     // Hours view's chip
+        // A countdown rounds up (4h 2m 50s left reads "4h 3m"), so Worked + to go
+        // adds up to the Target shown next to it.
+        _descRightProgress = _rcRemainingFmt(rem >= 60 ? Math.ceil(rem / 60) * 60 : rem) + ' to go';     // Hours view's chip
         _otOverlayReset();
       } else if (isDone) {
         const ot = worked - eff;
@@ -4915,7 +4917,21 @@
       const p = _pendingLoginP;
       el('outsideShiftOverlay')?.classList.remove('open');
       _pendingLoginP = null;
-      if (p) _startSession(p);
+      if (p) _startOrContinue(p);
+    }
+    // Start, unless today already has hours from an ended session: then ask to
+    // continue it, so a new start never wipes them. Override (outside your shift)
+    // used to skip this and start from zero (bug in 1.2.29 and earlier).
+    function _startOrContinue(p) {
+      const todayLog = dayLog(todayKey());
+      const existingSecs = _sessionAccSecs > 0
+        ? _sessionAccSecs
+        : (todayLog?.hoursWorked ? Math.round(todayLog.hoursWorked * 3600) : 0);
+      if (existingSecs > 0 && !loginDate) {
+        openContinueWorkingModal(p, existingSecs);
+        return;
+      }
+      _startSession(p);
     }
     function calculate() {
       const raw = el('tc-r7m2').value.trim();
@@ -4931,16 +4947,7 @@
       const isSmallCorrection = loginDate && Math.abs(p - loginDate) <= 3600000;
       if (isOutsideShift(p) && !isSmallCorrection) { showOutsideShiftModal(p); return; }
 
-      // If hours already exist for today (ended session), show "Continue?" modal
-      const todayLog = dayLog(todayKey());
-      const existingSecs = _sessionAccSecs > 0
-        ? _sessionAccSecs
-        : (todayLog?.hoursWorked ? Math.round(todayLog.hoursWorked * 3600) : 0);
-      if (existingSecs > 0 && !loginDate) {
-        openContinueWorkingModal(p, existingSecs);
-        return;
-      }
-      _startSession(p);
+      _startOrContinue(p);
     }
 
     // ── CONTINUE WORKING MODAL ────────────────────────
@@ -4949,7 +4956,7 @@
       _cwPendingLogin = pendingLogin;
       const left = Math.max(0, effSecs() - existingSecs);
       el('cwDone').textContent = `${durWorked(existingSecs)} done`;
-      el('cwLeft').textContent = left > 0 ? `${durWorked(left)} to go` : 'Target already in';
+      el('cwLeft').textContent = left > 0 ? `${durWorked(Math.ceil(left / 60) * 60)} to go` : 'Target already in';
       el('cwBarDone').style.flex = String(Math.max(1, existingSecs));
       el('cwBarLeft').style.flex = String(left);
       el('cwBarLeft').style.display = left > 0 ? '' : 'none';
@@ -5015,7 +5022,16 @@
       });
     }
 
+    // Filling the form calls the same switches the user taps, and those auto-save.
+    // Saving halfway through wrote back old form values: after onboarding, 6 work
+    // days at 10h were saved as 50h a week instead of 60h, and opening Settings
+    // could undo a change synced from another device (bug in 1.2.29 and earlier).
+    let _populatingSettings = false;
     function populateSettings() {
+      _populatingSettings = true;
+      try { _populateSettingsForm(); } finally { _populatingSettings = false; }
+    }
+    function _populateSettingsForm() {
       const c = cfg();
       initCollapsibleSettings();
       el('inpDisplay').value   = c.name || '';
@@ -5676,6 +5692,7 @@
     }
 
     function autoSaveSettings() {
+      if (_populatingSettings) return;   // the form is being filled from settings, nothing to save
       const _dailyHVal = parseInt(el('inpDailyH').value, 10) || 0;
       const _dailyMVal = parseInt(el('inpDailyM').value, 10) || 0;
       const daily = _dailyHVal + (_dailyMVal / 60);
@@ -7001,7 +7018,11 @@ Kind regards,
       // Compute how much has been worked so far
       let workedSecs = _sessionAccSecs;
       if (loginDate) workedSecs += Math.max(0, Math.floor((new Date() - loginDate) / 1000));
-      const remSecs = Math.max(0, dailySecs - workedSecs);
+      // The target is the same one the Today card shows (this week's spread),
+      // and "early" rounds up like the card's countdown, so it matches the chip.
+      const targetSecs = effSecs() || dailySecs;
+      const remSecs = Math.max(0, targetSecs - workedSecs);
+      const remShown = Math.ceil(remSecs / 60) * 60;   // rounded up, like the card's countdown
       const isHalfDay = workedSecs <= halfSecs;
       const desc = el('endSessionDesc');
       const note = el('endSessionHalfDayNote');
@@ -7009,8 +7030,8 @@ Kind regards,
       // Only ask when leaving early. With the target in, End just ends the day.
       if (remSecs <= 0) { confirmEndSession(); return; }
       const half = isHalfDay && workedSecs > 0;
-      el('endSessionTitle').textContent = half ? 'Leave before halfway?' : `Leave ${durWorked(remSecs)} early?`;
-      desc.textContent = `You've worked ${durWorked(workedSecs)} of your ${durWorked(dailySecs)}.` + (half ? '' : ' The rest can be made up later this week.');
+      el('endSessionTitle').textContent = half ? 'Leave before halfway?' : `Leave ${durWorked(remShown)} early?`;
+      desc.textContent = `You've worked ${durWorked(workedSecs)} of your ${durWorked(targetSecs)}.` + (half ? '' : ' The rest can be made up later this week.');
       note.style.display = half ? '' : 'none';
       confirmBtn.textContent = 'End for today';
       el('endSessionOverlay').classList.add('open');
@@ -10368,10 +10389,13 @@ Kind regards,
           it.type = 'button'; it.role = 'menuitem'; it.className = 'sim-mi' + (m.danger ? ' danger' : '');
           it.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${_SIM_MENU_ICONS[m.icon] || ''}</svg><span></span>`;
           it.querySelector('span').textContent = m.label;
-          if (m.disabled) { it.disabled = true; it.insertAdjacentHTML('afterend', '<p class="sim-why"></p>'); }
-          else it.addEventListener('click', () => { _simCloseMenus(); m.onClick(); });
           box.appendChild(it);
-          if (m.disabled) box.lastElementChild.textContent = m.why || '';
+          if (m.disabled) {
+            // Disabled items say why under them (e.g. your only way to sign in).
+            it.disabled = true;
+            const why = document.createElement('p'); why.className = 'sim-why'; why.textContent = m.why || '';
+            box.appendChild(why);
+          } else it.addEventListener('click', () => { _simCloseMenus(); m.onClick(); });
         });
         kebab.addEventListener('click', e => {
           e.stopPropagation();

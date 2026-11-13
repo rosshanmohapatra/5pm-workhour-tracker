@@ -692,3 +692,55 @@ test('Onboarding buttons are wired when it opens (its markup comes after the app
   assert.match(extract('function openOnboarding('), /el\('ob2Pri'\)\.onclick = _ob2PriClick; el\('ob2Sec'\)\.onclick = _ob2SecClick;/);
   assert.doesNotMatch(SRC, /el\('ob2(Pri|Sec)'\)\?\.addEventListener/);
 });
+
+test('End early uses the Today card target, and "early" + worked add up to it', () => {
+  const T = { endSessionTitle: {}, endSessionDesc: {}, endSessionHalfDayNote: { style: {} }, endSessionConfirmBtn: {}, endSessionOverlay: { classList: { add() {} } } };
+  const ctx = { cfg: () => ({ dailyH: 9 }), effSecs: () => 9 * 3600 + 43 * 60 + 3, _sessionAccSecs: 5 * 3600 + 40 * 60 + 40, loginDate: null,
+    el: id => T[id], confirmEndSession: () => {}, Math, Date,
+    durWorked: s => { const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60); return `${h}h ${String(m).padStart(2, '0')}m`; } };
+  load(extract('function openEndSessionModal('), ctx, 'openEndSessionModal()');
+  assert.equal(T.endSessionTitle.textContent, 'Leave 4h 03m early?');
+  assert.match(T.endSessionDesc.textContent, /You've worked 5h 40m of your 9h 43m\./);
+});
+
+test('Countdowns round up so Worked + to go / short = Target', () => {
+  assert.match(SRC, /_rcRemainingFmt\(rem >= 60 \? Math\.ceil\(rem \/ 60\) \* 60 : rem\) \+ ' to go'/);
+  assert.match(SRC, /durWorked\(Math\.ceil\(\(eff - workedSecs\) \/ 60\) \* 60\)\} short\./);
+  assert.match(SRC, /durWorked\(Math\.ceil\(left \/ 60\) \* 60\)\} to go/);
+});
+
+test('Override outside your shift still asks to continue an ended day (never wipes its hours)', () => {
+  let opened = null, started = null;
+  const ctx = { el: () => ({ classList: { remove() {} } }), _pendingLoginP: 'P', _sessionAccSecs: 0, loginDate: null,
+    dayLog: () => ({ hoursWorked: 5.5 }), todayKey: () => 't', Math,
+    openContinueWorkingModal: (p, s) => { opened = [p, s]; }, _startSession: p => { started = p; } };
+  load(extract('function overrideOutsideShift(') + '\n' + extract('function _startOrContinue('), ctx, 'overrideOutsideShift()');
+  assert.deepEqual(opened, ['P', 19800]); assert.equal(started, null);
+  // A fresh day starts straight away.
+  load('', Object.assign(ctx, { dayLog: () => null, _pendingLoginP: 'Q' }), 'overrideOutsideShift()');
+  assert.equal(started, 'Q');
+});
+
+test('Sign-In Methods: a disabled menu item builds, says why, and does nothing', () => {
+  // Stand-in DOM, just enough for _simBuildRow.
+  class N { constructor(tag) { this.tag = tag; this.children = []; this.classList = { _s: new Set(), add: c => this.classList._s.add(c), toggle() {}, contains: () => false }; this.attrs = {}; this.style = {}; this.l = {}; }
+    set innerHTML(h) { this._h = h; this.children = []; } get innerHTML() { return this._h; }
+    appendChild(c) { c.parentNode = this; this.children.push(c); return c; }
+    insertAdjacentHTML(pos, h) { if (pos === 'afterend' && !this.parentNode) throw new Error('The element has no parent.'); this.children.push(new N('html')); }
+    querySelector(sel) { const n = new N(sel); this._q = this._q || {}; return (this._q[sel] = this._q[sel] || n); }
+    addEventListener(t, f) { this.l[t] = f; } setAttribute(k, v) { this.attrs[k] = v; } }
+  const doc = { createElement: t => new N(t) };
+  const row = load(extract('    const _SIM_MENU_ICONS = {', '\n    };') + '\n' + extract('function _simBuildRow('), { document: doc, _simCloseMenus() {} },
+    `_simBuildRow({ icon: '', name: 'Google', status: 'a', badge: 'Connected', menu: [
+      { label: 'Disconnect', icon: 'unlink', danger: true, disabled: true, why: 'Add another way to sign in first.', onClick: () => { throw new Error('fired'); } }] })`);
+  const all = []; (function walk(n) { all.push(n); (n.children || []).forEach(walk); Object.values(n._q || {}).forEach(walk); })(row);
+  const item = all.find(n => n.className === 'sim-mi danger');
+  assert.ok(item && item.disabled, 'item is disabled');
+  assert.equal(item.l.click, undefined, 'no click handler');
+  assert.ok(all.some(n => n.className === 'sim-why' && n.textContent === 'Add another way to sign in first.'));
+});
+
+test('Filling the Settings form never saves halfway (onboarding answers survive)', () => {
+  assert.match(extract('function populateSettings('), /_populatingSettings = true;\n\s*try \{ _populateSettingsForm\(\); \} finally \{ _populatingSettings = false; \}/);
+  assert.match(extract('function autoSaveSettings('), /^function autoSaveSettings\(\) \{\n\s*if \(_populatingSettings\) return;/);
+});

@@ -623,7 +623,10 @@ vp.addEventListener('keydown', e => {
 
   // A new Google/GitHub account made from Sign in.
   const na = p.get('noaccount');
-  if (na && session) {
+  // Only for an account made in the last few minutes, so a crafted link can't
+  // put this screen in front of an established account.
+  const fresh = session && Date.now() - Date.parse(session.user?.created_at || 0) < 10 * 60 * 1000;
+  if (na && fresh) {
     S.provider = na === 'github' ? 'GitHub' : 'Google';
     S.email = session.user?.email || '';
     return go('noAccount', { instant: true });
@@ -642,7 +645,7 @@ vp.addEventListener('keydown', e => {
   else if (linkError) al = 'linkExpired';
   else if (reason === 'elsewhere') al = 'elsewhere';
   else if (reason === 'session') al = 'session';
-  if (al === 'oauthFailed' && e && e !== 'oauth_failed') text = esc(decodeURIComponent(e));
+  if (al === 'oauthFailed' && e && e !== 'oauth_failed') { try { text = esc(decodeURIComponent(e).slice(0, 200)); } catch (_) { text = undefined; } }
   if (e || reason) history.replaceState(null, '', location.pathname);
   // Session ran out / signed out elsewhere: the email used last on this device is filled in.
   if (reason && !S.email) { try { S.email = localStorage.getItem('5pm_login_email') || ''; } catch (_) {} }

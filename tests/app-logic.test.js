@@ -1492,3 +1492,7 @@ test('No dead click handlers: every handler key is used by a page', () => {
   assert.doesNotMatch(HTML, /id="fpOverlay"/);          // the fake recovery modal is gone
   assert.doesNotMatch(SRC, /Integration Error/);
 });
+test('Login: crafted links can’t show the new-account screen or crash the page', () => {
+  assert.match(LOGIN, /const fresh = session && Date\.now\(\) - Date\.parse\(session\.user\?\.created_at \|\| 0\) < 10 \* 60 \* 1000;\n\s*if \(na && fresh\)/);
+  assert.match(LOGIN, /try \{ text = esc\(decodeURIComponent\(e\)\.slice\(0, 200\)\); \} catch/);
+});

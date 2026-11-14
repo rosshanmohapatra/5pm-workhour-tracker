@@ -1,14 +1,10 @@
 # 5pm - Work Hour Tracker
 
-> **Leave on time, every time.**
-
 [![Checks](https://github.com/rosshanmohapatra/5pm-workhour-tracker/actions/workflows/csp-check.yml/badge.svg?branch=main)](https://github.com/rosshanmohapatra/5pm-workhour-tracker/actions/workflows/csp-check.yml)
 [![Latest release](https://img.shields.io/github/v/release/rosshanmohapatra/5pm-workhour-tracker)](https://github.com/rosshanmohapatra/5pm-workhour-tracker/releases/latest)
 [![License](https://img.shields.io/github/license/rosshanmohapatra/5pm-workhour-tracker)](LICENSE)
 
 5pm is a personal work-hour tracker that tells you exactly when to leave each day. It tracks your login time in real time, measures your hours against a daily and weekly target, and shows a live "leave at" time, so you work your hours honestly and not a minute more.
-
-**[Open Web App](https://whtracker.vercel.app/)** · **[Download for Windows](https://github.com/rosshanmohapatra/5pm-workhour-tracker/releases/latest)**
 
 <a href="https://apps.microsoft.com/detail/9ntmgrg95v3m?mode=direct"><img src="https://get.microsoft.com/images/en-us%20light.svg" width="200" alt="Get it from Microsoft"/></a>
 
@@ -22,49 +18,60 @@ Most days don't end when the work ends. They end when you finally look at the cl
 
 ## Features
 
-### Tracking
+### Offline Tracking
 - **Live shift tracking** - start once and the clock runs. Pause and resume any time.
 - **Recommended leave time** - a live "Leave at HH:MM", updated every second.
 - **Daily and weekly targets** - for example 9 h a day or 45 h a week; a short day is made up across the rest of the week.
 - **Auto-stop** - a forgotten session stops itself 2 hours past your daily target (by default). Resume if you're still working.
 - **Edit entries** - fix a start or end time afterwards, with overlap checks.
 
-### Planning
+### Stay on Plan
 - **Plan days** - mark a day as Half Day, Full Day Leave or Holiday.
 - **Plan weeks** - schedule early leaves or late stays ahead of time.
 - **Leave-by targets** - "I need to leave by 4 PM today", and 5pm plans around it.
 - **Penalties** - see which days or weeks fell short and how much is owed.
 
-### Everyday
+### Alerts, Documents, Reports
 - **Notifications** - when you hit your target, when overtime starts, and when a deficit builds (while 5pm is open).
 - **Raise Dispute** - draft an email to HR when the office attendance system has a day wrong.
 - **Reports and backups** - export PDF reports; back up and restore your data as a file.
 - **Quick setup** - name, role and routine, and you're done.
 
-### Account and devices
+### Account and Devices
 - **Sync across devices** - web, Windows app and phone stay in step.
 - **Secure sign-in** - email and password, Google, or a passkey, with two-factor authentication and backup codes.
 - **Manage devices** - see every signed-in device, rename them, and sign out the ones you don't use.
 
 ---
 
-## Get 5pm
-
-| Platform | Links |
-|---|---|
-| Website / WebApp | [whtracker.vercel.app](https://whtracker.vercel.app/) |
-| Windows 11 | [5pm Setup](https://github.com/rosshanmohapatra/5pm-workhour-tracker/releases/latest) (Standalone) |
-| Microsoft Store | [Visit Store](https://apps.microsoft.com/detail/9ntmgrg95v3m) |
-
-Release notes for every version are on the [Releases page](https://github.com/rosshanmohapatra/5pm-workhour-tracker/releases).
-
----
-
-## Privacy and your data
+## Data Privacy
 
 - Your hours are saved on your device first, so 5pm keeps working offline, then synced to your account.
 - Synced data is stored in [Supabase](https://supabase.com/), where row-level security lets each account read and write only its own rows.
 - Details are provided in [privacy policy](https://whtracker.vercel.app/privacy.html).
+
+---
+
+## Data Collection
+
+5pm stores only what it needs to track your hours and keep your devices in sync. Nothing is sold or shared, and there are no ads, analytics or tracking tools.
+
+| Group | What is stored | Why |
+|---|---|---|
+| **Account** | Email address, display name, profile picture link (when you sign in with Google or GitHub) | To sign you in and show who's signed in |
+| **Security** | Sign-in methods (password, Google, GitHub, passkeys) and two-factor settings, held by Supabase Auth; backup codes stored only as one-way hashes | To keep your account safe and let you recover it |
+| **Work hours** | For each day: start and end times, hours worked, paused time, day type (Full Day, Half Day, Leave, Holiday), a leave-by time and your note | The core of 5pm: your hours, targets and leave time |
+| **Settings** | Daily and weekly targets, work days, shift, time zone, auto-stop, notification choices, your role, and which notifications you've dismissed | So 5pm works the same on every device |
+| **Devices** | A friendly device name, the browser and system it runs on (for example "Chrome on Windows"), when it was last opened, and whether you signed it out | To list your signed-in devices and sign out the ones you don't use |
+| **Account deletion feedback** | The reasons and comments you choose to give when deleting your account (optional) | To learn what to improve |
+
+**Stays on your device only:** a local copy of your data (so 5pm works offline), your theme, and small app preferences. These never leave your device unless they're part of the groups above.
+
+**Only when you send it:** a bug report draft includes your app version, browser and device type so the problem can be reproduced. It opens in your own email app, and nothing is sent unless you send it.
+
+**Not collected:** your location, your screen, other apps, keystrokes or browsing activity. 5pm only knows the times you start, pause and stop. The hosting services ([Vercel](https://vercel.com/) and [Supabase](https://supabase.com/)) keep standard server logs to run the service.
+
+**Deleting your data:** Settings › Security › Delete Account removes everything above after 48 hours. You can also export or back up your data first from Settings.
 
 ---
 
@@ -92,22 +99,6 @@ Uses Node's built-in test runner; nothing to install. The tests also run on ever
 
 Copy `.env.example` to `.env.local` and fill it in. The database schema is in `supabase/migrations`.
 
-
-**Project layout**
-
-```
-public/               The website, served as-is by Vercel
-├── *.html            The pages
-├── icons/            Favicons, logos, social preview
-└── lib/              Scripts and styles
-    ├── pages/        Each page's script
-    └── whats-new.js  Release notes, shown in the app and on GitHub
-api/                  Server half of Web Push (not in use yet)
-supabase/migrations/  Database tables, security rules and functions
-scripts/              Local playground, CSP check, release-note tools
-tests/                Automated tests
-```
-
 ---
 
 ## Built with
@@ -133,3 +124,6 @@ Please report vulnerabilities privately; see [SECURITY.md](.github/SECURITY.md).
 ## License
 
 [Apache License 2.0](LICENSE) © Roshan Mahapatra. See [NOTICE](NOTICE).
+
+## Release Notes
+Release notes for every version are on the [Releases page](https://github.com/rosshanmohapatra/5pm-workhour-tracker/releases).

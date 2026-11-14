@@ -1409,3 +1409,13 @@ test('Penalty Reminders: gates, then the first matching rung of the ladder', () 
   assert.match(HTML, /<div class="settings-section-header">Payroll<\/div>/);
   assert.match(HTML, /Pick the first and last day your company counts for one month's pay\./);
 });
+test('Action Center: marking as read keeps the row in place, muted and labelled Read', () => {
+  const m = extract('function _acOpenRowMenu(');
+  assert.doesNotMatch(m, /_dismissPenaltyRow/);
+  assert.match(m, /_acKeepRead\.add\(key\)/);
+  const all = extract('function _acMarkAllRead(');
+  assert.doesNotMatch(all, /_dismissPenaltyRow/);
+  assert.match(all, /_acKeepRead\.add\(r\.key\)/);
+  assert.match(extract('function _acRowHtml('), /\$\{read \? ' · Read' : ''\}/);
+  assert.match(extract('function _renderPenaltyCard('), /!_discardedPenalties\.has\(r\.key\) \|\| _acKeepRead\.has\(r\.key\)/);
+});

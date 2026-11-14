@@ -6975,6 +6975,9 @@
     // empty-state, dropdown-menu, segmented-control and toast (Undo).
     let _acTab = 'week', _acShowRead = false, _acConfirm = false, _acLoaded = false;
     let _acCleared = new Set();
+    // Marked as read while you're here: the row stays where it is, muted and
+    // labelled Read, instead of leaving the list (user, 2026-11-15).
+    const _acKeepRead = new Set();
     try {
       _acCleared = new Set(JSON.parse(localStorage.getItem('wh_cleared_penalties') || '[]'));
       const t = localStorage.getItem('wh_ac_tab'); if (t === 'week' || t === 'month') _acTab = t;
@@ -7037,7 +7040,7 @@
     };
     function _acRowHtml(r, read) {
       const d = r.date, wd = FULL_DAYS_EN[d.getDay()].slice(0, 3);
-      const sub = `${_acDur(r.worked)} of ${_acDur(r.tgt)}${r.half ? ' · Half day' : ''}${r.sample ? ' · Sample' : ''}`;
+      const sub = `${_acDur(r.worked)} of ${_acDur(r.tgt)}${r.half ? ' · Half day' : ''}${r.sample ? ' · Sample' : ''}${read ? ' · Read' : ''}`;
       return `<div class="penalty-row ac-row${read ? ' read' : ''}" data-penalty-key="${r.key}" tabindex="0" role="button" aria-haspopup="menu" aria-label="${FULL_DAYS_EN[d.getDay()]}, ${MONTHS[d.getMonth()]} ${d.getDate()}: ${_acDur(r.deficit)} short">
           <div class="wk-tile ac-tile"><span class="wk-tile-n">${wd}</span><span class="wk-tile-d">${d.getDate()}</span></div>
           <div class="ac-txt"><div class="ac-gap"><b>${_acDur(r.deficit)}</b> <span>short</span></div><div class="ac-sub">${sub}</div></div>
@@ -7050,7 +7053,7 @@
       let last = -1, html = '';
       for (const r of rows) {
         if (months.size > 1 && r.date.getMonth() !== last) { last = r.date.getMonth(); html += `<div class="ac-mo">${MONTHS[last]}</div>`; }
-        html += _acRowHtml(r, read);
+        html += _acRowHtml(r, read || _discardedPenalties.has(r.key));
       }
       return html;
     }
@@ -7090,9 +7093,12 @@
             <span class="ac-tray-tile"><b>${FULL_DAYS_EN[nowTz().getDay()].slice(0, 3)}</b><i>${nowTz().getDate()}</i></span></div>
           <h3>Yay, nothing to resolve</h3><p>Your hours add up and there's no email to send. Anything that needs fixing lands here.</p></div>`;
       } else {
-        let html = un.length ? _acListHtml(un, false)
+        // Unread rows, plus the ones read during this visit (still in place).
+        const shown = rows.filter(r => !_discardedPenalties.has(r.key) || _acKeepRead.has(r.key));
+        let html = shown.length ? _acListHtml(shown, false)
           : `<div class="ac-caught"><span class="ac-caught-i">${_AC_SVG(_AC_I.check)}</span><div><b>All caught up</b><span>Read penalties are under the ⋯ menu.</span></div></div>`;
-        if (_acShowRead && rd.length) html += `<div class="ac-mo ac-read-l">Read</div>` + _acListHtml(rd, true);
+        const older = rd.filter(r => !_acKeepRead.has(r.key));
+        if (_acShowRead && older.length) html += `<div class="ac-mo ac-read-l">Read</div>` + _acListHtml(older, true);
         list.innerHTML = html;
       }
       _acLoaded = true;
@@ -7155,20 +7161,18 @@
         _acCloseRowMenu();
         if (b.dataset.r === 'email') openEmailModal(key);
         else if (b.dataset.r === 'fix') openDayEditModal(key);
-        else if (read) { _discardedPenalties.delete(key); _savePenDiscards(); renderPenalties(); renderNotifs(); }
-        else _dismissPenaltyRow(row);
+        else if (read) { _discardedPenalties.delete(key); _acKeepRead.delete(key); _savePenDiscards(); renderPenalties(); renderNotifs(); }
+        else { _discardedPenalties.add(key); _acKeepRead.add(key); _savePenDiscards(); renderPenalties(); renderNotifs(); }
       });
     }
-    // Mark all as read: rows slide out, then a toast offers Undo.
+    // Mark all as read: the rows stay in place, muted and labelled Read; a toast offers Undo.
     function _acMarkAllRead(un) {
       if (!un.length) return;
       un.forEach(r => _discardedPenalties.add(r.key));
+      un.forEach(r => _acKeepRead.add(r.key));
       _savePenDiscards();
       renderNotifs();
-      const rows = [...document.querySelectorAll('#penaltiesList .ac-row:not(.read)')];
-      const STEP = 50;
-      rows.forEach((row, i) => setTimeout(() => _dismissPenaltyRow(row, () => {}), i * STEP));
-      setTimeout(renderPenalties, rows.length * STEP + 340);
+      renderPenalties();
       showToast(`Marked ${un.length} as read`, 'none', '', { label: 'Undo', onClick: () => {
         un.forEach(r => _discardedPenalties.delete(r.key)); _savePenDiscards(); renderPenalties(); renderNotifs();
       } });

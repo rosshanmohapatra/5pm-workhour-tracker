@@ -1,526 +1,288 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8"><script src="/lib/csp-handlers.js"></script><script src="/lib/pages/login-handlers.js"></script>
   <link rel="manifest" href="/manifest.json">
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>5pm — Sign In</title>
-  <!-- Favicons (theme-aware; swapped by inline script below) -->
   <link id="favicon" rel="icon" type="image/svg+xml" href="/icons/favicon-light.svg">
-  <!-- PWA / home-screen -->
   <meta name="application-name" content="5pm">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <!-- "black", as in index.html: translucent runs the page under the status bar
-       and iOS paints its scroll-edge blur over that band, above the theme button. -->
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
   <meta name="apple-mobile-web-app-title" content="5pm">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="theme-color" content="#eef0f4" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#08090c" media="(prefers-color-scheme: dark)">
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" media="print" data-on-load="he403411552"><noscript><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"></noscript>
-  <!-- Apply saved theme before first paint (prevents dark/light flash) -->
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400..700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" media="print" data-on-load="he403411552"><noscript><link href="https://fonts.googleapis.com/css2?family=Geist:wght@400..700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"></noscript>
+  <!-- Theme before first paint: the saved 5pm theme, else the device (no toggle on this page, #8). -->
   <script src="/lib/pages/login-inline.js"></script>
-  <!-- Single source of truth for Supabase credentials (sets window.__SB_URL / __SB_ANON_KEY) -->
   <script src="/lib/config.js"></script>
-  <!-- Supabase JS SDK — self-hosted, eliminates CDN SSL issues on iOS (see lib/supabase.umd.js) -->
   <script src="/lib/supabase.umd.js"></script>
   <style>
-    :root {
-      --bg:        #eef0f4;   /* surfaces: Cool graphite, same as the app */
-      --card:      #ffffff;
-      --fg:        #0c0e13;
-      --muted:     #e7eaf0;
-      --muted-fg:  #545b69;
-      --border:    #dde1e8;
-      --input-bg:  #ffffff;
-      --ring:      #09090b;
-      --font:      'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
-      --font-display: 'DM Serif Display', Georgia, serif;
-      --radius: 12px;
-    }
-    .dark {
-      --bg:        #08090c;
-      --card:      #13151a;
-      --fg:        #eef1f6;
-      --muted:     #2a2e38;
-      --muted-fg:  #a9b0bd;
-      --border:    #22262f;
-      --input-bg:  #1c1f26;
-      --ring:      #e4e4e7;
-    }
+/* ── Sign in (#8, approved 2026-11-15) ──
+   Built from uiarc's login-centered block + Button, Input, PasswordField,
+   OtpInput and Alert (spacing, radii, type scale, motion tokens), on 5pm's
+   cool graphite colours. Dark is the base; data-theme="light" swaps it. */
+:root {
+  --background:#08090c; --surface:#13151a; --surface-muted:#1c1f26; --foreground:#eef1f6; --text-secondary:#a9b0bd; --text-muted:#828a98;
+  --border:#22262f; --border-subtle:#1a1d24; --border-strong:#3b414d; --accent:#eef1f6; --accent-subtle:rgb(238 241 246 / .1);
+  --danger:#d57c8e; --success:#74c7a0; --warning:#deb97f; --info:#89bad9;
+  --shadow-resting:0 1px 2px rgb(0 0 0 / .18); --shadow-floating:0 22px 55px rgb(0 0 0 / .34);
+  --space-1:.25rem; --space-2:.5rem; --space-3:.75rem; --space-4:1rem; --space-5:1.125rem; --space-6:1.25rem; --space-8:1.5rem; --space-10:2rem;
+  --radius-control:.875rem; --radius-panel:1.25rem; --radius-surface:1.5rem; --radius-pill:9999px;
+  --control-height-sm:2rem; --control-height-md:2.5rem; --control-height-lg:2.75rem;
+  --font-display:"Geist", "Inter", system-ui, sans-serif; --font-body:"Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --text-xs:.75rem; --text-sm:.8125rem; --text-base:.9375rem; --text-lg:1.0625rem; --text-2xl:1.375rem; --text-3xl:1.75rem; --text-field:.875rem;
+  --tracking-display:-.03em; --tracking-body:-.01em; --leading-display:1.1; --leading-body:1.4;
+  --ease-enter:cubic-bezier(.16,1,.3,1); --ease-standard:cubic-bezier(.22,1,.36,1); --ease-in-out:cubic-bezier(.65,0,.35,1);
+  --duration-instant:100ms; --duration-fast:150ms; --duration-exit:140ms; --duration-standard:200ms; --duration-smooth:320ms; --duration-considered:360ms;
+  color-scheme: dark;
+}
+:root[data-theme="light"] {
+  --background:#eef0f4; --surface:#ffffff; --surface-muted:#f6f7fa; --foreground:#0c0e13; --text-secondary:#545b69; --text-muted:#747c8a;
+  --border:#dde1e8; --border-subtle:#e7eaf0; --border-strong:#c3c8d2; --accent:#0c0e13; --accent-subtle:rgb(12 14 19 / .06);
+  --danger:#c42b33; --success:#00774d; --warning:#9f6202; --info:#2f6f9f;
+  --shadow-resting:0 1px 2px rgb(0 0 0 / .035); --shadow-floating:0 20px 48px rgb(0 0 0 / .105);
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { color-scheme: dark; } }
 
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+}
+:root[data-theme="light"] {
+  --background:#eef0f4; --surface:#ffffff; --surface-muted:#f6f7fa; --foreground:#0c0e13; --text-secondary:#545b69; --text-muted:#747c8a;
+  --border:#dde1e8; --border-subtle:#e7eaf0; --border-strong:#c3c8d2; --accent:#0c0e13; --accent-subtle:rgb(12 14 19 / .06);
+  --danger:#c42b33; --success:#00774d; --warning:#9f6202; --info:#2f6f9f;
+  --shadow-resting:0 1px 2px rgb(0 0 0 / .035); --shadow-floating:0 20px 48px rgb(0 0 0 / .105);
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { margin: 0; }
+body { background: var(--background); color: var(--foreground); font-family: var(--font-body); font-size: var(--text-sm); letter-spacing: var(--tracking-body); line-height: var(--leading-body);
+  -webkit-font-smoothing: antialiased; }
+button { font: inherit; letter-spacing: inherit; color: inherit; }
+/* The page: top bar with the 5pm mark, the centred card, Privacy / About at the foot. */
+.screen { --bar: 64px; container: login / inline-size; position: relative; isolation: isolate; display: grid; grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: var(--bar) minmax(0, 1fr) var(--bar); min-height: 100vh; min-height: 100dvh; overflow-x: hidden; background: var(--background);
+  padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px); }
+.backdrop { position: fixed; inset: 0; z-index: -1; pointer-events: none; -webkit-mask-image: radial-gradient(ellipse 72% 78% at 50% 50%, #000 38%, transparent 100%); mask-image: radial-gradient(ellipse 72% 78% at 50% 50%, #000 38%, transparent 100%); }
+.backdrop svg { width: 100%; height: 100%; }
+.backdrop circle, .backdrop line { fill: none; stroke: var(--border-subtle); stroke-width: 1; }
+.backdrop .major { stroke: var(--border); }
+.bar, .foot { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); padding: 0 var(--space-6); min-width: 0; }
+.mark { display: block; width: 28px; height: 28px; border-radius: 8px; }
+.mark.l { display: none; } :root[data-theme="light"] .mark.d { display: none; } :root[data-theme="light"] .mark.l { display: block; }
+.stage { display: grid; place-items: center; align-content: center; gap: var(--space-4); padding: var(--space-6) var(--space-4); min-width: 0; }
+.card { width: min(100%, 420px); min-width: 0; overflow: hidden; border: 1px solid var(--border); border-radius: var(--radius-surface); background: var(--surface); box-shadow: var(--shadow-resting); }
+.viewport { position: relative; overflow: hidden; }
+.step { display: grid; min-width: 0; padding: var(--space-8); }
+.step.leaving { position: absolute; inset: 0 0 auto 0; pointer-events: none; opacity: 0; transform: translateY(calc(var(--dir, 1) * -8px)); filter: blur(4px); transition: opacity var(--duration-exit) var(--ease-standard), transform var(--duration-exit) var(--ease-standard), filter var(--duration-exit) var(--ease-standard); }
+.step.entering { opacity: 0; transform: translateY(calc(var(--dir, 1) * 12px)); filter: blur(4px); }
+.step.in { transition: transform var(--duration-smooth) var(--ease-standard), opacity var(--duration-standard) var(--ease-enter) 60ms, filter var(--duration-standard) var(--ease-enter) 40ms; }
 
-    html { overflow: hidden; height: 100%; }
+.heading { display: grid; gap: var(--space-2); margin-bottom: var(--space-6); }
+.heading h2 { margin: 0; font-family: var(--font-display); font-size: var(--text-3xl); font-weight: 400; letter-spacing: var(--tracking-display); line-height: var(--leading-display); text-wrap: balance; }
+.heading p { margin: 0; color: var(--text-secondary); font-size: var(--text-sm); text-wrap: pretty; }
+.address { color: var(--foreground); overflow-wrap: anywhere; }
+.top { display: flex; align-items: center; justify-content: space-between; margin: calc(var(--space-2) * -1) 0 var(--space-4) calc(var(--space-3) * -1); }
+.icon48 { width: 48px; height: 48px; margin-bottom: var(--space-6); color: var(--foreground); }
+.icon48.ok { color: var(--success); }
+.icon48 circle.draw, .icon48 path.draw { stroke-dasharray: 160; stroke-dashoffset: 160; animation: draw var(--duration-considered) var(--ease-in-out) .16s forwards; }
+.icon48 path.draw { stroke-dasharray: 40; stroke-dashoffset: 40; animation: draw .28s var(--ease-enter) .52s forwards; }
+@keyframes draw { to { stroke-dashoffset: 0; } }
+.icon48 .spinR { transform-origin: 24px 24px; animation: spin 1s linear infinite; }
 
-    body {
-      font-family: var(--font);
-      background: var(--bg);
-      color: var(--fg);
-      height: 100dvh;
-      overflow: hidden;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      padding: 24px 16px;
-      transition: background .2s, color .2s;
-      -webkit-font-smoothing: antialiased;
-    }
+.actions, .form { display: grid; gap: var(--space-3); }
+.form { gap: var(--space-4); }
+.divider { display: flex; align-items: center; gap: var(--space-3); margin: var(--space-5) 0; color: var(--text-muted); font-size: var(--text-xs); line-height: 1; }
+.divider::before, .divider::after { flex: 1; height: 1px; background: var(--border); content: ""; }
 
-    /* ── Top bar ── */
-    .top-bar {
-      position: fixed;
-      top: 0; left: 0; right: 0;
-      height: 56px;
-      display: flex;
-      align-items: center;
-      justify-content: flex-end;
-      padding: 0 20px;
-      z-index: 10;
-    }
-    .theme-btn {
-      width: 36px; height: 36px;
-      border-radius: 10px;
-      border: 1px solid var(--border);
-      background: var(--card);
-      color: var(--muted-fg);
-      cursor: pointer;
-      display: flex; align-items: center; justify-content: center;
-      transition: background .15s, border-color .15s, color .15s;
-    }
-    .theme-btn:hover { background: var(--muted); color: var(--fg); }
+/* Button (uiarc) */
+.btn { position: relative; display: inline-flex; width: 100%; min-height: var(--control-height-md); align-items: center; justify-content: center; gap: var(--space-2); border: 1px solid transparent; border-radius: var(--radius-control); padding: 0 var(--space-4); font-size: var(--text-sm); font-weight: 500; white-space: nowrap; cursor: pointer; -webkit-tap-highlight-color: transparent; user-select: none;
+  transition: color var(--duration-fast) var(--ease-standard), background var(--duration-fast) var(--ease-standard), border-color var(--duration-fast) var(--ease-standard), opacity var(--duration-fast) var(--ease-standard), box-shadow var(--duration-fast) var(--ease-standard), transform var(--duration-instant) var(--ease-standard); }
+.btn:active:not([aria-disabled="true"]) { transform: scale(.98); }
+.btn.lg { min-height: var(--control-height-lg); border-radius: calc(var(--radius-control) + 2px); }
+.btn.primary { color: var(--background); background: var(--foreground); border-color: var(--foreground); }
+.btn.secondary { color: var(--foreground); background: var(--surface); border-color: var(--border); }
+.btn.ghost { color: var(--text-secondary); background: transparent; width: auto; }
+.btn[aria-disabled="true"] { cursor: not-allowed; }
+.btn.primary[aria-disabled="true"]:not([aria-busy="true"]) { opacity: 1; color: var(--text-muted); background: var(--surface-muted); border-color: var(--border); }
+.btn[aria-busy="true"] { cursor: progress; }
+@media (hover: hover) and (pointer: fine) {
+  .btn.primary:hover:not([aria-disabled="true"]) { opacity: .91; box-shadow: var(--shadow-resting); }
+  .btn.secondary:hover:not([aria-disabled="true"]) { background: var(--surface-muted); box-shadow: var(--shadow-resting); }
+  .btn.ghost:hover { color: var(--foreground); background: var(--surface-muted); }
+}
+.btn svg { width: 16px; height: 16px; flex: none; }
+.lbl { display: inline-flex; align-items: center; gap: var(--space-2); transition: opacity var(--duration-fast) var(--ease-standard); }
+.btn[aria-busy="true"] > .lbl { opacity: 0; }
+.btn > .spin { position: absolute; left: 50%; top: 50%; width: 16px; height: 16px; margin: -8px; border: 1.5px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: spin .7s linear infinite; opacity: 0; transition: opacity var(--duration-fast); }
+.btn[aria-busy="true"] > .spin { opacity: 1; }
+.btn.busyText[aria-busy="true"] > .lbl { opacity: 1; padding-left: 24px; } .btn.busyText[aria-busy="true"] > .spin { left: auto; margin: -8px 0 0; position: relative; top: 0; order: -1; display: none; }
+.lbl .spinIn { width: 14px; height: 14px; border: 1.5px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: spin .7s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.swapIn { animation: swapIn var(--duration-standard) var(--ease-enter); }
+@keyframes swapIn { from { opacity: 0; transform: translateY(.3em); filter: blur(4px); } }
+/* "Last used": one placement everywhere, inside the button at its right end. */
+.tag { position: absolute; right: 12px; top: 0; transform: translateY(-50%); height: 20px; z-index: 1; display: inline-flex; align-items: center; padding: 0 8px; border-radius: var(--radius-pill); font-size: var(--text-xs); font-weight: 500; color: var(--text-secondary); background: var(--surface); border: 1px solid var(--border-strong); pointer-events: none; box-shadow: var(--shadow-resting); }
+.btn.primary .tag { color: var(--text-secondary); background: var(--surface); border-color: var(--border-strong); }
+.actions, .form { padding-top: 2px; }
+.actions:has(.tag) { gap: var(--space-5); } .form .btn:has(.tag) { margin-top: var(--space-1); }
 
-    /* ── Branding ── */
-    .branding {
-      display: flex;
-      flex-direction: row;
-      align-items: center;
-      gap: 14px;
-      margin-bottom: 28px;
-      width: auto;
-    }
-    .brand-text {
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-    }
-    .brand-name {
-      font-family: var(--font);
-      font-size: 20px;
-      font-weight: 700;
-      color: var(--fg);
-      letter-spacing: -.5px;
-    }
-    .brand-tagline {
-      font-size: 13px;
-      color: var(--muted-fg);
-    }
+.textButton { position: relative; display: inline-flex; min-height: var(--control-height-sm); align-items: center; justify-self: center; gap: var(--space-2); margin: var(--space-4) 0 calc(var(--space-2) * -1); border: 0; border-radius: var(--radius-pill); padding: 0 var(--space-3); background: none; color: var(--text-secondary); font-size: var(--text-sm); font-weight: 500; cursor: pointer; transition: color var(--duration-fast) var(--ease-standard), background-color var(--duration-fast) var(--ease-standard); }
+.textButton[aria-disabled="true"] { color: var(--text-muted); font-weight: 400; cursor: default; }
+.inlineButton { border: 0; border-radius: 4px; padding: 0; background: none; color: var(--foreground); font-weight: 500; text-decoration: underline; text-decoration-color: var(--border-strong); text-underline-offset: 3px; cursor: pointer; transition: text-decoration-color var(--duration-fast) var(--ease-standard); }
+.back { display: inline-flex; align-items: center; gap: 4px; min-height: var(--control-height-sm); border: 0; border-radius: var(--radius-pill); padding: 0 var(--space-3) 0 var(--space-2); background: none; color: var(--text-secondary); font-size: var(--text-sm); font-weight: 500; cursor: pointer; transition: color var(--duration-fast), background-color var(--duration-fast); }
+.back svg { width: 16px; height: 16px; }
+@media (hover: hover) and (pointer: fine) { .textButton:not([aria-disabled="true"]):hover, .back:hover { color: var(--foreground); background: var(--surface-muted); } .inlineButton:hover { text-decoration-color: currentColor; } }
+.note { margin: var(--space-4) 0 0; text-align: center; color: var(--text-muted); font-size: var(--text-xs); text-wrap: pretty; }
 
-    /* ── Auth card ── */
-    .auth-card {
-      width: 100%;
-      max-width: 380px;
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: 18px;
-      padding: 28px 24px 24px;
-      box-shadow: 0 4px 24px rgba(0,0,0,.06), 0 1px 4px rgba(0,0,0,.04);
-      transition: background .2s, border-color .2s;
-    }
+/* Input + PasswordField (uiarc): no ring, the border answers. The message row is a clipped slot that grows from a true zero. */
+.field { display: grid; min-width: 0; }
+.labelRow { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-2); margin-bottom: var(--space-2); }
+.label { color: var(--foreground); font-size: var(--text-sm); font-weight: 500; }
+.labelRow .inlineButton { font-size: var(--text-sm); color: var(--text-secondary); text-decoration: none; font-weight: 500; }
+.labelRow .inlineButton:hover { color: var(--foreground); }
+.labelRow .inlineButton.nudge { color: var(--foreground); animation: nudge .9s var(--ease-standard); }
+@keyframes nudge { 30% { transform: translateX(-3px); } 60% { transform: translateX(2px); } }
+.input, .shell { width: 100%; min-height: var(--control-height-md); border: 1px solid var(--border-strong); border-radius: var(--radius-control); background: var(--surface); color: var(--foreground); font-size: var(--text-field); transition: border-color var(--duration-fast) var(--ease-standard), background-color var(--duration-fast) var(--ease-standard); }
+.input { padding: 0 var(--space-3); font: inherit; font-size: var(--text-field); outline: none; }
+.input::placeholder, .shell input::placeholder { color: var(--text-muted); }
+.input.mono { font-family: ui-monospace, "Cascadia Mono", "SF Mono", Consolas, monospace; letter-spacing: .06em; }
+@media (hover: hover) and (pointer: fine) { .input:hover:not([aria-invalid="true"]), .shell:hover:not(:focus-within):not([data-invalid="true"]) { border-color: var(--foreground); } }
+.input:focus-visible, .shell:focus-within { border-color: var(--foreground); }
+.input[aria-invalid="true"], .shell[data-invalid="true"] { border-color: var(--danger); }
+.shell { display: flex; align-items: center; padding: 0 calc((var(--control-height-md) - 2px - 30px) / 2) 0 var(--space-3); }
+.shell input { width: 100%; min-width: 0; border: 0; background: transparent; color: var(--foreground); font: inherit; font-size: var(--text-field); outline: 0; }
+.shell input.reveal { animation: resolve var(--duration-standard) var(--ease-enter); }
+@keyframes resolve { from { opacity: .35; filter: blur(2px); } }
+.eye { display: grid; width: 30px; height: 30px; flex: 0 0 auto; place-items: center; border: 0; border-radius: var(--radius-control); background: transparent; color: var(--text-muted); cursor: pointer; transition: background-color var(--duration-fast), color var(--duration-fast); }
+.eye svg { width: 16px; height: 16px; }
+@media (hover: hover) and (pointer: fine) { .eye:hover { background: var(--surface-muted); color: var(--foreground); } }
+.slot { display: grid; grid-template-rows: 0fr; opacity: 0; transition: grid-template-rows var(--duration-smooth) var(--ease-standard), opacity var(--duration-standard) var(--ease-enter); }
+.slot > div { overflow: hidden; min-height: 0; }
+.slot.open { grid-template-rows: 1fr; opacity: 1; }
+.msg { display: block; padding-top: var(--space-2); font-size: var(--text-xs); color: var(--text-muted); }
+.msg.err { color: var(--danger); }
+.msg > span, .al-copy > * { display: block; }
+.slot.open .msg > span { animation: swapIn var(--duration-standard) var(--ease-enter); }
 
-    .auth-title { font-size: 18px; font-weight: 600; color: var(--fg); margin-bottom: 4px; }
-    .auth-sub   { font-size: 13px; color: var(--muted-fg); margin-bottom: 22px; line-height: 1.55; }
+/* Autofill list drawn by the browser (passkey). */
+.fieldWrap { position: relative; }
+.autofill { position: absolute; z-index: 5; left: 0; right: 0; top: calc(100% + 6px); border: 1px solid var(--border-strong); border-radius: 12px; background: var(--surface); box-shadow: var(--shadow-floating); overflow: hidden; transform-origin: top; animation: pop var(--duration-standard) var(--ease-enter); }
+@keyframes pop { from { opacity: 0; transform: translateY(-4px) scale(.98); } }
+.autofill button { all: unset; box-sizing: border-box; display: flex; align-items: center; gap: 10px; width: 100%; padding: 9px 12px; cursor: pointer; font-size: var(--text-sm); }
+.autofill button + button { border-top: 1px solid var(--border); }
+.autofill button:hover, .autofill button:focus-visible { background: var(--surface-muted); }
+.autofill svg { width: 18px; height: 18px; flex: none; }
+.autofill small { display: block; font-size: var(--text-xs); color: var(--text-muted); }
 
-    /* ── Form fields ── */
-    .field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
-    .field-label { font-size: 12px; font-weight: 500; color: var(--muted-fg); letter-spacing: .3px; }
-    .field-input {
-      height: 42px;
-      padding: 0 14px;
-      border-radius: 10px;
-      border: 1px solid var(--border);
-      background: var(--input-bg);
-      color: var(--fg);
-      font-family: var(--font);
-      font-size: 14px;
-      outline: none;
-      transition: border-color .15s, box-shadow .15s;
-      width: 100%;
-    }
-    .field-input::placeholder { color: var(--muted-fg); }
-    .field-input:focus { border-color: var(--muted-fg); box-shadow: 0 0 0 2.5px rgba(9,9,11,.10); }
-    .dark .field-input:focus { box-shadow: 0 0 0 2.5px rgba(250,250,250,.10); }
-    .field-input:disabled { opacity: .5; cursor: not-allowed; }
+/* OtpInput (uiarc): one ring glides to the focused slot. */
+.otp { position: relative; display: flex; gap: 8px; width: fit-content; max-width: 100%; }
+.otp .cell { position: relative; width: 42px; height: 48px; flex: 0 1 42px; }
+.otp input { width: 100%; height: 100%; border: 1px solid var(--border); border-radius: var(--radius-control); background: var(--surface); color: transparent; caret-color: var(--accent); font: inherit; font-size: var(--text-lg); text-align: center; outline: none; transition: border-color var(--duration-fast), background-color var(--duration-fast); }
+.otp input[data-filled="true"] { border-color: var(--accent); background: var(--accent-subtle); }
+.otp[data-invalid="true"] input { border-color: var(--danger); background: color-mix(in srgb, var(--danger) 7%, var(--surface)); }
+.otp .glyph { position: absolute; inset: 0; display: grid; place-items: center; font-size: var(--text-lg); font-variant-numeric: tabular-nums; pointer-events: none; }
+.otp .glyph span { animation: rise var(--duration-standard) var(--ease-enter); }
+@keyframes rise { from { opacity: 0; transform: translateY(.4em); filter: blur(2px); } }
+.otp .ring { position: absolute; top: 0; left: 0; width: 42px; height: 48px; z-index: 2; border: 1px solid var(--foreground); border-radius: var(--radius-control); pointer-events: none; opacity: 0; transition: transform var(--duration-smooth) var(--ease-standard), opacity var(--duration-fast), border-color var(--duration-fast); }
+.otp:focus-within .ring { opacity: 1; }
+.otp[data-invalid="true"] .ring { border-color: var(--danger); }
+@container login (max-width: 360px) { .otp { gap: 6px; } .otp .cell, .otp .ring { height: 44px; } }
 
-    /* ── Password field ── */
-    .pwd-wrap { position: relative; }
-    .pwd-wrap .field-input { padding-right: 44px; }
-    .pwd-toggle {
-      position: absolute; right: 12px; top: 50%;
-      transform: translateY(-50%);
-      background: none; border: none; cursor: pointer;
-      color: var(--muted-fg); padding: 4px;
-      display: none; align-items: center;
-      transition: color .12s;
-    }
-    .pwd-wrap.has-value .pwd-toggle { display: flex; }
-    .pwd-toggle:hover { color: var(--fg); }
+/* Alert (uiarc): neutral surface, the tone lives in the icon only. Presence = height + fade; text rises in with a little blur. */
+.alslot { display: grid; grid-template-rows: 0fr; opacity: 0; transition: grid-template-rows var(--duration-smooth) var(--ease-standard), opacity var(--duration-standard) var(--ease-enter); }
+.alslot > div { overflow: hidden; min-height: 0; }
+.alslot.open { grid-template-rows: 1fr; opacity: 1; }
+.alslot.closing { transition: grid-template-rows var(--duration-smooth) var(--ease-standard), opacity var(--duration-exit) var(--ease-standard); }
+.alert { display: flex; align-items: flex-start; gap: var(--space-3); margin-bottom: var(--space-6); border: 1px solid var(--border); border-radius: var(--radius-control); padding: var(--space-4); background: var(--surface-muted); }
+.al-icon { width: 18px; height: 18px; flex: none; margin-top: 1px; }
+.al-icon svg { width: 18px; height: 18px; display: block; }
+.alslot.open .al-icon { animation: iconIn var(--duration-standard) var(--ease-enter) 60ms backwards; }
+@keyframes iconIn { from { opacity: 0; transform: scale(.6); filter: blur(2px); } }
+.alert.info .al-icon { color: var(--info); } .alert.warning .al-icon { color: var(--warning); } .alert.danger .al-icon { color: var(--danger); } .alert.success .al-icon { color: var(--success); }
+.al-copy { flex: 1; min-width: 0; }
+.al-copy strong { font-size: var(--text-sm); font-weight: 500; }
+.al-copy p { margin: var(--space-1) 0 0; color: var(--text-secondary); font-size: var(--text-xs); }
+.al-copy .t { font-variant-numeric: tabular-nums; }
+.alslot.open .al-copy > * { animation: swapIn var(--duration-standard) var(--ease-enter) 40ms backwards; }
 
-    /* ── Forgot link (inline in password label row) ── */
-    .forgot-link {
-      font-size: 12px; color: var(--muted-fg);
-      cursor: default; padding: 0;
-      background: none; border: none; font-family: var(--font);
-      text-transform: none; letter-spacing: normal;
-    }
-    .forgot-link-text {
-      cursor: pointer; transition: color .12s;
-    }
-    .forgot-link-text:hover { color: var(--fg); }
+.below { color: var(--text-secondary); font-size: var(--text-sm); text-align: center; }
+.below .inlineButton { text-decoration: none; }
+.foot { color: var(--text-muted); font-size: var(--text-xs); }
+.legal { display: flex; gap: var(--space-1); margin-left: auto; }
+.legal a { display: inline-flex; min-height: 32px; align-items: center; border-radius: var(--radius-pill); padding: 0 var(--space-2); color: var(--text-secondary); text-decoration: none; }
+.legal a:hover { color: var(--foreground); background: var(--surface-muted); }
+.slowLine { margin: 0; padding: 2px 2px 4px; color: var(--text-secondary); font-size: var(--text-sm); }
+.rule { display: inline-flex; align-items: center; gap: 6px; color: var(--text-muted); transition: color var(--duration-fast) var(--ease-standard); }
+.rule svg { width: 14px; height: 14px; flex: none; }
+.rule .rk { stroke-dasharray: 10; stroke-dashoffset: 10; transition: stroke-dashoffset var(--duration-standard) var(--ease-enter); }
+.rule .rc { transition: stroke var(--duration-fast); }
+.rule[data-state="ok"] { color: var(--success); } .rule[data-state="ok"] .rk { stroke-dashoffset: 0; }
+.rule[data-state="short"] { color: var(--danger); }
+.caps { display: inline-flex; align-items: center; gap: 6px; } .caps svg { width: 14px; height: 14px; }
+/* Backup codes: numbered, two columns, fixed-width so each one is easy to copy by eye. */
+.codes { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 20px; margin: 0; padding: var(--space-4) var(--space-5); list-style: none; counter-reset: c; border: 1px solid var(--border); border-radius: var(--radius-control); background: var(--surface-muted); font-family: ui-monospace, "Cascadia Mono", "SF Mono", Consolas, monospace; font-size: var(--text-field); letter-spacing: .04em; }
+.codes li { counter-increment: c; display: flex; gap: 10px; align-items: baseline; }
+.codes li::before { content: counter(c); width: 1.4em; text-align: right; color: var(--text-muted); font-size: var(--text-xs); }
+.codes li.used { color: var(--text-muted); text-decoration: line-through; }
+.codeTools { display: flex; justify-content: flex-end; gap: var(--space-2); margin-top: var(--space-3); }
+.btn.sm { width: auto; min-height: var(--control-height-sm); border-radius: calc(var(--radius-control) - 2px); padding: 0 var(--space-3); }
+.btn.danger { color: #fff; background: #d2373d; border-color: #d2373d; }
+:root[data-theme="light"] .btn.danger { background: #c42b33; border-color: #c42b33; }
+@media (hover: hover) and (pointer: fine) { .btn.danger:hover:not([aria-disabled="true"]) { background: #c9323a; border-color: #c9323a; opacity: 1; } :root[data-theme="light"] .btn.danger:hover { background: #b4232b; border-color: #b4232b; } }
+.btn.danger:active { background: #b4232b; }
+/* Checkbox (uiarc): the square alone reacts to a press; the tick draws itself. */
+.check { display: flex; align-items: flex-start; gap: var(--space-3); margin-top: var(--space-3); cursor: pointer; font-size: var(--text-sm); font-weight: 500; color: var(--foreground); }
+.check input { position: absolute; opacity: 0; pointer-events: none; }
+.check .visual { position: relative; flex: none; width: 18px; height: 18px; margin-top: 1px; border: 1px solid var(--border-strong); border-radius: 5px; background: var(--surface); color: var(--background); transition: border-color var(--duration-fast) var(--ease-standard), transform var(--duration-instant) var(--ease-standard); }
+.check .visual i { position: absolute; inset: -1px; border-radius: inherit; background: var(--foreground); transform: scale(.6); opacity: 0; transition: transform var(--duration-standard) var(--ease-standard), opacity var(--duration-fast); }
+.check .visual svg { position: absolute; inset: -1px; width: 18px; height: 18px; }
+.check .visual path { stroke-dasharray: 14; stroke-dashoffset: 14; transition: stroke-dashoffset var(--duration-standard) var(--ease-enter) 40ms; }
+.check input:checked + .visual { border-color: var(--foreground); }
+.check input:checked + .visual i { transform: scale(1); opacity: 1; }
+.check input:checked + .visual path { stroke-dashoffset: 0; }
+.check:active .visual { transform: scale(.95); }
+.check input:focus-visible + .visual { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--foreground); }
+@media (hover: hover) and (pointer: fine) { .check:hover input:not(:checked) + .visual { border-color: var(--text-muted); } }
+.alert.inline { margin: var(--space-5) 0 0; }
+.alert .check { margin-top: var(--space-3); }
+.tip { position: absolute; z-index: 20; bottom: calc(100% + 8px); left: 50%; translate: -50% 0; padding: var(--space-2) var(--space-3); border: 1px solid color-mix(in srgb, var(--background) 14%, var(--foreground)); border-radius: var(--radius-control); background: var(--foreground); color: var(--background); box-shadow: 0 8px 22px rgb(0 0 0 / .22); font-size: var(--text-sm); font-weight: 400; white-space: nowrap; pointer-events: none;
+  opacity: 0; transform: translateY(3px) scale(.97); transition: opacity var(--duration-fast) var(--ease-enter), transform var(--duration-fast) var(--ease-enter); }
+.tip.on { opacity: 1; transform: none; }
+.tip.off { opacity: 0; transform: scale(.98); transition-duration: var(--duration-instant); }
+/* Only the glyph takes the success colour; the label stays put (uiarc copy-button). */
+.btn .ok-glyph { color: var(--success); }
+.btn .ok-glyph path { stroke-dasharray: 24; stroke-dashoffset: 24; animation: draw var(--duration-standard) var(--ease-standard) 60ms forwards; }
+.btn .ext { width: 14px; height: 14px; color: var(--text-muted); margin-left: 2px; }
+.nf { margin: 0 0 var(--space-2); font-family: var(--font-display); font-size: 4rem; font-weight: 400; letter-spacing: -.04em; line-height: 1; color: var(--text-muted); }
 
-    /* ── Field label row (label + inline forgot link) ── */
-    .field-label-row { display: flex; align-items: center; justify-content: space-between; }
+@container login (max-width: 520px) { .bar, .foot { padding-inline: var(--space-4); } .stage { padding: var(--space-4); } .card { border-radius: var(--radius-panel); } .step { padding: var(--space-6); } }
+@container login (max-width: 400px) { .stage { padding-inline: var(--space-3); } .step { padding-inline: var(--space-5); } .heading h2 { font-size: var(--text-2xl); } }
+:focus-visible { outline: none; }
+.btn:focus-visible, .textButton:focus-visible, .inlineButton:focus-visible, .back:focus-visible, .eye:focus-visible { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--foreground); }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+}
 
-    /* ── OAuth row (2 columns, above the form) ── */
-    .oauth-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 14px; }
-    .oauth-row .btn-oauth { margin-bottom: 0; }
-
-    /* ── Primary button ── */
-    .btn-primary {
-      width: 100%; height: 42px;
-      border-radius: 10px; border: none;
-      background: var(--fg); color: var(--bg);
-      font-family: var(--font); font-size: 14px; font-weight: 600;
-      cursor: pointer; transition: opacity .15s;
-      display: flex; align-items: center; justify-content: center; gap: 8px;
-      margin-bottom: 16px;
-    }
-    .btn-primary:hover { opacity: .86; }
-    .btn-primary:active { opacity: .75; }
-    .btn-primary:disabled { opacity: .4; cursor: default; }
-
-    /* ── Divider ── */
-    .divider {
-      display: flex; align-items: center; gap: 10px;
-      margin-bottom: 12px;
-    }
-    .divider-line { flex: 1; height: 1px; background: var(--border); }
-    .divider-text { font-size: 12px; color: var(--muted-fg); white-space: nowrap; }
-
-    /* ── OAuth buttons ── */
-    /* "Last Used" tag on the sign-in method used last on this device. */
-    .has-last-used { position: relative; overflow: visible; }
-    .last-used { position: absolute; top: -9px; right: -6px; z-index: 1; pointer-events: none;
-      height: 20px; padding: 0 8px; display: inline-flex; align-items: center; border-radius: 999px;
-      font-family: var(--font); font-size: 12px; font-weight: 500; line-height: 1; white-space: nowrap;
-      color: #2f5fd0; background: #e7eefe; border: 1px solid #b9cdfb; }
-    .dark .last-used { color: #8fb0ff; background: #13234a; border-color: #2a4589; }
-    .last-used[hidden] { display: none; }
-    .btn-oauth {
-      width: 100%; height: 42px;
-      border-radius: 10px;
-      border: 1px solid var(--border);
-      background: var(--muted);
-      color: var(--fg);
-      font-family: var(--font); font-size: 13px; font-weight: 500;
-      cursor: pointer;
-      transition: background .15s, border-color .15s;
-      display: flex; align-items: center; justify-content: center; gap: 10px;
-      margin-bottom: 8px;
-    }
-    .btn-oauth:last-of-type { margin-bottom: 0; }
-    .btn-oauth:hover { background: var(--border); }
-    .btn-oauth svg { flex-shrink: 0; }
-
-    /* ── Back link ── */
-    .back-link {
-      display: flex; align-items: center; gap: 5px;
-      margin-top: 18px; font-size: 12px; color: var(--muted-fg);
-      cursor: pointer; background: none; border: none;
-      font-family: var(--font); padding: 0;
-      transition: color .12s;
-    }
-    .back-link:hover { color: var(--fg); }
-
-    /* ── Footer ── */
-    .auth-footer {
-      margin-top: 20px; text-align: center;
-      font-size: 13px; color: var(--muted-fg);
-    }
-    .auth-footer-link {
-      color: var(--fg); font-weight: 600;
-      cursor: pointer; text-decoration: none;
-      margin-left: 4px; transition: opacity .12s;
-    }
-    .auth-footer-link:hover { opacity: .7; }
-
-    /* ── Success state ── */
-    .auth-success {
-      display: none; flex-direction: column;
-      align-items: center; gap: 10px;
-      padding: 20px 0 8px;
-    }
-    .auth-success.show { display: flex; }
-    .success-icon {
-      width: 48px; height: 48px; background: #f0fdf4;
-      border-radius: 50%; display: flex; align-items: center; justify-content: center;
-    }
-    .dark .success-icon { background: #052e16; }
-    .success-title { font-size: 16px; font-weight: 600; color: var(--fg); }
-    .success-sub { font-size: 13px; color: var(--muted-fg); text-align: center; }
-
-    /* ── Spinner ── */
-    @keyframes spin { to { transform: rotate(360deg); } }
-    .spinner {
-      width: 16px; height: 16px;
-      border: 2px solid rgba(255,255,255,.3);
-      border-top-color: currentColor;
-      border-radius: 50%;
-      animation: spin .6s linear infinite;
-      display: none;
-    }
-    .btn-primary.loading .spinner { display: block; }
-    .btn-primary.loading .btn-label { display: none; }
-
-    /* ── Slide animation ── */
-    @keyframes slide-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
-    .view-panel { animation: slide-in .2s ease both; }
-
-    /* ── Name field (signup) ── */
-    #nameField { overflow: hidden; max-height: 0; opacity: 0; transition: max-height .22s ease, opacity .18s; margin-bottom: 0; }
-    #nameField.show { max-height: 80px; opacity: 1; margin-bottom: 14px; }
-
-    /* ── Field error ── */
-    .field-error { font-size: 12px; color: #dc2626; margin-top: -10px; margin-bottom: 8px; display: none; }
-    .field-error.show { display: block; }
-
-    /* ── Timer display ── */
-    .timer-row { font-size: 13px; color: var(--muted-fg); text-align: center; margin-bottom: 14px; }
-    .timer-row span { font-weight: 600; color: var(--fg); }
-    .expired-row { font-size: 13px; color: #dc2626; text-align: center; margin-bottom: 14px; display: none; }
-    .expired-row a { color: #2563eb; cursor: pointer; text-decoration: none; }
-
-    /* ── Recovery code input ── */
-    .code-input {
-      text-align: center;
-      font-size: 22px; font-weight: 700;
-      letter-spacing: .2em;
-      margin-bottom: 14px;
-    }
-
-    /* ── Auth digit boxes ── */
-    .digit-row { display: flex; gap: 8px; justify-content: center; margin-bottom: 18px; }
-    .auth-digit {
-      width: 42px; height: 50px;
-      text-align: center;
-      font-size: 20px; font-weight: 700;
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      background: var(--input-bg);
-      color: var(--fg);
-      font-family: var(--font);
-      transition: border-color .15s, box-shadow .15s;
-      -moz-appearance: textfield;
-      caret-color: transparent;
-      outline: none;
-    }
-    .auth-digit:focus { border-color: var(--muted-fg); box-shadow: 0 0 0 3px rgba(113,113,122,.1); }
-    .auth-digit::-webkit-outer-spin-button,
-    .auth-digit::-webkit-inner-spin-button { -webkit-appearance: none; }
-    /* Phones: fields to the 44px touch standard, text at 16px (matches the app). */
-    @media (max-width: 640px) { .field-input { height: 44px; font-size: 16px; } }
+.legal a { font-size: var(--text-xs); }
+.boot { display: grid; place-items: center; min-height: 160px; }
+.boot .spinIn { width: 20px; height: 20px; border: 1.5px solid var(--text-muted); border-right-color: transparent; border-radius: 50%; animation: spin .7s linear infinite; }
   </style>
 </head>
 <body>
-
-  <!-- Theme toggle -->
-  <div class="top-bar">
-    <button class="theme-btn" id="themeBtn" data-on-click="h6da8d21fcf" title="Toggle theme">
-      <svg id="themeIconSun" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="display:none"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
-      <svg id="themeIconMoon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
-    </button>
-  </div>
-
-  <!-- Branding -->
-  <div class="branding">
-    <img id="loginLogo" src="/icons/brand-light.svg" alt="5pm" height="64" style="border-radius:16px;display:block">
-    <div class="brand-text">
-      <div class="brand-name">5pm</div>
-      <div class="brand-tagline">Work Hour Tracker</div>
+  <main class="screen" aria-label="Sign in to 5pm">
+    <div class="backdrop" aria-hidden="true"><svg viewBox="-600 -400 1200 800" preserveAspectRatio="xMidYMid slice"><line x1="-600" y1="0" x2="600" y2="0"/><line x1="0" y1="-400" x2="0" y2="400"/><circle r="140"/><circle r="230" class="major"/><circle r="330"/><circle r="440"/><circle r="560" class="major"/></svg></div>
+    <header class="bar"><img class="mark d" alt="5pm" src="/icons/brand-dark.svg"><img class="mark l" alt="5pm" src="/icons/brand-light.svg"></header>
+    <div class="stage">
+      <div class="card"><div class="viewport" id="vp" aria-live="polite"><div class="step boot"><span class="spinIn" aria-label="Loading"></span></div></div></div>
+      <div class="below" id="below" hidden></div>
     </div>
-  </div>
-  <!-- Auth card -->
-  <div class="auth-card">
-
-    <!-- ── View: Login / Signup ── -->
-    <div id="viewLogin" class="view-panel">
-      <div class="auth-title" id="authTitle">Sign In</div>
-      <div class="auth-sub" id="authSub">Let us help you manage your time.</div>
-
-      <div class="oauth-row">
-        <button id="google-btn" class="btn-oauth">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
-          Google
-        </button>
-        <button id="github-btn" class="btn-oauth">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0 1 12 6.844a9.59 9.59 0 0 1 2.504.337c1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0 0 22 12.017C22 6.484 17.522 2 12 2z"/></svg>
-          GitHub
-        </button>
-      </div>
-
-      <div class="divider">
-        <div class="divider-line"></div>
-        <div class="divider-text">or</div>
-        <div class="divider-line"></div>
-      </div>
-
-      <div class="field" id="nameField">
-        <div class="field-label">Full Name</div>
-        <input class="field-input" id="nameInput" type="text" placeholder="eg. Peter Parker" autocomplete="name">
-      </div>
-
-      <div class="field">
-        <div class="field-label">Email</div>
-        <input class="field-input" id="emailInput" type="email" placeholder="you@company.com" autocomplete="email">
-      </div>
-
-      <div class="field">
-        <div class="field-label-row">
-          <div class="field-label">Password</div>
-          <button class="forgot-link" id="forgotLink" data-on-click="h360e8a7cde"><span class="forgot-link-text">Forgot password?</span></button>
-        </div>
-        <div class="pwd-wrap">
-          <input class="field-input" id="pwdInput" type="password" placeholder="••••••••" autocomplete="current-password">
-          <button class="pwd-toggle" type="button" data-on-click="h59c6fde884" title="Show / hide password">
-            <svg id="eyeOpen" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-            <svg id="eyeClose" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
-          </button>
-        </div>
-      </div>
-
-      <button class="btn-primary" id="submitBtn" data-on-click="h46df00ab5d">
-        <div class="spinner"></div>
-        <span class="btn-label" id="submitLabel">Sign In</span>
-      </button>
-      <!-- Shown by login.js once the project has passkeys on; the desktop app hands off to the browser. -->
-      <button id="passkey-btn" class="btn-oauth" style="margin-top:-8px;display:none">
-        <!-- Material Symbols "passkey" (outlined, weight 400) -->
-        <svg width="18" height="18" viewBox="0 -960 960 960" fill="currentColor"><path d="M120-160v-112q0-34 17.5-62.5T184-378q62-31 126-46.5T440-440q20 0 40 1.5t40 4.5q-4 58 21 109.5t73 84.5v80H120ZM760-40l-60-60v-186q-44-13-72-49.5T600-420q0-58 41-99t99-41q58 0 99 41t41 99q0 45-25.5 80T790-290l50 50-60 60 60 60-80 80ZM440-480q-66 0-113-47t-47-113q0-66 47-113t113-47q66 0 113 47t47 113q0 66-47 113t-113 47Zm300 80q17 0 28.5-11.5T780-440q0-17-11.5-28.5T740-480q-17 0-28.5 11.5T700-440q0 17 11.5 28.5T740-400Z"/></svg>
-        Continue with Passkey
-      </button>
-    </div>
-
-    <!-- ── View: Account Recovery ── -->
-    <div id="viewRecovery" class="view-panel" style="display:none">
-      <div class="auth-title">Account Recovery</div>
-      <div class="auth-sub">Choose how you'd like to reset your access.</div>
-
-      <button class="btn-primary" id="recoverEmailBtn" data-on-click="h70c437f62a">
-        <div class="spinner"></div>
-        <span class="btn-label">Send an Email</span>
-      </button>
-
-      <div class="divider">
-        <div class="divider-line"></div>
-        <div class="divider-text">or</div>
-        <div class="divider-line"></div>
-      </div>
-
-      <button id="google-recovery-btn" class="btn-oauth">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
-        Continue with Google
-      </button>
-      <button id="github-recovery-btn" class="btn-oauth">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0 1 12 6.844a9.59 9.59 0 0 1 2.504.337c1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0 0 22 12.017C22 6.484 17.522 2 12 2z"/></svg>
-        Continue with GitHub
-      </button>
-      <button class="btn-oauth" data-on-click="hd08a616183">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path fill-rule="evenodd" clip-rule="evenodd" d="M6 2C3.79086 2 2 3.79086 2 6V18C2 20.2091 3.79086 22 6 22H18C20.2091 22 22 20.2091 22 18V6C22 3.79086 20.2091 2 18 2H6ZM7 7H9V9H7V7ZM9 11H7V13H9V11ZM7 15H9V17H7V15ZM11 7H13V9H11V7ZM13 11H11V13H13V11ZM11 15H13V17H11V15ZM17 7H15V9H17V7ZM15 11H17V13H15V11ZM17 15H15V17H17V15Z" fill="currentColor"/></svg>
-        Use Authenticator
-      </button>
-
-      <button class="back-link" data-on-click="heb9206632a">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg>
-        Back to sign in
-      </button>
-    </div>
-
-    <!-- ── View: Email OTP ── -->
-    <div id="viewOTP" class="view-panel" style="display:none">
-      <div class="auth-title">Check your inbox</div>
-      <div class="auth-sub">A 6-digit code was sent to <strong id="sentEmail"></strong>. Enter it before the timer runs out.</div>
-
-      <div class="timer-row" id="timerRow">Code expires in <span id="timerDisplay">1:00</span></div>
-      <div class="expired-row" id="expiredRow">Code expired. <a data-on-click="h66fb21f3af">Resend email</a></div>
-
-      <input class="field-input code-input" id="recoveryCode" type="text" inputmode="numeric"
-        maxlength="6" placeholder="000000" autocomplete="one-time-code"
-        data-on-input="hf56c91254e">
-
-      <button class="btn-primary" id="verifyOTPBtn" data-on-click="h0e44d80fe8" disabled>Verify Code</button>
-
-      <button class="back-link" data-on-click="h360e8a7cde">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg>
-        Use a different method
-      </button>
-    </div>
-
-    <!-- ── View: Authenticator ── -->
-    <div id="viewAuth" class="view-panel" style="display:none">
-      <div class="auth-title">Authenticator Code</div>
-      <div class="auth-sub">Enter the 6-digit code from your authenticator app.</div>
-
-      <div class="digit-row">
-        <input class="auth-digit" id="rd0" type="text" inputmode="numeric" maxlength="1" autocomplete="one-time-code">
-        <input class="auth-digit" id="rd1" type="text" inputmode="numeric" maxlength="1">
-        <input class="auth-digit" id="rd2" type="text" inputmode="numeric" maxlength="1">
-        <input class="auth-digit" id="rd3" type="text" inputmode="numeric" maxlength="1">
-        <input class="auth-digit" id="rd4" type="text" inputmode="numeric" maxlength="1">
-        <input class="auth-digit" id="rd5" type="text" inputmode="numeric" maxlength="1">
-      </div>
-
-      <button class="btn-primary" id="authDigitVerify" data-on-click="h0e44d80fe8" disabled>Verify Code</button>
-
-      <div id="authErr" class="field-error" style="margin-top:10px;text-align:center"></div>
-
-      <div class="divider" style="margin-top:18px;margin-bottom:14px">
-        <div class="divider-line"></div>
-        <div class="divider-text">or use a backup code</div>
-        <div class="divider-line"></div>
-      </div>
-
-      <input class="field-input" id="authBackupInput" type="text" placeholder="xxxx-xxxx" autocomplete="off"
-        style="text-align:center;letter-spacing:.1em"
-        data-on-input="h6394b9e004">
-      <button class="btn-oauth" id="authBackupVerify" data-on-click="h60a7d6a144" disabled style="margin-top:10px;width:100%">Use Backup Code</button>
-
-      <button class="back-link" data-on-click="heb9206632a">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg>
-        Back to sign in
-      </button>
-    </div>
-
-    <!-- ── View: Success ── -->
-    <div class="auth-success" id="authSuccess">
-      <div class="success-icon">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
-      </div>
-      <div class="success-title" id="successTitle">Signed in!</div>
-      <div class="success-sub" id="successSub">Taking you to your workspace…</div>
-    </div>
-
-  </div>
-
-  <!-- Footer -->
-  <div class="auth-footer" id="authFooter">
-    <span id="footerText">New to 5pm?</span>
-    <a class="auth-footer-link" id="toggleLink" data-on-click="hcd9818de84">Create an Account</a>
-  </div>
-
-  <!-- All login page logic lives in login.js -->
+    <footer class="foot"><nav class="legal" aria-label="Legal"><a href="/privacy.html">Privacy</a><a href="/about.html">About</a></nav></footer>
+  </main>
   <script src="login.js"></script>
 </body>
 </html>

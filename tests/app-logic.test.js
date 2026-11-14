@@ -206,7 +206,8 @@ test('Continue with Google always asks Google for the account picker', async () 
   const sb = load(extractFrom(LOGIN, 'login.js', 'const GOOGLE_PICKER', ';') + '\n' +
                   extractFrom(LOGIN, 'login.js', 'async function handleOAuth(', '\n}'), {
     _sb: { auth: { signInWithOAuth: async a => { args = a; return { error: null }; } } },
-    _clearAuthError() {}, showAuthError(m) { throw new Error(m); },
+    setBtn() {}, alert(k, m) { throw new Error(m || k); }, esc: s => s, _isOffline: () => false, cur: 'signin',
+    localStorage: { setItem() {} }, Date, JSON,
     window: { location: { origin: 'https://whtracker.vercel.app' } },
   });
   const btn = { disabled: false, style: {} };
@@ -1118,7 +1119,7 @@ test('Backup codes keep two-step on, and new passwords need 8 characters', () =>
   assert.match(GATE, /rpc\('mfa_satisfied'\)/);
   assert.doesNotMatch(LOGIN, /Two-factor is off/);
   // 8-character minimum for new passwords, in both places.
-  assert.match(LOGIN, /isSignup && pwd\.length < 8/);
+  assert.match(LOGIN, /if \(p\.value\.length < 8\) return shortPw\(p\);/);
   assert.match(SRC, /pwd\.length < 8\) \{ showErr\('Use at least 8 characters/);
   assert.doesNotMatch(SRC, /pwd\.length < 6/);
 });
@@ -1429,4 +1430,38 @@ test('Geist: titles and big numbers use the display font, body text stays on --f
   for (const c of ['.dialog-title', '.settings-title', '.sx-title', '.ac-title', '.ws-total', '.ed-total', '.sx-total', '.rc-worked', '.am-v'])
     assert.ok(rule.includes(c), c);
   assert.match(HTML, /--font: -apple-system/);   // body font unchanged
+});
+
+// ── Login flow (#8) ────────────────────────────────────────────────────────
+test('Login: screens, copy and the signed-in page', () => {
+  const LHTML = fs.readFileSync(path.join(WEB, 'login.html'), 'utf8');
+  for (const id of ['signin', 'twostep', 'backup', 'lost', 'done', 'signup', 'confirm', 'reset', 'other', 'code', 'newpw', 'noAccount'])
+    assert.match(LOGIN, new RegExp(`\n  ${id}: \{ h: `), id);
+  assert.match(LOGIN, /done: \{ h: \(\) => big\.ok \+ heading\('You’re in', 'Letting you in\.\.\.'\) \}/);   // user, 2026-11-15
+  assert.match(LOGIN, /'That email and password don’t match\.'/);                  // one message, never says which emails exist
+  assert.match(LOGIN, /resetPasswordForEmail\(email\)/);                            // code, not a link
+  assert.match(LOGIN, /verifyOtp\(\{ email: S\.email, token, type: 'recovery' \}\)/);
+  assert.match(LOGIN, /mediation: 'conditional'/);                                  // passkey autofill…
+  assert.match(LOGIN, /Sign in with a passkey/);                                    // …with a quiet button where it's missing
+  assert.match(LOGIN, /window\.showAuthError = function/);                          // the Windows app reports through this
+  assert.match(LOGIN, /window\.__desktopStartPasskey/);
+  assert.doesNotMatch(LHTML, /theme-btn|toggleTheme/);                              // no theme toggle
+  assert.match(LHTML, /family=Geist/);
+  assert.match(LHTML, /<div class="viewport" id="vp"/);
+  const GATE = fs.readFileSync(path.join(WEB, 'lib', 'pages', 'index-auth-gate.js'), 'utf8');
+  assert.match(GATE, /login\.html\?noaccount=/);
+  assert.match(GATE, /'\/login\.html\?reason=session'/);
+  assert.match(SRC, /login\.html\?reason=elsewhere/);
+});
+test('Login: errors come back in the page’s words', () => {
+  const f = load([extractFrom(LOGIN, 'login.js', 'const _isOffline = ', ';'), extractFrom(LOGIN, 'login.js', 'const _isRate = ', ';'),
+    extractFrom(LOGIN, 'login.js', 'function _retrySecs(', '\n}'), extractFrom(LOGIN, 'login.js', 'const esc = ', '[c]));')].join('\n') + '\nthis.o={_isOffline,_isRate,_retrySecs,esc}',
+    { navigator: { onLine: true }, String, RegExp }, 'o');
+  assert.equal(f._isRate({ status: 429 }), true);
+  assert.equal(f._isRate({ message: 'Email rate limit exceeded' }), true);
+  assert.equal(f._isOffline({ message: 'Failed to fetch' }), true);
+  assert.equal(f._isOffline({ message: 'Invalid login credentials' }), false);
+  assert.equal(f._retrySecs({ message: 'For security purposes, you can only request this after 42 seconds.' }), 42);
+  assert.equal(f._retrySecs({ message: 'Too many requests' }), 0);
+  assert.equal(f.esc('<b>"x"</b>'), '&lt;b&gt;&quot;x&quot;&lt;/b&gt;');
 });

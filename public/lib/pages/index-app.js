@@ -12243,7 +12243,7 @@ Kind regards,
         Object.keys(localStorage)
           .filter(k => k.startsWith('wh_') && k !== 'wh_theme' && k !== DEV_ID_KEY && k !== IOS_SEEN_KEY && k !== RATE_KEY)
           .forEach(k => localStorage.removeItem(k));
-        window.location.href = 'login.html';
+        window.location.href = 'login.html?reason=elsewhere';
       });
     }
 

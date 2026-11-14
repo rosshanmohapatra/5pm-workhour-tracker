@@ -79,3 +79,51 @@ pub fn autostart_set(enabled: bool) -> Result<(), String> {
     _ => Err("Windows didn't allow 5pm to open at login.".into()),
   }
 }
+
+// Microsoft's own "Rate and review" dialog (stars + review are its UI). The page
+// decides when (index-app.js, _rateAsk); this only opens it, owned by the 5pm
+// window, and reports how it ended: "succeeded", "canceled", "network", "error",
+// or "not_store" outside the Store package. Waits off the UI thread: the call
+// returns only when the dialog closes.
+#[tauri::command]
+pub async fn store_rate_and_review(window: tauri::WebviewWindow) -> String {
+  #[cfg(windows)]
+  {
+    if !is_packaged() {
+      return "not_store".into();
+    }
+    let hwnd = match window.hwnd() {
+      Ok(h) => h.0 as isize,
+      Err(_) => return "error".into(),
+    };
+    tauri::async_runtime::spawn_blocking(move || rate_and_review(hwnd))
+      .await
+      .unwrap_or_else(|_| "error".into())
+  }
+  #[cfg(not(windows))]
+  {
+    let _ = window;
+    "not_store".into()
+  }
+}
+
+#[cfg(windows)]
+fn rate_and_review(hwnd: isize) -> String {
+  use windows::core::Interface;
+  use windows::Services::Store::{StoreContext, StoreRateAndReviewStatus as S};
+  use windows::Win32::{Foundation::HWND, UI::Shell::IInitializeWithWindow};
+  let status = (|| -> windows::core::Result<S> {
+    let ctx = StoreContext::GetDefault()?;
+    // A desktop app has to tell the Store which window owns the dialog.
+    let init: IInitializeWithWindow = ctx.cast()?;
+    unsafe { init.Initialize(HWND(hwnd as *mut core::ffi::c_void))? };
+    ctx.RequestRateAndReviewAppAsync()?.join()?.Status()
+  })();
+  match status {
+    Ok(S::Succeeded) => "succeeded",
+    Ok(S::CanceledByUser) => "canceled",
+    Ok(S::NetworkError) => "network",
+    _ => "error",
+  }
+  .into()
+}

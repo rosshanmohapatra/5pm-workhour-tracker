@@ -55,6 +55,7 @@ pub fn run() {
       shell::launched_at_boot,
       shell::set_tray_tooltip,
       store::is_store_app,
+      store::store_rate_and_review,
       open_external
     ])
     .on_window_event(|window, event| {

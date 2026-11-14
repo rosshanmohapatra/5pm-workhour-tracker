@@ -1230,12 +1230,13 @@
       font-size: 13px; font-weight: 600; letter-spacing: .01em; background: none; color: var(--muted-fg); cursor: default; user-select: none; }
     .dt-pill svg { width: 16px; height: 16px; }
     /* Weekend summary card: the week's total, a chip, tiny bars, the note. */
-    .ws-card { background: var(--surface-raised); border: 1px solid var(--border);
-      border-radius: 16px; padding: 16px 18px 14px; margin-bottom: 12px; text-align: left; }
+    /* Flat (#50, approved 2026-11-14): no inner card; the total, chip, chart and
+       note sit straight on the Today card. View Stats sits below the card. */
+    .ws-card { margin-bottom: 4px; text-align: left; }
     .ws-total number-flow-group { display: inline-flex; align-items: baseline; gap: .25em; }
     /* 32px (28px on phones). NumberFlow pads its digits by the mask height,
        so the mask is kept small and the chip sits right under the number. */
-    .ws-total { font-size: 32px; font-weight: 600; letter-spacing: -.03em; line-height: 1.05; margin-top: 10px; --number-flow-mask-height: .1em;
+    .ws-total { font-size: 32px; font-weight: 600; letter-spacing: -.03em; line-height: 1.05; margin-top: 6px; --number-flow-mask-height: .1em;
       font-variant-numeric: tabular-nums; color: var(--foreground); }
     /* The variable row: the week's chip, or the hovered day's type + verdict. */
     .ws-vary { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; min-height: 26px; }
@@ -1243,7 +1244,7 @@
     .dt-chip { display: inline-flex; align-items: center; height: 22px; padding: 0 9px; border-radius: 6px; font-size: 12px; font-weight: 600;
       color: var(--dt, var(--foreground)); background: color-mix(in srgb, var(--dt, var(--foreground)) 14%, transparent); }
     /* Chart container: its own surface, a midline, the daily target dashed. */
-    .ws-chart { margin-top: 14px; padding: 14px 14px 10px; border-radius: 12px; background: var(--card); border: 1px solid var(--border); }
+    .ws-chart { margin-top: 14px; padding: 14px 14px 10px; border-radius: 12px; background: var(--surface-raised); border: 1px solid var(--border); }
     .ws-plot { position: relative; height: 72px; }
     .ws-grid { position: absolute; left: 0; right: 0; border-top: 1px solid var(--border-subtle); }
     .ws-plot::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; border-top: 1px solid var(--border); }
@@ -1291,6 +1292,9 @@
     .ws-ta::placeholder { color: var(--text-muted); }
     .ws-acts { display: flex; justify-content: flex-end; gap: 6px; padding: 6px 8px 8px; }
     .ws-acts button { height: 30px; padding: 0 12px; border-radius: 9px; font-size: 12px; font-weight: 600; width: auto; }
+    #wkndStatsOut { display: none; }   /* #homeMain's gap spaces it from the card */
+    #homeMain:has(#rcBody.weekend-mode #weekendView.ws-on) #wkndStatsOut { display: block; }
+    .ws-stats { width: 100%; height: 42px; border-radius: 12px; font-size: 13px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 6px; }
     @media (max-width: 640px) { .ws-total { font-size: 28px; } }
     @media (prefers-reduced-motion: reduce) { .ws-bar i { transition: none; } }
     .rc-desc-chip.warn { color: var(--warning); }
@@ -3909,12 +3913,6 @@
                 </div>
                 <div class="badge-days" id="wkndBadgeDays"></div>
               </div>
-              <div>
-                <button class="btn-secondary" style="height:38px;font-size:13px;padding:0 16px;width:100%;display:flex;align-items:center;justify-content:center;gap:6px" data-on-click="ha2992aba2f">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
-                  View Stats
-                </button>
-              </div>
             </div>
 
           </div>
@@ -3923,6 +3921,14 @@
       </div>
 
       </div><!-- /homeCard -->
+
+      <!-- Weekend: View Stats sits below the Home card (#50, flat weekend card). -->
+      <div id="wkndStatsOut">
+        <button type="button" class="btn-secondary ws-stats" data-on-click="ha2992aba2f">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+          View Stats
+        </button>
+      </div>
 
       <!-- Ongoing session banner — sits right below the home card, outside its
            chrome, so it always reads as "the card's own status" rather than being

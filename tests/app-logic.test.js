@@ -1133,3 +1133,16 @@ test('Note editor: Cancel and Save sit inside the note box, on their own row (#4
   assert.match(HTML, /\.ws-ta \{[^}]*border: 0;/);   // the box draws the border, not the text area
   assert.doesNotMatch(HTML, /\.ws-nb \{/);
 });
+
+test('Weekend card is flat, View Stats sits below the Home card (#50)', () => {
+  const HTML = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
+  assert.match(HTML, /\.ws-card \{ margin-bottom: 4px; text-align: left; \}/);       // no inner card surface
+  assert.doesNotMatch(HTML, /\.ws-card \{[^}]*(background|border):/);
+  // The button lives after the Home card, shown only while the weekend summary is on.
+  const after = HTML.slice(HTML.indexOf('<!-- /homeCard -->'));
+  assert.match(after.slice(0, 600), /<div id="wkndStatsOut">[\s\S]*data-on-click="ha2992aba2f"[\s\S]*View Stats/);
+  const inside = HTML.slice(HTML.indexOf('id="wkndStatsSection"'), HTML.indexOf('<!-- /homeCard -->'));
+  assert.doesNotMatch(inside, /View Stats/);
+  assert.match(HTML, /#homeMain:has\(#rcBody\.weekend-mode #weekendView\.ws-on\) #wkndStatsOut \{ display: block; \}/);
+  assert.match(SRC, /el\('weekendView'\)\?\.classList\.toggle\('ws-on', _isWeekendType\)/);
+});

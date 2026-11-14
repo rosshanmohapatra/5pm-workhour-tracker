@@ -3027,6 +3027,8 @@
       const _isWeekendType = type === 'weekend';
       const statsSection = el('wkndStatsSection');
       if (statsSection) statsSection.style.display = _isWeekendType ? '' : 'none';
+      // Weekend summary on: View Stats shows below the Home card (#50).
+      el('weekendView')?.classList.toggle('ws-on', _isWeekendType);
 
       // For Holiday / Leave: hide WH stat rows (rc-numbers, progress bar, IO cards).
       // Half Day keeps them visible — user may still work a partial day.

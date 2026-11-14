@@ -6733,28 +6733,6 @@
       list.addEventListener('touchcancel', endSwipe);
     }
 
-    function clearAllPenalties() {
-      const visible = _penaltyData.filter(p => !_discardedPenalties.has(p.key));
-      if (!visible.length) {
-        const btn = el('penaltyClearAll');
-        btn.classList.remove('ios-shake');
-        void btn.offsetWidth;
-        btn.classList.add('ios-shake');
-        btn.addEventListener('animationend', () => btn.classList.remove('ios-shake'), { once: true });
-        return;
-      }
-      // Persist up front so a re-render mid-animation can't resurrect the rows.
-      visible.forEach(p => _discardedPenalties.add(p.key));
-      _savePenDiscards();
-      renderNotifs();
-      const rows = [...document.querySelectorAll('#penaltiesList .penalty-row')];
-      if (!rows.length) { renderPenalties(); return; }
-      // Stagger so they cascade off rather than leaving in one block.
-      const STEP = 60;
-      rows.forEach((row, i) => setTimeout(() => _dismissPenaltyRow(row, () => {}), i * STEP));
-      setTimeout(renderPenalties, rows.length * STEP + 340);
-    }
-
     // ── Helper: get all Mon–Fri days in a given month up to today ──
     function getWeekdaysInMonth(year, month) {
       const days = [], now = new Date();
@@ -6797,120 +6775,212 @@
       renderStats();
       if (sig() !== before && typeof renderNotifs === 'function') renderNotifs();
     }
-    function _renderPenaltyCard() {
-      const c = cfg();
-      const now = new Date();
-      const container = el('penaltiesList');
-      // Delegated + idempotent, so binding it once here (rather than after every
-      // return path below) covers the whole function regardless of which branch
-      // returns early, and survives innerHTML rebuilds since it's on the container.
-      _initPenaltySwipe();
-
-      const tenDaysAgo = new Date(now); tenDaysAgo.setDate(tenDaysAgo.getDate() - 10); tenDaysAgo.setHours(0,0,0,0);
-
+    // ── ACTION CENTER (#39, approved 2026-11-14; replaces "Your Penalties") ──
+    // Rows are always single days: short days in daily mode, and in weekly mode
+    // the short days of a finished week that came up short. Two tabs: This Week
+    // and This Month (the salary cycle). "Read" replaces the old dismiss (kept in
+    // the same wh_discarded_penalties set, so the notification follows it);
+    // "Clear all" hides rows for good (wh_cleared_penalties). Adapted from uiarc
+    // empty-state, dropdown-menu, segmented-control and toast (Undo).
+    let _acTab = 'week', _acShowRead = false, _acConfirm = false, _acLoaded = false;
+    let _acCleared = new Set();
+    try {
+      _acCleared = new Set(JSON.parse(localStorage.getItem('wh_cleared_penalties') || '[]'));
+      const t = localStorage.getItem('wh_ac_tab'); if (t === 'week' || t === 'month') _acTab = t;
+      _acShowRead = localStorage.getItem('wh_ac_show_read') === '1';
+    } catch (e) {}
+    const _acSave = () => { try { localStorage.setItem('wh_cleared_penalties', JSON.stringify([..._acCleared])); localStorage.setItem('wh_ac_tab', _acTab); localStorage.setItem('wh_ac_show_read', _acShowRead ? '1' : '0'); } catch (e) {} };
+    // "1h 35m", "2h", "45m".
+    function _acDur(secs) { const m = Math.round(secs / 60), h = Math.floor(m / 60), r = m % 60; return h ? `${h}h${r ? ' ' + r + 'm' : ''}` : `${r}m`; }
+    // Short days among `dates` (work days, oldest first). logOf(key) → day log.
+    // weekTarget(days) → that week's target in seconds (weekly mode only).
+    function _acShortDays(dates, logOf, c, tk, weekTarget) {
+      const daily = c.dailyH * 3600, out = [];
+      const dayRow = (d, key, log) => {
+        if (!log || log.hoursWorked == null || log.override === 'leave' || log.override === 'holiday') return null;
+        const half = log.override === 'halfday', tgt = half ? daily / 2 : daily, worked = Math.round(log.hoursWorked * 3600);
+        return tgt - worked > 300 ? { key, date: d, deficit: tgt - worked, worked, tgt, half, log, type: 'daily' } : null;
+      };
       if (!c.weeklyOn) {
-        // ── DAILY MODE: flag each weekday below dailyH ──────────────────
-        const penalties = [];
-        const days = getWeekdaysInMonth(now.getFullYear(), now.getMonth());
-        for (const d of days) {
-          if (new Date(d) < tenDaysAgo) continue; // discard items older than 10 days
-          const key = dateKey(d);
-          if (key >= todayKey()) continue; // never flag today or future days
-          const log = dayLog(key);
-          // Skip override days — holiday/leave reduce weekly target, not penalised
-          if (log?.override === 'holiday' || log?.override === 'leave') continue;
-          if (log?.hoursWorked != null) {
-            // Half-day: compare against half-target, not full
-            const dayTarget = log?.override === 'halfday'
-              ? (c.dailyH * 3600) / 2
-              : c.dailyH * 3600;
-            const deficit = dayTarget - log.hoursWorked * 3600;
-            if (deficit > 300) penalties.push({ date: new Date(d), key, deficit, log, type: 'daily' });
-          }
-        }
-        penalties.push(..._samplePenalties());
-        _penaltyData = penalties;
-        const visibleDaily = penalties.filter(p => !_discardedPenalties.has(p.key));
-
-        if (!visibleDaily.length) {
-          container.innerHTML = '<div class="penalty-empty">No daily penalties this month.</div>';
-          return;
-        }
-        container.innerHTML = visibleDaily.map(_penRow).join('');
-
-      } else {
-        // ── WEEKLY MODE: report per week, flag on Monday if weekly total < weeklyH ──
-        const now = new Date();
-        const thisMonday = (() => {
-          const d = new Date(now); const dow = d.getDay();
-          d.setDate(d.getDate() - (dow === 0 ? 6 : dow - 1)); d.setHours(0,0,0,0); return d;
-        })();
-
-        // Collect past complete weeks (Mon–Fri finished) + current partial week
-        const weeks = getWeeksInMonth(now.getFullYear(), now.getMonth());
-        const penalties = [];
-
-        for (const wk of weeks) {
-          const monDate = new Date(wk.monKey + 'T00:00');
-          const isCurrentWeek = monDate >= thisMonday;
-          // Only report on completed weeks; discard weeks older than 10 days
-          if (isCurrentWeek) continue;
-          // Ensure Friday of the week is fully in the past (don't flag incomplete weeks)
-          const fri = new Date(monDate); fri.setDate(monDate.getDate() + 4);
-          if (dateKey(fri) >= todayKey()) continue;
-          if (monDate < tenDaysAgo) continue;
-
-          // Sum all logged hours in this week
-          let totalSecs = 0, hasAnyData = false;
-          for (const d of wk.days) {
-            const log = dayLog(dateKey(d));
-            if (log?.hoursWorked != null) { totalSecs += log.hoursWorked * 3600; hasAnyData = true; }
-          }
-          if (!hasAnyData) continue;
-
-          // Adjust target for override days in this week
-          const wkAdj = adjustedWeeklyTarget(wk.days.map(d => ({ key: dateKey(d), date: d })));
-          const deficit = wkAdj - totalSecs;
-          if (deficit > 300) {
-            const fri = wk.days[4];
-            const rangeStr = `${MONTHS[monDate.getMonth()]} ${monDate.getDate()}–${fri.getDate()}`;
-            penalties.push({
-              date:     monDate,
-              key:      wk.monKey,
-              deficit,
-              totalSecs,
-              rangeStr,
-              log:      {},
-              type:     'weekly',
-              wkDays:   wk.days
-            });
-          }
-        }
-
-        // Also surface current week's running deficit as a warning (not a penalty yet)
-        let currentWkSecs = 0;
-        const currentWk = getWeeksInMonth(now.getFullYear(), now.getMonth()).find(wk => {
-          const monDate = new Date(wk.monKey + 'T00:00');
-          return monDate >= thisMonday;
-        });
-        if (currentWk) {
-          for (const d of currentWk.days) {
-            const log = dayLog(dateKey(d));
-            if (log?.hoursWorked != null) currentWkSecs += log.hoursWorked * 3600;
-          }
-        }
-
-        penalties.push(..._samplePenalties());
-        _penaltyData = penalties;
-        const visibleWeekly = penalties.filter(p => !_discardedPenalties.has(p.key));
-
-        if (!visibleWeekly.length) {
-          container.innerHTML = '<div class="penalty-empty">No weekly penalties this month.</div>';
-          return;
-        }
-
-        container.innerHTML = visibleWeekly.map(_penRow).join('');
+        for (const d of dates) { const key = dateKey(d); if (key >= tk) continue; const r = dayRow(d, key, logOf(key)); if (r) out.push(r); }
+        return out;
       }
+      // Weekly: only finished weeks that came up short list their short days.
+      const n = c.workDays === 6 ? 6 : 5, seen = new Map();
+      for (const d of dates) {
+        const mon = new Date(d); mon.setDate(d.getDate() - ((d.getDay() + 6) % 7)); mon.setHours(0, 0, 0, 0);
+        const mk = dateKey(mon);
+        if (!seen.has(mk)) {
+          const days = Array.from({ length: n }, (_, i) => { const x = new Date(mon); x.setDate(mon.getDate() + i); return { key: dateKey(x), date: x }; });
+          const done = days[n - 1].key < tk;
+          const total = days.reduce((a, x) => a + Math.round((logOf(x.key)?.hoursWorked || 0) * 3600), 0);
+          seen.set(mk, done && weekTarget(days) - total > 300);
+        }
+        if (!seen.get(mk)) continue;
+        const key = dateKey(d); if (key >= tk) continue;
+        const r = dayRow(d, key, logOf(key)); if (r) out.push(r);
+      }
+      return out;
+    }
+    // The two tabs' rows, oldest first: { week, month, all }.
+    function _acCollect() {
+      const c = cfg(), tk = todayKey(), now = nowTz();
+      const wkDates = week(0).map(d => d.date);
+      const p = _statsPeriod('cycle', now, _salaryCycleStart(c)), mDates = [];
+      for (const d = new Date(p.from); d <= p.to; d.setDate(d.getDate() + 1)) { const k = dateKey(d); if (k >= tk) break; if (!isWeekendKey(k)) mDates.push(new Date(d)); }
+      const wt = days => adjustedWeeklyTarget(days);
+      const samples = _samplePenalties().filter(s => s.type === 'daily').map(s => ({ ...s, worked: Math.round((s.log.hoursWorked || 0) * 3600), tgt: s.log.override === 'halfday' ? c.dailyH * 1800 : c.dailyH * 3600, half: s.log.override === 'halfday' }));
+      const keep = r => !_acCleared.has(r.key);
+      const wkRows = _acShortDays(wkDates, dayLog, c, tk, wt).concat(samples).filter(keep);
+      const moRows = _acShortDays(mDates, dayLog, c, tk, wt).concat(samples).filter(keep);
+      const all = new Map(); [...moRows, ...wkRows].forEach(r => all.set(r.key, r));
+      const byDate = (a, b) => a.date - b.date;
+      return { week: wkRows.sort(byDate), month: moRows.sort(byDate), all: [...all.values()].sort(byDate), cycle: p, wkDates };
+    }
+    const _AC_SVG = d => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
+    const _AC_I = {
+      more: '<circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/>',
+      check: '<path d="M20 6 9 17l-5-5"/>', mail: '<rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>',
+      edit: '<path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/>', read: '<path d="M18 6 7 17l-5-5"/><path d="m22 10-7.5 7.5L13 16"/>',
+      unread: '<circle cx="12" cy="12" r="4"/>', trash: '<path d="M3 6h18"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"/>',
+    };
+    function _acRowHtml(r, read) {
+      const d = r.date, wd = FULL_DAYS_EN[d.getDay()].slice(0, 3);
+      const sub = `${_acDur(r.worked)} of ${_acDur(r.tgt)}${r.half ? ' · Half day' : ''}${r.sample ? ' · Sample' : ''}`;
+      return `<div class="penalty-row ac-row${read ? ' read' : ''}" data-penalty-key="${r.key}" tabindex="0" role="button" aria-haspopup="menu" aria-label="${FULL_DAYS_EN[d.getDay()]}, ${MONTHS[d.getMonth()]} ${d.getDate()}: ${_acDur(r.deficit)} short">
+          <div class="wk-tile ac-tile"><span class="wk-tile-n">${wd}</span><span class="wk-tile-d">${d.getDate()}</span></div>
+          <div class="ac-txt"><div class="ac-gap"><b>${_acDur(r.deficit)}</b> <span>short</span></div><div class="ac-sub">${sub}</div></div>
+          <button type="button" class="btn-secondary ac-resolve" tabindex="-1" aria-hidden="true">Resolve</button>
+        </div>`;
+    }
+    // Rows with a month label each time the list crosses into a new month.
+    function _acListHtml(rows, read) {
+      const months = new Set(rows.map(r => r.date.getMonth()));
+      let last = -1, html = '';
+      for (const r of rows) {
+        if (months.size > 1 && r.date.getMonth() !== last) { last = r.date.getMonth(); html += `<div class="ac-mo">${MONTHS[last]}</div>`; }
+        html += _acRowHtml(r, read);
+      }
+      return html;
+    }
+    function _renderPenaltyCard() {
+      const card = el('acCard'), list = el('penaltiesList');
+      if (!card || !list) return;
+      _initPenaltySwipe();
+      const data = _acCollect();
+      _penaltyData = data.all;
+      const rowsOf = t => data[t];
+      const unread = t => rowsOf(t).filter(r => !_discardedPenalties.has(r.key));
+      const rows = rowsOf(_acTab), un = unread(_acTab), rd = rows.filter(r => _discardedPenalties.has(r.key));
+      const first = data.wkDates[0], lastD = data.wkDates[data.wkDates.length - 1];
+      const cap = _acTab === 'week'
+        ? `${MONTHS[first.getMonth()].slice(0, 3)} ${first.getDate()} – ${first.getMonth() === lastD.getMonth() ? lastD.getDate() : MONTHS[lastD.getMonth()].slice(0, 3) + ' ' + lastD.getDate()}`
+        : `Salary cycle · ${data.cycle.sub}`;
+      const top = el('acTop');
+      top.innerHTML = `<div class="ac-head"><span class="ac-title">Action Center</span>
+          <div class="ac-acts"><button type="button" class="btn-secondary ac-markall" id="acMarkAll"${un.length ? '' : ' disabled'}>Mark all as read</button>
+            <div class="ac-more-wrap"><button type="button" class="ac-more" id="acMore" aria-haspopup="menu" aria-expanded="false" aria-label="More">${_AC_SVG(_AC_I.more)}</button>
+              <div class="ac-menu" id="acMoreMenu" role="menu" aria-label="Action Center options">
+                <button type="button" class="ac-mi" role="menuitemcheckbox" aria-checked="${_acShowRead}" data-ac="showread"><span>Show read penalties</span>${_AC_SVG(_AC_I.check)}</button>
+                <div class="ac-sep" role="separator"></div>
+                <button type="button" class="ac-mi danger" role="menuitem" data-ac="clear"${rows.length ? '' : ' disabled'}><span>Clear all penalties</span>${_AC_SVG(_AC_I.trash)}</button>
+              </div></div></div></div>
+        <div class="ac-seg" role="tablist" aria-label="Period"><span class="ac-gl" aria-hidden="true"></span>
+          ${['week', 'month'].map(t => `<button type="button" role="tab" aria-selected="${t === _acTab}" data-t="${t}">${t === 'week' ? 'This Week' : 'This Month'}<em>${unread(t).length}</em></button>`).join('')}</div>
+        <p class="ac-cap">${cap}</p>`;
+      // Body: inline confirm › empty › all caught up › rows (+ read ones when on).
+      if (_acConfirm && rows.length) {
+        list.innerHTML = `<div class="ac-confirm" role="alertdialog" aria-labelledby="acCfT"><p class="ac-cf-t" id="acCfT">Clear all ${rows.length} ${rows.length === 1 ? 'penalty' : 'penalties'}?</p>
+          <p class="ac-cf-d">They leave the Action Center for good, read or not. Your hours stay as they are.</p>
+          <div class="ac-cf-a"><button type="button" class="btn-secondary" data-ac="cf-no">Cancel</button><button type="button" class="btn-danger sm" data-ac="cf-yes">Clear All</button></div></div>`;
+      } else if (!rows.length) {
+        list.innerHTML = `<div class="ac-empty"><div class="ac-tray" aria-hidden="true">
+            <svg viewBox="0 0 64 56" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 34 14 12a4 4 0 0 1 3.8-2.8h28.4A4 4 0 0 1 50 12l8 22v12a4 4 0 0 1-4 4H10a4 4 0 0 1-4-4Z"/><path d="M6 34h14l3 6h18l3-6h14"/></svg>
+            <span class="ac-tray-tile"><b>${FULL_DAYS_EN[nowTz().getDay()].slice(0, 3)}</b><i>${nowTz().getDate()}</i></span></div>
+          <h3>Yay, nothing to resolve</h3><p>Your hours add up and there's no email to send. Anything that needs fixing lands here.</p></div>`;
+      } else {
+        let html = un.length ? _acListHtml(un, false)
+          : `<div class="ac-caught"><span class="ac-caught-i">${_AC_SVG(_AC_I.check)}</span><div><b>All caught up</b><span>Read penalties are under the ⋯ menu.</span></div></div>`;
+        if (_acShowRead && rd.length) html += `<div class="ac-mo ac-read-l">Read</div>` + _acListHtml(rd, true);
+        list.innerHTML = html;
+      }
+      _acLoaded = true;
+      _acBind(card, rows, un);
+    }
+    function _acBind(card, rows, un) {
+      const seg = card.querySelector('.ac-seg'), gl = seg.querySelector('.ac-gl');
+      const glide = () => { const b = seg.querySelector('[aria-selected="true"]'); if (b) { gl.style.width = b.offsetWidth + 'px'; gl.style.transform = `translateX(${b.offsetLeft}px)`; } };
+      if (card._acGl) { gl.style.transition = 'none'; gl.style.width = card._acGl.w; gl.style.transform = card._acGl.t; gl.offsetWidth; gl.style.transition = ''; }
+      requestAnimationFrame(() => { glide(); card._acGl = { w: gl.style.width, t: gl.style.transform }; });
+      seg.querySelectorAll('[data-t]').forEach(b => b.addEventListener('click', () => { if (b.dataset.t === _acTab) return; _acTab = b.dataset.t; _acConfirm = false; _acSave(); _renderPenaltyCard(); }));
+      // ⋯ menu
+      const more = el('acMore'), menu = el('acMoreMenu');
+      const setMenu = open => { menu.classList.toggle('open', open); more.setAttribute('aria-expanded', String(open)); if (open) menu.querySelector('.ac-mi:not([disabled])')?.focus(); };
+      more.addEventListener('click', e => { e.stopPropagation(); _acCloseRowMenu(); setMenu(!menu.classList.contains('open')); });
+      menu.addEventListener('keydown', e => {
+        const items = [...menu.querySelectorAll('.ac-mi:not([disabled])')], i = items.indexOf(document.activeElement);
+        if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); items[(i + (e.key === 'ArrowDown' ? 1 : items.length - 1)) % items.length]?.focus(); }
+        if (e.key === 'Escape') { setMenu(false); more.focus(); }
+      });
+      menu.querySelector('[data-ac="showread"]').addEventListener('click', () => { _acShowRead = !_acShowRead; _acSave(); _renderPenaltyCard(); });
+      menu.querySelector('[data-ac="clear"]').addEventListener('click', () => { _acConfirm = true; _renderPenaltyCard(); el('penaltiesList').querySelector('[data-ac="cf-no"]')?.focus(); });
+      el('acMarkAll').addEventListener('click', () => _acMarkAllRead(un));
+      const list = el('penaltiesList');
+      list.querySelector('[data-ac="cf-no"]')?.addEventListener('click', () => { _acConfirm = false; _renderPenaltyCard(); });
+      list.querySelector('[data-ac="cf-yes"]')?.addEventListener('click', () => {
+        rows.forEach(r => _acCleared.add(r.key)); _acConfirm = false; _acSave(); renderPenalties(); renderNotifs();
+      });
+      if (!card._acDoc) {
+        card._acDoc = true;
+        document.addEventListener('click', e => {
+          if (!e.target.closest('.ac-more-wrap')) { el('acMoreMenu')?.classList.remove('open'); el('acMore')?.setAttribute('aria-expanded', 'false'); }
+          if (!e.target.closest('.ac-rmenu') && !e.target.closest('.ac-row')) _acCloseRowMenu();
+        });
+        // A row (or its Resolve button) opens the Resolve menu.
+        list.addEventListener('click', e => { if (e.target.closest('.ac-rmenu')) return; const row = e.target.closest('.ac-row'); if (row && !row.dataset.dismissing) _acOpenRowMenu(row); });
+        list.addEventListener('keydown', e => { if (e.target.closest('.ac-rmenu')) return; const row = e.target.closest('.ac-row'); if (row && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); _acOpenRowMenu(row); } });
+      }
+    }
+    function _acCloseRowMenu() { document.querySelectorAll('.ac-rmenu').forEach(m => m.remove()); document.querySelectorAll('.ac-row.menu-on').forEach(r => r.classList.remove('menu-on')); }
+    function _acOpenRowMenu(row) {
+      const was = row.classList.contains('menu-on');
+      _acCloseRowMenu(); if (was) return;
+      const key = row.dataset.penaltyKey, read = _discardedPenalties.has(key);
+      const m = document.createElement('div');
+      m.className = 'ac-rmenu ac-menu open'; m.setAttribute('role', 'menu');
+      m.innerHTML = `<button type="button" class="ac-mi" role="menuitem" data-r="email">${_AC_SVG(_AC_I.mail)}<span>Draft email to manager</span></button>
+        <button type="button" class="ac-mi" role="menuitem" data-r="fix">${_AC_SVG(_AC_I.edit)}<span>Fix my hours</span></button>
+        <button type="button" class="ac-mi" role="menuitem" data-r="read">${_AC_SVG(read ? _AC_I.unread : _AC_I.read)}<span>${read ? 'Mark as unread' : 'Mark as read'}</span></button>`;
+      row.classList.add('menu-on');
+      row.appendChild(m);
+      m.querySelector('.ac-mi')?.focus();
+      m.addEventListener('keydown', e => {
+        const items = [...m.querySelectorAll('.ac-mi')], i = items.indexOf(document.activeElement);
+        if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); items[(i + (e.key === 'ArrowDown' ? 1 : items.length - 1)) % items.length].focus(); }
+        if (e.key === 'Escape') { _acCloseRowMenu(); row.focus(); }
+      });
+      m.addEventListener('click', e => {
+        const b = e.target.closest('[data-r]'); if (!b) return;
+        _acCloseRowMenu();
+        if (b.dataset.r === 'email') openEmailModal(key);
+        else if (b.dataset.r === 'fix') openDayEditModal(key);
+        else if (read) { _discardedPenalties.delete(key); _savePenDiscards(); renderPenalties(); renderNotifs(); }
+        else _dismissPenaltyRow(row);
+      });
+    }
+    // Mark all as read: rows slide out, then a toast offers Undo.
+    function _acMarkAllRead(un) {
+      if (!un.length) return;
+      un.forEach(r => _discardedPenalties.add(r.key));
+      _savePenDiscards();
+      renderNotifs();
+      const rows = [...document.querySelectorAll('#penaltiesList .ac-row:not(.read)')];
+      const STEP = 50;
+      rows.forEach((row, i) => setTimeout(() => _dismissPenaltyRow(row, () => {}), i * STEP));
+      setTimeout(renderPenalties, rows.length * STEP + 340);
+      showToast(`Marked ${un.length} as read`, 'none', '', { label: 'Undo', onClick: () => {
+        un.forEach(r => _discardedPenalties.delete(r.key)); _savePenDiscards(); renderPenalties(); renderNotifs();
+      } });
     }
 
     // One penalty row; samples can be either type in either mode.
@@ -9817,7 +9887,6 @@ Kind regards,
       pending.forEach(n => addDismissed(n.id));
       renderNotifs();
     });
-    el('penaltyClearAll').addEventListener('click', clearAllPenalties);
     ['inpDailyH','inpDailyM'].forEach(id => {
       el(id)?.addEventListener('change', autoSaveSettings);
       el(id)?.addEventListener('input', autoSaveSettings);

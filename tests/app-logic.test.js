@@ -555,7 +555,7 @@ test('Card dismissals reach the notification; a notification dismiss never clear
   assert.doesNotMatch(add, /_discardedPenalties|renderPenalties/);
   // Dismissing on the card (one row or Clear All) refreshes the notifications.
   assert.match(extract('function discardPenalty('), /renderNotifs\(\);/);
-  assert.match(extract('function clearAllPenalties('), /_savePenDiscards\(\);\n\s*renderNotifs\(\);/);
+  assert.match(extract('function _acMarkAllRead('), /_savePenDiscards\(\);\n\s*renderNotifs\(\);/);
   // The store sits above buildNotifs, so the notifications can read it at launch.
   assert.ok(SRC.indexOf('let _discardedPenalties') < SRC.indexOf('function buildNotifs('));
 });
@@ -1322,4 +1322,38 @@ test('Update Entry: live line, recorded card, synced day-type control, pinned fo
   assert.match(HTML, /#deMainPage \.de-body \{ flex: 1 1 auto; min-height: 0; overflow-y: auto;/);
   assert.match(HTML, /#deMainPage \.de-foot \{ flex: none;/);
   assert.match(HTML, /<button class="btn btn-primary" id="deDisputeNext">Draft email<\/button>/);
+});
+
+// ── Action Center (#39) ────────────────────────────────────────────────────
+test('Action Center: rows are single short days; weekly mode lists the short days of short finished weeks', () => {
+  const p2_ = n => String(n).padStart(2, '0');
+  const sb = { Math, Date, Map, Array, dateKey: d => `${d.getFullYear()}-${p2_(d.getMonth() + 1)}-${p2_(d.getDate())}` };
+  const f = load(extract('function _acDur(', '; }') + '\n' + extract('function _acShortDays(') + '\nthis.o={_acDur,_acShortDays}', sb, 'o');
+  assert.equal(f._acDur(95 * 60), '1h 35m'); assert.equal(f._acDur(7200), '2h'); assert.equal(f._acDur(45 * 60), '45m');
+  const H = 3600, logs = {
+    '2026-11-02': { hoursWorked: 9 }, '2026-11-03': { hoursWorked: 7.5 }, '2026-11-04': { hoursWorked: 9.5 }, '2026-11-05': { hoursWorked: 0, override: 'leave' }, '2026-11-06': { hoursWorked: 4, override: 'halfday' },
+    '2026-11-09': { hoursWorked: 8 }, '2026-11-10': { hoursWorked: 10 }, '2026-11-11': { hoursWorked: 10 }, '2026-11-12': { hoursWorked: 10 }, '2026-11-13': { hoursWorked: 10 },
+  };
+  const dates = []; for (let d = new Date(2026, 10, 2); d <= new Date(2026, 10, 13); d.setDate(d.getDate() + 1)) if (d.getDay() % 6) dates.push(new Date(d));
+  const daily = f._acShortDays(dates, k => logs[k], { dailyH: 9, weeklyOn: false, workDays: 5 }, '2026-11-15', () => 0);
+  assert.deepEqual(Array.from(daily, r => r.key), ['2026-11-03', '2026-11-06', '2026-11-09'], 'leave skipped; half day vs 4h 30m');
+  assert.equal(daily[1].half, true); assert.equal(daily[1].tgt, 4.5 * H);
+  // Weekly: week of Nov 2 = 30h vs 45h - 9h leave = 36h → short; week of Nov 9 = 48h → fine.
+  const wt = days => days.reduce((a, x) => a + (logs[x.key]?.override === 'leave' ? 0 : logs[x.key]?.override === 'halfday' ? 4.5 * H : 9 * H), 0);
+  const weekly = f._acShortDays(dates, k => logs[k], { dailyH: 9, weeklyOn: true, workDays: 5 }, '2026-11-15', wt);
+  assert.deepEqual(Array.from(weekly, r => r.key), ['2026-11-03', '2026-11-06']);
+  // An unfinished week never lists its days.
+  assert.equal(f._acShortDays(dates, k => logs[k], { dailyH: 9, weeklyOn: true, workDays: 5 }, '2026-11-05', wt).length, 0);
+});
+test('Action Center: card copy, read filter, clear confirm, empty state', () => {
+  const r = extract('function _renderPenaltyCard(');
+  assert.match(r, /Action Center/); assert.match(r, /Mark all as read/); assert.match(r, /Show read penalties/); assert.match(r, /Clear all penalties/);
+  assert.match(r, /This Week' : 'This Month'/); assert.match(r, /Salary cycle · \$\{data\.cycle\.sub\}/);
+  assert.match(r, /Yay, nothing to resolve/); assert.match(r, /All caught up/);
+  assert.match(r, /Clear all \$\{rows\.length\}/);
+  const m = extract('function _acOpenRowMenu(');
+  assert.match(m, /Draft email to manager/); assert.match(m, /Fix my hours/); assert.match(m, /Mark as unread' : 'Mark as read/);
+  assert.match(extract('function _acMarkAllRead('), /label: 'Undo'/);
+  const HTML = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
+  assert.doesNotMatch(HTML, /Your Penalties/);
 });

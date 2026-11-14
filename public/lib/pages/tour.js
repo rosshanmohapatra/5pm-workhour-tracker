@@ -258,9 +258,9 @@
   // Where each tip goes, when it shows, and its words. `place(tip)` puts the
   // card in its spot; `when()` is the trigger; `modal` tips live in a sheet.
   const TIPS = [
-    { id: 'penalties', name: 'Short on Hours?', where: 'Home › Your Penalties',
+    { id: 'penalties', name: 'Short on Hours?', where: 'Home › Action Center',
       title: () => 'Short on Hours?',
-      text: v => `${v} a penalty to draft an email to your manager.`,
+      text: v => `${v} a day to draft an email or fix your hours.`,
       when: () => !!el('penaltiesList')?.querySelector('.penalty-row'),
       place: t => el('penaltiesList')?.before(t) },
     { id: 'missedDay', name: 'Missed a Day?', where: 'Home › This Week',

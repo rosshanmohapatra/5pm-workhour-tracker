@@ -2250,6 +2250,90 @@
     .penalty-info { display: flex; flex-direction: column; gap: 2px; }
     .penalty-date { font-size: 13px; font-weight: 600; color: var(--foreground); }
     .penalty-delta { font-size: 12px; color: var(--warning); font-weight: 500; }
+    /* ── Action Center (#39, approved 2026-11-14): restrained card, hairline rows,
+       amber text only, the week card's 44px date tiles. ── */
+    .ac-card { overflow: visible; padding: 18px 18px 8px; }
+    .ac-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+    .ac-title { font-size: 14px; font-weight: 600; color: var(--foreground); }
+    .ac-acts { display: flex; align-items: center; gap: 6px; }
+    .ac-markall { height: 30px; padding: 0 12px; font-size: 12px; }
+    .ac-markall:disabled { opacity: .45; cursor: default; }
+    .ac-more-wrap { position: relative; }
+    .ac-more { width: 30px; height: 30px; border: 0; border-radius: 8px; display: grid; place-items: center; background: var(--btn-secondary-bg);
+      color: var(--muted-fg); cursor: pointer; transition: background .12s, color .12s; }
+    .ac-more:hover, .ac-more[aria-expanded="true"] { background: var(--btn-secondary-hover); color: var(--foreground); }
+    .ac-more svg { width: 16px; height: 16px; }
+    .ac-menu { position: absolute; right: 0; top: calc(100% + 6px); z-index: 30; min-width: 220px; padding: 5px; border: 1px solid var(--border);
+      border-radius: 12px; background: var(--surface-raised); box-shadow: 0 10px 30px rgba(0,0,0,.22); transform-origin: top right;
+      opacity: 0; transform: translateY(-5px) scale(.97); visibility: hidden; pointer-events: none;
+      transition: opacity .14s ease, transform .2s var(--ease-sheet), visibility 0s linear .2s; }
+    .ac-menu.open { opacity: 1; transform: none; visibility: visible; pointer-events: auto; transition: opacity .14s ease, transform .2s var(--ease-sheet); }
+    .ac-mi { display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 9px; border: 0; border-radius: 8px; background: transparent;
+      font: 500 13px var(--font); color: var(--foreground); text-align: left; cursor: pointer; }
+    .ac-mi span { flex: 1; }
+    .ac-mi svg { width: 16px; height: 16px; flex: none; color: var(--muted-fg); }
+    .ac-mi:hover:not([disabled]), .ac-mi:focus-visible { background: var(--muted); outline: none; }
+    .ac-mi[role="menuitemcheckbox"] svg { order: 2; color: var(--foreground); opacity: 0; }
+    .ac-mi[aria-checked="true"] svg { opacity: 1; }
+    .ac-mi.danger, .ac-mi.danger svg { color: var(--danger-text); }
+    .ac-mi.danger:hover:not([disabled]) { background: var(--danger-tint); }
+    .ac-mi[disabled] { opacity: .45; cursor: default; }
+    .ac-sep { height: 1px; margin: 4px 2px; background: var(--border); }
+    .ac-seg { position: relative; isolation: isolate; display: grid; grid-template-columns: 1fr 1fr; gap: 2px; margin-top: 14px; padding: 3px;
+      border-radius: 10px; background: var(--surface-raised); border: 1px solid var(--border); }
+    .ac-seg button { position: relative; z-index: 1; height: 28px; border: 0; border-radius: 7px; background: transparent; cursor: pointer;
+      display: inline-flex; align-items: center; justify-content: center; gap: 6px; font: 500 12px var(--font); color: var(--text-muted); transition: color .15s; }
+    .ac-seg button[aria-selected="true"] { color: var(--foreground); }
+    .ac-seg button em { font-style: normal; font-variant-numeric: tabular-nums; color: var(--text-muted); }
+    .ac-seg button:focus-visible { outline: 2px solid var(--ring); outline-offset: 1px; }
+    .ac-gl { position: absolute; z-index: 0; top: 3px; bottom: 3px; left: 0; width: 0; border-radius: 7px; background: var(--muted);
+      box-shadow: 0 0 0 1px var(--border); transition: transform .32s var(--ease-sheet), width .32s var(--ease-sheet); }
+    .ac-cap { margin: 8px 2px 4px; font-size: 12px; color: var(--text-muted); }
+    #penaltiesList.ac-list { padding: 4px 0 8px; gap: 0; max-height: none; overflow-x: clip; overflow-y: visible; }
+    .ac-row { position: relative; display: flex; align-items: center; gap: 12px; padding: 10px 6px; border-radius: 10px; cursor: pointer;
+      --wk-tile: 44px; transition: background .12s, opacity .24s ease, transform .3s var(--ease-sheet); }
+    .ac-row + .ac-row::before { content: ''; position: absolute; left: 62px; right: 6px; top: 0; border-top: 1px solid var(--border-subtle); }
+    .ac-row:focus-visible { outline: 2px solid var(--ring); outline-offset: -2px; }
+    .ac-txt { flex: 1; min-width: 0; }
+    .ac-gap b { font-size: 14px; font-weight: 600; color: var(--warning); font-variant-numeric: tabular-nums; }
+    .ac-gap span { font-size: 12px; color: var(--text-muted); }
+    .ac-sub { font-size: 12px; color: var(--muted-fg); margin-top: 2px; font-variant-numeric: tabular-nums; }
+    .ac-resolve { height: 30px; padding: 0 12px; font-size: 12px; opacity: 0; pointer-events: none; transition: opacity .15s; }
+    @media (hover: hover) and (pointer: fine) {
+      .ac-row:hover { background: var(--muted); }
+      .ac-row:hover .wk-tile { background: var(--btn-secondary-hover); color: var(--foreground); }
+      .ac-row:hover .ac-resolve, .ac-row:focus-visible .ac-resolve, .ac-row.menu-on .ac-resolve { opacity: 1; pointer-events: auto; }
+    }
+    .ac-row.menu-on { background: var(--muted); }
+    .ac-row.read .ac-gap b { color: var(--muted-fg); }
+    .ac-row.read { opacity: .7; }
+    .ac-rmenu { top: calc(100% - 4px); right: 6px; min-width: 230px; cursor: default; }
+    .ac-row.menu-on { z-index: 5; }
+    .ac-mo { margin: 12px 6px 4px; font-size: 12px; font-weight: 600; color: var(--text-muted); }
+    .ac-mo:first-child { margin-top: 6px; }
+    .ac-caught { display: flex; align-items: center; gap: 12px; padding: 14px 6px; }
+    .ac-caught-i { width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; background: var(--success-bg); color: var(--success); flex: none; }
+    .ac-caught-i svg { width: 18px; height: 18px; }
+    .ac-caught b { display: block; font-size: 14px; font-weight: 600; color: var(--foreground); }
+    .ac-caught span { font-size: 12px; color: var(--muted-fg); }
+    /* Empty state (uiarc empty-state): the tray with today's date tile. */
+    .ac-empty { display: flex; flex-direction: column; align-items: center; text-align: center; padding: 22px 12px 16px; }
+    .ac-tray { position: relative; width: 84px; height: 70px; color: var(--border-strong); animation: ac-in .5s var(--ease-sheet) both; }
+    .ac-tray svg { position: absolute; left: 10px; bottom: 0; width: 64px; height: 56px; }
+    .ac-tray-tile { position: absolute; left: 25px; top: 0; width: 34px; height: 34px; border-radius: 9px; background: var(--card); border: 1px solid var(--border-strong);
+      display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1; gap: 2px; color: var(--muted-fg); }
+    .ac-tray-tile b { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .03em; }
+    .ac-tray-tile i { font-style: normal; font-size: 13px; font-weight: 700; color: var(--foreground); }
+    .ac-empty h3 { margin: 14px 0 0; font-size: 14px; font-weight: 600; color: var(--foreground); }
+    .ac-empty p { max-width: 19rem; margin: 6px auto 0; font-size: 13px; line-height: 1.45; color: var(--muted-fg); text-wrap: balance; }
+    @keyframes ac-in { from { opacity: 0; transform: scale(.92); } }
+    .ac-confirm { margin: 6px 0 4px; padding: 14px; border-radius: 12px; border: 1px solid var(--border); background: var(--surface-raised); }
+    .ac-cf-t { margin: 0; font-size: 14px; font-weight: 600; color: var(--foreground); }
+    .ac-cf-d { margin: 4px 0 12px; font-size: 13px; line-height: 1.45; color: var(--muted-fg); }
+    .ac-cf-a { display: flex; justify-content: flex-end; gap: 6px; }
+    .ac-cf-a .btn-secondary { height: 30px; padding: 0 12px; font-size: 12px; }
+    @media (max-width: 640px) { .ac-card { padding: 16px 14px 6px; } .ac-row + .ac-row::before { left: 62px; } }
+    @media (prefers-reduced-motion: reduce) { .ac-gl, .ac-menu, .ac-tray, .ac-row { transition: none; animation: none; } }
     .penalty-skel { display: grid; grid-template-columns: 1fr auto; gap: 18px 12px; padding: 20px 16px; }
     .penalty-empty { padding: 20px 16px; text-align: center; font-size: 13px; color: var(--muted-fg); }
     @keyframes shimmer { 0%{opacity:.4} 50%{opacity:.8} 100%{opacity:.4} }
@@ -4272,15 +4356,12 @@
       </div>
 
 
-      <!-- Penalty Checker -->
-      <div class="analytics-card">
-        <div class="analytics-card-head">
-          <span class="analytics-card-title">Your Penalties</span>
-          <button class="btn-secondary" id="penaltyClearAll" style="font-size:12px;height:30px;padding:0 10px">Clear All</button>
-        </div>
-        <div class="penalty-list" id="penaltiesList">
-          <!-- Placeholder until the first render fills the list -->
-          <div class="penalty-skel" aria-label="Loading penalties">
+      <!-- Action Center (#39): replaces the old penalty card; drawn by _renderPenaltyCard(). -->
+      <div class="analytics-card ac-card" id="acCard">
+        <div id="acTop"></div>
+        <div class="penalty-list ac-list" id="penaltiesList">
+          <!-- Loading (approved): tile + two lines per row until the first render -->
+          <div class="penalty-skel" aria-label="Loading">
             <div class="skel" style="width:46%;height:12px"></div><div class="skel" style="width:44px;height:12px"></div>
             <div class="skel" style="width:38%;height:12px"></div><div class="skel" style="width:36px;height:12px"></div>
           </div>

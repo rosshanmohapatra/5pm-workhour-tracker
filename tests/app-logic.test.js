@@ -1086,7 +1086,6 @@ test('Dark status colours are the soft set, and day types use theme tokens', () 
     assert.ok(dark.includes(tok), tok);
   // No bright hard-coded day-type / status colours left in the app script.
   assert.doesNotMatch(SRC, /#0ea5e9|#a855f7|#3b82f6|#22c55e|rgba\(168,85,247|rgba\(14,165,233|rgba\(59,130,246|rgba\(34,197,94/);
-  assert.match(extract('function _attChip('), /'Half Day': \{ bg: 'color-mix\(in srgb, var\(--teal\) 14%, transparent\)'/);
 });
 
 test('Appearance cards: the selected card is filled, never ringed', () => {
@@ -1482,4 +1481,14 @@ test('Backup codes: save screen, running low, make new codes, Home notice, 404',
   assert.match(LOGIN, /localStorage\.setItem\('5pm_backup_used', '1'\)/);
   const NF = fs.readFileSync(path.join(WEB, '404.html'), 'utf8');
   assert.match(NF, /This page doesn’t exist/); assert.match(NF, /<a class="btn" href="\/">Go to 5pm<\/a>/);
+});
+test('No dead click handlers: every handler key is used by a page', () => {
+  const K = fs.readFileSync(path.join(WEB, 'lib', 'pages', 'index-handlers.js'), 'utf8');
+  const HTML = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
+  const pages = fs.readdirSync(path.join(WEB, 'lib', 'pages')).filter(f => f.endsWith('.js') && f !== 'index-handlers.js')
+    .map(f => fs.readFileSync(path.join(WEB, 'lib', 'pages', f), 'utf8')).join('');
+  const unused = [...K.matchAll(/^\s*(h[0-9a-f]{10}):/gm)].map(m => m[1]).filter(k => !(HTML + pages).includes(k));
+  assert.deepEqual(unused, [], 'unused handler keys: ' + unused.join(' '));
+  assert.doesNotMatch(HTML, /id="fpOverlay"/);          // the fake recovery modal is gone
+  assert.doesNotMatch(SRC, /Integration Error/);
 });

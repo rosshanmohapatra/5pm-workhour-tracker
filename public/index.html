@@ -92,6 +92,9 @@
       --surface-raised: #f6f7fa;
       --muted: #e7eaf0; --muted-fg: #545b69; --text-muted: #747c8a;
       --chart-bar: #c6ccd7;   /* bars in charts: a cool grey from the same family */
+      /* Progress bar (#44 C Slim): fill, shimmer, paused fill, lines, target line, tooltip. */
+      --pb-fill: #2a2f3a; --pb-shine: #6b7384; --pb-rest: #9aa1ad; --pb-line: #c6ccd7; --pb-target: #8b929e;
+      --tip-bg: #ffffff; --tip-bd: #dde1e8; --tip-sub: #545b69; --tip-shadow: 0 6px 18px rgba(12,14,19,.10);
       --border: #dde1e8; --border-subtle: #eceef3; --border-strong: #c3c8d2;
       --input: #c3c8d2; --input-bg: #f6f7fa; --ring: #0c0e13;
       --accent: #333845; --accent-subtle: rgba(51,56,69,.1);
@@ -126,6 +129,8 @@
       --surface-raised: #1c1f26;
       --muted: #2a2e38; --muted-fg: #a9b0bd; --text-muted: #828a98;
       --chart-bar: #454c5b;
+      --pb-fill: #cfd4dd; --pb-shine: #ffffff; --pb-rest: #8b919d; --pb-line: #3b414d; --pb-target: #6b7280;
+      --tip-bg: #1c1f26; --tip-bd: #3b414d; --tip-sub: #a9b0bd; --tip-shadow: 0 6px 20px rgba(0,0,0,.45);
       /* Borders a step quieter than the chip, so strokes don't grab attention. */
       --border: #22262f; --border-subtle: #1a1d24; --border-strong: #3b414d;
       --btn-primary-bg: var(--foreground);
@@ -1186,15 +1191,37 @@
        Existing single bar, unchanged, reaching 100% = target complete. Overtime is a
        separate translucent overlay painted inside the SAME track (not an extension of
        it) — the base bar and its color never change once the target is hit. ── */
-    .rc-progress-track { height: 5px; background: var(--border); border-radius: 100px; overflow: hidden; width: 100%; position: relative; }
-    .rc-progress-fill { height: 100%; border-radius: 100px; background: var(--foreground);
-      transition: width .5s cubic-bezier(.4,0,.2,1), background .3s; position: relative; overflow: hidden; }
-    .rc-progress-fill.running::after { content: ''; position: absolute; top: 0; bottom: 0; left: 0; transform: translateX(-133.33%);
-      width: 60%; background: linear-gradient(90deg,transparent,rgba(255,255,255,.18),transparent);
-      animation: rc-shimmer 2s ease-in-out infinite; }
-    /* transform, not left: the GPU moves the shine; left re-laid out the bar 60 times a second */
-    @keyframes rc-shimmer { 0% { transform: translateX(-133.33%); } 100% { transform: translateX(233.33%); } }
+    /* Slim bar (#44 option C, approved 2026-11-14): 12px. One rounded track clips
+       everything; the lines are ONE repeating gradient on the straight part, the
+       target is the last line in a stronger grey, the fill is one div with a soft
+       shimmer (::after). Only transform / opacity animate; html.app-hidden pauses
+       it all. The cursor never changes over it. */
+    .rc-progress-track { --h: 12px; height: var(--h); background: transparent; border-radius: calc(var(--h) / 2); overflow: hidden;
+      clip-path: inset(0 round calc(var(--h) / 2)); width: 100%; position: relative; cursor: default; touch-action: pan-y; }
+    .rc-progress-track::before { content: ''; position: absolute; top: 0; bottom: 0; left: calc(var(--h) / 2); right: calc(var(--h) / 2);
+      background: repeating-linear-gradient(90deg, var(--pb-line) 0 2px, transparent 2px 7px); transition: opacity .4s; }
+    .rc-progress-track::after { content: ''; position: absolute; top: 0; bottom: 0; right: calc(var(--h) / 2 - 1px); width: 2px;
+      background: var(--pb-target); transition: opacity .4s; }
+    .rc-progress-fill { height: 100%; border-radius: calc(var(--h, 12px) / 2); background: var(--pb-fill); box-shadow: 5px 0 0 0 var(--card);
+      transition: width .6s cubic-bezier(.32,.72,0,1), background .4s; position: relative; overflow: hidden; z-index: 1; }
+    .rc-progress-fill::after { content: ''; position: absolute; top: 0; bottom: 0; left: 0; width: 40%; opacity: 0; transform: translateX(-120%);
+      background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--pb-shine) 65%, transparent), transparent); }
+    .rc-progress-fill.running::after { animation: rc-shimmer 3.6s ease-in-out infinite; }
+    @keyframes rc-shimmer { 0% { transform: translateX(-120%); opacity: 0; } 15% { opacity: .9; } 55%, 100% { transform: translateX(280%); opacity: 0; } }
     @media (prefers-reduced-motion: reduce) { .rc-progress-fill.running::after { animation: none; } }
+    /* Hover / drag: a guide line and a tooltip with the time you reach that point. */
+    #rcKpiGroup { position: relative; }
+    .pb-guide { position: absolute; width: 2px; border-radius: 2px; background: var(--foreground); opacity: 0; transform: translateX(-1px);
+      z-index: 2; pointer-events: none; transition: opacity .12s; }
+    .pb-tip { position: absolute; transform: translate(-50%, -100%); background: var(--tip-bg); color: var(--foreground);
+      border: 1px solid var(--tip-bd); border-radius: 10px; box-shadow: var(--tip-shadow); padding: 8px 12px;
+      display: flex; flex-direction: column; gap: 2px; white-space: nowrap; opacity: 0; pointer-events: none; z-index: 3;
+      transition: opacity .12s; font-variant-numeric: tabular-nums; text-align: left; }
+    .pb-tip b { font-size: 13px; font-weight: 600; line-height: 18px; }
+    .pb-tip span { font-size: 12px; font-weight: 500; color: var(--tip-sub); line-height: 16px; }
+    .pb-tip::after { content: ''; position: absolute; left: var(--ax, 50%); top: 100%; width: 8px; height: 8px; background: var(--tip-bg);
+      border-right: 1px solid var(--tip-bd); border-bottom: 1px solid var(--tip-bd); transform: translate(-50%, -4px) rotate(45deg); border-bottom-right-radius: 2px; }
+    #rcKpiGroup.pb-hover .pb-guide, #rcKpiGroup.pb-hover .pb-tip { opacity: 1; }
     .rc-progress-fill.done { background: var(--success); }
     /* Overtime overlay — sits on top of the (already 100%-filled) bar, revealing
        left-to-right as overtime accrues toward Auto Stop. Low-opacity flat tint only:
@@ -1204,7 +1231,8 @@
       background: var(--warning); opacity: .2; border-radius: 0 100px 100px 0;
       pointer-events: none;
       transition: left .5s cubic-bezier(.4,0,.2,1), width .5s cubic-bezier(.4,0,.2,1); }
-    .rc-progress-fill.dim  { background: var(--muted-fg); opacity: .5; }
+    .rc-progress-fill.dim, #rcKpiGroup.rc-paused .rc-progress-fill { background: var(--pb-rest); }   /* paused: grey, still */
+    #rcKpiGroup.rc-paused .rc-progress-fill::after { animation: none; }
     /* ── Description row ── */
     .rc-desc-row { display: flex; justify-content: center; align-items: center; min-height: 20px; padding: 32px 0; }
     .rc-desc-right { font-size: 12px; font-weight: 500; color: var(--muted-fg);
@@ -1224,8 +1252,10 @@
     /* At the target the bar thins into an edge-to-edge divider and the chip folds
        away; the done banner rises below the field. Neutral throughout. */
     .rc-progress-track { transition: height .7s var(--ease-sheet), margin .7s var(--ease-sheet), width .7s var(--ease-sheet), border-radius .7s, background .7s; }
-    .rc-progress-fill { transition: width .5s cubic-bezier(.4,0,.2,1), background .7s, border-radius .7s; }
-    #rcKpiGroup.rc-finished .rc-progress-track { height: 1px; border-radius: 0; margin: 0 -16px; width: calc(100% + 32px); background: var(--border); }
+    .rc-progress-fill { transition: width .6s cubic-bezier(.32,.72,0,1), background .7s, border-radius .7s; }
+    #rcKpiGroup.rc-finished .rc-progress-track::before, #rcKpiGroup.rc-finished .rc-progress-track::after { opacity: 0; }
+    #rcKpiGroup.rc-finished .pb-guide, #rcKpiGroup.rc-finished .pb-tip { display: none; }
+    #rcKpiGroup.rc-finished .rc-progress-track { height: 1px; border-radius: 0; clip-path: none; margin: 0 -16px; width: calc(100% + 32px); background: var(--border); }
     #rcKpiGroup.rc-finished .rc-progress-fill { background: var(--border); border-radius: 0; }
     #rcKpiGroup.rc-finished .rc-progress-fill::after, #rcKpiGroup.rc-finished .rc-progress-fill-ot { display: none; }
     .rc-desc-row { transition: padding .5s var(--ease-sheet), opacity .35s, min-height .5s var(--ease-sheet); }
@@ -3825,6 +3855,8 @@
             <div class="rc-progress-fill" id="rcProgressFill" style="width:0%"></div>
             <div class="rc-progress-fill-ot" id="rcProgressFillOt"></div>
           </div>
+          <div class="pb-guide" id="pbGuide" aria-hidden="true"></div>
+          <div class="pb-tip" id="pbTip" aria-hidden="true"></div>
           <div class="rc-desc-row" id="rcDescRow">
             <span class="rc-desc-right" id="rcDescRight"></span>
           </div>

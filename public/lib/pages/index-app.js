@@ -2511,10 +2511,53 @@
       const fill = el('rcProgressFill');
       const otFill = el('rcProgressFillOt');
       if (!fill) return;
-      fill.style.width = Math.min(pct * 100, 100) + '%';
-      fill.className = 'rc-progress-fill' + (barClass ? ' ' + barClass : '');
+      const w = _pbWidth(pct, _rcCache?.effSecs);
+      if (fill.style.width !== w) fill.style.width = w;
+      const cls = 'rc-progress-fill' + (barClass ? ' ' + barClass : '');
+      if (fill.className !== cls) fill.className = cls;
       if (otFill) otFill.style.width = Math.min(Math.max(otFrac || 0, 0), 1) * 100 + '%';
     }
+
+    // Fill width, snapped to whole minutes of the target (#44: the bar moves once a
+    // minute, never every frame), as a CSS width.
+    function _pbWidth(pct, effSecs) {
+      let p = Math.min(Math.max(pct || 0, 0), 1);
+      if (effSecs > 0 && p < 1) p = Math.floor(p * effSecs / 60) * 60 / effSecs;
+      return +(p * 100).toFixed(3) + '%';
+    }
+    // Hover tooltip on the bar (#44): the point under the pointer, snapped to 5
+    // minutes, as the time you reach it ("By 4:05 PM" ahead, "10:50 AM" behind)
+    // and "7h 00m done · 78%". startMs = when the day's clock started (virtual
+    // start, so pauses are already left out).
+    function _pbTipText(frac, effSecs, workedSecs, startMs) {
+      const f = Math.min(Math.max(frac, 0), 1);
+      const effMins = Math.round(effSecs / 60), mins = Math.round(f * effMins / 5) * 5;
+      const when = short(new Date(startMs + mins * 60000));
+      const ahead = mins * 60 > workedSecs;
+      return { title: ahead ? 'By ' + when : when, sub: `${Math.floor(mins / 60)}h ${p2(mins % 60)}m done · ${effMins ? Math.round(mins / effMins * 100) : 0}%`, frac: effMins ? mins / effMins : 0 };
+    }
+    (function _pbHover() {
+      const track = el('rcProgressTrack'), group = el('rcKpiGroup'), tip = el('pbTip'), guide = el('pbGuide');
+      if (!track || !group || !tip || !guide) return;
+      const show = e => {
+        const c = _rcCache; if (!(c?.effSecs > 0) || group.classList.contains('rc-finished')) return;
+        const r = track.getBoundingClientRect(), g = group.getBoundingClientRect();
+        const t = _pbTipText((e.clientX - r.left) / r.width, c.effSecs, c.workedSecs || 0, c.startMs || (Date.now() - (c.workedSecs || 0) * 1000));
+        const x = r.left - g.left + t.frac * r.width, top = r.top - g.top;
+        guide.style.left = x + 'px'; guide.style.top = (top - 3) + 'px'; guide.style.height = (r.height + 6) + 'px';
+        // Keep the tooltip inside the bar's width; its arrow keeps pointing at the guide.
+        const half = 64, tl = Math.min(Math.max(x, r.left - g.left + half), r.right - g.left - half);
+        tip.style.left = tl + 'px'; tip.style.top = (top - 12) + 'px'; tip.style.setProperty('--ax', `calc(50% + ${x - tl}px)`);
+        tip.innerHTML = `<b>${t.title}</b><span>${t.sub}</span>`;
+        group.classList.add('pb-hover');
+      };
+      const hide = () => group.classList.remove('pb-hover');
+      track.addEventListener('pointermove', show);
+      track.addEventListener('pointerdown', show);
+      track.addEventListener('pointerleave', e => { if (e.pointerType === 'mouse') hide(); });
+      track.addEventListener('pointerup', e => { if (e.pointerType !== 'mouse') setTimeout(hide, 1200); });
+      track.addEventListener('pointercancel', hide);
+    })();
 
     function _rcSetDesc(rightHtml) {
       const r = el('rcDescRight');
@@ -2631,7 +2674,7 @@
         _rcCache = { loginStr: _loginDisplayFromLog(_logE) || '—', elapsedStr: durWorked(endedSecs), workedSecs: endedSecs,
           doneAtStr: doneAt.str, doneAtTomorrow: doneAt.tomorrow, targetStr: eff > 0 ? durWorked(eff) : '—',
           targetCap: _rcTargetCap(eff), chip: chip?.text || '', chipOver: !!chip?.over, paused: true,
-          pct: eff > 0 ? endedSecs / eff : 1, isDone: eff > 0 && endedSecs >= eff };
+          pct: eff > 0 ? endedSecs / eff : 1, isDone: eff > 0 && endedSecs >= eff, effSecs: eff };
         _rcMarkPairTab();
         _rcPaintKpis(_rcCache);
         _rcSetProgress(_rcCache.pct, '', 0);
@@ -4077,7 +4120,7 @@
         descRightTimes: _descRightTimes, descRightProgress: _descRightProgress,
         nowStr: short(now), targetStr: eff > 0 ? durWorked(eff) : '—',
         chipTimes: _descRightTimes, chipProgress: _descRightProgress,
-        isDone: isDone };
+        isDone: isDone, effSecs: eff, startMs: now.getTime() - worked * 1000 };
 
       // (No hover tooltip on the right KPI: it repeated the chip.)
 

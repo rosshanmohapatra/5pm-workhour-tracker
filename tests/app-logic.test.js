@@ -1177,3 +1177,24 @@ test('Destructive button: one red component, Primary / Secondary / Tertiary (#43
   busy._btnIdle(btn, 'Log Out');
   assert.equal(btn.disabled, false); assert.equal(btn.attrs['aria-busy'], undefined);
 });
+
+test('Progress bar: slim 12px track, lines + target line, minute steps, hover time (#44)', () => {
+  const HTML = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
+  assert.match(HTML, /\.rc-progress-track \{ --h: 12px; height: var\(--h\);[^}]*clip-path: inset\(0 round calc\(var\(--h\) \/ 2\)\);[^}]*cursor: default;/);
+  assert.match(HTML, /repeating-linear-gradient\(90deg, var\(--pb-line\) 0 2px, transparent 2px 7px\)/);   // one gradient, not a node per line
+  assert.match(HTML, /<div class="pb-tip" id="pbTip" aria-hidden="true"><\/div>/);
+  assert.doesNotMatch(HTML, /\.pb-[a-z]+ \{[^}]*cursor: (pointer|crosshair)/);
+  const fns = load(extract('function _pbWidth(') + '\n' + extract('function _pbTipText('), {
+    Math, p2: n => String(n).padStart(2, '0'),
+    short: d => `${d.getUTCHours() % 12 || 12}:${String(d.getUTCMinutes()).padStart(2, '0')} ${d.getUTCHours() >= 12 ? 'PM' : 'AM'}`,
+  }, '({ _pbWidth, _pbTipText })');
+  // Whole minutes only: 9h target, 1h 00m 50s worked → exactly 60 of 540 minutes.
+  assert.equal(fns._pbWidth(3650 / 32400, 32400), fns._pbWidth(3600 / 32400, 32400));
+  assert.equal(fns._pbWidth(2, 32400), '100%');
+  // Started 9:05 AM (UTC in the stand-in), 9h target, 2h worked.
+  const start = Date.UTC(2026, 10, 16, 9, 5);
+  const ahead = fns._pbTipText(7 / 9, 32400, 7200, start);
+  assert.deepEqual([ahead.title, ahead.sub], ['By 4:05 PM', '7h 00m done · 78%']);
+  const behind = fns._pbTipText(0.1, 32400, 7200, start);     // 54 min → snapped to 55
+  assert.deepEqual([behind.title, behind.sub], ['10:00 AM', '0h 55m done · 10%']);
+});

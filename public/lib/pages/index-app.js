@@ -498,8 +498,9 @@
       return perm === 'granted';
     }
 
-    async function _fireNotif(type) {
-      const msg = _NOTIF_MSGS[type]; if (!msg) return;
+    async function _fireNotif(type) { const msg = _NOTIF_MSGS[type]; if (msg) return _fireNotifMsg(msg); }
+    async function _fireNotifMsg(msg) {
+      if (!msg) return;
       if (!('Notification' in window) || Notification.permission !== 'granted') return;
       // On iOS, Safari appends "from [App]" as a subtitle under the title, creating
       // a 3-line notification. Fold the title into the body so iOS stays at 2 lines.
@@ -549,6 +550,7 @@
     function scheduleNotifications(loginTimestamp) {
       const c = cfg();
       cancelScheduledNotifications(); // clear any previous timers
+      _payrollSchedule(loginTimestamp);   // Penalty Reminders' target moment (#41)
       _rateSchedule(loginTimestamp);  // its own timer: runs even with notifications off
       if (!c.notifOn || Notification.permission !== 'granted') return;
 
@@ -578,6 +580,14 @@
       _notifTimers.forEach(id => clearTimeout(id));
       _notifTimers = [];
       if (_rateTimer) { clearTimeout(_rateTimer); _rateTimer = null; }
+      if (_payTimer) { clearTimeout(_payTimer); _payTimer = null; }
+    }
+    let _payTimer = null;
+    function _payrollSchedule(loginTimestamp) {
+      if (_payTimer) clearTimeout(_payTimer);
+      const at = new Date(loginTimestamp).getTime() - _sessionAccSecs * 1000 + effSecs() * 1000;
+      const delay = at - Date.now();
+      if (delay > 0) _payTimer = setTimeout(() => { _payTimer = null; _payrollCheck('target'); }, delay);
     }
 
     // ── MICROSOFT STORE RATING (Store app only) ─────────────────────────────
@@ -864,6 +874,7 @@
     // ── END SESSION: pauses mid-day, keeps hours, shows Resume ───────────────
     function endSession() {
       if (!loginDate) return;
+      setTimeout(() => _payrollCheck('end'), 0);   // Penalty Reminders (#41), once the day is saved
       if (ticker) { clearInterval(ticker); ticker = null; }
       _stopCheckpoint();
       const now = new Date();
@@ -965,9 +976,18 @@
           const text = penVisible.length > 1 ? `${penVisible.length} Penalties Found`
             : one.type === 'weekly' ? `Weekly Penalty Found: ${one.rangeStr}`
             : `1 Penalty Found on ${dayStr(one)}`;
-          notifs.push({ id, type: 'warn', text, cta: 'Check', ctaWeekKey: penVisible.length === 1 ? 'pen:' + one.key : '' });
+          notifs.push({ id, type: 'warn', text, cta: 'Review', ctaWeekKey: '' });
           _notifPenKeys.set(id, keys);
         }
+      }
+
+      // Penalty Reminders (#41): the latest reminder of this cycle waits here
+      // until it's dismissed or nothing is left to resolve.
+      if (c.penaltyReminders !== false && penVisible.length) {
+        const sent = c.payrollNudges || {}, cyc = _statsPeriod('cycle', nowTz(), _salaryCycleStart(c), _salaryCycleEnd(c));
+        const day = Object.keys(sent).sort().reverse().find(k => k >= dateKey(cyc.from) && k <= tk);
+        const id = day && `payroll-${day}`;
+        if (day && !dismissed.includes(id)) notifs.push({ id, type: 'warn', text: `${sent[day].title}: ${sent[day].body}`, cta: 'Review', ctaWeekKey: '' });
       }
 
       // Developer Mode › Sample Penalties: one notification per sample penalty,
@@ -3283,8 +3303,14 @@
     const _sxMd = d => `${_SX_MON[d.getMonth()]} ${d.getDate()}`;
     // The salary cycle's first day of the month (1–28). Day 1 = calendar month.
     function _salaryCycleStart(c) { const s = +(c || cfg()).salaryCycleStart; return s >= 1 && s <= 28 ? Math.floor(s) : 1; }
+    // The cycle's last day of the month (1–31). Default: the day before the start
+    // (the last day of the month when the cycle starts on the 1st).
+    function _salaryCycleEnd(c) {
+      const s = _salaryCycleStart(c), e = +(c || cfg()).salaryCycleEnd;
+      return e >= 1 && e <= 31 ? Math.floor(e) : (s === 1 ? 31 : s - 1);
+    }
     // The Month tab's three periods around `now`: { from, to, name, sub }.
-    function _statsPeriod(kind, now, startDay) {
+    function _statsPeriod(kind, now, startDay, endDay) {
       const y = now.getFullYear(), m = now.getMonth(), d0 = new Date(y, m, now.getDate());
       let from, to, name;
       if (kind === 'last30') { from = new Date(y, m, now.getDate() - 29); to = d0; name = 'Last 30 Days'; }
@@ -3292,7 +3318,10 @@
       else {
         const s = startDay >= 1 && startDay <= 28 ? startDay : 1;
         from = now.getDate() >= s ? new Date(y, m, s) : new Date(y, m - 1, s);
-        to = new Date(from.getFullYear(), from.getMonth() + 1, s - 1);
+        // Ends on endDay of the same month (cycle from the 1st) or of the next
+        // month, clamped to that month's length.
+        const e = endDay >= 1 && endDay <= 31 ? endDay : (s === 1 ? 31 : s - 1), mo = from.getMonth() + (s === 1 ? 0 : 1);
+        to = new Date(from.getFullYear(), mo, Math.min(e, new Date(from.getFullYear(), mo + 1, 0).getDate()));
         name = 'Salary Cycle';
       }
       return { from, to, name, sub: `${_sxMd(from)} – ${_sxMd(to)}` };
@@ -3345,9 +3374,168 @@
       if (Math.abs(d) <= 300) return { text: 'On target', tone: 'ok' };
       return d < 0 ? { text: `${_wsGap(_minsGap(tgt, secs))} short`, tone: '' } : { text: `${_wsGap(_minsGap(secs, tgt))} over`, tone: 'warn' };
     }
+    // ── PAYROLL (#41, approved 2026-11-14) ──────────────────────────────────
+    // Settings › General › Payroll: the Salary Cycle (a range picked on a
+    // calendar, adapted from uiarc date-range-picker) and Penalty Reminders.
+    const _ord = n => n + (n % 10 === 1 && n % 100 !== 11 ? 'st' : n % 10 === 2 && n % 100 !== 12 ? 'nd' : n % 10 === 3 && n % 100 !== 13 ? 'rd' : 'th');
+    // "26th – 25th", "1st – last day".
+    function _cycleValue(s, e) { return s === 1 && e >= 28 ? '1st – last day' : `${_ord(s)} – ${_ord(e)}`; }
+    function _cycleRepeats(s, e) {
+      return s === 1 && e >= 28 ? 'Repeats every month, the 1st to the last day.'
+        : `Repeats every month, the ${_ord(s)} to the ${_ord(e)} of ${s === 1 ? 'the month' : 'the next month'}.`;
+    }
+    // A cycle that starts on `from`: the To it suggests is the day before the
+    // same date next month (editable).
+    function _cycleSuggestTo(from) { return new Date(from.getFullYear(), from.getMonth() + 1, from.getDate() - 1); }
+    const _scDays = (a, b) => Math.round((new Date(b.getFullYear(), b.getMonth(), b.getDate()) - new Date(a.getFullYear(), a.getMonth(), a.getDate())) / 864e5) + 1;
+    function _scLabel(d) { return `${_SX_MON[d.getMonth()]} ${d.getDate()}`; }
+
+    function renderPayrollRow() {
+      const c = cfg(), s = _salaryCycleStart(c), e = _salaryCycleEnd(c);
+      if (el('scValue')) el('scValue').textContent = _cycleValue(s, e);
+      const p = _statsPeriod('cycle', nowTz(), s, e);
+      if (el('scFoot')) el('scFoot').textContent = `This cycle runs ${_scLabel(p.from)} to ${_scLabel(p.to)}. The Action Center's This Month follows it, and 5pm reminds you to resolve penalties before it closes.`;
+      if (el('inpPenRemind')) el('inpPenRemind').checked = c.penaltyReminders !== false;
+    }
+
+    // ── Salary Cycle picker ──
+    let _sc = null;   // { from, to, active: 'from' | 'to', view: first month shown }
+    function openSalaryCycle() {
+      const c = cfg(), p = _statsPeriod('cycle', nowTz(), _salaryCycleStart(c), _salaryCycleEnd(c));
+      _sc = { from: p.from, to: p.to, active: 'from', view: new Date(p.from.getFullYear(), p.from.getMonth(), 1) };
+      _scRender();
+      el('salaryOverlay').classList.add('open');
+      requestAnimationFrame(() => el('scFieldFrom')?.focus());
+    }
+    function closeSalaryCycle() { el('salaryOverlay')?.classList.remove('open'); _sc = null; }
+    function _scPick(d) {
+      if (_sc.active === 'from' || d <= _sc.from) { _sc.from = d; _sc.to = _cycleSuggestTo(d); _sc.active = 'to'; }
+      else { _sc.to = d; _sc.active = 'from'; }
+      _scRender();
+    }
+    // Problems that keep Save off: null when the range is fine.
+    function _scProblem(from, to) {
+      if (!from || !to || to <= from) return 'Pick a last day after the first day.';
+      if (from.getDate() > 28) return 'Pick a first day from the 1st to the 28th, so every month has it.';
+      const n = _scDays(from, to);
+      if (n < 28 || n > 31) return 'A cycle runs about a month: 28 to 31 days.';
+      return null;
+    }
+    function _scRender() {
+      if (!_sc) return;
+      const box = el('scCal'), tk = todayKey(), WD = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'];
+      const month = off => {
+        const m0 = new Date(_sc.view.getFullYear(), _sc.view.getMonth() + off, 1), y = m0.getFullYear(), m = m0.getMonth();
+        const lead = (m0.getDay() + 6) % 7, len = new Date(y, m + 1, 0).getDate();
+        let cells = '';
+        for (let i = 0; i < lead; i++) cells += '<span class="sc-c sc-pad"></span>';
+        for (let d = 1; d <= len; d++) {
+          const dt = new Date(y, m, d), k = dateKey(dt);
+          const isS = +dt === +_sc.from, isE = +dt === +_sc.to, inR = dt > _sc.from && dt < _sc.to;
+          const cls = ['sc-c', isS && 'start', isE && 'end', inR && 'in', k === tk && 'today'].filter(Boolean).join(' ');
+          cells += `<button type="button" class="${cls}" data-d="${k}" aria-label="${dt.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}"${isS || isE ? ' aria-pressed="true"' : ''}>${d}</button>`;
+        }
+        return `<div class="sc-month"><div class="sc-mt">${m0.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</div>
+          <div class="sc-grid">${WD.map(w => `<span class="sc-wd">${w}</span>`).join('')}${cells}</div></div>`;
+      };
+      const nav = d => `<button type="button" class="sc-nav ${d}" data-nav="${d === 'prev' ? -1 : 1}" aria-label="${d === 'prev' ? 'Previous month' : 'Next month'}">${_WKND_SVG(d === 'prev' ? '<path d="m15 18-6-6 6-6"/>' : '<path d="m9 18 6-6-6-6"/>')}</button>`;
+      box.innerHTML = nav('prev') + nav('next') + `<div class="sc-months">${month(0)}${month(1)}</div>`;
+      el('scFromV').textContent = _scLabel(_sc.from);
+      el('scToV').textContent = _scLabel(_sc.to);
+      el('scFieldFrom').classList.toggle('on', _sc.active === 'from');
+      el('scFieldTo').classList.toggle('on', _sc.active === 'to');
+      const prob = _scProblem(_sc.from, _sc.to);
+      const s = _sc.from.getDate(), e = _sc.to.getDate();
+      el('scSumMain').textContent = `${_scLabel(_sc.from)} – ${_scLabel(_sc.to)} · ${_scDays(_sc.from, _sc.to)} days`;
+      el('scSumSub').textContent = prob || _cycleRepeats(s, e);
+      el('scSum').classList.toggle('bad', !!prob);
+      el('scSave').disabled = !!prob;
+    }
+    function _scSave() {
+      if (!_sc || _scProblem(_sc.from, _sc.to)) return;
+      saveCfg({ ...cfg(), salaryCycleStart: _sc.from.getDate(), salaryCycleEnd: _sc.to.getDate() });
+      closeSalaryCycle();
+      renderPayrollRow(); renderPenalties();
+      showToast('Salary Cycle Saved', 'success');
+    }
+    function _scInit() {
+      const ov = el('salaryOverlay'); if (!ov) return;
+      el('scRow')?.addEventListener('click', openSalaryCycle);
+      el('scRow')?.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openSalaryCycle(); } });
+      el('scCal').addEventListener('click', e => {
+        const n = e.target.closest('[data-nav]');
+        if (n) { _sc.view = new Date(_sc.view.getFullYear(), _sc.view.getMonth() + +n.dataset.nav, 1); _scRender(); return; }
+        const b = e.target.closest('[data-d]'); if (b) _scPick(new Date(b.dataset.d + 'T00:00'));
+      });
+      el('scFieldFrom').addEventListener('click', () => { _sc.active = 'from'; _sc.view = new Date(_sc.from.getFullYear(), _sc.from.getMonth(), 1); _scRender(); });
+      el('scFieldTo').addEventListener('click', () => { _sc.active = 'to'; _scRender(); });
+      el('scSave').addEventListener('click', _scSave);
+      el('scCancel').addEventListener('click', closeSalaryCycle);
+      el('scClose').addEventListener('click', closeSalaryCycle);
+      ov.addEventListener('click', e => { if (e.target === ov) closeSalaryCycle(); });
+      document.addEventListener('keydown', e => { if (e.key === 'Escape' && ov.classList.contains('open')) closeSalaryCycle(); });
+      window.Sheet?.attach(ov.querySelector('.dialog'), { close: closeSalaryCycle, isOpen: () => ov.classList.contains('open') });
+      el('inpPenRemind')?.addEventListener('change', e => { saveCfg({ ...cfg(), penaltyReminders: e.target.checked }); renderNotifs(); });
+      renderPayrollRow();
+    }
+
+    // ── Penalty Reminders: the smart ladder ──
+    // Gates: reminders on, the last 7 days of the cycle, at least one open
+    // penalty, a weekday, at most one a day. Never at the start of the day or
+    // mid-session: only right after saving a future day off, at the target, or
+    // at End. First match wins. Pure, so it can be tested.
+    //   ctx: { on, open, today, close (cycle's last day), sentToday, weekday,
+    //          offDate (a future day just saved as leave/holiday),
+    //          tomorrowOff, halfDay, shortDay, lastWeekday }
+    function _payrollNudge(ev, x) {
+      const day = d => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+      const left = Math.round((day(x.close) - day(x.today)) / 864e5);
+      if (!x.on || !(x.open > 0) || x.sentToday || !x.weekday || left < 0 || left > 6) return null;
+      const n = x.open === 1 ? '1 penalty' : `${x.open} penalties`;
+      const closes = `Salary cycle closes ${_SX_MON[x.close.getMonth()]} ${x.close.getDate()}.`;
+      const wd = d => FULL_DAYS_EN[d.getDay()];
+      if (ev === 'dayoff' && x.offDate && day(x.offDate) > day(x.today))
+        return { rung: 1, title: 'Before Your Day Off', body: `Resolve ${n} before ${wd(x.offDate)}. ${closes}` };
+      if (ev !== 'target' && ev !== 'end') return null;
+      if (x.tomorrowOff) return { rung: 2, title: 'Off Tomorrow', body: `Resolve ${n} before you go.` };
+      if (x.halfDay) return { rung: 3, title: 'Half Day Done', body: `A good moment to resolve ${n}. ${closes}` };
+      if (ev === 'target' && x.shortDay) return { rung: 4, title: 'Done Early Today', body: `Use the extra time to resolve ${n}.` };
+      if (x.lastWeekday) return { rung: 5, title: left === 1 ? 'Salary Cycle Closes Tomorrow' : `Salary Cycle Closes ${wd(x.close)}`, body: `Resolve ${n} so your attendance is right.` };
+      return null;
+    }
+    function _payrollCheck(ev, offKey) {
+      try {
+        const c = cfg(), tk = todayKey(), today = new Date(tk + 'T12:00');
+        const p = _statsPeriod('cycle', nowTz(), _salaryCycleStart(c), _salaryCycleEnd(c));
+        const fromK = dateKey(p.from), toK = dateKey(p.to);
+        const open = _penaltyData.filter(r => !r.sample && !_discardedPenalties.has(r.key) && r.key >= fromK && r.key <= toK).length;
+        // The next work day after today (Friday → Monday).
+        const next = new Date(today); do { next.setDate(next.getDate() + 1); } while (isWeekendKey(dateKey(next)));
+        const nl = dayLog(dateKey(next)) || {}, tl = dayLog(tk) || {};
+        const off = v => v === 'leave' || v === 'holiday';
+        const msg = _payrollNudge(ev, {
+          on: c.penaltyReminders !== false, open, today, close: p.to,
+          sentToday: !!(c.payrollNudges || {})[tk], weekday: !isWeekendKey(tk),
+          offDate: offKey ? new Date(offKey + 'T12:00') : null,
+          tomorrowOff: off(nl.override) || off(nl.futurePlan),
+          halfDay: tl.override === 'halfday' || tl.futurePlan === 'halfday',
+          shortDay: effSecs() < c.dailyH * 3600 - 300,
+          lastWeekday: next > p.to,
+        });
+        if (!msg) return null;
+        // One a day, in synced settings (last 10 kept), so other devices don't repeat it.
+        const log = { ...(c.payrollNudges || {}), [tk]: { title: msg.title, body: msg.body } };
+        const keys = Object.keys(log).sort(); while (keys.length > 10) delete log[keys.shift()];
+        saveCfg({ ...cfg(), payrollNudges: log });
+        _fireNotifMsg({ title: msg.title, body: msg.body, tag: 'payroll' });
+        renderNotifs();
+        return msg;
+      } catch (e) { return null; }
+    }
+
     function _statsDates() {
       if (_sxRange === 'week') return week(_sxWeek).map(d => d.date);
-      const p = _statsPeriod(_sxPer, nowTz(), _salaryCycleStart()), out = [], tk = todayKey();
+      const p = _statsPeriod(_sxPer, nowTz(), _salaryCycleStart(), _salaryCycleEnd()), out = [], tk = todayKey();
       for (const d = new Date(p.from); d <= p.to; d.setDate(d.getDate() + 1)) {
         const k = dateKey(d); if (k > tk) break;
         if (!isWeekendKey(k)) out.push(new Date(d));
@@ -3360,7 +3548,7 @@
     function renderStats() {
       const box = el('sxCard'); if (!box) return;
       const dates = _statsDates(), rows = _statsRows(dates), sum = _statsSummary(rows);
-      const wk = _sxRange === 'week', cs = _salaryCycleStart();
+      const wk = _sxRange === 'week', cs = _salaryCycleStart(), ce = _salaryCycleEnd();
       const hm = v => { const m = Math.floor(v / 60); return `${Math.floor(m / 60)}h ${p2(m % 60)}m`; };
       const top = Math.max(sum ? sum.max : 0, cfg().dailyH * 3600) * 1.12;
       const pct = v => Math.max(0, Math.min(100, v / top * 100));
@@ -3375,8 +3563,8 @@
           <button type="button" class="sx-nav" data-sx="next" aria-label="Next week"${_sxWeek >= 0 ? ' aria-disabled="true"' : ''}>${svg(_SX_I.r)}</button>
           <span class="sx-pr">${_sxMd(dates[0])} – ${dates[dates.length - 1].getMonth() === dates[0].getMonth() ? dates[dates.length - 1].getDate() : _sxMd(dates[dates.length - 1])}</span>`;
       } else {
-        const now = nowTz(), cur = _statsPeriod(_sxPer, now, cs);
-        const items = ['cycle', 'last30', 'month'].map(k => { const p = _statsPeriod(k, now, cs);
+        const now = nowTz(), cur = _statsPeriod(_sxPer, now, cs, ce);
+        const items = ['cycle', 'last30', 'month'].map(k => { const p = _statsPeriod(k, now, cs, ce);
           return `<button type="button" class="sx-mi" role="menuitemradio" aria-checked="${k === _sxPer}" data-p="${k}"><span><b>${p.name}</b><span>${_sxMd(p.from)} to ${_sxMd(p.to)}</span></span>${k === _sxPer ? svg(_SX_I.check) : '<i></i>'}</button>`; }).join('');
         per = `<div class="sx-pm"><button type="button" class="sx-pb" data-sx="menu" aria-haspopup="menu" aria-expanded="${_sxMenu}" data-state="${_sxMenu ? 'open' : 'closed'}"><span>${cur.name}</span>${svg(_SX_I.down)}</button>
           <div class="sx-menu${_sxMenu ? ' open' : ''}" role="menu" aria-label="Period">${items}</div></div>
@@ -6380,7 +6568,10 @@
                 // Clock timezone persists via its own handler — carry it through,
                 // otherwise saving any unrelated setting would silently reset it.
                 tzName: cfg().tzName || '',
-                qsShortcut: _qsShortcut });
+                qsShortcut: _qsShortcut,
+                // Payroll (#41) has its own handlers: carry it through.
+                salaryCycleStart: cfg().salaryCycleStart, salaryCycleEnd: cfg().salaryCycleEnd,
+                penaltyReminders: cfg().penaltyReminders, payrollNudges: cfg().payrollNudges });
       // If session is running, refresh button state to reflect break-time change
       if (loginDate) setCalcBtnState('running');
       renderDaySelector(); // refresh strip in case work-days changed
@@ -6826,7 +7017,7 @@
     function _acCollect() {
       const c = cfg(), tk = todayKey(), now = nowTz();
       const wkDates = week(0).map(d => d.date);
-      const p = _statsPeriod('cycle', now, _salaryCycleStart(c)), mDates = [];
+      const p = _statsPeriod('cycle', now, _salaryCycleStart(c), _salaryCycleEnd(c)), mDates = [];
       for (const d = new Date(p.from); d <= p.to; d.setDate(d.getDate() + 1)) { const k = dateKey(d); if (k >= tk) break; if (!isWeekendKey(k)) mDates.push(new Date(d)); }
       const wt = days => adjustedWeeklyTarget(days);
       const samples = _samplePenalties().filter(s => s.type === 'daily').map(s => ({ ...s, worked: Math.round((s.log.hoursWorked || 0) * 3600), tgt: s.log.override === 'halfday' ? c.dailyH * 1800 : c.dailyH * 3600, half: s.log.override === 'halfday' }));
@@ -9311,6 +9502,7 @@ Kind regards,
       } else if (activeOverride === 'holiday' || activeOverride === 'leave') {
         if (_isFutureDay) {
           saveDayLogAndSync(key, { ...ex, futurePlan: activeOverride, ...(_deNoteVal ? { futureReason: _deNoteVal } : { futureReason: null }) });
+          setTimeout(() => _payrollCheck('dayoff', key), 0);   // Penalty Reminders, rung 1
         } else {
           saveDayLogAndSync(key, { ...ex, hoursWorked: 0, override: activeOverride, sessionTag: 'edited', ...(_deNoteVal ? { note: _deNoteVal } : { note: null }) });
         }
@@ -10279,6 +10471,7 @@ Kind regards,
     el('dayEditSave').addEventListener('click', saveDayEditModal);
     el('dayEditCancel').addEventListener('click', closeDayEditModal);
     _deTypeInit();
+    _scInit();
     ['deStart', 'deEnd'].forEach(id => el(id).addEventListener('input', _deUpdateLive));
     // Phones: a bottom sheet that follows your finger; the body scrolls, the
     // footer stays pinned (#34).
@@ -13145,6 +13338,10 @@ Kind regards,
       } else if (movedGroup.children.length) {
         panels.General.appendChild(moved);
       }
+
+      // Payroll (#41): its own group on General, under the targets.
+      const payroll = sectionByName('Payroll');
+      if (payroll) panels.General.appendChild(payroll);
 
       if (prefs) {
         const h = prefs.querySelector('.settings-section-header');

@@ -1357,3 +1357,55 @@ test('Action Center: card copy, read filter, clear confirm, empty state', () => 
   const HTML = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
   assert.doesNotMatch(HTML, /Your Penalties/);
 });
+
+// ── Salary Cycle + Penalty Reminders (#41) ─────────────────────────────────
+function paySandbox() {
+  const code = [extract('const _SX_MON = [', '];'), extract('const _sxMd = ', ';'), extract('function _statsPeriod('), extract('const _ord = ', ';'),
+    extract('function _cycleValue(', '; }'), extract('function _cycleRepeats('), extract('function _cycleSuggestTo(', '; }'), extract('const _scDays = ', ';'),
+    extract('function _scProblem('), extract('function _payrollNudge(')].join('\n');
+  return load(code + '\nthis.o = { _statsPeriod, _cycleValue, _cycleRepeats, _cycleSuggestTo, _scProblem, _payrollNudge };',
+    { Math, Date, FULL_DAYS_EN: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'] }, 'o');
+}
+test('Salary Cycle: start and end days, the suggested To, the row value and summary', () => {
+  const f = paySandbox(), now = new Date(2026, 10, 13);
+  assert.equal(f._statsPeriod('cycle', now, 26, 25).sub, 'Oct 26 – Nov 25');
+  assert.equal(f._statsPeriod('cycle', now, 26, 24).sub, 'Oct 26 – Nov 24', 'a custom last day');
+  assert.equal(f._statsPeriod('cycle', new Date(2027, 0, 30), 1, 31).sub, 'Jan 1 – Jan 31');
+  assert.equal(f._statsPeriod('cycle', new Date(2027, 1, 10), 1, 31).sub, 'Feb 1 – Feb 28', 'clamped to the month');
+  assert.equal(f._statsPeriod('cycle', new Date(2027, 1, 10), 28, 27).sub, 'Jan 28 – Feb 27');
+  const to = f._cycleSuggestTo(new Date(2026, 9, 26)); assert.equal(`${to.getMonth()}-${to.getDate()}`, '10-25', 'Oct 26 → Nov 25');
+  assert.equal(f._cycleValue(26, 25), '26th – 25th'); assert.equal(f._cycleValue(1, 31), '1st – last day'); assert.equal(f._cycleValue(22, 21), '22nd – 21st');
+  assert.equal(f._cycleRepeats(26, 25), 'Repeats every month, the 26th to the 25th of the next month.');
+  assert.equal(f._scProblem(new Date(2026, 9, 26), new Date(2026, 10, 25)), null);
+  assert.match(f._scProblem(new Date(2026, 9, 30), new Date(2026, 10, 29)), /1st to the 28th/);
+  assert.match(f._scProblem(new Date(2026, 9, 26), new Date(2026, 10, 5)), /28 to 31 days/);
+});
+test('Penalty Reminders: gates, then the first matching rung of the ladder', () => {
+  const f = paySandbox();
+  const base = { on: true, open: 2, today: new Date(2026, 10, 19), close: new Date(2026, 10, 25), sentToday: false, weekday: true };
+  const N = (ev, x) => f._payrollNudge(ev, { ...base, ...x });
+  // Rung 1: a future day saved as leave/holiday, right after saving.
+  assert.deepEqual({ ...N('dayoff', { offDate: new Date(2026, 10, 20) }) }, { rung: 1, title: 'Before Your Day Off', body: 'Resolve 2 penalties before Friday. Salary cycle closes Nov 25.' });
+  assert.equal(N('dayoff', { offDate: new Date(2026, 10, 19) }), null, 'not a future day');
+  assert.equal(N('dayoff', { tomorrowOff: true }), null, 'never outside its moments');
+  assert.equal(N('target', { tomorrowOff: true }).title, 'Off Tomorrow');
+  assert.equal(N('end', { tomorrowOff: true }).body, 'Resolve 2 penalties before you go.');
+  assert.equal(N('end', { halfDay: true }).title, 'Half Day Done');
+  assert.equal(N('target', { shortDay: true }).body, 'Use the extra time to resolve 2 penalties.');
+  assert.equal(N('end', { shortDay: true }), null, 'short day only at its shorter target');
+  assert.equal(N('end', { lastWeekday: true, today: new Date(2026, 10, 24) }).title, 'Salary Cycle Closes Tomorrow');
+  assert.equal(N('end', { lastWeekday: true, today: new Date(2026, 10, 20), close: new Date(2026, 10, 23) }).title, 'Salary Cycle Closes Monday');
+  assert.equal(N('target', { lastWeekday: true, open: 1, today: new Date(2026, 10, 24) }).body, 'Resolve 1 penalty so your attendance is right.');
+  // Gates
+  for (const x of [{ on: false }, { open: 0 }, { sentToday: true }, { weekday: false }, { today: new Date(2026, 10, 17) }, { today: new Date(2026, 10, 26) }])
+    assert.equal(N('target', { ...x, tomorrowOff: true }), null, JSON.stringify(x));
+  assert.equal(N('target', {}), null, 'no rung matches: nothing');
+  // Wiring: the moments, one a day in synced settings, the panel's Review.
+  assert.match(extract('function endSession('), /_payrollCheck\('end'\)/);
+  assert.match(SRC, /_payrollCheck\('dayoff', key\)/);
+  assert.match(extract('function _payrollSchedule('), /_payrollCheck\('target'\)/);
+  assert.match(extract('function buildNotifs('), /cta: 'Review', ctaWeekKey: ''/);
+  const HTML = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
+  assert.match(HTML, /<div class="settings-section-header">Payroll<\/div>/);
+  assert.match(HTML, /Pick the first and last day your company counts for one month's pay\./);
+});

@@ -3805,6 +3805,67 @@
     body.rail-on #dayEditCancel { display: none; }
     body.rail-on #dayEditSave { flex: 1; width: 100%; }
     .sheet-close { display: none; }
+    /* ── Payroll (#41): Salary Cycle row + range picker ── */
+    #viewSettings .pay-row, #viewSettings .pay-switch { display: flex; flex-direction: row; align-items: center; justify-content: space-between; gap: 12px; text-align: left; }
+    .pay-row { cursor: pointer; }
+    .pay-row:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+    .sc-val { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; font-weight: 500; color: var(--muted-fg); white-space: nowrap; }
+    .sc-val svg { width: 16px; height: 16px; color: var(--text-muted); }
+    @media (hover: hover) and (pointer: fine) { .pay-row:hover .sc-val { color: var(--foreground); } }
+
+    .sc-foot { font-size: 12px; line-height: 1.5; color: var(--text-muted); }
+    .dialog.sc-dialog { max-width: 620px; min-width: 0; padding: 0; }
+    .sc-head { position: relative; padding: 22px 22px 6px; }
+    .sc-head .dialog-desc { padding-right: 24px; }
+    .sc-x { position: absolute; top: 14px; right: 14px; width: 32px; height: 32px; border: 0; border-radius: 8px; display: grid; place-items: center;
+      background: var(--muted); color: var(--muted-fg); cursor: pointer; }
+    .sc-x:hover { background: var(--btn-secondary-hover); color: var(--foreground); }
+    .sc-x svg { width: 15px; height: 15px; }
+    .sc-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 10px 22px 0; }
+    .sc-field { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 9px 12px; border-radius: 12px; border: 1px solid var(--border);
+      background: var(--card); text-align: left; cursor: pointer; transition: border-color .15s, box-shadow .15s; font-family: var(--font); }
+    .sc-field span { font-size: 12px; color: var(--text-muted); }
+    .sc-field b { font-size: 14px; font-weight: 600; color: var(--foreground); font-variant-numeric: tabular-nums; }
+    .sc-field.on { border-color: var(--foreground); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ring) 18%, transparent); }
+    .sc-cal { position: relative; padding: 12px 18px 4px; }
+    .sc-months { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
+    .sc-mt { text-align: center; font-size: 13px; font-weight: 600; color: var(--foreground); height: 32px; line-height: 32px; }
+    .sc-nav { position: absolute; top: 12px; z-index: 1; width: 32px; height: 32px; border: 0; border-radius: 8px; display: grid; place-items: center;
+      background: transparent; color: var(--muted-fg); cursor: pointer; }
+    .sc-nav:hover { background: var(--muted); color: var(--foreground); }
+    .sc-nav.prev { left: 18px; } .sc-nav.next { right: 18px; }
+    .sc-nav svg { width: 16px; height: 16px; }
+    .sc-grid { display: grid; grid-template-columns: repeat(7, 1fr); row-gap: 2px; }
+    .sc-wd { height: 28px; display: grid; place-items: center; font-size: 12px; font-weight: 500; color: var(--text-muted); }
+    .sc-c { position: relative; height: 36px; border: 0; padding: 0; background: transparent; color: var(--foreground); font: 500 13px var(--font);
+      font-variant-numeric: tabular-nums; cursor: pointer; isolation: isolate; }
+    .sc-c::before { content: ''; position: absolute; inset: 2px; z-index: -1; border-radius: 10px; transition: background .12s; }
+    .sc-c:hover::before { background: var(--muted); }
+    .sc-c.in { background: var(--chip, var(--muted)); background: color-mix(in srgb, var(--foreground) 7%, transparent); }
+    .sc-c.start { background: linear-gradient(to right, transparent 50%, color-mix(in srgb, var(--foreground) 7%, transparent) 50%); }
+    .sc-c.end { background: linear-gradient(to left, transparent 50%, color-mix(in srgb, var(--foreground) 7%, transparent) 50%); }
+    .sc-c.start::before, .sc-c.end::before { background: var(--foreground); }
+    .sc-c.start, .sc-c.end { color: var(--background); font-weight: 600; }
+    .sc-c.today::after { content: ''; position: absolute; inset: 3px; border-radius: 9px; box-shadow: inset 0 0 0 1.5px var(--border-strong); pointer-events: none; }
+    .sc-c:focus-visible { outline: 2px solid var(--ring); outline-offset: -2px; border-radius: 10px; }
+    .sc-pad { pointer-events: none; }
+    .sc-sum { display: flex; flex-direction: column; gap: 2px; margin: 8px 22px 0; padding: 12px 14px; border-radius: 12px; background: var(--surface-raised); border: 1px solid var(--border); }
+    .sc-sum b { font-size: 14px; font-weight: 600; color: var(--foreground); font-variant-numeric: tabular-nums; }
+    .sc-sum span { font-size: 12px; color: var(--muted-fg); }
+    .sc-sum.bad span { color: var(--warning); }
+    .sc-foot-row { padding: 14px 22px 18px; }
+    @media (max-width: 640px) {
+      .overlay.sc-host { align-items: flex-end; padding: 0; }
+      .overlay.sc-host > .dialog.sc-dialog { width: 100%; max-width: none; border-radius: 24px 24px 0 0; border-bottom: none; transform: translateY(100%);
+        transition: transform .45s var(--ease-sheet); }
+      .overlay.sc-host.open > .dialog.sc-dialog { transform: none; }
+      .overlay.sc-host > .dialog.sc-dialog::before { content: ''; display: block; width: 36px; height: 5px; border-radius: 3px; background: var(--border-strong); margin: 10px auto 0; }
+      .overlay.sc-host > .dialog.sc-dialog.sheet-dragging { transition: none !important; }
+      .sc-head { padding: 12px 18px 4px; } .sc-fields, .sc-foot-row { padding-left: 18px; padding-right: 18px; } .sc-sum { margin: 6px 18px 0; }
+      .sc-months { grid-template-columns: 1fr; }
+      .sc-months .sc-month + .sc-month { display: none; }   /* one month at a time */
+      .sc-foot-row { padding-bottom: calc(16px + env(safe-area-inset-bottom)); }
+    }
     /* ── Update Entry sheet (#34, approved 2026-11-14) ──
        Date title + subtitle, Update Entry | Raise Dispute, a day-type segmented
        control, Started / Left at rows (wheel), a live line, the note, and a
@@ -4505,6 +4566,33 @@
 
           </div>
         </div><!-- /Basic section -->
+
+        <div class="settings-section-divider"></div>
+
+        <!-- ── Payroll (#41): the salary cycle and penalty reminders ── -->
+        <div class="settings-section">
+          <div class="settings-section-header">Payroll</div>
+          <div class="settings-group">
+            <div class="pay-row" id="scRow" role="button" tabindex="0" aria-haspopup="dialog">
+              <div>
+                <div class="form-label">Salary Cycle</div>
+                <div class="form-sub">Repeats every month</div>
+              </div>
+              <span class="sc-val"><span id="scValue">1st – last day</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></span>
+            </div>
+            <div class="pay-switch">
+              <div>
+                <div class="form-label" id="penRemindLabel">Penalty Reminders</div>
+                <div class="form-sub">A nudge in the cycle's last week, at a calm moment.</div>
+              </div>
+              <label class="toggle">
+                <input type="checkbox" id="inpPenRemind" checked aria-labelledby="penRemindLabel">
+                <span class="toggle-track"></span>
+              </label>
+            </div>
+            <div class="set-note sc-foot" id="scFoot"></div>
+          </div>
+        </div><!-- /Payroll section -->
 
         <div class="settings-section-divider"></div>
 
@@ -5877,6 +5965,29 @@
   </div>
 
   <!-- Day Edit Modal -->
+  <!-- Salary Cycle (#41): a date range on a calendar (adapted from uiarc
+       date-range-picker). Two months on desktop, one month in a bottom sheet
+       on phones. Filled in by _scRender(). -->
+  <div class="overlay sc-host" id="salaryOverlay">
+    <div class="dialog sc-dialog" role="dialog" aria-modal="true" aria-labelledby="scTitle">
+      <div class="sc-head">
+        <div class="dialog-title" id="scTitle">Salary Cycle</div>
+        <div class="dialog-desc">Pick the first and last day your company counts for one month's pay.</div>
+        <button type="button" class="sc-x" id="scClose" aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
+      </div>
+      <div class="sc-fields">
+        <button type="button" class="sc-field" id="scFieldFrom"><span>From</span><b id="scFromV"></b></button>
+        <button type="button" class="sc-field" id="scFieldTo"><span>To</span><b id="scToV"></b></button>
+      </div>
+      <div class="sc-cal" id="scCal"></div>
+      <div class="sc-sum" id="scSum" aria-live="polite"><b id="scSumMain"></b><span id="scSumSub"></span></div>
+      <div class="dialog-foot-row sc-foot-row">
+        <button type="button" class="btn btn-cancel" id="scCancel">Cancel</button>
+        <button type="button" class="btn btn-primary" id="scSave">Save</button>
+      </div>
+    </div>
+  </div>
+
   <div class="overlay" id="dayEditOverlay">
     <!-- Two pages: the day (Update Entry | Raise Dispute) and, after Draft Email,
          the dispute email. The email page slides in from the right; Back slides

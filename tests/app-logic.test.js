@@ -1287,3 +1287,21 @@ test('Statistics: verdict uses the week card words', () => {
   assert.equal((HTML.match(/id="wsHatch"/g) || []).length, 1, 'one shared hatch pattern');
   assert.doesNotMatch(SRC, /<pattern id="wsHatch"/);
 });
+
+// ── Saved Logins (#42) ─────────────────────────────────────────────────────
+test('Saved Logins: count line, hold label, short times; tall cards + Hold to Log Out', () => {
+  const ago = load(extract('function _devAgo(') + '\n' + extract('function _devAgoShort('), { Math, Date, isFinite }, '_devAgoShort');
+  const iso = s => new Date(Date.now() - s * 1000).toISOString();
+  assert.equal(ago(iso(5 * 3600 + 10)), '5h ago'); assert.equal(ago(iso(12 * 60 + 5)), '12m ago');
+  assert.equal(ago(iso(3 * 86400 + 5)), '3d ago'); assert.equal(ago(iso(10)), 'just now');
+  const f = load(extract('function _devCountLine(', '; }') + '\n' + extract('function _devHoldLabel(', '; }') + '\nthis.o={_devCountLine,_devHoldLabel}', {}, 'o');
+  assert.equal(f._devCountLine(7), "You're signed in on 7 devices."); assert.equal(f._devCountLine(1), "You're signed in on 1 device.");
+  assert.equal(f._devHoldLabel(6), 'Hold to Log Out 6 Devices'); assert.equal(f._devHoldLabel(1), 'Hold to Log Out 1 Device');
+  const HTML = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
+  assert.match(HTML, /<button type="button" class="sl-hold" id="devRevokeOthersBtn">/);
+  assert.match(HTML, /You stay signed in on this device\./);
+  assert.match(HTML, /\.sl-grid \{ display: grid; grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);/);
+  // Touch: Log Out always visible (only the mouse hides it until hover).
+  assert.match(HTML, /@media \(hover: hover\) and \(pointer: fine\) \{\n\s+\.sl-out \{ opacity: 0;/);
+  assert.match(extract('function _slHoldInit('), /ms = 1200/);
+});

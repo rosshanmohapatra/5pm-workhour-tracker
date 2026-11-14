@@ -7588,7 +7588,7 @@ Kind regards,
     function openDevicesModal() {
       _setPage('pageDevices', 'Saved Logins', "Devices where you're signed in to 5pm.", page => {
         const list = el('devList');
-        list.classList.add('tile-list');
+        list.classList.add('sl-list');
         page.append(list, el('devOthersWrap'));
         el('devModalOverlay')?.remove();
       });
@@ -11945,42 +11945,66 @@ Kind regards,
       const list = el('devList');
       if (!list) return;
       const othersWrap = el('devOthersWrap');
+      const page = el('pageDevices');
       // The last list stays up while the fresh one loads, then swaps in whole.
-      if (!list.children.length) list.innerHTML = '<div style="font-size:13px;color:var(--muted-fg)">Loading…</div>';
+      if (!list.children.length) list.innerHTML = '<div class="sl-msg">Loading…</div>';
       try {
         // Revoked entries stay in the map (so a rename survives) but are hidden —
         // they come back when that device signs in again.
         const rows = (await Devices.list()).filter(r => !r.revoked_at);
         const me = _deviceId();
         if (!rows.length) {
-          list.innerHTML = '<div style="font-size:13px;color:var(--muted-fg)">No devices yet.</div>';
+          list.innerHTML = '<div class="sl-msg">No devices yet.</div>';
           if (othersWrap) othersWrap.style.display = 'none';
           return;
         }
         rows.sort((a, b) => (b.device_id === me) - (a.device_id === me)); // current device first
-        list.replaceChildren(...rows.map(r => _devBuildRow(r, r.device_id === me)));
-        if (othersWrap) othersWrap.style.display = rows.some(r => r.device_id !== me) ? '' : 'none';
+        const mine = rows.filter(r => r.device_id === me), others = rows.filter(r => r.device_id !== me);
+        if (page) _setPageHead(page, 'Saved Logins', _devCountLine(rows.length));
+        const frag = [];
+        if (mine.length) frag.push(_slLabel('This device'), _devBuildRow(mine[0], true));
+        if (others.length) {
+          frag.push(_slLabel(`Other devices · ${others.length}`));
+          const grid = document.createElement('div');
+          grid.className = 'sl-grid';
+          grid.append(...others.map(r => _devBuildRow(r, false)));
+          frag.push(grid);
+        }
+        list.replaceChildren(...frag);
+        if (othersWrap) {
+          othersWrap.style.display = others.length ? '' : 'none';
+          if (others.length) _slHoldInit(el('devRevokeOthersBtn'), _devHoldLabel(others.length), devRevokeOthers);
+        }
       } catch (e) {
-        list.innerHTML = '<div style="font-size:13px;color:var(--muted-fg)">Couldn\'t load devices.</div>';
+        list.innerHTML = '<div class="sl-msg">Couldn\'t load devices.</div>';
         if (othersWrap) othersWrap.style.display = 'none';
       }
     }
+    // "You're signed in on 7 devices." / "… on 1 device."
+    function _devCountLine(n) { return `You're signed in on ${n} device${n === 1 ? '' : 's'}.`; }
+    function _devHoldLabel(n) { return n === 1 ? 'Hold to Log Out 1 Device' : `Hold to Log Out ${n} Devices`; }
+    // "5 hrs ago" → "5h ago", "12 mins ago" → "12m ago", "3 days ago" → "3d ago".
+    function _devAgoShort(iso) {
+      const t = _devAgo(iso);
+      return t.replace(/^(\d+) (min|hr|day)s? ago$/, (_, n, u) => n + ({ min: 'm', hr: 'h', day: 'd' })[u] + ' ago');
+    }
+    function _slLabel(text) { const d = document.createElement('div'); d.className = 'sl-label'; d.textContent = text; return d; }
 
+    // This device = a larger hero card; other devices = G1 tall cards in a
+    // 2-column grid (approved 2026-11-14). On a card, the time sits top-right
+    // and turns into Log Out on hover; on touch, Log Out is always there.
     function _devBuildRow(row, isCurrent) {
-      const rowEl = document.createElement('div');
-      rowEl.className = 'dev-row';
-
-      const left = document.createElement('div');
-      left.className = 'dev-left';
+      const card = document.createElement('div');
+      card.className = isCurrent ? 'sl-hero' : 'sl-card';
       const icon = document.createElement('div');
-      icon.className = 'dev-icon';
+      icon.className = 'sl-icon';
       icon.innerHTML = _devIcon(row.kind, row.platform);
       const info = document.createElement('div');
-      info.className = 'dev-info';
+      info.className = 'sl-info';
 
-      // Primary title — editable in place.
+      // The name stays editable in place.
       const nameInput = document.createElement('input');
-      nameInput.className = 'dev-name';
+      nameInput.className = 'dev-name sl-name';
       nameInput.type = 'text';
       nameInput.value = row.name || 'Device';
       nameInput.maxLength = 40;
@@ -12010,41 +12034,86 @@ Kind regards,
         if (e.key === 'Escape') { nameInput.value = last; nameInput.blur(); }
       });
 
-      // Secondary title — the platform's view. Not editable.
       const sub = document.createElement('div');
-      sub.className = 'dev-sub';
-      sub.textContent = row.platform || 'Unknown device';
+      sub.className = 'sl-sub';
+      sub.textContent = (row.platform || 'Unknown device') + (isCurrent ? ' · This device' : '');
+      info.append(nameInput, sub);
 
-      info.appendChild(nameInput);
-      info.appendChild(sub);
-      // Last activity sits under the platform line. Only for other devices:
-      // on the one you are using it is self-evident.
-      if (!isCurrent) {
-        const seen = document.createElement('div');
-        seen.className = 'dev-seen';
-        seen.textContent = _devAgo(row.last_seen_at);
-        if (seen.textContent) info.appendChild(seen);
-      }
-      left.appendChild(icon);
-      left.appendChild(info);
-      rowEl.appendChild(left);
-
-      const actions = document.createElement('div');
-      actions.className = 'dev-actions';
       if (isCurrent) {
-        const chip = document.createElement('span');
-        chip.className = 'dev-chip';
-        chip.textContent = 'This Device';
-        actions.appendChild(chip);
-      } else {
-        const btn = document.createElement('button');
-        btn.className = 'btn-danger-2 sm';
-        btn.textContent = 'Log Out';
-        btn.addEventListener('click', () => devRevoke(row.device_id, row.name, btn));
-        actions.appendChild(btn);
+        const live = document.createElement('span');
+        live.className = 'sl-live';
+        live.innerHTML = '<i aria-hidden="true"></i>Active now';
+        card.append(icon, info, live);
+        return card;
       }
-      rowEl.appendChild(actions);
-      return rowEl;
+      const ago = _devAgoShort(row.last_seen_at);
+      if (ago) { const t = document.createElement('span'); t.className = 'sl-ago-t'; t.textContent = ' · ' + ago; sub.appendChild(t); }
+      const top = document.createElement('div');
+      top.className = 'sl-top';
+      const corner = document.createElement('div');
+      corner.className = 'sl-corner';
+      const time = document.createElement('span');
+      time.className = 'sl-time';
+      time.textContent = ago;
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'btn-danger-2 sm sl-out';
+      btn.textContent = 'Log Out';
+      btn.setAttribute('aria-label', 'Log out ' + (row.name || 'device'));
+      btn.addEventListener('click', () => devRevoke(row.device_id, row.name, btn));
+      corner.append(time, btn);
+      top.append(icon, corner);
+      card.append(top, info);
+      return card;
+    }
+
+    // Hold to confirm (adapted from uiarc hold-to-confirm, danger tone): the
+    // fill tracks a 1.2 s hold on a linear timeline; letting go early rewinds
+    // it; finishing runs the action. Space / Enter can be held too.
+    function _slHoldInit(btn, label, onConfirm, ms = 1200) {
+      if (!btn) return;
+      btn.dataset.label = label;
+      btn.setAttribute('aria-label', label);
+      const face = t => `<span class="sl-face">${t}</span>`;
+      btn.innerHTML = face(label) + `<span class="sl-fill" aria-hidden="true">${face(label)}</span>`;
+      btn.style.setProperty('--p', '0');
+      if (btn._hold) return;   // listeners once; the label refreshes above
+      let t0 = 0, raf = 0, holding = false, done = false;
+      const fill = () => btn.querySelector('.sl-fill');
+      const step = now => {
+        const p = Math.min(1, (now - t0) / ms);
+        btn.style.setProperty('--p', p.toFixed(4));
+        if (p < 1) { raf = requestAnimationFrame(step); return; }
+        holding = false; done = true;
+        btn.classList.remove('holding');
+        btn._holdDone();
+      };
+      const start = () => {
+        if (holding || done || btn.disabled) return;
+        holding = true; t0 = performance.now();
+        btn.classList.add('holding');
+        fill().style.transition = 'none';
+        raf = requestAnimationFrame(step);
+      };
+      const stop = () => {
+        if (!holding) return;
+        holding = false; cancelAnimationFrame(raf);
+        btn.classList.remove('holding');
+        fill().style.transition = '';   // rewinds on the CSS transition
+        btn.style.setProperty('--p', '0');
+      };
+      btn._holdDone = async () => {
+        try { await onConfirm(); } finally {
+          done = false; fill().style.transition = ''; btn.style.setProperty('--p', '0');
+        }
+      };
+      btn._hold = true;
+      btn.addEventListener('pointerdown', e => { if (e.button === 0) { try { btn.setPointerCapture(e.pointerId); } catch (_) {} start(); } });
+      ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(ev => btn.addEventListener(ev, stop));
+      btn.addEventListener('keydown', e => { if ((e.key === ' ' || e.key === 'Enter') && !e.repeat) { e.preventDefault(); start(); } });
+      btn.addEventListener('keyup', e => { if (e.key === ' ' || e.key === 'Enter') stop(); });
+      btn.addEventListener('blur', stop);
+      btn.addEventListener('contextmenu', e => e.preventDefault());
     }
 
     async function devRevoke(deviceId, name, btn) {
@@ -12070,7 +12139,7 @@ Kind regards,
       } catch (e) {
         showToast("Couldn't Log Out Others", 'error', e.message || 'Please try again.');
       } finally {
-        _btnIdle(btn, 'Log Out Other Devices');
+        _btnIdle(btn, ''); _slHoldInit(btn, btn.dataset.label || 'Hold to Log Out Other Devices', devRevokeOthers);
       }
     }
 

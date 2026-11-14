@@ -1832,8 +1832,65 @@
     .set-card { background:var(--card); border-radius:var(--radius-md); padding:16px; }
     .set-page .dialog-head, .set-page .email-modal-sep { display:none !important; }
     .set-card [id^="mfaView"] > div { padding:0 !important; }
-    #devOthersWrap > div { justify-content:stretch !important; }
-    #devRevokeOthersBtn { width:100%; justify-content:center; }
+    /* ── Saved Logins (#42, approved 2026-11-14): this device as a hero card,
+       other devices as G1 tall cards in a 2-column grid, Hold to Log Out. ── */
+    #devList.sl-list { display: flex; flex-direction: column; gap: 0; background: none; border: 0; padding: 0; }
+    .sl-msg { font-size: 13px; color: var(--muted-fg); padding: 8px 4px; }
+    .sl-label { font-size: 12px; font-weight: 600; color: var(--text-muted); letter-spacing: .02em; margin: 20px 4px 8px; }
+    .sl-label:first-child { margin-top: 4px; }
+    .sl-hero { display: flex; align-items: center; gap: 14px; padding: 16px; border-radius: var(--radius-lg); background: var(--card); border: 1px solid var(--border); }
+    .sl-icon { width: 36px; height: 36px; border-radius: 10px; flex-shrink: 0; display: grid; place-items: center;
+      background: var(--surface-raised); border: 1px solid var(--border); color: var(--foreground); }
+    .sl-icon svg { width: 18px; height: 18px; }
+    .sl-hero .sl-icon { width: 48px; height: 48px; border-radius: 12px; }
+    .sl-hero .sl-icon svg { width: 22px; height: 22px; }
+    .sl-info { min-width: 0; flex: 1; }
+    .sl-name.dev-name { font-size: 14px; font-weight: 600; margin-left: -4px; width: calc(100% + 4px); }
+    .sl-hero .sl-name.dev-name { font-size: 16px; }
+    .sl-sub { font-size: 12px; color: var(--muted-fg); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .sl-hero .sl-sub { white-space: normal; }
+    .sl-live { display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0; font-size: 12px; font-weight: 600; color: var(--success); }
+    .sl-live i { width: 7px; height: 7px; border-radius: 50%; background: var(--success);
+      box-shadow: 0 0 0 3px color-mix(in srgb, var(--success) 22%, transparent); }
+    .sl-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+    .sl-card { display: flex; flex-direction: column; justify-content: space-between; gap: 22px; min-height: 128px; padding: 14px;
+      border-radius: var(--radius-lg); background: var(--card); border: 1px solid var(--border); transition: border-color .15s; }
+    .sl-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+    .sl-corner { position: relative; display: grid; justify-items: end; min-height: 30px; }
+    .sl-corner > * { grid-area: 1 / 1; }
+    .sl-time { font-size: 12px; color: var(--text-muted); white-space: nowrap; line-height: 30px; transition: opacity .15s; }
+    .sl-ago-t { display: none; }
+    /* Mouse: the time turns into Log Out while the card is hovered or focused. */
+    @media (hover: hover) and (pointer: fine) {
+      .sl-out { opacity: 0; pointer-events: none; transition: opacity .15s; }
+      .sl-card:hover, .sl-card:focus-within { border-color: var(--border-strong); }
+      .sl-card:hover .sl-out, .sl-card:focus-within .sl-out { opacity: 1; pointer-events: auto; }
+      .sl-card:hover .sl-time, .sl-card:focus-within .sl-time { opacity: 0; }
+    }
+    /* Touch: no hover, so Log Out is always there (quiet grey, red on press) and
+       the time moves into the platform line. */
+    @media not ((hover: hover) and (pointer: fine)) {
+      .sl-time { display: none; }
+      .sl-ago-t { display: inline; }
+    }
+    /* Hold to Log Out: grey chip with red text; the solid-red fill tracks the hold
+       and its white copy of the label is revealed by the same clip. */
+    .sl-others { margin-top: 20px; }
+    .sl-hold { position: relative; width: 100%; height: 44px; padding: 0 16px; border: 0; border-radius: var(--radius-md); overflow: hidden;
+      background: var(--btn-secondary-bg); color: var(--danger-text); font: 600 13px var(--font); cursor: pointer;
+      user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; touch-action: manipulation; -webkit-tap-highlight-color: transparent;
+      display: flex; align-items: center; justify-content: center; transition: background .14s; }
+    @media (hover: hover) and (pointer: fine) { .sl-hold:hover:not(:disabled) { background: var(--danger-tint); } }
+    .sl-hold:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--card), 0 0 0 4px var(--danger-solid); }
+    .sl-face { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+    .sl-fill { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: var(--danger-solid); color: #fff;
+      clip-path: inset(0 calc(100% - var(--p, 0) * 100%) 0 0); pointer-events: none; transition: clip-path .45s cubic-bezier(.32,.72,0,1); }
+    .sl-hold[aria-busy="true"] { background: var(--danger-solid); color: #fff; gap: 6px; }
+    .sl-hold[aria-busy="true"]::before { content: ''; width: 12px; height: 12px; border: 1.5px solid currentColor; border-right-color: transparent;
+      border-radius: 50%; animation: btn-danger-spin .7s linear infinite; }
+    .sl-keep { font-size: 12px; color: var(--text-muted); text-align: center; margin: 10px 0 0; }
+    @media (max-width: 360px) { .sl-grid { grid-template-columns: minmax(0, 1fr); } }
+    @media (prefers-reduced-motion: reduce) { .sl-fill, .sl-out, .sl-time { transition: none; } }
     .set-page-head { display:flex; align-items:flex-start; margin-bottom:8px; }
     .set-page-head .back-btn { margin-top:1px; }
     .pk-empty { background:var(--card); border-radius:var(--radius-md); padding:28px 16px;
@@ -5504,11 +5561,10 @@
       <div id="devList" class="settings-group">
         <!-- populated by renderDevices() -->
       </div>
-      <div id="devOthersWrap" style="display:none">
-        <div class="email-modal-sep"></div>
-        <div style="display:flex;justify-content:flex-end">
-          <button class="btn-danger-2" id="devRevokeOthersBtn" data-on-click="h367b412f61">Log Out Other Devices</button>
-        </div>
+      <div id="devOthersWrap" class="sl-others" style="display:none">
+        <!-- Hold to confirm (uiarc hold-to-confirm), wired by _slHoldInit() -->
+        <button type="button" class="sl-hold" id="devRevokeOthersBtn">Hold to Log Out Other Devices</button>
+        <p class="sl-keep">You stay signed in on this device.</p>
       </div>
     </div>
   </div>

@@ -3188,10 +3188,6 @@
           <span class="dt-pill">${_WKND_SVG(WK_ICON[DAY_TYPES.weekend.icon])}${ti.title}</span>
           <div class="ws-total"></div>
           <div class="ws-vary" aria-live="polite">${weekRow}</div>
-          <svg class="ws-defs" width="0" height="0" aria-hidden="true"><defs>
-            <pattern id="wsHatch" width="6" height="6" patternUnits="userSpaceOnUse"><path d="M-1 1l2-2M0 6l6-6M5 7l2-2"/></pattern>
-            <pattern id="wsHatchHot" width="6" height="6" patternUnits="userSpaceOnUse"><path d="M-1 1l2-2M0 6l6-6M5 7l2-2"/></pattern>
-          </defs></svg>
           <div class="ws-chart">
             <div class="ws-plot">
               <span class="ws-grid" style="bottom:50%"></span>
@@ -3274,6 +3270,242 @@
         ta.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); done(true); } if (e.key === 'Escape') done(false); });
       }
     }
+
+    // ── STATISTICS CARD (#7, approved 2026-11-14) ───────────────────────────
+    // Always at the bottom of Home. Week | Month, a period row, the daily
+    // average as the headline, the bars (same chart language as the weekend
+    // card), and Longest day / Average / Shortest day under the chart.
+    // Adapted from uiarc bar-chart (scrub the plot, the headline is the
+    // readout), segmented-control (gliding selection) and dropdown-menu.
+    let _sxRange = 'week', _sxWeek = 0, _sxPer = 'cycle', _sxMenu = false;
+    const _SX_MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const _SX_DAY = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+    const _sxMd = d => `${_SX_MON[d.getMonth()]} ${d.getDate()}`;
+    // The salary cycle's first day of the month (1–28). Day 1 = calendar month.
+    function _salaryCycleStart(c) { const s = +(c || cfg()).salaryCycleStart; return s >= 1 && s <= 28 ? Math.floor(s) : 1; }
+    // The Month tab's three periods around `now`: { from, to, name, sub }.
+    function _statsPeriod(kind, now, startDay) {
+      const y = now.getFullYear(), m = now.getMonth(), d0 = new Date(y, m, now.getDate());
+      let from, to, name;
+      if (kind === 'last30') { from = new Date(y, m, now.getDate() - 29); to = d0; name = 'Last 30 Days'; }
+      else if (kind === 'month') { from = new Date(y, m, 1); to = new Date(y, m + 1, 0); name = 'This Month'; }
+      else {
+        const s = startDay >= 1 && startDay <= 28 ? startDay : 1;
+        from = now.getDate() >= s ? new Date(y, m, s) : new Date(y, m - 1, s);
+        to = new Date(from.getFullYear(), from.getMonth() + 1, s - 1);
+        name = 'Salary Cycle';
+      }
+      return { from, to, name, sub: `${_sxMd(from)} – ${_sxMd(to)}` };
+    }
+    // One bar per work day. kind: work | half | leave | holiday | none | later
+    // ("later" = still ahead, or today while it's still going).
+    function _statsRows(dates) {
+      const tk = todayKey(), daily = cfg().dailyH * 3600;
+      return dates.map(d => {
+        const key = dateKey(d), log = dayLog(key) || {}, ov = log.override;
+        const secs = Math.round((log.hoursWorked || 0) * 3600);
+        const ended = !loginDate && _checkoutDisplayFromLog(log) !== '—';
+        if (key > tk || (key === tk && !ended && ov !== 'leave' && ov !== 'holiday')) return { key, date: d, kind: 'later', secs: 0, tgt: daily };
+        if (ov === 'leave' || ov === 'holiday') return { key, date: d, kind: ov, secs, tgt: 0, log };
+        if (!secs) return { key, date: d, kind: 'none', secs: 0, tgt: daily, log };
+        return { key, date: d, kind: ov === 'halfday' ? 'half' : 'work', secs, tgt: ov === 'halfday' ? daily / 2 : daily, log };
+      });
+    }
+    // Longest / average / shortest over worked days only (leave, holiday and
+    // no-entry days don't count). null when nothing was worked.
+    function _statsSummary(rows) {
+      const w = rows.map((r, i) => ({ r, i })).filter(x => (x.r.kind === 'work' || x.r.kind === 'half') && x.r.secs > 0);
+      if (!w.length) return null;
+      let iMax = w[0].i, iMin = w[0].i;
+      for (const x of w) { if (x.r.secs > rows[iMax].secs) iMax = x.i; if (x.r.secs < rows[iMin].secs) iMin = x.i; }
+      const sum = w.reduce((a, x) => a + x.r.secs, 0), tgt = w.reduce((a, x) => a + x.r.tgt, 0);
+      return { n: w.length, avg: Math.round(sum / w.length), avgTgt: Math.round(tgt / w.length),
+        max: rows[iMax].secs, iMax, min: rows[iMin].secs, iMin };
+    }
+    // Month date labels (same rule for every period and Mon–Sat): the first bar,
+    // each month change, the last bar and each Monday, in that priority; drop any
+    // that would sit closer than `gap` px to one already placed.
+    function _statsDateLabels(dates, width, gap = 52) {
+      const n = dates.length; if (!n) return [];
+      const slot = width / n, cand = [];
+      dates.forEach((d, i) => {
+        const mo = i > 0 && d.getMonth() !== dates[i - 1].getMonth();
+        const pr = i === 0 ? 0 : mo ? 1 : i === n - 1 ? 2 : d.getDay() === 1 ? 3 : -1;
+        if (pr >= 0) cand.push({ i, pr, mo: i === 0 || mo, cx: (i + .5) * slot });
+      });
+      cand.sort((a, b) => a.pr - b.pr || a.i - b.i);
+      const placed = [];
+      for (const c of cand) if (placed.every(q => Math.abs(q.cx - c.cx) >= gap)) placed.push(c);
+      return placed.sort((a, b) => a.i - b.i);
+    }
+    // A day's (or the average's) gap to its target, in the week card's words.
+    function _statsVerdict(secs, tgt) {
+      if (!(tgt > 0)) return null;
+      const d = secs - tgt;
+      if (Math.abs(d) <= 300) return { text: 'On target', tone: 'ok' };
+      return d < 0 ? { text: `${_wsGap(_minsGap(tgt, secs))} short`, tone: '' } : { text: `${_wsGap(_minsGap(secs, tgt))} over`, tone: 'warn' };
+    }
+    function _statsDates() {
+      if (_sxRange === 'week') return week(_sxWeek).map(d => d.date);
+      const p = _statsPeriod(_sxPer, nowTz(), _salaryCycleStart()), out = [], tk = todayKey();
+      for (const d = new Date(p.from); d <= p.to; d.setDate(d.getDate() + 1)) {
+        const k = dateKey(d); if (k > tk) break;
+        if (!isWeekendKey(k)) out.push(new Date(d));
+      }
+      return out;
+    }
+    const _SX_I = {
+      l: '<path d="m15 18-6-6 6-6"/>', r: '<path d="m9 18 6-6-6-6"/>', down: '<path d="m6 9 6 6 6-6"/>', check: '<path d="M20 6 9 17l-5-5"/>',
+    };
+    function renderStats() {
+      const box = el('sxCard'); if (!box) return;
+      const dates = _statsDates(), rows = _statsRows(dates), sum = _statsSummary(rows);
+      const wk = _sxRange === 'week', cs = _salaryCycleStart();
+      const hm = v => { const m = Math.floor(v / 60); return `${Math.floor(m / 60)}h ${p2(m % 60)}m`; };
+      const top = Math.max(sum ? sum.max : 0, cfg().dailyH * 3600) * 1.12;
+      const pct = v => Math.max(0, Math.min(100, v / top * 100));
+      const daily = cfg().dailyH * 3600;
+      const svg = d => _WKND_SVG(d);
+      // Period row: ‹ This Week › on Week, a period menu on Month.
+      let per;
+      if (wk) {
+        const lbl = _sxWeek === 0 ? 'This Week' : _sxWeek === -1 ? 'Last Week' : `Week of ${_sxMd(dates[0])}`;
+        per = `<button type="button" class="sx-nav" data-sx="prev" aria-label="Previous week"${_sxWeek <= -26 ? ' aria-disabled="true"' : ''}>${svg(_SX_I.l)}</button>
+          <span class="sx-pl">${lbl}</span>
+          <button type="button" class="sx-nav" data-sx="next" aria-label="Next week"${_sxWeek >= 0 ? ' aria-disabled="true"' : ''}>${svg(_SX_I.r)}</button>
+          <span class="sx-pr">${_sxMd(dates[0])} – ${dates[dates.length - 1].getMonth() === dates[0].getMonth() ? dates[dates.length - 1].getDate() : _sxMd(dates[dates.length - 1])}</span>`;
+      } else {
+        const now = nowTz(), cur = _statsPeriod(_sxPer, now, cs);
+        const items = ['cycle', 'last30', 'month'].map(k => { const p = _statsPeriod(k, now, cs);
+          return `<button type="button" class="sx-mi" role="menuitemradio" aria-checked="${k === _sxPer}" data-p="${k}"><span><b>${p.name}</b><span>${_sxMd(p.from)} to ${_sxMd(p.to)}</span></span>${k === _sxPer ? svg(_SX_I.check) : '<i></i>'}</button>`; }).join('');
+        per = `<div class="sx-pm"><button type="button" class="sx-pb" data-sx="menu" aria-haspopup="menu" aria-expanded="${_sxMenu}" data-state="${_sxMenu ? 'open' : 'closed'}"><span>${cur.name}</span>${svg(_SX_I.down)}</button>
+          <div class="sx-menu${_sxMenu ? ' open' : ''}" role="menu" aria-label="Period">${items}</div></div>
+          <span class="sx-pr">${cur.sub}</span>`;
+      }
+      const bars = rows.map((r, i) => {
+        const rest = r.kind === 'leave' || r.kind === 'holiday', off = r.kind === 'none' || r.kind === 'later';
+        const h = rest ? pct(daily / 2) : off ? 0 : Math.max(4, pct(r.secs));
+        const hatch = rest ? '<svg class="ws-hatch" aria-hidden="true"><rect width="100%" height="100%"/></svg>' : '';
+        const d = r.date, said = rest ? (r.kind === 'leave' ? 'On Leave' : 'Holiday') : r.secs ? durWorked(r.secs) : 'no hours';
+        return `<span class="ws-bar ${rest ? 'rest' : off ? 'off' : ''}" data-i="${i}" tabindex="${i === 0 ? 0 : -1}" role="img" aria-label="${_SX_DAY[d.getDay()]}, ${_sxMd(d)}: ${said}" style="--h:${h.toFixed(1)}%;--d:${Math.min(i, 22) * (wk ? 60 : 18)}ms"><i>${hatch}</i></span>`;
+      }).join('');
+      const kpi = (k, label, v) => `<div class="sx-kp" data-k="${k}"><span>${label}</span><b>${sum ? hm(v) : '–'}</b></div>`;
+      box.innerHTML = `<div class="sx-hd"><span class="sx-title">Statistics</span>
+          <div class="sx-seg" role="group" aria-label="Range"><span class="sx-gl" aria-hidden="true"></span>
+            <button type="button" data-r="week" aria-pressed="${wk}">Week</button><button type="button" data-r="month" aria-pressed="${!wk}">Month</button></div></div>
+        <div class="sx-per">${per}</div>
+        <p class="sx-lab">Daily average</p>
+        <div class="ws-total sx-total"></div>
+        <div class="ws-vary sx-vary" aria-live="polite"></div>
+        <div class="ws-chart sx-chart">
+          <div class="ws-plot sx-plot">
+            <div class="ws-bars sx-bars${wk ? '' : ' month'}" role="group" aria-label="Hours by day">${bars}</div>
+            ${sum ? ['max', 'avg', 'min'].map(k => `<span class="sx-ref" data-k="${k}" style="bottom:${pct(sum[k]).toFixed(1)}%"></span>`).join('') : ''}
+          </div>
+          <div class="sx-let${wk ? '' : ' dates'}"></div>
+        </div>
+        <div class="sx-kpis">${kpi('max', 'Longest day', sum && sum.max)}${kpi('avg', 'Average', sum && sum.avg)}${kpi('min', 'Shortest day', sum && sum.min)}</div>`;
+      // Segmented control: the selection glides to the picked range.
+      const seg = box.querySelector('.sx-seg'), gl = seg.querySelector('.sx-gl');
+      const glide = () => { const b = seg.querySelector('[aria-pressed="true"]'); if (!b) return; gl.style.width = b.offsetWidth + 'px'; gl.style.transform = `translateX(${b.offsetLeft}px)`; };
+      if (box._sxGl) { gl.style.transition = 'none'; gl.style.width = box._sxGl.w; gl.style.transform = box._sxGl.t; gl.offsetWidth; gl.style.transition = ''; }
+      requestAnimationFrame(() => { glide(); box._sxGl = { w: gl.style.width, t: gl.style.transform }; });
+      // Axis: letters on Week (#48: Statistics keeps its letter row), dates on Month.
+      const let_ = box.querySelector('.sx-let'), barsEl = box.querySelector('.sx-bars');
+      const drawAxis = () => {
+        if (wk) { let_.innerHTML = rows.map(r => `<span>${_SX_DAY[r.date.getDay()][0]}</span>`).join(''); return; }
+        const W = barsEl.clientWidth, n = rows.length;
+        let_.innerHTML = _statsDateLabels(dates, W).map(c => {
+          const edge = n > 1 && c.i === 0 ? ' edge-l' : n > 1 && c.i === n - 1 ? ' edge-r' : '';
+          const left = edge === ' edge-l' ? 0 : edge === ' edge-r' ? W : c.cx;
+          return `<span class="${c.mo ? 'mo' : ''}${edge}" style="left:${left.toFixed(1)}px">${_sxMd(dates[c.i])}</span>`;
+        }).join('');
+      };
+      drawAxis();
+      if (!wk && !barsEl.clientWidth) requestAnimationFrame(drawAxis);
+      // Headline: the daily average at rest, the hovered day while scrubbing.
+      const lab = box.querySelector('.sx-lab'), hero = box.querySelector('.sx-total'), vary = box.querySelector('.sx-vary');
+      const chip = (v, check) => v ? `<span class="rc-desc-chip pill${v.tone ? ' ' + v.tone : ''} ws-chip">${check && v.tone === 'ok' ? svg(_SX_I.check) : ''}${v.text}</span>` : '';
+      const roll = text => _odoSet(hero, text);
+      hero._nf = null;
+      const TYPE = { half: ['Half Day', 'teal'], leave: ['On Leave', 'blue'], holiday: ['Holiday', 'orchid'], work: ['Full Day', ''] };
+      const refs = [...box.querySelectorAll('.sx-ref')];
+      const rest = () => {
+        lab.textContent = 'Daily average';
+        roll(sum ? hm(sum.avg) : '0h 00m');
+        vary.innerHTML = sum ? chip(_statsVerdict(sum.avg, sum.avgTgt), true) : `<span class="dt-chip">No hours yet</span>`;
+        barsEl.querySelectorAll('.ws-bar').forEach(b => b.classList.remove('hot'));
+        let_.querySelectorAll('span').forEach(s => s.classList.remove('h'));
+      };
+      const show = i => {
+        const r = rows[i]; if (!r) return;
+        lab.textContent = `${_SX_DAY[r.date.getDay()]}, ${_sxMd(r.date)}`;
+        roll(hm(r.kind === 'leave' || r.kind === 'holiday' ? 0 : r.secs));
+        const [label, tone] = TYPE[r.kind] || [r.kind === 'later' ? (r.key === todayKey() ? 'Today' : 'Coming up') : 'No entry', ''];
+        const type = `<span class="dt-chip"${tone ? ` style="--dt:var(--${tone})"` : ''}>${label}</span>`;
+        vary.innerHTML = type + (r.kind === 'leave' || r.kind === 'holiday' ? chip({ text: 'No hours', tone: '' }) : r.secs ? chip(_statsVerdict(r.secs, r.tgt), true) : '');
+        barsEl.querySelectorAll('.ws-bar').forEach((b, j) => b.classList.toggle('hot', j === i));
+        if (wk) let_.querySelectorAll('span').forEach((s, j) => s.classList.toggle('h', j === i));
+      };
+      rest();
+      _loadLib('numberflow').then(() => { if (!hero._nf && hero.isConnected) _odoSet(hero, hero.dataset.odo || '0h 00m'); }, () => {});
+      // Scrub: one handler over the plot (uiarc bar-chart's scrubber): pointer
+      // x picks the bar, gaps included; vertical swipes still scroll the page.
+      const at = x => { const b = barsEl.getBoundingClientRect(); return Math.max(0, Math.min(rows.length - 1, Math.floor((x - b.left) / b.width * rows.length))); };
+      let touchT = 0;
+      barsEl.addEventListener('pointermove', e => { clearTimeout(touchT); show(at(e.clientX)); });
+      barsEl.addEventListener('pointerdown', e => { clearTimeout(touchT); show(at(e.clientX)); });
+      barsEl.addEventListener('pointerup', e => { if (e.pointerType !== 'mouse') touchT = setTimeout(rest, 1500); });
+      barsEl.addEventListener('pointerleave', e => { if (e.pointerType === 'mouse' && !barsEl.contains(document.activeElement)) rest(); });
+      barsEl.addEventListener('focusin', e => { const b = e.target.closest('.ws-bar'); if (b) show(+b.dataset.i); });
+      barsEl.addEventListener('focusout', e => { if (!barsEl.contains(e.relatedTarget)) rest(); });
+      barsEl.addEventListener('keydown', e => {
+        const all = [...barsEl.querySelectorAll('.ws-bar')], cur = all.indexOf(document.activeElement);
+        if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+          e.preventDefault(); const n = Math.max(0, Math.min(all.length - 1, cur + (e.key === 'ArrowRight' ? 1 : -1)));
+          all.forEach((b, j) => b.tabIndex = j === n ? 0 : -1); all[n].focus();
+        }
+        if (e.key === 'Escape') { document.activeElement.blur(); rest(); }
+      });
+      // KPIs: hover only (no active state). Longest / Shortest highlight their
+      // day and show a dashed line at its height; Average shows the line.
+      box.querySelectorAll('.sx-kp').forEach(k => {
+        k.addEventListener('pointerenter', () => { if (!sum) return;
+          refs.forEach(r => r.classList.toggle('on', r.dataset.k === k.dataset.k));
+          if (k.dataset.k === 'avg') rest(); else show(sum[k.dataset.k === 'max' ? 'iMax' : 'iMin']); });
+        k.addEventListener('pointerleave', () => { refs.forEach(r => r.classList.remove('on')); rest(); });
+      });
+      requestAnimationFrame(() => requestAnimationFrame(() => barsEl.classList.add('grown')));
+      // Controls
+      seg.querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
+        if (b.dataset.r === _sxRange) return; _sxRange = b.dataset.r; _sxMenu = false;
+        try { localStorage.setItem('wh_sx_range', _sxRange); } catch (e) {}
+        renderStats();
+      }));
+      box.querySelectorAll('.sx-nav').forEach(b => b.addEventListener('click', () => {
+        if (b.getAttribute('aria-disabled') === 'true') return;
+        _sxWeek += b.dataset.sx === 'prev' ? -1 : 1; renderStats();
+        box.querySelector(`[data-sx="${b.dataset.sx}"]`)?.focus();
+      }));
+      const pb = box.querySelector('.sx-pb');
+      if (pb) {
+        const menu = box.querySelector('.sx-menu'), items = [...menu.querySelectorAll('.sx-mi')];
+        const setOpen = open => { _sxMenu = open; menu.classList.toggle('open', open); pb.setAttribute('aria-expanded', open); pb.dataset.state = open ? 'open' : 'closed';
+          if (open) (items.find(i => i.getAttribute('aria-checked') === 'true') || items[0]).focus(); };
+        pb.addEventListener('click', e => { e.stopPropagation(); setOpen(!_sxMenu); });
+        items.forEach(it => it.addEventListener('click', () => { _sxPer = it.dataset.p; _sxMenu = false;
+          try { localStorage.setItem('wh_sx_per', _sxPer); } catch (e) {} renderStats(); box.querySelector('.sx-pb')?.focus(); }));
+        menu.addEventListener('keydown', e => {
+          const i = items.indexOf(document.activeElement);
+          if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); items[(i + (e.key === 'ArrowDown' ? 1 : items.length - 1)) % items.length].focus(); }
+          if (e.key === 'Escape' || e.key === 'Tab') { setOpen(false); pb.focus(); }
+        });
+        if (!box._sxDoc) { box._sxDoc = true; document.addEventListener('click', e => { if (_sxMenu && !e.target.closest('.sx-pm')) { _sxMenu = false; const m = el('sxCard')?.querySelector('.sx-menu'); m?.classList.remove('open'); const b = el('sxCard')?.querySelector('.sx-pb'); if (b) { b.setAttribute('aria-expanded', 'false'); b.dataset.state = 'closed'; } } }); }
+      }
+      if (!box._sxRs) { box._sxRs = true; let t = 0; window.addEventListener('resize', () => { clearTimeout(t); t = setTimeout(() => { if (_sxRange === 'month') renderStats(); }, 150); }); }
+    }
+    try { const r = localStorage.getItem('wh_sx_range'), p = localStorage.getItem('wh_sx_per');
+      if (r === 'week' || r === 'month') _sxRange = r; if (p === 'cycle' || p === 'last30' || p === 'month') _sxPer = p; } catch (e) {}
 
     // Renders an inline attendance chip for the weekly report table
     function _attChip(att) {
@@ -6562,6 +6794,7 @@
       const sig = () => _penaltyData.filter(p => !_discardedPenalties.has(p.key)).map(p => p.key).join();
       const before = sig();
       _renderPenaltyCard();
+      renderStats();
       if (sig() !== before && typeof renderNotifs === 'function') renderNotifs();
     }
     function _renderPenaltyCard() {

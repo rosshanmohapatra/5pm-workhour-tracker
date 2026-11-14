@@ -1382,6 +1382,68 @@
     @media (max-width: 640px) { .ws-total { font-size: 28px; } }
     @media (prefers-reduced-motion: reduce) { .ws-bar i { transition: none; } }
     .rc-desc-chip.warn { color: var(--warning); }
+    /* ── Statistics card (#7, approved 2026-11-14) ──
+       Bottom of Home, every day. Reuses the weekend chart (.ws-chart / .ws-bar);
+       segmented control, period menu and KPIs adapted from uiarc. */
+    .sx-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 18px 18px 16px; }
+    .sx-hd { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+    .sx-title { font-size: 14px; font-weight: 600; color: var(--foreground); }
+    .sx-seg { position: relative; isolation: isolate; display: inline-flex; gap: 2px; padding: 3px; border-radius: 10px;
+      background: var(--surface-raised); border: 1px solid var(--border); }
+    .sx-seg button { position: relative; z-index: 1; height: 26px; padding: 0 12px; border: 0; border-radius: 7px; background: transparent;
+      font: 500 12px var(--font); color: var(--text-muted); cursor: pointer; transition: color .15s; -webkit-tap-highlight-color: transparent; }
+    .sx-seg button[aria-pressed="true"] { color: var(--foreground); }
+    @media (hover: hover) and (pointer: fine) { .sx-seg button:hover { color: var(--foreground); } }
+    .sx-seg button:focus-visible { outline: 2px solid var(--ring); outline-offset: 1px; }
+    .sx-gl { position: absolute; z-index: 0; top: 3px; bottom: 3px; left: 0; width: 0; border-radius: 7px; background: var(--muted);
+      box-shadow: 0 0 0 1px var(--border); transition: transform .32s var(--ease-sheet), width .32s var(--ease-sheet); }
+    .sx-per { display: flex; align-items: center; gap: 4px; margin-top: 14px; min-height: 28px; }
+    .sx-nav { width: 28px; height: 28px; border: 0; border-radius: 8px; display: grid; place-items: center; background: transparent; color: var(--muted-fg); cursor: pointer; }
+    .sx-nav:hover { background: var(--muted); color: var(--foreground); }
+    .sx-nav[aria-disabled="true"] { opacity: .35; cursor: default; background: none; }
+    .sx-nav svg, .sx-pb svg { width: 16px; height: 16px; }
+    .sx-pl { font-size: 13px; font-weight: 600; min-width: 96px; text-align: center; color: var(--foreground); }
+    .sx-pr { font-size: 12px; color: var(--text-muted); margin-left: auto; font-variant-numeric: tabular-nums; }
+    .sx-pm { position: relative; }
+    .sx-pb { display: inline-flex; align-items: center; gap: 4px; height: 28px; padding: 0 8px 0 10px; border: 1px solid var(--border); border-radius: 8px;
+      background: var(--card); font: 600 13px var(--font); color: var(--foreground); cursor: pointer; transition: background .12s, border-color .15s; }
+    .sx-pb svg { color: var(--text-muted); transition: transform .3s var(--ease-sheet); }
+    .sx-pb[data-state="open"] { border-color: var(--border-strong); background: var(--muted); }
+    .sx-pb[data-state="open"] svg { transform: rotate(180deg); }
+    @media (hover: hover) and (pointer: fine) { .sx-pb:hover { border-color: var(--border-strong); background: var(--muted); } }
+    .sx-menu { position: absolute; left: 0; top: calc(100% + 6px); z-index: 30; min-width: 220px; padding: 5px; border: 1px solid var(--border);
+      border-radius: 12px; background: var(--surface-raised); box-shadow: 0 10px 30px rgba(0,0,0,.22); transform-origin: top left;
+      opacity: 0; transform: translateY(-5px) scale(.97); visibility: hidden; pointer-events: none;
+      transition: opacity .14s ease, transform .2s var(--ease-sheet), visibility 0s linear .2s; }
+    .sx-menu.open { opacity: 1; transform: none; visibility: visible; pointer-events: auto; transition: opacity .14s ease, transform .2s var(--ease-sheet); }
+    .sx-mi { display: grid; grid-template-columns: 1fr 16px; align-items: center; gap: 10px; width: 100%; padding: 8px 9px; border: 0; border-radius: 8px;
+      background: transparent; text-align: left; cursor: pointer; color: var(--foreground); font-family: var(--font); }
+    .sx-mi:hover, .sx-mi:focus-visible { background: var(--muted); outline: none; }
+    .sx-mi b { display: block; font-size: 13px; font-weight: 500; }
+    .sx-mi span span { display: block; font-size: 12px; color: var(--text-muted); margin-top: 1px; }
+    .sx-mi svg { width: 16px; height: 16px; }
+    .sx-lab { font-size: 12px; color: var(--text-muted); margin: 16px 0 0; min-height: 16px; }
+    .sx-total { margin-top: 2px; }
+    .sx-chart { cursor: default; }
+    .sx-bars { touch-action: pan-y; user-select: none; -webkit-user-select: none; }
+    .sx-bars.month { gap: 3px; }
+    .sx-bars.month .ws-bar, .sx-bars.month .ws-bar i { border-radius: 4px 4px 0 0; }
+    .sx-ref { position: absolute; left: 0; right: 0; border-top: 1.5px dashed var(--muted-fg); pointer-events: none; z-index: 2; opacity: 0; transition: opacity .18s; }
+    .sx-ref.on { opacity: 1; }
+    .sx-let { display: flex; gap: 6px; margin-top: 8px; }
+    .sx-let span { flex: 1; min-width: 0; text-align: center; font-size: 12px; font-weight: 600; color: var(--text-muted); font-variant-numeric: tabular-nums; transition: color .15s; }
+    .sx-let span.h { color: var(--foreground); }
+    .sx-let.dates { display: block; position: relative; height: 16px; }
+    .sx-let.dates span { position: absolute; top: 0; flex: none; white-space: nowrap; transform: translateX(-50%); font-weight: 500; }
+    .sx-let.dates span.edge-l { transform: none; } .sx-let.dates span.edge-r { transform: translateX(-100%); }
+    .sx-let.dates span.mo { color: var(--foreground); font-weight: 600; }
+    .sx-kpis { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-top: 16px; padding: 16px 10px 0; border-top: 1px solid var(--border); }
+    .sx-kp { display: flex; flex-direction: column; gap: 4px; min-width: 0; padding: 8px 10px; margin: -8px -10px; border-radius: 10px; transition: background .15s; }
+    .sx-kp:hover { background: var(--muted); }
+    .sx-kp span { font-size: 12px; font-weight: 500; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .sx-kp b { font-size: 16px; font-weight: 600; color: var(--foreground); font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
+    @media (max-width: 640px) { .sx-card { padding: 16px 14px 14px; } .sx-kpis { gap: 12px; padding: 14px 8px 0; } }
+    @media (prefers-reduced-motion: reduce) { .sx-gl, .sx-menu, .sx-pb svg { transition: none; } }
     /* ── Empty state (no session started today) ── */
     #rcEmptyState { flex-direction: column; align-items: center; justify-content: center;
       text-align: center; width: 100%; padding: 40px 16px; }
@@ -3760,6 +3822,11 @@
       </div>
 
       <div id="homeMain">
+      <!-- Leave / Holiday bar hatch, shared by the weekend and Statistics charts. -->
+      <svg class="ws-defs" width="0" height="0" aria-hidden="true"><defs>
+        <pattern id="wsHatch" width="6" height="6" patternUnits="userSpaceOnUse"><path d="M-1 1l2-2M0 6l6-6M5 7l2-2"/></pattern>
+        <pattern id="wsHatchHot" width="6" height="6" patternUnits="userSpaceOnUse"><path d="M-1 1l2-2M0 6l6-6M5 7l2-2"/></pattern>
+      </defs></svg>
       <!-- Selected day context — greeting hidden, clock remains -->
       <div class="sel-day-ctx">
         <div class="sel-day-left">
@@ -4090,6 +4157,9 @@
           </div>
         </div>
       </div>
+
+      <!-- Statistics (#7): always at the bottom of Home, drawn by renderStats(). -->
+      <section class="sx-card" id="sxCard" aria-label="Statistics"></section>
 
     </main>
   </div>

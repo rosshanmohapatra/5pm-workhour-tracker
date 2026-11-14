@@ -1019,7 +1019,7 @@ test("Weekend bars: Leave and Holiday are thin striped bars at a half day's heig
   assert.match(r, /const h = rest \? Math\.min\(100, Math\.round\(daily \/ 2 \/ top \* 100\)\)/);
   const HTML = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
   assert.match(HTML, /#wsHatch path \{ stroke:/);   // thin lines from one SVG tile: every line the same weight
-  assert.match(r, /<pattern id="wsHatch" width="6" height="6" patternUnits="userSpaceOnUse">/);
+  assert.match(HTML, /<pattern id="wsHatch" width="6" height="6" patternUnits="userSpaceOnUse">/);   // shared defs on Home (weekend + Statistics)
 });
 
 test('Weekend total rolls (NumberFlow) to the hovered day and back', () => {
@@ -1241,4 +1241,49 @@ test('Ended-day card: type label, pencil, total, verdict, times, note (#31)', ()
   assert.match(HTML, /\.ed-total \{ font-size: 36px;/);
   assert.match(HTML, /@media \(max-width: 640px\) \{ \.ed-total \{ font-size: 32px; \} \}/);
   assert.doesNotMatch(SRC, /_pastDayKpiHtml|_updateEntryBtnHtml/);
+});
+
+// ── Statistics card (#7) ───────────────────────────────────────────────────
+function statsSandbox() {
+  const code = [extract("const _SX_MON = [", "];"), extract("const _sxMd = ", ";"), extract('function _statsPeriod('), extract('function _statsSummary('),
+    extract('function _statsDateLabels('), extract('function wkSigned('), extract('const _wsGap = ', ';'), extract('function _minsGap(', '}'), extract('function _statsVerdict(')].join('\n');
+  return load(code + '\nthis.out = { _statsPeriod, _statsSummary, _statsDateLabels, _statsVerdict };', { Math, p2 }, 'out');
+}
+test('Statistics: Month periods (salary cycle, last 30 days, this month)', () => {
+  const { _statsPeriod } = statsSandbox();
+  const now = new Date(2026, 10, 13);
+  assert.equal(_statsPeriod('cycle', now, 26).sub, 'Oct 26 – Nov 25');
+  assert.equal(_statsPeriod('cycle', new Date(2026, 10, 27), 26).sub, 'Nov 26 – Dec 25');
+  assert.equal(_statsPeriod('cycle', now, 1).sub, 'Nov 1 – Nov 30', 'day 1 = calendar month');
+  assert.equal(_statsPeriod('last30', now, 26).sub, 'Oct 15 – Nov 13');
+  assert.equal(_statsPeriod('month', now, 26).sub, 'Nov 1 – Nov 30');
+  assert.equal(_statsPeriod('cycle', new Date(2027, 0, 5), 26).sub, 'Dec 26 – Jan 25', 'crosses the year');
+});
+test('Statistics: longest / average / shortest skip leave, holiday and empty days', () => {
+  const { _statsSummary } = statsSandbox();
+  const H = 3600, row = (kind, secs, tgt = 9 * H) => ({ kind, secs, tgt });
+  const s = _statsSummary([row('work', 8.5 * H), row('leave', 0, 0), row('work', 9.5 * H), row('none', 0), row('half', 4 * H, 4.5 * H), row('later', 0)]);
+  assert.equal(s.n, 3); assert.equal(s.max, 9.5 * H); assert.equal(s.iMax, 2); assert.equal(s.min, 4 * H); assert.equal(s.iMin, 4);
+  assert.equal(s.avg, Math.round(22 * H / 3)); assert.equal(s.avgTgt, Math.round(22.5 * H / 3));
+  assert.equal(_statsSummary([row('holiday', 3 * H, 0), row('none', 0)]), null);
+});
+test('Statistics: month date labels keep 52px apart, first > month change > last > Monday', () => {
+  const { _statsDateLabels } = statsSandbox();
+  const dates = []; for (let d = new Date(2026, 9, 26); d <= new Date(2026, 10, 13); d.setDate(d.getDate() + 1)) if (d.getDay() % 6) dates.push(new Date(d));
+  const L = _statsDateLabels(dates, 400);
+  assert.equal(L[0].i, 0); assert.equal(L[0].mo, true);
+  assert.ok(L.some(c => c.mo && dates[c.i].getDate() === 2 && dates[c.i].getMonth() === 10), 'Nov 2 is a month change');
+  assert.equal(L[L.length - 1].i, dates.length - 1, 'last bar labelled');
+  for (let k = 1; k < L.length; k++) assert.ok(L[k].cx - L[k - 1].cx >= 52);
+  assert.equal(_statsDateLabels(dates, 120).length, 2, 'narrow: only the first and the month change fit');
+});
+test('Statistics: verdict uses the week card words', () => {
+  const { _statsVerdict } = statsSandbox();
+  assert.deepEqual({ ..._statsVerdict(8 * 3600 + 2 * 60, 9 * 3600) }, { text: '58mins short', tone: '' });
+  assert.deepEqual({ ..._statsVerdict(9 * 3600 + 120, 9 * 3600) }, { text: 'On target', tone: 'ok' });
+  assert.deepEqual({ ..._statsVerdict(10 * 3600 + 5 * 60, 9 * 3600) }, { text: '1h 05mins over', tone: 'warn' });
+  const HTML = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
+  assert.match(HTML, /<section class="sx-card" id="sxCard"/);
+  assert.equal((HTML.match(/id="wsHatch"/g) || []).length, 1, 'one shared hatch pattern');
+  assert.doesNotMatch(SRC, /<pattern id="wsHatch"/);
 });

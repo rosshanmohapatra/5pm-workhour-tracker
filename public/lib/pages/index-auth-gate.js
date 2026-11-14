@@ -145,8 +145,18 @@
               return /passkey|webauthn/i.test(m && m.method);
             });
             if (d && d.nextLevel === 'aal2' && d.currentLevel === 'aal1' && !viaPasskey) {
-              _bootDone = true;
-              window.location.replace('/login.html');
+              // A session that passed with a backup code stays aal1 but the
+              // database counts it as done (public.mfa_satisfied): open the app
+              // in every tab instead of asking for another code.
+              return window._sbClient.rpc('mfa_satisfied').then(function (r) {
+                if (r && r.data === true) {
+                  try { sessionStorage.setItem('wh_mfa_ok', '1'); } catch (e) {}
+                  _revealApp(session);
+                } else {
+                  _bootDone = true;
+                  window.location.replace('/login.html');
+                }
+              });
             } else {
               _revealApp(session);
             }

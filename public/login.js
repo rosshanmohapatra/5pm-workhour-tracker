@@ -148,6 +148,9 @@ async function handleSubmit() {
   const pwd   = $('pwdInput').value;
   const name  = $('nameInput').value.trim();
   if (!email || !pwd) { $('emailInput').focus(); return; }
+  // New passwords need 8+ characters (same as Supabase's minimum). Sign-in
+  // never checks length, so older shorter passwords keep working.
+  if (isSignup && pwd.length < 8) { showAuthError('Use at least 8 characters for your password.'); $('pwdInput').focus(); return; }
   _clearAuthError();
   const btn = $('submitBtn');
   btn.classList.add('loading');
@@ -373,7 +376,12 @@ async function _mfaRequired() {
     const { data, error } = await _sb.auth.mfa.getAuthenticatorAssuranceLevel();
     if (error) return false;
     const viaPasskey = (data?.currentAuthenticationMethods || []).some(m => /passkey|webauthn/i.test(m?.method));
-    return !!data && data.nextLevel === 'aal2' && data.currentLevel === 'aal1' && !viaPasskey;
+    const need = !!data && data.nextLevel === 'aal2' && data.currentLevel === 'aal1' && !viaPasskey;
+    if (!need) return false;
+    // A session that passed with a backup code stays aal1 but counts as done
+    // in the database (public.mfa_satisfied), so don't ask for a code again.
+    const { data: ok } = await _sb.rpc('mfa_satisfied');
+    return ok !== true;
   } catch (_) { return false; }
 }
 
@@ -414,8 +422,8 @@ async function completeRecovery() {
 }
 
 // A backup code is checked by the database (public.use_backup_code), never
-// here: a valid one turns two-factor off so the account is usable again, and
-// the user sets the authenticator up afresh.
+// here: a valid one is marked used, two-step stays on, and this session counts
+// as having passed two-step (public.mfa_satisfied) until it signs out.
 function _normalizeBackupCode(c) { return (c || '').toLowerCase().replace(/[^a-z0-9]/g, ''); }
 async function verifyBackupCode() {
   const norm = _normalizeBackupCode($('authBackupInput').value);
@@ -427,9 +435,8 @@ async function verifyBackupCode() {
     const { data: ok, error } = await _sb.rpc('use_backup_code', { code: norm });
     if (error) throw error;
     if (!ok) throw new Error('Invalid or already-used backup code.');
-    await _sb.auth.refreshSession(); // the session no longer lists an authenticator
     try { sessionStorage.setItem('wh_mfa_ok', '1'); } catch (_) {}
-    showSuccess('Two-factor is off. Set it up again in Settings.');
+    showSuccess('Welcome back!');
   } catch (err) {
     btn.disabled = false; btn.textContent = 'Use Backup Code';
     _showAuthErr(err.message || 'Could not verify backup code.');

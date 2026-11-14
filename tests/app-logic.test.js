@@ -516,41 +516,58 @@ test('Notifications panel has a close button on desktop', () => {
   assert.match(SRC, /el\('notifCloseBtn'\)\?\.addEventListener\('click', closeNotifPanel\);/);
 });
 
-test('Today card: numbers state facts (Clock / Hours), advice only in chip or banner', () => {
-  const paint = extract('function _rcPaintKpis(');
-  // Clock: Started | Now (live). Hours: Worked (live) | Target.
-  assert.match(paint, /el\('rcWorkedCap'\)\.textContent = 'Started';/);
-  assert.match(paint, /el\('rcTargetCap'\)\.innerHTML = live \+ 'Now';/);
-  assert.match(paint, /el\('rcWorkedCap'\)\.innerHTML = live \+ 'Worked';/);
-  assert.match(paint, /el\('rcTargetCap'\)\.textContent = 'Target';/);
-  // No leave / done / overtime words on the numbers themselves.
-  assert.doesNotMatch(paint, /leave|overtime|done/i);
-  // The chip is for the session only; after the target it's empty and the banner speaks.
-  assert.match(SRC, /_descRightTimes    = 'You can leave at ' \+ _logoutStr;/);
-  assert.match(SRC, /_descRightTimes = _descRightProgress = '';   \/\/ the banner takes over after the target/);
-  // Tabs read Clock / Hours, and the day-type switcher stays neutral.
-  const HTML = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
-  assert.match(HTML, />Clock<\/button>/); assert.match(HTML, />Hours<\/button>/);
-  assert.doesNotMatch(HTML, /\.rc-info-btn\[data-plan=/);
-});
 
-test('Done banner: one per moment, dismissable, swipe hint once', () => {
-  assert.match(SRC, /_showDoneBanner\('done', 'success', 'check', "You're done\. Head out!"/);
-  assert.match(SRC, /_showDoneBanner\('late', 'warning', 'clock', `Should've left at/);
-  assert.match(SRC, /_showDoneBanner\('over', 'warning', 'clock', `\$\{_rcRemainingFmt\(ot\)\} overtime`/);
-  assert.match(SRC, /_showDoneBanner\('ended', 'violet', 'moon', 'Done for today'/);
-  // Dismissed stays away until the next moment; the hint shows once per device.
-  assert.match(extract('function _showDoneBanner('), /_doneDismissed === todayKey\(\) \+ '\|' \+ moment/);
-  assert.match(extract('function _doneHint('), /wh_swipe_hint/);
-});
 
 test('Each notification has its own dismiss button that never opens the card', () => {
   const render = extract('function renderNotifs(');
   assert.match(render, /<button type="button" class="notif-dismiss" data-dismiss="\$\{safeId\}" aria-label="Dismiss notification">/);
   // Capture phase + stopPropagation: the card's own click handler must not run.
-  assert.match(SRC, /const x = e\.target\.closest\('\.notif-dismiss'\); if \(!x\) return;\n\s*e\.stopPropagation\(\);\n\s*_dismissNotifItem\(x\.closest\('\.notif-item'\), x\.dataset\.dismiss, 1\);\n\s*\}, true\);/);
+  assert.match(SRC, /const x = e\.target\.closest\('\.notif-dismiss, \[data-tap-dismiss\]'\); if \(!x\) return;\n\s*e\.stopPropagation\(\);\n\s*_dismissNotifItem\(x\.closest\('\.notif-item'\), x\.dataset\.dismiss \|\| x\.dataset\.tapDismiss, 1\);\n\s*\}, true\);/);
   const HTML = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
   assert.match(HTML, /@media \(hover: hover\) and \(pointer: fine\) \{\n\s*\.notif-dismiss \{ display: grid;/);
+});
+
+test('A notification with nowhere to go dismisses on tap and says so', () => {
+  const render = extract('function renderNotifs(');
+  // No CTA: the card is a button that dismisses, with a hint for touch.
+  assert.match(render, /: ` data-tap-dismiss="\$\{safeId\}" role="button" tabindex="0"/);
+  assert.match(render, /const hint = n\.cta \? '' : `<div class="notif-hint">Tap to dismiss<\/div>`;/);
+  assert.match(render, /\$\{n\.cta \? 'notif-tappable' : 'notif-info-only'\}/);
+  // Keyboard: Enter / Space dismiss it too.
+  assert.match(SRC, /const x = e\.target\.closest\('\[data-tap-dismiss\]'\); if \(!x \|\| e\.target !== x\) return;/);
+  const HTML = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
+  assert.match(HTML, /\.notif-info-only \{ cursor: pointer; \}/);
+  assert.match(HTML, /@media \(hover: hover\) and \(pointer: fine\) \{ \.notif-hint \{ display: none; \} \}/);
+});
+
+test('Card dismissals reach the notification; a notification dismiss never clears the card', () => {
+  const build = extract('function buildNotifs(');
+  // A day dismissed on the card leaves the notification (sample ones too).
+  // The notification lists exactly the card's penalties (daily or weekly mode).
+  assert.match(build, /const penVisible = _penaltyData\.filter\(p => !p\.sample && !_discardedPenalties\.has\(p\.key\)\);/);
+  assert.doesNotMatch(build, /penaltyDays/);
+  assert.match(build, /_sampleNotifDismissed\.has\(id\) \|\| _discardedPenalties\.has\(p\.key\)/);
+  assert.match(build, /_notifPenKeys\.set\(id, keys\);/);
+  // A card re-render that changes the list refreshes the notifications.
+  assert.match(extract('function renderPenalties('), /if \(sig\(\) !== before && typeof renderNotifs === 'function'\) renderNotifs\(\);/);
+  // Dismissing the notification only hides the notification (user 2026-11-14).
+  const add = extract('function addDismissed(');
+  assert.doesNotMatch(add, /_discardedPenalties|renderPenalties/);
+  // Dismissing on the card (one row or Clear All) refreshes the notifications.
+  assert.match(extract('function discardPenalty('), /renderNotifs\(\);/);
+  assert.match(extract('function clearAllPenalties('), /_savePenDiscards\(\);\n\s*renderNotifs\(\);/);
+  // The store sits above buildNotifs, so the notifications can read it at launch.
+  assert.ok(SRC.indexOf('let _discardedPenalties') < SRC.indexOf('function buildNotifs('));
+});
+
+test('Weekend card: label-style day type, 32px total, chip right below', () => {
+  const HTML = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
+  const pill = HTML.match(/\.dt-pill \{[^}]*\}/)[0];
+  assert.match(pill, /background: none;/);
+  assert.match(pill, /padding: 0;/);
+  assert.match(HTML, /\.ws-total \{ font-size: 32px;[^}]*--number-flow-mask-height: \.1em;/);
+  assert.match(HTML, /@media \(max-width: 640px\) \{ \.ws-total \{ font-size: 28px; \} \}/);
+  assert.match(HTML, /\.ws-vary \{[^}]*margin-top: 6px;/);
 });
 
 // ── Correcting today's start while a session runs ──
@@ -656,7 +673,7 @@ test('Daily modals: Done for everyone, End only asks early, auto-stop wheel open
   assert.match(extract('function openAutoStopRecovery('), /_estimateDayEnd\(dayKey,[^)]*\)\?\.end;\n\s*if \(est && stop && est < stop\) start = est;/);
 });
 
-test("What's New: titled items get an icon and title; plain lines still work; fixes fold", () => {
+test("What's New: titled items get an icon and title; plain lines still work; fixes are plain text", () => {
   const html = load(extract("    const WN_ICONS = {", '\n    };') + '\n' + extract('function wnBodyHtml('), { _escHtml: s => String(s) }, 'wnBodyHtml')({
     version: '9.9.9',
     improvements: [{ icon: 'clock', title: 'Fix your start time', line: 'Changing it updates your hours.' }, 'A plain line.'],
@@ -664,7 +681,8 @@ test("What's New: titled items get an icon and title; plain lines still work; fi
   });
   assert.match(html, /<div class="wn-ft">Fix your start time<\/div>/);
   assert.match(html, /A plain line\./);
-  assert.match(html, /<span>2 fixes<\/span>/);
+  assert.match(html, /<p class="wn-fixes-k">Bug fixes<\/p><ul><li>Fixed one\.<\/li><li>Fixed two\.<\/li><\/ul>/);
+  assert.doesNotMatch(html, /wn-fixes-head|aria-expanded/);   // no dropdown
   // GitHub / Store notes get the plain line for titled items.
   const out = execFileSync(process.execPath, ['-e', `
     const fs=require('fs'),path=require('path');const src=fs.readFileSync(path.join(${JSON.stringify(WEB)},'lib','whats-new.js'),'utf8');
@@ -705,25 +723,20 @@ test('Onboarding buttons are wired when it opens (its markup comes after the app
 test('End early uses the Today card target, and "early" + worked add up to it', () => {
   const T = { endSessionTitle: {}, endSessionDesc: {}, endSessionHalfDayNote: { style: {} }, endSessionConfirmBtn: {}, endSessionOverlay: { classList: { add() {} } } };
   const ctx = { cfg: () => ({ dailyH: 9 }), effSecs: () => 9 * 3600 + 43 * 60 + 3, _sessionAccSecs: 5 * 3600 + 40 * 60 + 40, loginDate: null,
-    el: id => T[id], confirmEndSession: () => {}, Math, Date,
+    el: id => T[id], confirmEndSession: () => {}, Math, Date, _minsGap: (a, b) => Math.max(0, Math.floor(a / 60) - Math.floor(b / 60)) * 60,
     durWorked: s => { const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60); return `${h}h ${String(m).padStart(2, '0')}m`; } };
   load(extract('function openEndSessionModal('), ctx, 'openEndSessionModal()');
   assert.equal(T.endSessionTitle.textContent, 'Leave 4h 03m early?');
   assert.match(T.endSessionDesc.textContent, /You've worked 5h 40m of your 9h 43m\./);
 });
 
-test('Countdowns round up so Worked + to go / short = Target', () => {
-  assert.match(SRC, /_rcRemainingFmt\(rem >= 60 \? Math\.ceil\(rem \/ 60\) \* 60 : rem\) \+ ' to go'/);
-  assert.match(SRC, /durWorked\(Math\.ceil\(\(eff - workedSecs\) \/ 60\) \* 60\)\} short\./);
-  assert.match(SRC, /durWorked\(Math\.ceil\(left \/ 60\) \* 60\)\} to go/);
-});
 
 test('Override outside your shift still asks to continue an ended day (never wipes its hours)', () => {
   let opened = null, started = null;
   const ctx = { el: () => ({ classList: { remove() {} } }), _pendingLoginP: 'P', _sessionAccSecs: 0, loginDate: null,
     dayLog: () => ({ hoursWorked: 5.5 }), todayKey: () => 't', Math,
     openContinueWorkingModal: (p, s) => { opened = [p, s]; }, _startSession: p => { started = p; } };
-  load(extract('function overrideOutsideShift(') + '\n' + extract('function _startOrContinue('), ctx, 'overrideOutsideShift()');
+  load(extract('function overrideOutsideShift(') + '\n' + extract('function _todayEndedSecs(') + '\n' + extract('function _startOrContinue('), ctx, 'overrideOutsideShift()');
   assert.deepEqual(opened, ['P', 19800]); assert.equal(started, null);
   // A fresh day starts straight away.
   load('', Object.assign(ctx, { dayLog: () => null, _pendingLoginP: 'Q' }), 'overrideOutsideShift()');
@@ -752,4 +765,360 @@ test('Sign-In Methods: a disabled menu item builds, says why, and does nothing',
 test('Filling the Settings form never saves halfway (onboarding answers survive)', () => {
   assert.match(extract('function populateSettings('), /_populatingSettings = true;\n\s*try \{ _populateSettingsForm\(\); \} finally \{ _populatingSettings = false; \}/);
   assert.match(extract('function autoSaveSettings('), /^function autoSaveSettings\(\) \{\n\s*if \(_populatingSettings\) return;/);
+});
+
+test('Settings changes go up fast and survive closing the app before they do', () => {
+  // A change marks itself unsent on the device and syncs within ~1.5 s.
+  const ls = new Map(), timers = [];
+  const ctx = { _applyingRemote: false, _dirtyCfg: false, DEV_SAMPLE: false, Date, String,
+    localStorage: { setItem: (k, v) => ls.set(k, v), getItem: k => ls.get(k) ?? null, removeItem: k => ls.delete(k) },
+    setTimeout: (f, ms) => { timers.push(ms); return 1; }, clearTimeout() {}, _flushSync() {}, _scheduleIdleSync() {} };
+  load(extract("    const CFG_UNSENT_KEY = 'wh_cfg_unsent';", '_scheduleIdleSync();\n    }'), ctx, '_markCfgDirty()');
+  assert.equal(ctx._dirtyCfg, true);
+  assert.ok(ls.has('wh_cfg_unsent'), 'marked unsent on this device');
+  assert.ok(timers.includes(1500), 'syncs within 1.5 s');
+  // Sample Data never marks anything.
+  ls.clear(); load('', Object.assign(ctx, { DEV_SAMPLE: true }), '_markCfgDirty()'); assert.equal(ls.size, 0);
+  // Launch: an unsent change is pushed, not overwritten by the cloud copy.
+  assert.match(SRC, /SbSync\.pullSettings\(\)\.then\(remoteCfg => \{\n(\s*\/\/.*\n)*\s*if \(_cfgUnsent\(\) && Store\.getCfg\(\)\) \{\n\s*_dirtyCfg = true;\n\s*_flushSync\(\{ silent: true \}\);\n\s*\} else if \(remoteCfg/);
+  // The marker is cleared only after a successful push with nothing newer.
+  assert.match(SRC, /else if \(unsentAt && _cfgUnsent\(\) === unsentAt\) \{ try \{ localStorage\.removeItem\(CFG_UNSENT_KEY\); \} catch \{\} \}/);
+});
+
+test('Smart Timings off: today\'s target is the plain daily hours', () => {
+  const src = extract('function _weeklyEffSecs(');
+  assert.match(src, /if \(!c\.weeklyOn \|\| c\.recommendTimings === false\) return daily;/);
+});
+
+test('Today card: Clock = Started | Done at, Hours = Worked | Target, one chip on both tabs', () => {
+  const paint = extract('function _rcPaintKpis(');
+  assert.match(paint, /el\('rcWorkedCap'\)\.textContent = 'Started';/);
+  assert.match(paint, /el\('rcTargetCap'\)\.textContent = c\.doneAtTomorrow \? 'Done at · tomorrow' : 'Done at';/);
+  assert.match(paint, /el\('rcWorkedCap'\)\.innerHTML = live \+ 'Worked';/);
+  assert.match(paint, /el\('rcTargetCap'\)\.textContent = c\.targetCap \|\| 'Target';/);
+  assert.doesNotMatch(paint, /'Now'/);                 // the header clock already shows the time
+  // The chip is painted once, outside the tab branches, so both tabs show the same thing.
+  assert.equal((paint.match(/_rcSetDesc\(/g) || []).length, 1);
+  assert.doesNotMatch(SRC, /'You can leave at ' \+ _logoutStr/);
+  assert.doesNotMatch(SRC, /el\('rcTarget'\)\.title = eff > 0/);   // no tooltip repeating the chip
+  const HTML = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
+  assert.match(HTML, />Clock<\/button>/); assert.match(HTML, />Hours<\/button>/);
+  assert.match(HTML, /#rcKpiGroup\.rc-finished\.rc-over \.rc-desc-row \{ padding: 32px 0;/);
+});
+
+test('Centre chip: "left" before the target, hidden at it, "over" after (rounded so it adds up)', () => {
+  const chip = load(extract('function _rcRemainingFmt(') + '\n' + extract('function _minsGap(', '}') + '\n' + extract('function _rcChip('), { Math }, '_rcChip');
+  const H = 3600, M = 60, T = 8 * H + 30 * M;
+  assert.deepEqual({ ...chip(5 * H + 18 * M, T) }, { text: '3h 12m left', over: false });
+  assert.equal(chip(5 * H + 17 * M + 50, T).text, '3h 13m left');     // Worked shows 5h 17m: 8h 30m - 5h 17m
+  // A Smart Timings target with stray seconds still adds up on screen: 22m + 9h 48m = 10h 10m.
+  assert.equal(chip(22 * M + 40, 10 * H + 10 * M + 50).text, '9h 48m left');
+  assert.equal(chip(5 * H + 30 * M, T).text, '3h left');
+  assert.equal(chip(T - 42 * M, T).text, '42m left');
+  assert.equal(chip(T - 45, T).text, '45s left');
+  assert.equal(chip(T, T), null);                                      // at the target: hidden
+  assert.equal(chip(T + 30, T), null);                                 // under a minute over: hidden
+  assert.deepEqual({ ...chip(T + 41 * M, T) }, { text: '41m over', over: true });
+  assert.equal(chip(T + H + 5 * M, T).text, '1h 5m over');
+  assert.equal(chip(100, 0), null);                                    // no target today
+});
+
+test('Done at says "tomorrow" past midnight; Target says when Smart Timings changed it', () => {
+  const doneAt = load(extract('function _rcDoneAt('), { short: d => `${d.getHours()}:${d.getMinutes()}` }, '_rcDoneAt');
+  const now = new Date(2026, 10, 13, 23, 30);
+  assert.deepEqual({ ...doneAt(new Date(2026, 10, 13, 19, 30), now) }, { str: '19:30', tomorrow: false });
+  assert.deepEqual({ ...doneAt(new Date(2026, 10, 14, 10, 29), now) }, { str: '10:29', tomorrow: true });
+  assert.equal(doneAt(new Date(2026, 10, 12, 23, 44), now).tomorrow, false);   // a past time is never "tomorrow"
+  const cap = (log, eff) => load(extract('function _rcTargetCap('), { Math, cfg: () => ({ dailyH: 8.5 }), dayLog: () => log, todayKey: () => 't' }, '_rcTargetCap')(eff);
+  assert.equal(cap({}, 8.5 * 3600), 'Target');
+  assert.equal(cap({}, 11 * 3600), "Today's target");
+  assert.equal(cap({ override: 'halfday' }, 4.25 * 3600), 'Target');
+  assert.equal(cap({ todayTargetH: 6 }, 6 * 3600), 'Target');
+});
+
+test('Banner: one moment each, no numbers the card already shows', () => {
+  assert.match(SRC, /_showDoneBanner\('done', 'success', 'check', "You're done\. Head out!", 'Nicely on time'\);/);
+  assert.match(SRC, /_showDoneBanner\('late', 'warning', 'clock', 'Time to head out', ''\);/);
+  assert.doesNotMatch(SRC, /_showDoneBanner\('over'/);                 // the chip carries the overtime number
+  assert.equal((SRC.match(/_showDoneBanner\('ended', 'violet', 'moon', 'Done for today', 'See you tomorrow'\);/g) || []).length, 2);
+  assert.match(extract('function _showDoneBanner('), /_doneDismissed === todayKey\(\) \+ '\|' \+ moment/);
+  assert.match(extract('function _doneHint('), /wh_swipe_hint/);
+});
+
+test('Paused keeps the card, frozen, instead of the ended summary', () => {
+  const src = extract('function renderEmptyState(', '\n    }\n\n');
+  assert.match(src, /if \(endedSecs > 0 && !loginDate && _logE\.checkoutDisplay && !_logE\.checkoutTime && !_logE\.autostopped\) \{/);
+  const paused = src.slice(src.indexOf('&& !_logE.autostopped) {'), src.indexOf("el('rcKpiGroup')?.classList.remove('rc-paused');"));
+  assert.match(paused, /paused: true/);
+  assert.match(paused, /_hideDoneBanner\(\);/);
+  assert.doesNotMatch(paused, /_pastDayKpiHtml/);
+  // Countdown elsewhere still rounds up so worked + short / to go = target.
+  assert.match(SRC, /durWorked\(_minsGap\(eff, workedSecs\) \|\| 60\)\} short\./);
+  assert.match(SRC, /durWorked\(_minsGap\(effSecs\(\), existingSecs\) \|\| 60\)\} to go/);
+});
+
+test('Pause saves the real hours (the live rewrite waits while it saves)', () => {
+  assert.match(extract('function endSession('), /_sessionEnding = true;\n\s*try \{ saveDayLogAndSync\(tk, _esEntry\); \} finally \{ _sessionEnding = false; \}/);
+});
+
+test('Daily modals show today only: Started · Done at / Left at · Total (no week figure)', () => {
+  const HTML = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
+  assert.match(HTML, /<div class="am-k">Started<\/div><div class="am-v" id="dtrStart">—<\/div><\/div><div><div class="am-k">Done at<\/div><div class="am-v" id="dtrDoneAt">—<\/div><\/div><div><div class="am-k">Total<\/div><div class="am-v" id="dailyTargetHours">/);
+  assert.match(HTML, /<div class="am-k">Left at<\/div><div class="am-v" id="coLeft">—<\/div><\/div><div><div class="am-k">Total<\/div><div class="am-v" id="coTotal">/);
+  assert.doesNotMatch(HTML, /This week<\/div><div class="am-v"/);
+  assert.match(extract('function _openDayDone('), /el\('dtrDoneAt'\)\.textContent = loginDate \? short\(_leaveAt\(effSecs\(\)\)\)/);
+  assert.match(extract('function showCheckoutModal('), /el\('coTotal'\)\.textContent = durWorked\(workedSecs\);/);
+});
+
+test('Onboarding: intro, one question per screen with back, outro; no preview card', () => {
+  const draw = extract('function _ob2Draw(');
+  assert.match(draw, /<h2>Welcome to 5pm<\/h2><p>5pm tracks your work hours and shows when your day is done\. Set up your workday to get started\.<\/p>/);
+  assert.match(draw, /data-back aria-label="Back"/);
+  assert.match(draw, /addEventListener\('click', \(\) => _ob2Go\(S\.at - 1, -1\)\)/);
+  assert.doesNotMatch(SRC, /YOUR DAY|You can leave<\/div>|_ob2Preview|Leave on time, every time/);
+  const Q = load(extract('    const _OB2_Q = [', '\n    ];'), {}, '_OB2_Q');
+  assert.deepEqual([...Q].map(q => q.key), ['start', 'hours', 'days', 'name']);
+  // Phones: a bottom sheet sized to its content, not a full-screen page.
+  const HTML = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
+  assert.match(HTML, /\.ob-overlay\.ob2-overlay \{ align-items: flex-end; padding: 0; \}/);
+  assert.match(HTML, /\.ob2 \{ width: 100%; max-width: none; min-height: 0; max-height: 92dvh;/);
+});
+
+test('Start before your shift? names both times; Start runs the normal start path', () => {
+  const T = { osDesc: {}, osStart: {}, outsideShiftOverlay: { classList: { add() { T.opened = true; } } } };
+  const ctx = { cfg: () => ({ shiftStart: '09:00 AM' }), el: id => T[id], short: d => '06:30 AM', _pendingLoginP: null };
+  load(extract('function showOutsideShiftModal('), ctx, 'showOutsideShiftModal(new Date())');
+  assert.equal(T.osDesc.textContent, 'Your shift starts at 09:00 AM. Your day will count from 06:30 AM.');
+  assert.equal(T.osStart.textContent, 'Start at 06:30 AM');
+  assert.ok(T.opened);
+  const HTML = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
+  assert.match(HTML, /<div class="overlay am-host" id="outsideShiftOverlay" data-dismiss="osNotNow">/);
+  assert.match(HTML, /<p class="am-t" id="osTitle">Start before your shift\?<\/p>/);
+  assert.doesNotMatch(HTML, />Override</);
+  assert.match(extract('function overrideOutsideShift('), /_startOrContinue\(p\)/);
+});
+
+test('Store rating: try 1 at "Almost done", try 2 on the next open, never after a rating or two tries', async () => {
+  const ls = new Map(); let shown = 0, result = 'canceled', store = true, pending = null;
+  const ctx = { JSON, DEV_SAMPLE: false, document: { visibilityState: 'visible' }, _queueModal: f => { pending = f(); },
+    localStorage: { getItem: k => ls.get(k) ?? null, setItem: (k, v) => ls.set(k, v) },
+    window: { __TAURI__: { core: { invoke: async cmd => cmd === 'is_store_app' ? store : (shown++, result) } } } };
+  const code = "    const RATE_KEY = 'wh_store_rate';\n"
+    + extract('function _rateState(', '\n') + extract('function _rateSave(', '\n')
+    + extract('function _rateDue(') + '\n' + extract('async function _rateAsk(');
+  const raw = load(code, ctx, '_rateAsk');
+  const ask = async at => { pending = null; await raw(at); await pending; };   // the dialog waits its turn in the modal queue
+  await ask('open');    assert.equal(shown, 0, 'never on open before the first try');
+  await ask('session'); assert.equal(shown, 1, 'try 1 at Almost done');
+  await ask('session'); assert.equal(shown, 1, 'try 1 happens once');
+  await ask('open');    assert.equal(shown, 2, 'try 2 on the next open after a cancel');
+  await ask('open');    assert.equal(shown, 2, 'never a third time');
+  // A rating on try 1 ends it.
+  ls.clear(); shown = 0; result = 'succeeded';
+  await ask('session'); await ask('open'); assert.equal(shown, 1);
+  // Not the Store package (web, standalone installer): never asks.
+  ls.clear(); shown = 0; store = false;
+  await ask('session'); assert.equal(shown, 0);
+  // Fires even with the Wrap-Up Reminder off: scheduled before the notifications check.
+  assert.match(extract('function scheduleNotifications('), /_rateSchedule\(loginTimestamp\);  \/\/ its own timer[^\n]*\n\s*if \(!c\.notifOn/);
+  assert.match(extract('function _rateSchedule('), /\(targetSecs - 300\) \* 1000/);
+});
+
+test('Modals: Start-early on a day with hours asks once; Leave early skips the summary', () => {
+  assert.match(extract('function calculate('), /if \(isOutsideShift\(p\) && !isSmallCorrection && !_todayEndedSecs\(\)\) \{ showOutsideShiftModal\(p\); return; \}/);
+  assert.match(extract('function openContinueWorkingModal('), /el\('cwNote'\)\.textContent = early \? `Your shift starts at \$\{cfg\(\)\.shiftStart/);
+  assert.match(SRC, /el\('endSessionConfirmBtn'\)\.addEventListener\('click', \(\) => \{ _skipDaySummary = true; confirmEndSession\(\); \}\);/);
+  // After the target, End still goes straight to the summary (openEndSessionModal calls confirmEndSession itself).
+  assert.match(extract('function openEndSessionModal('), /if \(remSecs <= 0\) \{ confirmEndSession\(\); return; \}/);
+});
+
+test('Modals: automatic ones wait until nothing else is open, oldest first', () => {
+  const opened = [], open = new Set(), timers = [];
+  const ctx = { opened, _nativeModalOpen: false,
+    document: { body: { classList: { contains: () => false } }, querySelectorAll: () => [...open].map(() => ({})) },
+    getComputedStyle: () => ({ display: 'flex' }), el: () => null,
+    setTimeout: f => { timers.push(f); return timers.length; } };
+  const code = 'const _modalQueue = [];\nlet _modalPump = null, _nativeModalOpen = false;\n'
+    + extract('function _anyModalOpen(') + '\n' + extract('function _queueModal(') + '\n' + extract('function _pumpModals(');
+  const q = load(code, ctx, '_queueModal');
+  const run = () => { while (timers.length) timers.shift()(); };
+  open.add('today panel');
+  q(() => opened.push('done')); q(() => opened.push('whats new'));
+  for (let i = 0; i < 3; i++) if (timers.length) timers.shift()();   // keeps waiting while something is open
+  assert.deepEqual([...opened], []);
+  open.clear(); timers.shift()();                                    // panel closed: the oldest opens
+  assert.deepEqual([...opened], ['done']);
+  open.add('done'); timers.shift()(); assert.deepEqual([...opened], ['done']);   // the next waits for it
+  open.clear(); run(); assert.deepEqual([...opened], ['done', 'whats new']);
+  // Wired in: Done for the Day, Auto-Stopped, week plan, What's New, Store rating.
+  assert.match(SRC, /_queueModal\(\(\) => \{ if \(!dayLog\(todayKey\(\)\)\?\.checkoutTime && !autoStopped\) _openDayDone\(_workedNow\); \}\);/);
+  assert.match(SRC, /setTimeout\(\(\) => _queueModal\(checkAutoStopRecovery\), 800\);/);
+  assert.match(SRC, /setTimeout\(\(\) => _queueModal\(openWeekPlanModal\), 1200\);/);
+  assert.match(extract('function _wnMaybeShow('), /_queueModal\(\(\) => \{ openWhatsNew\(APP_VERSION\); markSeen\(\); \}\);/);
+  assert.match(extract('async function _rateAsk('), /_queueModal\(async \(\) => \{[\s\S]*_nativeModalOpen = true;/);
+});
+
+test('Ended summary line: "short of your 9h" / "over your 9h" / "Right on target"', () => {
+  const v = load(extract('function _rcRemainingFmt(') + '\n' + extract('function _minsGap(', '}') + '\n' + extract('function _dayVerdictText('), { Math }, '_dayVerdictText');
+  const H = 3600, M = 60;
+  assert.deepEqual({ ...v(6 * H + 45 * M, 9 * H) }, { text: '2h 15m short of your 9h', tone: 'short' });
+  assert.deepEqual({ ...v(9 * H + 41 * M, 9 * H) }, { text: '41m over your 9h', tone: 'over' });
+  assert.equal(v(5 * H + 40 * M + 40, 9 * H + 43 * M + 3).text, '4h 3m short of your 9h 43m');   // whole minutes, adds up
+  assert.equal(v(9 * H + 4 * M, 9 * H).text, 'Right on target');
+  assert.equal(v(8 * H + 56 * M, 9 * H).text, 'Right on target');
+  assert.equal(v(9 * H, 0), null);
+  assert.doesNotMatch(SRC, /Overtime!|You missed the target by/);
+});
+
+test('Ended summary line uses the centre chip (pill), amber when over, green when on target', () => {
+  const html = load(extract('function _rcRemainingFmt(') + '\n' + extract('function _minsGap(', '}') + '\n' + extract('function _dayVerdictText(') + '\n' + extract('function _dayVerdictHtml('), { Math }, '_dayVerdictHtml');
+  assert.match(html(6 * 3600, 9 * 3600), /^<span class="rc-desc-chip pill" style="gap:4px">3h short of your 9h<\/span>$/);
+  assert.match(html(9.7 * 3600, 9 * 3600), /class="rc-desc-chip pill warn"/);
+  assert.match(html(9 * 3600, 9 * 3600), /class="rc-desc-chip pill ok"[^>]*><svg[\s\S]*Right on target/);
+});
+
+test('Starting with a time already past auto-stop does not crash', () => {
+  assert.match(extract('function _startSession('), /render\(\);\n(\s*\/\/.*\n)*\s*if \(!loginDate\) return;\n\s*if \(ticker\) clearInterval\(ticker\);/);
+});
+
+test('Weekend card: week total chip, tiny bars, note box; View Stats keeps its button', () => {
+  const chip = load(extract('function wkSigned(') + '\nconst _wsGap = secs => wkSigned(secs).slice(1);\n' + extract('function _minsGap(', '}') + '\n' + extract('function _wkndWeekChip('), { Math, p2: n => String(n).padStart(2, '0') }, '_wkndWeekChip');
+  const H = 3600, M = 60;
+  assert.deepEqual({ ...chip(43 * H + 47 * M, 45 * H) }, { text: '1h 13mins short', tone: '' });
+  assert.deepEqual({ ...chip(45 * H + 2 * M, 45 * H) }, { text: 'On target', tone: 'ok' });
+  assert.deepEqual({ ...chip(45 * H + 32 * M, 45 * H) }, { text: '32mins over', tone: 'ok' });
+  const r = extract('function _renderWkndSummary(');
+  assert.match(r, /d\.key > tk \? 0 :/);                                  // days still ahead never count
+  assert.doesNotMatch(r, /selectDay\(/);                                // bars don't navigate (user, 2026-11-14)
+  assert.match(r, /saveWkndNote\(ta\.value\)/);                          // the same note the old field saved
+  assert.match(SRC, /if \(_isWeekendType\) \{\n\s*if \(_infoCard\) _infoCard\.style\.display = 'none';/);
+  const HTML = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
+  assert.match(HTML, /<div id="wkndSum" style="display:none"><\/div>/);
+  assert.match(HTML, /data-on-click="ha2992aba2f"/);                      // View Stats → openWeekReport(), unchanged
+});
+
+test('Weekend card: no icons on bars, chart container with target line, one variable chip row', () => {
+  const r = extract('function _renderWkndSummary(');
+  assert.doesNotMatch(r, /wkSvg\(|ws-ic/);                                // no icons on the bars
+  assert.match(r, /<div class="ws-chart">[\s\S]*<span class="ws-target"/);  // its own container, the target dashed
+  assert.doesNotMatch(r, /This week, \$\{first\}|ws-cap/);                // no date line
+  assert.match(r, /'Half Day': \['Half Day', 'teal'\], 'Leave': \['On Leave', 'blue'\], 'Holiday': \['Holiday', 'orchid'\]/);
+  assert.match(r, /vary\.innerHTML = typeChip \+ times \+ verdict;/);              // type · start–end · verdict
+  assert.match(r, /const rest = \(\) => \{ vary\.innerHTML = weekRow;/);
+  assert.match(r, /verdict = chipHtml\('No hours', ''\)/);                       // no "your week adjusts"
+  assert.match(r, /if \(dn\) paintNote\(dn, true\);/);                            // that day's note on hover
+  const HTML = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
+  assert.match(HTML, /\.ws-bar i \{[^}]*background: var\(--chart-bar\);/);  // solid, the cool chart grey
+  assert.match(HTML, /\.ws-bar\.hot i \{ background: var\(--foreground\); \}/);                                    // white on hover
+  assert.doesNotMatch(HTML, /\.ws-bars\.scrub \.ws-bar i \{ opacity/);
+});
+
+test("Weekend bars: Leave and Holiday are thin striped bars at a half day's height", () => {
+  const r = extract('function _renderWkndSummary(');
+  assert.match(r, /const cls = rest \? 'rest' : off \? 'off' : '';/);
+  assert.match(r, /const h = rest \? Math\.min\(100, Math\.round\(daily \/ 2 \/ top \* 100\)\)/);
+  const HTML = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
+  assert.match(HTML, /#wsHatch path \{ stroke:/);   // thin lines from one SVG tile: every line the same weight
+  assert.match(r, /<pattern id="wsHatch" width="6" height="6" patternUnits="userSpaceOnUse">/);
+});
+
+test('Weekend total rolls (NumberFlow) to the hovered day and back', () => {
+  assert.equal((SRC.match(/function _odoSet\(/g) || []).length, 1);                    // one rolling-number helper, the existing one
+  const r = extract('function _renderWkndSummary(');
+  assert.match(r, /const rollTo = v => \{ if \(v === hero\._secs\) return; hero\._secs = v; _odoSet\(hero, heroText\(v\)\); \};/);
+  const heroText = load('const p2 = n => String(n).padStart(2, "0");\n' + r.match(/const heroText = v => \{[^\n]*\};/)[0], { Math }, 'heroText');
+  assert.equal(heroText(0), '0h 00m'); assert.equal(heroText(45 * 60), '0h 45m'); assert.equal(heroText(77520), '21h 32m');   // one shape, so it always rolls
+  assert.match(r, /_loadLib\('numberflow'\)/);
+  assert.match(r, /vary\.innerHTML = typeChip \+ times \+ verdict;\n\s*rollTo\(secs\[i\]\);/);  // hover → that day's hours
+  assert.match(r, /rollTo\(heroSecs\);/);                                               // leave → the week again
+});
+
+test('NumberFlow matches its integrity hash byte for byte (no CRLF on Windows)', () => {
+  const crypto = require('node:crypto');
+  const bytes = fs.readFileSync(path.join(WEB, 'lib', 'number-flow.js'));          // a Buffer: raw bytes
+  const hash = 'sha384-' + crypto.createHash('sha384').update(bytes).digest('base64');
+  assert.ok(SRC.includes(hash), `index-app.js must load number-flow.js with ${hash}`);
+  assert.match(fs.readFileSync(path.join(ROOT, '.gitattributes'), 'utf8'), /^public\/lib\/number-flow\.js -text$/m);
+});
+
+test("Weekend chart: the dashed line is this week's longest day, not a fixed 9h", () => {
+  const r = extract('function _renderWkndSummary(');
+  assert.match(r, /const best = Math\.max\(0, \.\.\.secs\);\n\s*const top = best > 0 \? best \* 1\.12 : daily;/);
+  assert.match(r, /best > 0 \? `<span class="ws-target" style="bottom:\$\{Math\.round\(best \/ top \* 100\)\}%"><em>\$\{_rcRemainingFmt\(best\)\}<\/em><\/span>` : ''/);
+  assert.doesNotMatch(r, /<em>\$\{_rcRemainingFmt\(daily\)\}<\/em>/);
+});
+
+test('Surfaces use Cool graphite in light and dark, on every page', () => {
+  const HTML = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
+  assert.match(HTML, /--background: #eef0f4; --foreground: #0c0e13; --card: #ffffff;\n\s*--surface-raised: #f6f7fa;\n\s*--muted: #e7eaf0;/);
+  assert.match(HTML, /--background: #08090c; --foreground: #eef1f6; --card: #13151a;\n\s*--surface-raised: #1c1f26;\n\s*--muted: #2a2e38;/);
+  for (const f of ['index.html', 'login.html', 'about.html', 'privacy.html', 'passkey-desktop.html']) {
+    const src = fs.readFileSync(path.join(WEB, f), 'utf8');
+    assert.doesNotMatch(src, /#141414|#191919/, `${f} still has the old greys`);
+    assert.match(src, /#08090c/, `${f} has the new dark page`);
+  }
+});
+
+test('Cool greys: text and chart greys share the blue tint; chart text is at least 12px', () => {
+  const HTML = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
+  assert.match(HTML, /--muted-fg: #545b69; --text-muted: #747c8a;/);          // light
+  assert.match(HTML, /--muted-fg: #a9b0bd; --text-muted: #828a98;/);          // dark
+  assert.match(HTML, /--border: #22262f; --border-subtle: #1a1d24;/);         // quieter dark strokes
+  assert.match(HTML, /\.ws-target em \{[^}]*font: 500 12px/);
+  assert.match(HTML, /\.ws-letters span \{[^}]*font-size: 12px/);
+});
+
+test('No text under 12px anywhere in 5pm (user rule, 2026-11-14)', () => {
+  const tooSmall = /font-size:\s?(?:[0-9]|1[01])(?:\.[0-9]+)?px|font:\s?[0-9]{3}\s(?:[0-9]|1[01])(?:\.[0-9]+)?px/g;
+  for (const f of ['index.html', 'login.html', 'about.html', 'privacy.html', 'passkey-desktop.html', 'lib/pages/index-app.js', 'lib/pages/tour.js', 'lib/pages/index-extras.js']) {
+    const p = path.join(WEB, f); if (!fs.existsSync(p)) continue;
+    const hits = fs.readFileSync(p, 'utf8').match(tooSmall) || [];
+    assert.deepEqual(hits, [], `${f} has text under 12px: ${hits.join(', ')}`);
+  }
+});
+
+test('Dark status colours are the soft set, and day types use theme tokens', () => {
+  const HTML = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
+  const dark = HTML.match(/\n    \.dark \{[\s\S]*?\n    \}/)[0];
+  for (const tok of ['--success: #74c7a0', '--warning: #deb97f', '--destructive: #d57c8e', '--blue: #89bad9',
+    '--violet: #a39bd9', '--orchid: #ca93d2', '--teal: #68c6b8', '--success-bg: #1f2a2a', '--warning-bg: #2b2926'])
+    assert.ok(dark.includes(tok), tok);
+  // No bright hard-coded day-type / status colours left in the app script.
+  assert.doesNotMatch(SRC, /#0ea5e9|#a855f7|#3b82f6|#22c55e|rgba\(168,85,247|rgba\(14,165,233|rgba\(59,130,246|rgba\(34,197,94/);
+  assert.match(extract('function _attChip('), /'Half Day': \{ bg: 'color-mix\(in srgb, var\(--teal\) 14%, transparent\)'/);
+});
+
+test('Appearance cards: the selected card is filled, never ringed', () => {
+  const HTML = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
+  const ring = HTML.match(/\.rc-ring \{[^}]*\}/)[0];
+  assert.match(ring, /background: var\(--muted\)/);
+  assert.doesNotMatch(ring, /border:/);
+  assert.match(HTML, /\.rc-cards\.ringed \.rc-card\.active \{ border-color: transparent; \}/);
+  const place = extract('function _placeThemeRing(');
+  assert.match(place, /translate\(\$\{on\.offsetLeft\}px, \$\{on\.offsetTop\}px\)/);
+});
+
+test('Appearance cards: the active card shows a filled icon', () => {
+  const HTML = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
+  assert.match(HTML, /\.rc-card\.active \.rc-ic svg > \* \{ fill: currentColor; \}/);
+  assert.doesNotMatch(HTML, /class="rc-dot"|class="rc-d"/);
+});
+
+test('Backup codes keep two-step on, and new passwords need 8 characters', () => {
+  const MIG = fs.readFileSync(path.join(__dirname, '..', 'supabase', 'migrations', '20261115120000_backup_codes_keep_two_step.sql'), 'utf8');
+  // The code is marked used and the session is remembered; factors are never deleted.
+  assert.match(MIG, /update public\.mfa_backup_codes set used_at = now\(\)/);
+  assert.match(MIG, /insert into public\.mfa_backup_sessions/);
+  assert.doesNotMatch(MIG, /delete from auth\.mfa_factors/);
+  assert.match(MIG, /references auth\.sessions \(id\) on delete cascade/);
+  assert.match(MIG, />= 10 then/);
+  // Login page and the app's gate ask the database before asking for a code again.
+  assert.match(LOGIN, /rpc\('mfa_satisfied'\)/);
+  const GATE = fs.readFileSync(path.join(WEB, 'lib', 'pages', 'index-auth-gate.js'), 'utf8');
+  assert.match(GATE, /rpc\('mfa_satisfied'\)/);
+  assert.doesNotMatch(LOGIN, /Two-factor is off/);
+  // 8-character minimum for new passwords, in both places.
+  assert.match(LOGIN, /isSignup && pwd\.length < 8/);
+  assert.match(SRC, /pwd\.length < 8\) \{ showErr\('Use at least 8 characters/);
+  assert.doesNotMatch(SRC, /pwd\.length < 6/);
 });

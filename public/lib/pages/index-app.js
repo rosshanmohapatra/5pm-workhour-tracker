@@ -3120,9 +3120,8 @@
         const cls = rest ? 'rest' : off ? 'off' : '';
         const h = rest ? Math.min(100, Math.round(daily / 2 / top * 100)) : off ? 0 : Math.max(6, Math.round(secs[i] / top * 100));
         const hatch = rest ? '<svg class="ws-hatch" aria-hidden="true"><rect width="100%" height="100%"/></svg>' : '';
-        return `<span class="ws-bar ${cls}" data-i="${i}" tabindex="0" role="img" style="--h:${h}%;--d:${i * 60}ms"><i>${hatch}</i></span>`;
+        return `<span class="ws-bar ${cls}" data-i="${i}" tabindex="0" role="img" style="--h:${h}%;--d:${i * 60}ms"><i>${hatch}</i><b class="ws-l" aria-hidden="true">${FULL[wk[i].date.getDay()][0]}</b></span>`;
       }).join('');
-      const letters = wk.map(d => `<span>${FULL[d.date.getDay()][0]}</span>`).join('');
       const note = dayLog(noteKey)?.note?.trim() || '';
       const noteHtml = _wkndNoteEditing
         ? `<div class="ws-edit"><textarea class="ws-ta" rows="2" maxlength="240" placeholder="${_infoNoteTitle('weekend')}" aria-label="Weekend note"></textarea><div class="ws-acts"><button type="button" class="btn-secondary" data-ws="cancel">Cancel</button><button type="button" class="btn btn-primary" data-ws="save">Save</button></div></div>`
@@ -3143,7 +3142,6 @@
               ${best > 0 ? `<span class="ws-target" style="bottom:${Math.round(best / top * 100)}%"><em>${_rcRemainingFmt(best)}</em></span>` : ''}
               <div class="ws-bars" role="group" aria-label="Hours by day">${bars}</div>
             </div>
-            <div class="ws-letters" aria-hidden="true">${letters}</div>
           </div>
           ${noteHtml}
         </div>`;

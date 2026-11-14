@@ -1065,7 +1065,7 @@ test('Cool greys: text and chart greys share the blue tint; chart text is at lea
   assert.match(HTML, /--muted-fg: #a9b0bd; --text-muted: #828a98;/);          // dark
   assert.match(HTML, /--border: #22262f; --border-subtle: #1a1d24;/);         // quieter dark strokes
   assert.match(HTML, /\.ws-target em \{[^}]*font: 500 12px/);
-  assert.match(HTML, /\.ws-letters span \{[^}]*font-size: 12px/);
+  assert.match(HTML, /\.ws-l \{[^}]*font-size: 12px/);
 });
 
 test('No text under 12px anywhere in 5pm (user rule, 2026-11-14)', () => {
@@ -1145,4 +1145,14 @@ test('Weekend card is flat, View Stats sits below the Home card (#50)', () => {
   assert.doesNotMatch(inside, /View Stats/);
   assert.match(HTML, /#homeMain:has\(#rcBody\.weekend-mode #weekendView\.ws-on\) #wkndStatsOut \{ display: block; \}/);
   assert.match(SRC, /el\('weekendView'\)\?\.classList\.toggle\('ws-on', _isWeekendType\)/);
+});
+
+test('Weekend chart: day letters inside the bars, no letter row, 112px plot (#48)', () => {
+  const HTML = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
+  const r = extract('function _renderWkndSummary(');
+  assert.match(r, /<i>\$\{hatch\}<\/i><b class="ws-l" aria-hidden="true">\$\{FULL\[wk\[i\]\.date\.getDay\(\)\]\[0\]\}<\/b><\/span>/);
+  assert.doesNotMatch(r, /ws-letters/);
+  assert.doesNotMatch(HTML, /\.ws-letters/);
+  assert.match(HTML, /\.ws-plot \{ position: relative; height: 112px; \}/);
+  assert.match(HTML, /\.ws-bar\.hot \.ws-l \{ color: var\(--card\); \}/);   // dark on the white bar
 });

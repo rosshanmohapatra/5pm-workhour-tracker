@@ -1244,14 +1244,20 @@
     .dt-chip { display: inline-flex; align-items: center; height: 22px; padding: 0 9px; border-radius: 6px; font-size: 12px; font-weight: 600;
       color: var(--dt, var(--foreground)); background: color-mix(in srgb, var(--dt, var(--foreground)) 14%, transparent); }
     /* Chart container: its own surface, a midline, the daily target dashed. */
-    .ws-chart { margin-top: 14px; padding: 14px 14px 10px; border-radius: 12px; background: var(--surface-raised); border: 1px solid var(--border); }
-    .ws-plot { position: relative; height: 72px; }
+    .ws-chart { margin-top: 14px; padding: 14px 12px 12px; border-radius: 12px; background: var(--surface-raised); border: 1px solid var(--border); }
+    /* Letters sit inside the bars (#48, option A): no letter row, so the plot
+       gets the room (112px) and bars no longer look like they start halfway. */
+    .ws-plot { position: relative; height: 112px; }
     .ws-grid { position: absolute; left: 0; right: 0; border-top: 1px solid var(--border-subtle); }
     .ws-plot::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; border-top: 1px solid var(--border); }
     .ws-target { position: absolute; left: 0; right: 0; border-top: 1px dashed var(--border-strong); z-index: 1; pointer-events: none; }
     .ws-target em { position: absolute; right: 0; top: -17px; font: 500 12px var(--font); font-style: normal; color: var(--muted-fg); }
     .ws-bars { position: absolute; inset: 0; display: flex; align-items: stretch; gap: 6px; }
-    .ws-bar { flex: 1; display: flex; align-items: flex-end; border-radius: 7px 7px 0 0; outline: none; }
+    .ws-bar { position: relative; flex: 1; display: flex; align-items: flex-end; border-radius: 7px 7px 0 0; outline: none; }
+    .ws-l { position: absolute; left: 0; right: 0; bottom: 7px; text-align: center; font-size: 12px; font-weight: 600;
+      color: var(--foreground); pointer-events: none; transition: color .15s; }
+    .ws-bar.hot .ws-l { color: var(--card); }   /* dark letter on the white hovered bar */
+    .ws-bar.off.hot .ws-l { color: var(--foreground); }
     /* Bars are always solid (never see-through): gray, and white for the one
        being hovered (user, 2026-11-14). */
     .ws-bar i { display: block; width: 100%; height: var(--h); border-radius: 7px 7px 0 0;
@@ -1272,8 +1278,6 @@
     .ws-bar.rest.hot .ws-hatch rect { fill: url(#wsHatchHot); }
     .ws-bars.grown .ws-bar i { transform: scaleY(1); }
     .ws-bar:focus-visible i { box-shadow: 0 0 0 2px var(--ring, #3b82f6); }
-    .ws-letters { display: flex; gap: 6px; margin-top: 8px; }
-    .ws-letters span { flex: 1; text-align: center; font-size: 12px; font-weight: 600; color: var(--muted-fg); }
     .ws-note { display: flex; gap: 10px; align-items: flex-start; width: 100%; margin-top: 14px; padding: 11px 12px; border-radius: 12px;
       border: 1px dashed var(--border-strong); background: var(--card); color: var(--muted-fg); font: 400 13.5px/1.45 var(--font);
       text-align: left; cursor: pointer; }

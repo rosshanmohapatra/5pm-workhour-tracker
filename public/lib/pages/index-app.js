@@ -10898,7 +10898,7 @@ Kind regards,
         '<div class="dev-left"><div class="dev-icon">' + _PK_ICON + '</div><div class="dev-info">' +
           '<input class="dev-name" type="text" maxlength="60" spellcheck="false" autocomplete="off" data-lpignore="true" data-1p-ignore="true" aria-label="Passkey name">' +
           '<div class="dev-sub"></div></div></div>' +
-        '<button class="btn-ghost-destructive" style="flex-shrink:0;font-size:12px;height:30px;padding:0 12px">Remove</button>';
+        '<button class="btn-danger-2 sm">Remove</button>';
       const name = row.querySelector('.dev-name');
       name.value = k.friendly_name || 'Passkey';
       const d = new Date(k.created_at);
@@ -10936,10 +10936,13 @@ Kind regards,
       return row;
     }
 
+    // Destructive button loading state (#43): spinner + the label, e.g. "Logging Out".
+    function _btnBusy(btn, label) { if (!btn) return; btn.disabled = true; btn.setAttribute('aria-busy', 'true'); btn.textContent = label; }
+    function _btnIdle(btn, label) { if (!btn) return; btn.disabled = false; btn.removeAttribute('aria-busy'); btn.textContent = label; }
     async function confirmRemovePasskey() {
       if (!_pkRemoving) return;
       const btn = el('pkRemoveBtn');
-      btn.disabled = true; btn.textContent = 'Removing…';
+      _btnBusy(btn, 'Removing');
       try {
         const { error } = await window._sbClient.auth.passkey.delete({ passkeyId: _pkRemoving.id });
         if (error) throw error;
@@ -10949,7 +10952,7 @@ Kind regards,
       } catch (e) {
         showToast("Couldn't Remove Passkey", 'error', e.message || 'Please try again.');
       }
-      btn.disabled = false; btn.textContent = 'Remove';
+      _btnIdle(btn, 'Remove');
     }
 
     async function addPasskey() {
@@ -11070,7 +11073,7 @@ Kind regards,
     }
     function closeMfaModal() {
       closeSetPage();
-      const db = el('mfaDisableBtn'); if (db) { db.disabled = false; db.textContent = 'Disable'; }
+      _btnIdle(el('mfaDisableBtn'), 'Disable');
     }
     function _mfaSetupError(msg) {
       const e = el('mfaSetupErr'); if (e) { e.textContent = msg; e.style.display = ''; }
@@ -11198,7 +11201,7 @@ Kind regards,
     function mfaShowManage() { _mfaShowView('mfaViewManage'); }
     function mfaShowDisable() { _mfaShowView('mfaViewDisable'); }
     async function mfaConfirmDisable() {
-      const btn = el('mfaDisableBtn'); btn.disabled = true; btn.textContent = 'Disabling…';
+      const btn = el('mfaDisableBtn'); _btnBusy(btn, 'Disabling');
       try {
         const fid = _mfaManageFactor?.id;
         if (fid) { const { error } = await window._sbClient.auth.mfa.unenroll({ factorId: fid }); if (error) throw error; }
@@ -11209,7 +11212,7 @@ Kind regards,
         showToast('Two-Factor Disabled', 'success', 'Authenticator app removed from your account.');
         hydrateSignInMethods();
       } catch(e) {
-        btn.disabled = false; btn.textContent = 'Disable';
+        _btnIdle(btn, 'Disable');
         showToast('Could not disable', 'error', e.message || 'Please try again.');
       }
     }
@@ -11713,8 +11716,7 @@ Kind regards,
         actions.appendChild(chip);
       } else {
         const btn = document.createElement('button');
-        btn.className = 'btn-ghost-destructive';
-        btn.style.cssText = 'flex-shrink:0;font-size:12px;height:30px;padding:0 12px';
+        btn.className = 'btn-danger-2 sm';
         btn.textContent = 'Log Out';
         btn.addEventListener('click', () => devRevoke(row.device_id, row.name, btn));
         actions.appendChild(btn);
@@ -11724,21 +11726,21 @@ Kind regards,
     }
 
     async function devRevoke(deviceId, name, btn) {
-      if (btn) { btn.disabled = true; btn.textContent = 'Logging Out…'; btn.style.opacity = '.7'; }
+      _btnBusy(btn, 'Logging Out');
       try {
         await Devices.revoke(deviceId);
         showToast('Device Logged Out', 'success',
           (name || 'That device') + ' will sign out and clear its local data.');
         renderDevices();
       } catch (e) {
-        if (btn) { btn.disabled = false; btn.textContent = 'Log Out'; btn.style.opacity = ''; }
+        _btnIdle(btn, 'Log Out');
         showToast("Couldn't Log Out Device", 'error', e.message || 'Please try again.');
       }
     }
 
     async function devRevokeOthers() {
       const btn = el('devRevokeOthersBtn');
-      if (btn) { btn.disabled = true; btn.textContent = 'Logging Out…'; btn.style.opacity = '.7'; }
+      _btnBusy(btn, 'Logging Out');
       try {
         await Devices.revokeOthers();
         showToast('Other Devices Logged Out', 'success', 'Every session except this one has ended.');
@@ -11746,7 +11748,7 @@ Kind regards,
       } catch (e) {
         showToast("Couldn't Log Out Others", 'error', e.message || 'Please try again.');
       } finally {
-        if (btn) { btn.disabled = false; btn.textContent = 'Log Out Others'; btn.style.opacity = ''; }
+        _btnIdle(btn, 'Log Out Other Devices');
       }
     }
 

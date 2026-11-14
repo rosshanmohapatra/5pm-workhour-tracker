@@ -100,6 +100,9 @@
       --success: #00774d; --success-bg: #e8f1ec; --success-border: #c8ded2;
       --warning: #9f6202; --warning-bg: #f6efe8; --warning-border: #e9d8c8;
       --destructive: #bb2c54; --destructive-bg: #fbebed; --destructive-border: #f5cfd3;
+      /* Destructive button (#43): solid red 5.6:1 with white text, red text on grey, tint. */
+      --danger-solid: #c42b33; --danger-solid-hover: #b4232b; --danger-solid-press: #9f1f26;
+      --danger-text: #c42b33; --danger-tint: #fdecec;
       --blue: #136d9e; --blue-bg: #e8f0f6; --blue-border: #c9dbe8;
       --violet: #6850b9; --orchid: #943fa2; --teal: #007467;
       /* Today's date tile: a slight hint of the foreground in the surface. */
@@ -135,6 +138,8 @@
       --success: #74c7a0; --success-bg: #1f2a2a; --success-border: #2a403a;
       --warning: #deb97f; --warning-bg: #2b2926; --warning-border: #443c32;
       --destructive: #d57c8e; --destructive-bg: #2a2128; --destructive-border: #422e36;
+      --danger-solid: #d2373d; --danger-solid-hover: #c9323a; --danger-solid-press: #b4232b;
+      --danger-text: #ef6a6f; --danger-tint: #2e1b20;
       --blue: #89bad9; --blue-bg: #212931; --blue-border: #2f3d48;
       --violet: #a39bd9; --orchid: #ca93d2; --teal: #68c6b8;
       --today-tile: color-mix(in srgb, var(--foreground) 15%, var(--card));
@@ -297,26 +302,47 @@
       color: var(--foreground); transition: background .14s; display: inline-flex;
       align-items: center; gap: 5px; }
     .btn-sm:hover { background: var(--border); }
-    .btn-ghost-danger { height: 36px; padding: 0 16px; font-size: 13px; font-weight: 600;
-      border-radius: var(--radius-md); font-family: var(--font); display: inline-flex; align-items: center;
-      background: var(--destructive-bg); color: var(--destructive); border: none;
-      cursor: pointer; transition: background .14s, color .14s;
-      white-space: nowrap; flex-shrink: 0; }
-    .btn-ghost-danger:hover { background: var(--destructive-bg); color: var(--destructive); filter: brightness(.92); }
-    .btn-ghost-danger:disabled { opacity: .4; cursor: not-allowed; }
-    .btn-ghost-danger:disabled:hover { filter: none; }
     .btn-secondary { height: 36px; padding: 0 16px; font-size: 13px; font-weight: 500;
       border-radius: var(--radius-md); font-family: var(--font); display: inline-flex; align-items: center; justify-content: center;
       background: var(--btn-secondary-bg); color: var(--btn-secondary-fg); border: none;
       cursor: pointer; transition: background .14s; white-space: nowrap; flex-shrink: 0; }
     .btn-secondary:hover { background: var(--btn-secondary-hover); }
-    .btn-ghost-destructive { height: 36px; padding: 0 16px; font-size: 13px; font-weight: 600;
-      border-radius: var(--radius-md); font-family: var(--font); display: inline-flex; align-items: center;
-      background: color-mix(in srgb, var(--destructive) 8%, transparent);
-      color: var(--destructive); border: 1px solid var(--destructive);
-      cursor: pointer; transition: background .14s; white-space: nowrap; flex-shrink: 0; }
-    .btn-ghost-destructive:hover { background: color-mix(in srgb, var(--destructive) 14%, transparent); }
-    .btn-ghost-destructive:disabled { opacity: .4; cursor: not-allowed; }
+    /* ── Destructive button (#43, approved 2026-11-14; adapted from uiarc button) ──
+       The ONLY destructive style in 5pm. Borderless, always red:
+       .btn-danger    Primary   solid red, white text: the confirm in a destructive dialog.
+       .btn-danger-2  Secondary grey chip, red text; turns solid red on hover / press.
+       .btn-danger-3  Tertiary  red text; a red tint on hover.
+       Add .sm for 30px. Disabled = grey with grey text (no red). Loading = aria-busy="true"
+       (spinner + the label, e.g. "Logging Out"). Focus = 2px red ring with a card gap. */
+    .btn-danger, .btn-danger-2, .btn-danger-3 { position: relative; height: 36px; padding: 0 16px; gap: 6px;
+      font: 600 13px var(--font); border: none; border-radius: var(--radius-md);
+      display: inline-flex; align-items: center; justify-content: center; white-space: nowrap; flex-shrink: 0;
+      cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent;
+      transition: background .14s, color .14s, box-shadow .14s; }
+    .btn-danger { background: var(--danger-solid); color: #fff; }
+    .btn-danger-2 { background: var(--btn-secondary-bg); color: var(--danger-text); }
+    .btn-danger-3 { background: transparent; color: var(--danger-text); }
+    @media (hover: hover) and (pointer: fine) {
+      .btn-danger:hover:not(:disabled) { background: var(--danger-solid-hover); }
+      .btn-danger-2:hover:not(:disabled) { background: var(--danger-solid-hover); color: #fff; }
+      .btn-danger-3:hover:not(:disabled) { background: var(--danger-tint); }
+    }
+    .btn-danger:active:not(:disabled), .btn-danger-2:active:not(:disabled) { background: var(--danger-solid-press); color: #fff; }
+    .btn-danger-3:active:not(:disabled) { background: var(--danger-tint); }
+    .btn-danger:focus-visible, .btn-danger-2:focus-visible, .btn-danger-3:focus-visible {
+      outline: none; box-shadow: 0 0 0 2px var(--card), 0 0 0 4px var(--danger-solid); }
+    .btn-danger:disabled:not([aria-busy="true"]), .btn-danger-2:disabled:not([aria-busy="true"]), .btn-danger-3:disabled:not([aria-busy="true"]) {
+      background: var(--muted); color: var(--text-muted); cursor: not-allowed; }
+    .btn-danger-3:disabled:not([aria-busy="true"]) { background: transparent; }
+    .btn-danger-2[aria-busy="true"] { background: var(--danger-solid); color: #fff; }
+    .btn-danger.sm, .btn-danger-2.sm, .btn-danger-3.sm { height: 30px; padding: 0 12px; font-size: 12px; }
+    .btn-danger svg, .btn-danger-2 svg, .btn-danger-3 svg { width: 14px; height: 14px; flex: none; }
+    .btn-danger[aria-busy="true"], .btn-danger-2[aria-busy="true"], .btn-danger-3[aria-busy="true"] { cursor: progress; }
+    .btn-danger[aria-busy="true"]::before, .btn-danger-2[aria-busy="true"]::before, .btn-danger-3[aria-busy="true"]::before {
+      content: ''; width: 12px; height: 12px; border: 1.5px solid currentColor; border-right-color: transparent;
+      border-radius: 50%; animation: btn-danger-spin .7s linear infinite; }
+    @keyframes btn-danger-spin { to { transform: rotate(360deg); } }
+    @media (prefers-reduced-motion: reduce) { .btn-danger, .btn-danger-2, .btn-danger-3 { transition: none; } }
     .theme-icon-wrap { position: relative; display: inline-flex; width: 16px; height: 16px; }
     .theme-icon-wrap .theme-icon-solid { position: absolute; top: 0; left: 0; opacity: 0; transition: opacity .18s ease; }
     .theme-icon-wrap .theme-icon-outline { transition: opacity .18s ease; }
@@ -634,7 +660,7 @@
     /* Account's buttons were full size next to the compact ones the sign-in
        rows build, so the Security tab had two button scales. */
     body.shell-new .set-panel[data-panel="Security"] .btn-secondary,
-    body.shell-new .set-panel[data-panel="Security"] .btn-ghost-destructive {
+    body.shell-new .set-panel[data-panel="Security"] .btn-danger-2 {
       height: 30px; font-size: 12px; padding: 0 12px; }
 
     /* The card hugs its notifications, top first, and scrolls past a cap:
@@ -1873,7 +1899,8 @@
     .am-btns .btn.btn-primary { width: 100%; height: 46px; font-size: 14.5px; border-radius: 13px; }
     .am-quiet { height: 38px; border: none; background: none; font: 500 14px var(--font); color: var(--muted-fg); cursor: pointer; border-radius: 10px; }
     .am-quiet:hover { color: var(--foreground); }
-    .am-quiet.danger { color: var(--destructive); font-weight: 600; }
+    .am-quiet.danger { color: var(--danger-text); font-weight: 600; transition: background .14s; }
+    .am-quiet.danger:hover, .am-quiet.danger:active { color: var(--danger-text); background: var(--danger-tint); }
     @media (max-width: 640px) {
       .overlay.am-host { align-items: flex-end; padding: 0; }
       .overlay.am-host > .dialog.am { max-width: none; width: 100%; border-radius: 24px 24px 0 0; border-bottom: none;
@@ -2817,14 +2844,6 @@
       .btn-secondary { transition: none; }
       .btn-secondary:hover { background: var(--muted); }
       .btn-secondary:active { background: var(--muted); }
-
-      .btn-ghost-destructive { transition: none; }
-      .btn-ghost-destructive:hover { opacity: .75; }
-      .btn-ghost-destructive:active { opacity: .75; }
-
-      .btn-ghost-danger { transition: none; }
-      .btn-ghost-danger:hover { background: var(--destructive-bg); color: var(--destructive); border-color: var(--destructive-border); }
-      .btn-ghost-danger:active { background: var(--destructive-bg); color: var(--destructive); border-color: var(--destructive-border); }
 
       .shift-start-btn { transition: none; }
       .shift-start-btn:hover { opacity: .82; }
@@ -4447,7 +4466,7 @@
                 <div class="form-label">Log Out</div>
                 <div class="form-sub">Sign out on this device. Your data stays safe in your account.</div>
               </div>
-              <button class="btn-ghost-destructive" data-on-click="ha5895024d2">Log Out</button>
+              <button class="btn-danger-2" data-on-click="ha5895024d2">Log Out</button>
             </div>
 
           </div>
@@ -4885,7 +4904,7 @@
       </div>
       <div style="padding:0 14px 14px;display:flex;justify-content:flex-end;gap:8px">
         <button class="btn-secondary" data-on-click="h60803b94db">Keep</button>
-        <button class="btn-ghost-destructive" id="cancelPlanConfirmBtn" style="height:38px;padding:0 16px;font-size:13px">Cancel Plan</button>
+        <button class="btn-danger" id="cancelPlanConfirmBtn">Cancel Plan</button>
       </div>
     </div>
   </div>
@@ -4932,7 +4951,7 @@
       </div>
       <div style="padding:14px;display:flex;justify-content:flex-end;gap:8px">
         <button class="btn-secondary" data-on-click="h3a488fe697">Stay Back</button>
-        <button class="btn-ghost-destructive" data-on-click="hc1fb0c2186">Log Out</button>
+        <button class="btn-danger" data-on-click="hc1fb0c2186">Log Out</button>
       </div>
     </div>
   </div>
@@ -4951,7 +4970,7 @@
       </div>
       <div style="padding:14px;display:flex;justify-content:flex-end;gap:8px">
         <button class="btn-secondary" data-on-click="h8a0431c316">Cancel</button>
-        <button class="btn-ghost-destructive" id="pkRemoveBtn" data-on-click="h69f23197dd">Remove</button>
+        <button class="btn-danger" id="pkRemoveBtn" data-on-click="h69f23197dd">Remove</button>
       </div>
     </div>
   </div>
@@ -5021,7 +5040,7 @@
         </div>
         <div style="padding:0 14px 14px;display:flex;justify-content:flex-end;gap:8px">
           <button type="button" class="btn-secondary" data-on-click="hfe373ca6db">Back</button>
-          <button type="button" class="btn-ghost-destructive" id="delPwdContinueBtn" data-on-click="hffc28330a5" disabled>Delete Forever</button>
+          <button type="button" class="btn-danger" id="delPwdContinueBtn" data-on-click="hffc28330a5" disabled>Delete Forever</button>
         </div>
       </div>
 
@@ -5320,7 +5339,7 @@
           </button>
         </div>
         <div style="padding:0 14px 14px;display:flex;flex-direction:column;gap:8px">
-          <button class="btn-ghost-destructive" style="width:100%;justify-content:center" data-on-click="h0d46da7c63">Disable Two-Factor Authentication</button>
+          <button class="btn-danger-2" style="width:100%" data-on-click="h0d46da7c63">Disable Two-Factor Authentication</button>
         </div>
       </div>
 
@@ -5334,7 +5353,7 @@
         </div>
         <div style="padding:0 14px 14px;display:flex;gap:8px">
           <button class="btn-secondary" style="flex:1;justify-content:center" data-on-click="hfa2eb79cc6">Cancel</button>
-          <button id="mfaDisableBtn" class="btn-ghost-destructive" style="flex:1;justify-content:center" data-on-click="ha5880d0f8f">Disable</button>
+          <button id="mfaDisableBtn" class="btn-danger" style="flex:1" data-on-click="ha5880d0f8f">Disable</button>
         </div>
       </div>
 
@@ -5362,7 +5381,7 @@
       <div id="devOthersWrap" style="display:none">
         <div class="email-modal-sep"></div>
         <div style="display:flex;justify-content:flex-end">
-          <button class="btn-ghost-destructive" id="devRevokeOthersBtn" data-on-click="h367b412f61">Log Out Other Devices</button>
+          <button class="btn-danger-2" id="devRevokeOthersBtn" data-on-click="h367b412f61">Log Out Other Devices</button>
         </div>
       </div>
     </div>

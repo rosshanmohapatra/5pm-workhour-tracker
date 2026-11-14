@@ -1156,3 +1156,24 @@ test('Weekend chart: day letters inside the bars, no letter row, 112px plot (#48
   assert.match(HTML, /\.ws-plot \{ position: relative; height: 112px; \}/);
   assert.match(HTML, /\.ws-bar\.hot \.ws-l \{ color: var\(--card\); \}/);   // dark on the white bar
 });
+
+test('Destructive button: one red component, Primary / Secondary / Tertiary (#43)', () => {
+  const HTML = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
+  const all = [HTML, SRC, LOGIN, fs.readFileSync(path.join(WEB, 'login.html'), 'utf8')].join('\n');
+  assert.doesNotMatch(all, /btn-ghost-destructive|btn-ghost-danger/);              // the old outlined styles are gone
+  assert.match(HTML, /--danger-solid: #c42b33; --danger-solid-hover: #b4232b; --danger-solid-press: #9f1f26;/);   // light
+  assert.match(HTML, /--danger-solid: #d2373d; --danger-solid-hover: #c9323a; --danger-solid-press: #b4232b;/);   // dark
+  assert.match(HTML, /\.btn-danger \{ background: var\(--danger-solid\); color: #fff; \}/);
+  assert.match(HTML, /\.btn-danger-2 \{ background: var\(--btn-secondary-bg\); color: var\(--danger-text\); \}/);
+  assert.match(HTML, /\.btn-danger-2:hover:not\(:disabled\) \{ background: var\(--danger-solid-hover\); color: #fff; \}/);
+  assert.match(HTML, /\.btn-danger-3:hover:not\(:disabled\) \{ background: var\(--danger-tint\); \}/);
+  assert.doesNotMatch(HTML.slice(HTML.indexOf('.btn-danger, .btn-danger-2, .btn-danger-3 {'), HTML.indexOf('@keyframes btn-danger-spin')), /border: 1px/);  // borderless
+  // Confirms in destructive dialogs are solid red; the loading state keeps the label.
+  for (const id of ['pkRemoveBtn', 'delPwdContinueBtn', 'mfaDisableBtn', 'cancelPlanConfirmBtn']) assert.match(HTML, new RegExp(`class="btn-danger"[^>]*id="${id}"|id="${id}"[^>]*class="btn-danger"`));
+  const busy = load(extract('function _btnBusy(', '}') + '\n' + extract('function _btnIdle(', '}'), {}, '({ _btnBusy, _btnIdle })');
+  const btn = { attrs: {}, setAttribute(k, v) { this.attrs[k] = v; }, removeAttribute(k) { delete this.attrs[k]; } };
+  busy._btnBusy(btn, 'Logging Out');
+  assert.equal(btn.disabled, true); assert.equal(btn.attrs['aria-busy'], 'true'); assert.equal(btn.textContent, 'Logging Out');
+  busy._btnIdle(btn, 'Log Out');
+  assert.equal(btn.disabled, false); assert.equal(btn.attrs['aria-busy'], undefined);
+});

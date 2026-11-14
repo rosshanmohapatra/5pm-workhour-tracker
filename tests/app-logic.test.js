@@ -851,7 +851,7 @@ test('Paused keeps the card, frozen, instead of the ended summary', () => {
   const paused = src.slice(src.indexOf('&& !_logE.autostopped) {'), src.indexOf("el('rcKpiGroup')?.classList.remove('rc-paused');"));
   assert.match(paused, /paused: true/);
   assert.match(paused, /_hideDoneBanner\(\);/);
-  assert.doesNotMatch(paused, /_pastDayKpiHtml/);
+  assert.doesNotMatch(paused, /_endedDayCardHtml/);
   // Countdown elsewhere still rounds up so worked + short / to go = target.
   assert.match(SRC, /durWorked\(_minsGap\(eff, workedSecs\) \|\| 60\)\} short\./);
   assert.match(SRC, /durWorked\(_minsGap\(effSecs\(\), existingSecs\) \|\| 60\)\} to go/);
@@ -1197,4 +1197,48 @@ test('Progress bar: slim 12px track, lines + target line, minute steps, hover ti
   assert.deepEqual([ahead.title, ahead.sub], ['By 4:05 PM', '7h 00m done · 78%']);
   const behind = fns._pbTipText(0.1, 32400, 7200, start);     // 54 min → snapped to 55
   assert.deepEqual([behind.title, behind.sub], ['10:00 AM', '0h 55m done · 10%']);
+});
+
+test('Day types share one icon + colour set across the app (#32)', () => {
+  const HTML = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
+  const T = load(extract('const WK_ICON = {', '\n    };') + '\n' + extract('const DAY_TYPES = {', '\n    };'), {}, '({ WK_ICON, DAY_TYPES })');
+  assert.deepEqual(Object.fromEntries(Object.entries(T.DAY_TYPES).map(([k, v]) => [k, v.tone])),
+    { fullday: '', halfday: 'teal', leave: 'blue', holiday: 'orchid', weekend: '' });
+  // Today panel draws the very same icons (uncoloured).
+  for (const plan of ['fullday', 'halfday', 'leave', 'holiday']) {
+    const btn = HTML.match(new RegExp(String.raw`data-plan="${plan}"[^>]*><svg[^>]*>([\s\S]*?)</svg>`));
+    assert.equal(btn[1], T.WK_ICON[T.DAY_TYPES[plan].icon], plan);
+  }
+  // The week card's tones match the table.
+  const meta = extract('function wkDayModel(');
+  assert.match(meta, /label: 'Holiday'[^\n]*tone: 'orchid', icon: 'holiday'/);
+  assert.match(meta, /label: 'On leave'[^\n]*tone: 'blue', icon: 'leave'/);
+  assert.match(meta, /label: 'Half day'[^\n]*tone: 'teal', icon: 'halfday'/);
+});
+
+test('Ended-day card: type label, pencil, total, verdict, times, note (#31)', () => {
+  const HTML = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
+  const code = [extract('const WK_ICON = {', '\n    };'), extract('const DAY_TYPES = {', '\n    };'),
+    'const wkSvg = n => `<svg>${WK_ICON[n] ? n : "?"}</svg>`;', extract('function _rcRemainingFmt('), extract('function _minsGap(', '}'),
+    extract('function _dayVerdictText('), extract('function _dayVerdictHtml('), extract('function _endedDayCardHtml(')].join('\n');
+  const f = load(code, { Math, p2: n => String(n).padStart(2, '0'), todayKey: () => '2026-11-16', _escHtml: s => String(s) }, '_endedDayCardHtml');
+  const full = f({ key: '2026-11-13', type: 'fullday', worked: 8 * 3600 + 24 * 60, target: 9 * 3600, login: '10:20 AM', out: '06:44 PM' });
+  assert.match(full, /<span class="dt-pill ed-pill"><svg>fullday<\/svg>Full Day<\/span>/);
+  assert.match(full, /data-ed="edit" aria-label="Edit day"[^>]*><svg>pencil<\/svg>/);
+  assert.match(full, /<div class="ed-total">8h 24m<\/div>/);
+  assert.match(full, /36m short of your 9h/);
+  assert.match(full, /<svg>sunrise<\/svg><span>Started<\/span><b>10:20 AM<\/b>[\s\S]*<span>Left at<\/span><b>06:44 PM<\/b>/);
+  assert.doesNotMatch(full, /ed-note/);                         // full days: no note box
+  const leave = f({ key: '2026-11-16', type: 'leave', worked: 0 });
+  assert.match(leave, /style="--dt:var\(--blue\)"><svg>leave<\/svg>On Leave/);
+  assert.match(leave, /<div class="ed-title">Day off<\/div><p class="ed-sub">No hours today\. Your week adjusts\.<\/p>/);
+  assert.match(leave, /class="ed-note" data-ed="note"><svg>plus<\/svg><span>Add a note<\/span>/);
+  const hol = f({ key: '2026-11-11', type: 'holiday', worked: 3600, login: '9:00 AM', out: '10:00 AM', note: 'Diwali' });
+  assert.match(hol, /All extra, on top of your week/);
+  assert.match(hol, /class="ed-note has" data-ed="note"><svg>note<\/svg><span>Diwali<\/span>/);
+  const none = f({ key: '2026-11-10', type: 'noentry' });
+  assert.match(none, /<svg>noentry<\/svg>No entry[\s\S]*aria-label="Add entry"[\s\S]*Nothing was logged on this day\./);
+  assert.match(HTML, /\.ed-total \{ font-size: 36px;/);
+  assert.match(HTML, /@media \(max-width: 640px\) \{ \.ed-total \{ font-size: 32px; \} \}/);
+  assert.doesNotMatch(SRC, /_pastDayKpiHtml|_updateEntryBtnHtml/);
 });

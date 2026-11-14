@@ -2701,7 +2701,8 @@
         // eff === 0 means the weekly target was already met, so there's no meaningful
         // per-day target to compare against — pass null to suppress the verdict line.
         el('rcToday').style.display = '';
-        el('rcToday').innerHTML = _pastDayKpiHtml(_loginStr, _logoutStr, endedSecs, eff > 0 ? eff : null);
+        el('rcToday').innerHTML = _endedDayCardHtml({ key: todayKey(), type: 'fullday', worked: endedSecs, target: eff > 0 ? eff : null, login: _loginStr, out: _logoutStr });
+        _bindEndedCard(el('rcToday'), todayKey());
         el('stayHint').style.display = 'none';
         el('otBanner').classList.remove('show');
         el('rcKpiGroup')?.classList.remove('rc-finished');
@@ -3109,7 +3110,19 @@
       // Weekends: the summary card replaces the title, note field and rings
       // (approved 2026-11-14). Holiday / Leave / Half Day keep the view above.
       const _sum = el('wkndSum');
-      if (_sum) {
+      const _edLog = dayLog(key) || {};
+      const _edCard = !_isWeekendType && !!key && key !== '__wknd__' && key <= tk
+        && (type !== 'halfday' || key < tk || !!_edLog.checkoutDisplay);
+      if (_sum && _edCard) {
+        const _w = _edLog.hoursWorked != null ? Math.round(_edLog.hoursWorked * 3600) : 0;
+        _sum.style.display = '';
+        _sum.innerHTML = _endedDayCardHtml({ key, type, worked: _w, target: type === 'halfday' ? cfg().dailyH * 1800 : null,
+          login: _w ? _loginDisplayFromLog(_edLog) : '', out: _w ? _checkoutDisplayFromLog(_edLog) : '', note: (_edLog.note || '').trim() });
+        _bindEndedCard(_sum, key);
+        if (_infoCard) _infoCard.style.display = 'none';
+        ['rcNumbers', 'rcToday', 'stayHint', 'otBanner'].forEach(id => { const _e = el(id); if (_e) _e.style.display = 'none'; });
+        const _rn = document.querySelector('.rc-numbers'); if (_rn) _rn.style.display = 'none';
+      } else if (_sum) {
         _sum.style.display = _isWeekendType ? '' : 'none';
         if (_isWeekendType) {
           if (_infoCard) _infoCard.style.display = 'none';
@@ -3172,7 +3185,7 @@
       const chipHtml = (text, tone, check) => `<span class="rc-desc-chip pill${tone ? ' ' + tone : ''} ws-chip">${check ? _WKND_SVG(_WKND_ICON.check) : ''}${text}</span>`;
       const weekRow = weekChip ? chipHtml(weekChip.text, weekChip.tone, weekChip.tone === 'ok') : '';
       box.innerHTML = `<div class="ws-card">
-          <span class="dt-pill">${_WKND_SVG(_WKND_ICON.armchair)}${ti.title}</span>
+          <span class="dt-pill">${_WKND_SVG(WK_ICON[DAY_TYPES.weekend.icon])}${ti.title}</span>
           <div class="ws-total"></div>
           <div class="ws-vary" aria-live="polite">${weekRow}</div>
           <svg class="ws-defs" width="0" height="0" aria-hidden="true"><defs>
@@ -4780,16 +4793,6 @@
       return '';
     }
 
-    // Builds the two bottom KPI cards for past/future days.
-    // Shows Duration (loginTime → logoutTime with arrow) + Surplus card.
-    // Shared "Update Entry" button markup. Used by past days and by today once the
-    // session has ended — in that state the shift CTA resets to "Start" (which would
-    // begin a NEW session), so this is the only way to correct the day's times.
-    function _updateEntryBtnHtml() {
-      const pencil = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
-      return `<button data-on-click="hf5017a9390" style="display:inline-flex;align-items:center;gap:6px;padding:7px 16px;border-radius:8px;border:1.5px solid var(--border);background:var(--muted);color:var(--foreground);font-family:var(--font);font-size:13px;font-weight:500;cursor:pointer;transition:background .15s">${pencil}Update Entry</button>`;
-    }
-
     // How an ended day landed, in the chip's words (approved 2026-11-14, option A):
     // "2h 15m short of your 9h" (grey) · "41m over your 9h" (amber) · "Right on
     // target" (green, within 5 minutes either way). Naming the target says what
@@ -4810,16 +4813,45 @@
       const check = v.tone === 'ok' ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>' : '';
       return `<span class="rc-desc-chip pill${tone}" style="gap:4px">${check}${v.text}</span>`;
     }
-    function _pastDayKpiHtml(loginDisp, outDisp, workedSecs, targetSecs) {
-      const arrow = `<span style="display:inline-flex;align-items:center;color:var(--muted-fg);margin:0 6px"><svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M5 12H19M19 12L13 6M19 12L13 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>`;
-      // Duration alongside the times — "how long" is the thing you actually judge
-      // the day by, and deriving it from two clock times in your head is friction.
-      const durPart = workedSecs != null
-        ? `<span style="color:var(--muted-fg);font-weight:500;margin-left:8px">(${durWorked(workedSecs)})</span>`
+    // ── ENDED-DAY SUMMARY CARD (#31, approved 2026-11-14) ──
+    // Today after End / auto-stop and every past day. One card: day-type label
+    // top-left, pencil top-right (Edit Day); the Total; how it landed; Started /
+    // Left at rows; on Half Day / Leave / Holiday the day's note (or "Add a note").
+    // o = { key, type: fullday|halfday|leave|holiday|noentry, worked, target, login, out, note }
+    function _endedDayCardHtml(o) {
+      const t = o.type === 'noentry' ? { label: 'No entry', icon: 'noentry', tone: '' } : DAY_TYPES[o.type] || DAY_TYPES.fullday;
+      const off = o.type === 'leave' || o.type === 'holiday';
+      const hm = s => { const m = Math.floor(s / 60); return `${Math.floor(m / 60)}h ${p2(m % 60)}m`; };
+      const pill = `<span class="dt-pill ed-pill"${t.tone ? ` style="--dt:var(--${t.tone})"` : ''}>${wkSvg(t.icon)}${t.label}</span>`;
+      const editBtn = o.type === 'noentry'
+        ? `<button type="button" class="btn-icon ed-edit" data-ed="edit" aria-label="Add entry" title="Add entry">${wkSvg('plus')}</button>`
+        : `<button type="button" class="btn-icon ed-edit" data-ed="edit" aria-label="Edit day" title="Edit day">${wkSvg('pencil')}</button>`;
+      let hero = '', line = '';
+      if (o.type === 'noentry') {
+        line = '<p class="ed-sub">Nothing was logged on this day.</p>';
+      } else if (off && !(o.worked > 0)) {
+        hero = '<div class="ed-title">Day off</div>';
+        line = `<p class="ed-sub">${o.key === todayKey() ? 'No hours today.' : 'No hours this day.'} Your week adjusts.</p>`;
+      } else {
+        hero = `<div class="ed-total">${hm(o.worked || 0)}</div>`;
+        line = off ? '<div class="ed-chips"><span class="rc-desc-chip pill ed-extra">All extra, on top of your week</span></div>'
+                   : (() => { const v = _dayVerdictHtml(o.worked, o.target); return v ? `<div class="ed-chips">${v}</div>` : ''; })();
+      }
+      const rows = o.worked > 0 && o.login && o.login !== '—'
+        ? `<div class="ed-rows"><div class="ed-row">${wkSvg('sunrise')}<span>Started</span><b>${_escHtml(o.login)}</b></div>`
+          + (o.out && o.out !== '—' ? `<div class="ed-row">${wkSvg('halfday')}<span>Left at</span><b>${_escHtml(o.out)}</b></div>` : '') + '</div>'
         : '';
-      const ioLine = `<div style="display:inline-flex;align-items:center;font-size:16px;font-weight:600;letter-spacing:-.3px;line-height:1.2">${loginDisp}${arrow}${outDisp}${durPart}</div>`;
-      const msgLine = _dayVerdictHtml(workedSecs, targetSecs);
-      return `<div style="display:flex;flex-direction:column;align-items:center;gap:10px;padding:4px 0">${ioLine}${msgLine}${_updateEntryBtnHtml()}</div>`;
+      // Note box only on Half Day / Leave / Holiday; full days and missing days have none.
+      const note = (o.type === 'halfday' || off)
+        ? (o.note ? `<button type="button" class="ed-note has" data-ed="note">${wkSvg('note')}<span>${_escHtml(o.note)}</span></button>`
+                  : `<button type="button" class="ed-note" data-ed="note">${wkSvg('plus')}<span>Add a note</span></button>`)
+        : '';
+      return `<div class="ed-card"><div class="ed-head">${pill}${editBtn}</div>${hero}${line}${rows}${note}</div>`;
+    }
+    // Wires the card's pencil / note box (no inline handlers: CSP).
+    function _bindEndedCard(box, key) {
+      box.querySelector('[data-ed="edit"]')?.addEventListener('click', () => openDayEditModal(key));
+      box.querySelector('[data-ed="note"]')?.addEventListener('click', () => openDayEditModal(key, true));
     }
 
     function renderPastDay(key) {
@@ -4859,13 +4891,11 @@
         _setTodayDateChip();
         el('stayHint').style.display = 'none';
         el('otBanner').classList.remove('show'); _hideDoneBanner();
-        const _emptyMsg = isFutureDay ? '' : `<div style="display:flex;flex-direction:column;align-items:center;gap:14px;padding:8px 0">
-          <span style="font-size:13px;color:var(--muted-fg)">No logs recorded</span>
-          <button data-on-click="hf5017a9390" style="display:inline-flex;align-items:center;gap:6px;padding:7px 16px;border-radius:8px;border:1.5px solid var(--border);background:var(--muted);color:var(--foreground);font-family:var(--font);font-size:13px;font-weight:500;cursor:pointer;transition:background .15s"><svg width="13" height="13" viewBox="0 0 13 13" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M6.5 1v11M1 6.5h11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>Add Entry</button>
-        </div>`;
+        const _emptyMsg = isFutureDay ? '' : _endedDayCardHtml({ key, type: 'noentry' });
         const _noDataContent = _emptyMsg + targetRow;
         el('rcToday').innerHTML = _noDataContent;
         el('rcToday').style.display = _noDataContent ? '' : 'none';
+        _bindEndedCard(el('rcToday'), key);
         return;
       }
       // Past day with data: all display lives in rcToday, hide the KPI group
@@ -4880,7 +4910,8 @@
       const loginDisp = log.loginDisplay || _loginDisplayFromLog(log);
       const outDisp   = _checkoutDisplayFromLog(log);
       el('rcToday').style.display = '';
-      el('rcToday').innerHTML = targetRow + _pastDayKpiHtml(loginDisp, outDisp, worked, target);
+      el('rcToday').innerHTML = targetRow + _endedDayCardHtml({ key, type: 'fullday', worked, target, login: loginDisp, out: outDisp });
+      _bindEndedCard(el('rcToday'), key);
     }
 
     // ── HISTORY CARD ───────────────────────────────────
@@ -4931,6 +4962,21 @@
       plus:    '<path d="M5 12h14"/><path d="M12 5v14"/>',
       pause:   '<rect x="14" y="4" width="4" height="16" rx="1"/><rect x="6" y="4" width="4" height="16" rx="1"/>',
       check:   '<path d="M20 6 9 17l-5-5"/>',
+      fullday: '<path d="M16 20V4a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/><rect width="20" height="14" x="2" y="6" rx="2"/>',
+      weekend: '<path d="M19 9V6a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v3"/><path d="M3 16a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-5a2 2 0 0 0-4 0v1.5a.5.5 0 0 1-.5.5h-9a.5.5 0 0 1-.5-.5V11a2 2 0 0 0-4 0z"/><path d="M5 18v2M19 18v2"/>',
+      noentry: '<path d="M4.2 4.2A2 2 0 0 0 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 1.82-1.18"/><path d="M21 15.5V6a2 2 0 0 0-2-2H9.5"/><path d="M16 2v4"/><path d="M3 10h7"/><path d="M21 10h-5.5"/><path d="m2 2 20 20"/>',
+      sunrise: '<path d="M12 2v8"/><path d="m4.93 10.93 1.41 1.41"/><path d="M2 18h2"/><path d="M20 18h2"/><path d="m19.07 10.93-1.41 1.41"/><path d="M22 22H2"/><path d="m8 6 4-4 4 4"/><path d="M16 18a4 4 0 0 0-8 0"/>',
+      pencil:  '<path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/><path d="m15 5 4 4"/>',
+      note:    '<path d="M14 3v4a1 1 0 0 0 1 1h4"/><path d="M17 21H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2z"/><path d="M9 13h6M9 17h3"/>',
+    };
+    // Day types, synced across the app (#32, approved 2026-11-14): week card,
+    // Stats chip, Today panel, Edit Day, ended-day card. Tone = a theme token.
+    const DAY_TYPES = {
+      fullday: { label: 'Full Day', icon: 'fullday', tone: '' },
+      halfday: { label: 'Half Day', icon: 'halfday', tone: 'teal' },
+      leave:   { label: 'On Leave', icon: 'leave',   tone: 'blue' },
+      holiday: { label: 'Holiday',  icon: 'holiday', tone: 'orchid' },
+      weekend: { label: 'Weekend',  icon: 'weekend', tone: '' },
     };
     const wkSvg = name => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${WK_ICON[name]}</svg>`;
 

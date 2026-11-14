@@ -59,6 +59,19 @@ try {
 $makeappx = Get-ChildItem 'C:\Program Files (x86)\Windows Kits\10\bin\*\x64\makeappx.exe' |
   Sort-Object FullName | Select-Object -Last 1
 if (-not $makeappx) { throw 'makeappx.exe not found. Install the Windows SDK.' }
+
+# Resource index (resources.pri). Windows only finds the targetsize / unplated
+# icon variants through this index; without it, it falls back to the plain
+# Square44x44Logo.png and draws it on an accent-coloured plate, which was the
+# blue square that stayed on the taskbar after v1.2.31. The config file lives
+# outside the layout so it isn't packed.
+$makepri = Join-Path $makeappx.DirectoryName 'makepri.exe'
+if (-not (Test-Path $makepri)) { throw 'makepri.exe not found. Install the Windows SDK.' }
+$priConfig = Join-Path $out 'priconfig.xml'
+& $makepri createconfig /cf $priConfig /dq en-US /pv 10.0.0 /o
+if ($LASTEXITCODE) { throw 'makepri createconfig failed' }
+& $makepri new /pr $layout /cf $priConfig /mn (Join-Path $layout 'AppxManifest.xml') /of (Join-Path $layout 'resources.pri') /o
+if ($LASTEXITCODE) { throw 'makepri new failed' }
 $msix = Join-Path $out "5pm_${version}_x64.msix"
 & $makeappx.FullName pack /o /d $layout /p $msix
 if ($LASTEXITCODE) { throw 'makeappx failed' }

@@ -3810,6 +3810,43 @@
     body.rail-on #dayEditCancel { display: none; }
     body.rail-on #dayEditSave { flex: 1; width: 100%; }
     .sheet-close { display: none; }
+    /* ── Backup codes (#8 design): Save / Running low / Make new codes ── */
+    .bk-body { padding: 0 14px 14px; display: flex; flex-direction: column; gap: 12px; }
+    .bk-codes { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 20px; margin: 0; padding: 14px 16px; list-style: none; counter-reset: c;
+      border: 1px solid var(--border); border-radius: 12px; background: var(--surface-raised);
+      font-family: ui-monospace, "Cascadia Mono", "SF Mono", Consolas, monospace; font-size: 14px; letter-spacing: .04em; color: var(--foreground); }
+    .bk-codes li { counter-increment: c; display: flex; gap: 10px; align-items: baseline; }
+    .bk-codes li::before { content: counter(c); width: 1.4em; text-align: right; color: var(--text-muted); font-size: 12px; }
+    .bk-tools { display: flex; justify-content: flex-end; gap: 8px; margin-top: -2px; }
+    .bk-tool { position: relative; height: 32px; padding: 0 12px; gap: 6px; font-size: 12px; }
+    .bk-ic { display: grid; place-items: center; width: 14px; height: 14px; }
+    .bk-ic svg { width: 14px; height: 14px; }
+    .bk-ic .ok { color: var(--success); }
+    .bk-ic .ok path { stroke-dasharray: 24; stroke-dashoffset: 24; animation: bk-draw .2s ease-out 60ms forwards; }
+    @keyframes bk-draw { to { stroke-dashoffset: 0; } }
+    .bk-tip { position: absolute; z-index: 20; bottom: calc(100% + 8px); left: 50%; translate: -50% 0; padding: 6px 10px; border-radius: 10px;
+      background: var(--foreground); color: var(--background); font-size: 12px; font-weight: 500; white-space: nowrap; pointer-events: none;
+      box-shadow: 0 8px 22px rgba(0,0,0,.22); opacity: 0; transform: translateY(3px) scale(.97); transition: opacity .15s, transform .15s; }
+    .bk-tip.on { opacity: 1; transform: none; }
+    .bk-warn { display: flex; gap: 12px; align-items: flex-start; padding: 14px; border-radius: 12px; border: 1px solid var(--border); background: var(--surface-raised); }
+    .bk-warn-ic { width: 18px; height: 18px; flex: none; margin-top: 1px; color: var(--warning); }
+    .bk-warn b { display: block; font-size: 13px; font-weight: 600; color: var(--foreground); }
+    .bk-warn p { margin: 4px 0 0; font-size: 12px; line-height: 1.45; color: var(--muted-fg); }
+    .bk-check { display: flex; align-items: center; gap: 10px; margin-top: 12px; cursor: pointer; font-size: 13px; font-weight: 500; color: var(--foreground); }
+    .bk-check input { position: absolute; opacity: 0; pointer-events: none; }
+    .bk-box { position: relative; flex: none; width: 18px; height: 18px; border: 1px solid var(--border-strong); border-radius: 5px; background: var(--card); color: var(--background);
+      transition: background .15s, border-color .15s, transform .1s; }
+    .bk-box svg { position: absolute; inset: -1px; width: 18px; height: 18px; }
+    .bk-box path { stroke-dasharray: 14; stroke-dashoffset: 14; transition: stroke-dashoffset .2s ease-out 40ms; }
+    .bk-check input:checked + .bk-box { background: var(--foreground); border-color: var(--foreground); }
+    .bk-check input:checked + .bk-box path { stroke-dashoffset: 0; }
+    .bk-check:active .bk-box { transform: scale(.95); }
+    .bk-check input:focus-visible + .bk-box { box-shadow: 0 0 0 2px var(--card), 0 0 0 4px var(--foreground); }
+    .bk-done { height: 40px; width: 100%; font-size: 13px; border-radius: 10px; }
+    .bk-done:disabled:not(.btn-danger) { opacity: 1; background: var(--muted); color: var(--text-muted); cursor: not-allowed; }
+    .bk-quiet { height: 36px; width: 100%; justify-content: center; font-size: 13px; background: transparent; }
+    .mfa-left { font-size: 13px; color: var(--muted-fg); margin: 0 0 4px; }
+    .mfa-left b { color: var(--foreground); font-weight: 600; }
     /* ── Payroll (#41): Salary Cycle row + range picker ── */
     #viewSettings .pay-row, #viewSettings .pay-switch { display: flex; flex-direction: row; align-items: center; justify-content: space-between; gap: 12px; text-align: left; }
     .pay-row { cursor: pointer; }
@@ -5720,27 +5757,52 @@
         </div>
       </div>
 
-      <!-- View: Backup codes -->
+      <!-- View: Save your backup codes (#8 design): numbered two-column list,
+           Copy / Download that confirm with a check + tooltip, and a warning
+           card whose checkbox unlocks Done. -->
       <div id="mfaViewBackup" style="display:none">
         <div class="dialog-head" style="display:flex;align-items:flex-start;justify-content:space-between">
           <div>
-            <div class="dialog-title">Save Your Backup Codes</div>
-            <div class="dialog-desc">Store these somewhere safe. Each code works once if you lose access to your authenticator.</div>
+            <div class="dialog-title">Save your backup codes</div>
+            <div class="dialog-desc">If you can’t use your authenticator, each code signs you in once.</div>
           </div>
         </div>
-        <div style="padding:0 14px 14px;display:flex;flex-direction:column;gap:12px">
-          <div class="mfa-codes" id="mfaCodesGrid"></div>
-          <div style="display:flex;gap:8px">
-            <button class="btn-secondary" style="flex:1;justify-content:center;gap:6px" data-on-click="hf7caab5dc9">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-              <span id="mfaCopyLabel">Copy</span>
-            </button>
-            <button class="btn-secondary" style="flex:1;justify-content:center;gap:6px" data-on-click="h77019e8e6d">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-              Download
-            </button>
+        <div class="bk-body">
+          <ol class="bk-codes" id="mfaCodesGrid"></ol>
+          <div class="bk-tools">
+            <button type="button" class="btn-secondary bk-tool" id="bkCopyBtn"><span class="bk-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></span>Copy</button>
+            <button type="button" class="btn-secondary bk-tool" id="bkDownloadBtn"><span class="bk-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3M7 10l5 5 5-5M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/></svg></span>Download</button>
           </div>
-          <button class="ob-btn-primary" style="height:40px;font-size:13px;width:100%;border-radius:8px" data-on-click="h3f17ee1b27">I've Saved Them</button>
+          <div class="bk-warn" role="status">
+            <svg class="bk-warn-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4M12 17h.01"/></svg>
+            <div><b>You won’t see these again</b><p>Keep them somewhere safe. If you lose them, make new ones in Settings.</p>
+              <label class="bk-check"><input type="checkbox" id="bkSaved"><span class="bk-box"><svg viewBox="0 0 18 18" fill="none" aria-hidden="true"><path d="M4.8 9.3l2.9 2.9 5.6-6" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg></span>I’ve saved my backup codes</label></div>
+          </div>
+          <button type="button" class="ob-btn-primary bk-done" id="bkDoneBtn" disabled>Done</button>
+        </div>
+      </div>
+
+      <!-- View: Codes running low (opened from the Home notice) -->
+      <div id="mfaViewLow" style="display:none">
+        <div class="dialog-head">
+          <div class="dialog-title" id="bkLowTitle">2 backup codes left</div>
+          <div class="dialog-desc">You used one to sign in. Make new codes now so you don’t run out.</div>
+        </div>
+        <div class="bk-body">
+          <button type="button" class="ob-btn-primary bk-done" id="bkLowMake">Make New Codes</button>
+          <button type="button" class="btn-secondary bk-quiet" id="bkLowLater">Not now</button>
+        </div>
+      </div>
+
+      <!-- View: Make new backup codes? (old codes stop working) -->
+      <div id="mfaViewRegen" style="display:none">
+        <div class="dialog-head">
+          <div class="dialog-title">Make new backup codes?</div>
+          <div class="dialog-desc">You’ll get 10 new codes. Your old codes stop working right away.</div>
+        </div>
+        <div class="bk-body">
+          <button type="button" class="btn-danger bk-done" id="bkRegenBtn">Make New Codes</button>
+          <button type="button" class="btn-secondary bk-quiet" id="bkRegenCancel">Cancel</button>
         </div>
       </div>
 
@@ -5768,6 +5830,8 @@
           </button>
         </div>
         <div style="padding:0 14px 14px;display:flex;flex-direction:column;gap:8px">
+          <p class="mfa-left" id="mfaLeft"></p>
+          <button type="button" class="btn-secondary" style="width:100%;justify-content:center" id="mfaMakeCodes">Make new backup codes</button>
           <button class="btn-danger-2" style="width:100%" data-on-click="h0d46da7c63">Disable Two-Factor Authentication</button>
         </div>
       </div>

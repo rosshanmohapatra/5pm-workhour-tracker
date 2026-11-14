@@ -1465,3 +1465,21 @@ test('Login: errors come back in the page’s words', () => {
   assert.equal(f._retrySecs({ message: 'Too many requests' }), 0);
   assert.equal(f.esc('<b>"x"</b>'), '&lt;b&gt;&quot;x&quot;&lt;/b&gt;');
 });
+test('Backup codes: save screen, running low, make new codes, Home notice, 404', () => {
+  const HTML = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
+  for (const id of ['mfaViewBackup', 'mfaViewLow', 'mfaViewRegen']) assert.match(HTML, new RegExp(`id="${id}"`));
+  assert.match(HTML, /Save your backup codes/); assert.match(HTML, /You won’t see these again/);
+  assert.match(HTML, /<button type="button" class="ob-btn-primary bk-done" id="bkDoneBtn" disabled>Done<\/button>/);   // ticked box unlocks it
+  assert.match(HTML, /class="btn-danger bk-done" id="bkRegenBtn">Make New Codes/);
+  const f = load(extract('function _bkFile(') + '\n' + extract('function _bkLeftText(', '; }') + '\n' + extract('function _bkNotice(') + '\nthis.o={_bkFile,_bkLeftText,_bkNotice}', { Date, String }, 'o');
+  const file = f._bkFile(['aaaa-bbbb', 'cccc-dddd', 'eeee-ffff'], 'you@company.com');
+  assert.match(file, /^5pm backup codes\r\n/); assert.match(file, /Account {3}you@company\.com\r\n/);
+  assert.match(file, / {3}1\. {2}aaaa-bbbb {6} 2\. {2}cccc-dddd\r\n/); assert.match(file, /Used some\? Make new codes in 5pm › Settings › Security\./);
+  assert.equal(f._bkNotice(2).text, 'You have 2 backup codes left. Make new ones in Settings › Security.');
+  assert.equal(f._bkNotice(7).text, 'You have 7 backup codes left.');
+  assert.equal(f._bkNotice(1).text, 'You have 1 backup code left. Make new ones in Settings › Security.');
+  assert.equal(f._bkNotice(5).ctaWeekKey, 'mfa:low');
+  assert.match(LOGIN, /localStorage\.setItem\('5pm_backup_used', '1'\)/);
+  const NF = fs.readFileSync(path.join(WEB, '404.html'), 'utf8');
+  assert.match(NF, /This page doesn’t exist/); assert.match(NF, /<a class="btn" href="\/">Go to 5pm<\/a>/);
+});

@@ -466,7 +466,7 @@ async function verifyBackup(b) {
     const { data: ok, error } = await _sb.rpc('use_backup_code', { code: norm });
     if (error) throw error;
     if (!ok) throw new Error('bad');
-    try { sessionStorage.setItem('wh_mfa_ok', '1'); } catch (_) {}
+    try { sessionStorage.setItem('wh_mfa_ok', '1'); localStorage.setItem('5pm_backup_used', '1'); } catch (_) {}
     await _afterSecondStep();
   } catch (err) {
     setBtn(b, undefined, false);

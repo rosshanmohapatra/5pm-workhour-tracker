@@ -990,6 +990,10 @@
         if (day && !dismissed.includes(id)) notifs.push({ id, type: 'warn', text: `${sent[day].title}: ${sent[day].body}`, cta: 'Review', ctaWeekKey: '' });
       }
 
+      // Backup codes left, after a sign-in with a backup code (#8).
+      { let n = null; try { n = localStorage.getItem('wh_backup_left'); } catch (_) {}
+        const bn = n != null ? _bkNotice(+n) : null; if (bn && !dismissed.includes(bn.id)) notifs.push(bn); }
+
       // Developer Mode › Sample Penalties: one notification per sample penalty,
       // each opening its own Email Draft. Memory only, like the samples.
       for (const p of _samplePenalties()) {
@@ -1154,6 +1158,7 @@
     // notification stays until it's swiped away.
     function handleNotifCta(id, weekKey) {
       closeNotifPanel();
+      if (weekKey === 'mfa:low') { switchTab('settings'); openMfaLow(); return; }   // Home notice: backup codes left
       switchTab('analytics'); // one-page layout: Home, with Penalties freshly rendered
       // A sample notification names its penalty directly.
       if (weekKey.startsWith('pen:')) { openEmailModal(weekKey.slice(4)); return; }
@@ -10476,6 +10481,7 @@ Kind regards,
     el('dayEditCancel').addEventListener('click', closeDayEditModal);
     _deTypeInit();
     _scInit();
+    _bkInit();
     ['deStart', 'deEnd'].forEach(id => el(id).addEventListener('input', _deUpdateLive));
     // Phones: a bottom sheet that follows your finger; the body scrolls, the
     // footer stays pinned (#34).
@@ -11707,7 +11713,7 @@ Kind regards,
       });
     }
     function _mfaShowView(id) {
-      ['mfaViewSetup','mfaViewVerifying','mfaViewBackup','mfaViewSuccess','mfaViewManage','mfaViewDisable']
+      ['mfaViewSetup','mfaViewVerifying','mfaViewBackup','mfaViewSuccess','mfaViewManage','mfaViewDisable','mfaViewLow','mfaViewRegen']
         .forEach(v => { const e = el(v); if (e) e.style.display = v === id ? '' : 'none'; });
       const head = el(id)?.querySelector('.dialog-head'), page = el('pageMfa');
       if (!page) return;
@@ -11751,7 +11757,7 @@ Kind regards,
     function _renderBackupCodes(codes) {
       const grid = el('mfaCodesGrid'); if (!grid) return;
       grid.innerHTML = '';
-      codes.forEach(c => { const d = document.createElement('div'); d.className = 'mfa-code'; d.textContent = c; grid.appendChild(d); });
+      codes.forEach(c => { const d = document.createElement('li'); d.textContent = c; grid.appendChild(d); });
     }
 
     async function openMfaSetup() {
@@ -11794,7 +11800,7 @@ Kind regards,
           _mfaBackupCodes = _genBackupCodes();
           await _storeBackupCodes(_mfaBackupCodes);
           _renderBackupCodes(_mfaBackupCodes);
-          _mfaShowView('mfaViewBackup');
+          _bkShowSave();
         } catch(storeErr) {
           // Factor is live, but codes failed to save — warn and continue
           showToast("Backup codes not saved", 'error', 'Two-factor is on, but save backup codes failed. Regenerate later.');
@@ -11810,20 +11816,97 @@ Kind regards,
 
     function mfaShowSuccess() { _mfaShowView('mfaViewSuccess'); }
 
-    function _copyBackupCodes() {
-      navigator.clipboard?.writeText(_mfaBackupCodes.join('\n'));
-      const lbl = el('mfaCopyLabel');
-      if (lbl) { lbl.textContent = 'Copied'; setTimeout(() => lbl.textContent = 'Copy', 1600); }
+    // ── Backup codes screens (#8 design) ──
+    // Save: numbered list, Copy / Download confirm with a drawn check and a
+    // tooltip (the label never changes), and Done unlocks once "I've saved my
+    // backup codes" is ticked. Running low: offered from the Home notice after a
+    // backup-code sign-in. Make new codes: the old ones stop working.
+    function _bkFile(codes, email) {
+      const d = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+      const rows = []; for (let i = 0; i < codes.length; i += 2) rows.push(`  ${String(i + 1).padStart(2)}.  ${codes[i]}      ${String(i + 2).padStart(2)}.  ${codes[i + 1] || ''}`);
+      return ['5pm backup codes', '', `Account   ${email || ''}`, `Made on   ${d}`, '',
+        'If you can’t use your authenticator app, each code signs you in once.', 'Keep this file somewhere safe, like a password manager.', '',
+        ...rows, '', 'Used some? Make new codes in 5pm › Settings › Security.', ''].join('\r\n');
     }
-    function _downloadBackupCodes() {
-      const body = '5pm — Two-Factor Backup Codes\nSaved ' + new Date().toLocaleString() +
-        '\n\nEach code works once. Keep them somewhere safe.\n\n' + _mfaBackupCodes.join('\n') + '\n';
-      const blob = new Blob([body], { type: 'text/plain' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url; a.download = '5pm-backup-codes.txt';
+    function _bkConfirm(btn, text) {
+      const ic = btn.querySelector('.bk-ic'), keep = ic.innerHTML;
+      ic.innerHTML = '<svg class="ok" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
+      btn.querySelector('.bk-tip')?.remove();
+      const tip = document.createElement('span'); tip.className = 'bk-tip'; tip.setAttribute('role', 'status'); tip.textContent = text;
+      btn.appendChild(tip); requestAnimationFrame(() => tip.classList.add('on'));
+      clearTimeout(btn._bkT); btn._bkT = setTimeout(() => { tip.remove(); ic.innerHTML = keep; }, 1600);
+    }
+    function _copyBackupCodes() {
+      navigator.clipboard?.writeText(_mfaBackupCodes.join('\n')).then(() => _bkConfirm(el('bkCopyBtn'), 'Codes copied'), () => {});
+    }
+    async function _downloadBackupCodes() {
+      let email = ''; try { email = (await window._sbClient.auth.getUser()).data?.user?.email || ''; } catch (_) {}
+      const url = URL.createObjectURL(new Blob([_bkFile(_mfaBackupCodes, email)], { type: 'text/plain' }));
+      const a = document.createElement('a'); a.href = url; a.download = '5pm-backup-codes.txt';
       document.body.appendChild(a); a.click(); a.remove();
       setTimeout(() => URL.revokeObjectURL(url), 1000);
+      _bkConfirm(el('bkDownloadBtn'), 'Saved as 5pm-backup-codes.txt');
+    }
+    function _bkShowSave() {
+      el('bkSaved').checked = false; el('bkDoneBtn').disabled = true;
+      _mfaShowView('mfaViewBackup');
+    }
+    let _bkFromRegen = false;
+    async function _bkRegen() {
+      const btn = el('bkRegenBtn'); _btnBusy(btn, 'Making Codes');
+      try {
+        _mfaBackupCodes = _genBackupCodes();
+        await _storeBackupCodes(_mfaBackupCodes);
+        _renderBackupCodes(_mfaBackupCodes);
+        _bkFromRegen = true;
+        try { localStorage.removeItem('wh_backup_left'); } catch (_) {}
+        renderNotifs();
+        _bkShowSave();
+      } catch (e) {
+        showToast("Couldn't Make New Codes", 'error', e.message || 'Please try again.');
+      } finally { _btnIdle(btn, 'Make New Codes'); }
+    }
+    // "N backup codes left" (manage view and the Running low view).
+    async function _bkLeft() {
+      try { const { data, error } = await window._sbClient.rpc('backup_codes_left'); return error ? null : data; } catch (_) { return null; }
+    }
+    function _bkLeftText(n) { return n === 1 ? '1 backup code left' : `${n} backup codes left`; }
+    async function openMfaLow() {
+      _mfaOpenPage();
+      const n = await _bkLeft();
+      if (n != null) el('bkLowTitle').textContent = _bkLeftText(n);
+      _mfaShowView('mfaViewLow');
+    }
+    // After a sign-in with a backup code (login.js sets 5pm_backup_used): keep
+    // the count for the Home notice ("You have N backup codes left").
+    async function _bkAfterBackupSignIn() {
+      let used = null; try { used = localStorage.getItem('5pm_backup_used'); } catch (_) {}
+      if (!used) return;
+      try { localStorage.removeItem('5pm_backup_used'); } catch (_) {}
+      const n = await _bkLeft();
+      if (n == null) return;
+      try { localStorage.setItem('wh_backup_left', String(n)); } catch (_) {}
+      renderNotifs();
+    }
+    function _bkNotice(n) {
+      if (!(n >= 0)) return null;
+      return { id: `backup-left-${n}`, type: n <= 2 ? 'warn' : 'info',
+        text: `You have ${_bkLeftText(n).replace(' left', '')} left.${n <= 2 ? ' Make new ones in Settings › Security.' : ''}`,
+        cta: 'Make new codes', ctaWeekKey: 'mfa:low' };
+    }
+    function _bkInit() {
+      el('bkCopyBtn')?.addEventListener('click', _copyBackupCodes);
+      el('bkDownloadBtn')?.addEventListener('click', _downloadBackupCodes);
+      el('bkSaved')?.addEventListener('change', e => { el('bkDoneBtn').disabled = !e.target.checked; });
+      el('bkDoneBtn')?.addEventListener('click', () => {
+        if (_bkFromRegen) { _bkFromRegen = false; closeMfaModal(); showToast('New Backup Codes Saved', 'success'); } else mfaShowSuccess();
+      });
+      el('bkLowMake')?.addEventListener('click', () => _mfaShowView('mfaViewRegen'));
+      el('bkLowLater')?.addEventListener('click', () => closeMfaModal());
+      el('bkRegenBtn')?.addEventListener('click', _bkRegen);
+      el('bkRegenCancel')?.addEventListener('click', () => { if (_mfaManageFactor) mfaShowManage(); else closeMfaModal(); });
+      el('mfaMakeCodes')?.addEventListener('click', () => _mfaShowView('mfaViewRegen'));
+      setTimeout(_bkAfterBackupSignIn, 1500);
     }
     let _mfaSecretResetTimer = null;
     function _copyMfaSecret() {
@@ -11841,6 +11924,8 @@ Kind regards,
       _mfaManageFactor = factor;
       _mfaOpenPage();
       _mfaShowView('mfaViewManage');
+      el('mfaLeft').textContent = '';
+      _bkLeft().then(n => { if (n != null && el('mfaLeft')) el('mfaLeft').innerHTML = `<b>${_bkLeftText(n)}</b> · each one signs you in once.`; });
     }
     function mfaShowManage() { _mfaShowView('mfaViewManage'); }
     function mfaShowDisable() { _mfaShowView('mfaViewDisable'); }

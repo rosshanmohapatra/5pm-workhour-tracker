@@ -1419,3 +1419,14 @@ test('Action Center: marking as read keeps the row in place, muted and labelled 
   assert.match(extract('function _acRowHtml('), /\$\{read \? ' · Read' : ''\}/);
   assert.match(extract('function _renderPenaltyCard('), /!_discardedPenalties\.has\(r\.key\) \|\| _acKeepRead\.has\(r\.key\)/);
 });
+
+// ── Geist headings (#52) ───────────────────────────────────────────────────
+test('Geist: titles and big numbers use the display font, body text stays on --font', () => {
+  const HTML = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
+  assert.match(HTML, /fonts\.googleapis\.com\/css2\?family=Geist:wght@400\.\.700&family=Inter/);
+  assert.match(HTML, /--font-display: 'Geist',/);
+  const rule = HTML.match(/\n([^\n]*\n){0,3}[^\n]*\{ font-family: var\(--font-display\); \}/)[0];
+  for (const c of ['.dialog-title', '.settings-title', '.sx-title', '.ac-title', '.ws-total', '.ed-total', '.sx-total', '.rc-worked', '.am-v'])
+    assert.ok(rule.includes(c), c);
+  assert.match(HTML, /--font: -apple-system/);   // body font unchanged
+});

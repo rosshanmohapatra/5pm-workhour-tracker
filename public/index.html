@@ -55,7 +55,7 @@
   <meta name="twitter:description" content="Real-time work hour tracking. Work your hours. Leave on time.">
   <meta name="twitter:image"       content="https://whtracker.vercel.app/icons/social-preview.svg">
   <link rel="preconnect" href="https://fonts.googleapis.com/">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap" rel="stylesheet" media="print" data-on-load="he403411552"><noscript><link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap" rel="stylesheet"></noscript>
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400..700&family=Inter:wght@100..900&display=swap" rel="stylesheet" media="print" data-on-load="he403411552"><noscript><link href="https://fonts.googleapis.com/css2?family=Geist:wght@400..700&family=Inter:wght@100..900&display=swap" rel="stylesheet"></noscript>
   <style>
     /* ── PWA App Loader ── */
     #appLoader {
@@ -1382,6 +1382,11 @@
     @media (max-width: 640px) { .ws-total { font-size: 28px; } }
     @media (prefers-reduced-motion: reduce) { .ws-bar i { transition: none; } }
     .rc-desc-chip.warn { color: var(--warning); }
+    /* ── Geist (#52): titles and big numbers; body text stays on --font. ── */
+    :root { --font-display: 'Geist', -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter', system-ui, sans-serif; }
+    .settings-title, .analytics-title, .dialog-title, .email-modal-title, .analytics-card-title, .sx-title, .ac-title, .wn-title,
+    .am-t, .ob2-hero h2, .ob2-q h2, .ob-title, .ed-title, .td-head,
+    .ws-total, .ed-total, .sx-total, .rc-worked, .rc-target-val, .day-clock, .sel-day-clock, .am-v { font-family: var(--font-display); }
     /* ── Statistics card (#7, approved 2026-11-14) ──
        Bottom of Home, every day. Reuses the weekend chart (.ws-chart / .ws-bar);
        segmented control, period menu and KPIs adapted from uiarc. */

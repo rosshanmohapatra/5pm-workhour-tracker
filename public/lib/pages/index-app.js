@@ -3123,7 +3123,7 @@
       const letters = wk.map(d => `<span>${FULL[d.date.getDay()][0]}</span>`).join('');
       const note = dayLog(noteKey)?.note?.trim() || '';
       const noteHtml = _wkndNoteEditing
-        ? `<textarea class="ws-ta" maxlength="240" placeholder="${_infoNoteTitle('weekend')}" aria-label="Weekend note"></textarea><div class="ws-nb"><button type="button" class="btn-secondary" data-ws="cancel">Cancel</button><button type="button" class="btn btn-primary" data-ws="save">Save</button></div>`
+        ? `<div class="ws-edit"><textarea class="ws-ta" rows="2" maxlength="240" placeholder="${_infoNoteTitle('weekend')}" aria-label="Weekend note"></textarea><div class="ws-acts"><button type="button" class="btn-secondary" data-ws="cancel">Cancel</button><button type="button" class="btn btn-primary" data-ws="save">Save</button></div></div>`
         : `<button type="button" class="ws-note${note ? ' has' : ''}" data-ws="note">${_WKND_SVG(note ? _WKND_ICON.note : _WKND_ICON.plus)}<span></span></button>`;
       const chipHtml = (text, tone, check) => `<span class="rc-desc-chip pill${tone ? ' ' + tone : ''} ws-chip">${check ? _WKND_SVG(_WKND_ICON.check) : ''}${text}</span>`;
       const weekRow = weekChip ? chipHtml(weekChip.text, weekChip.tone, weekChip.tone === 'ok') : '';

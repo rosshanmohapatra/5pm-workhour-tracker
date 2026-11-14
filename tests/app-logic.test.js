@@ -1122,3 +1122,14 @@ test('Backup codes keep two-step on, and new passwords need 8 characters', () =>
   assert.match(SRC, /pwd\.length < 8\) \{ showErr\('Use at least 8 characters/);
   assert.doesNotMatch(SRC, /pwd\.length < 6/);
 });
+
+test('Note editor: Cancel and Save sit inside the note box, on their own row (#49)', () => {
+  const HTML = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
+  const r = extract('function _renderWkndSummary(');
+  // One box: the text area, then a row that holds only the two buttons.
+  assert.match(r, /<div class="ws-edit"><textarea class="ws-ta"[^>]*><\/textarea><div class="ws-acts"><button[^>]*data-ws="cancel">Cancel<\/button><button[^>]*data-ws="save">Save<\/button><\/div><\/div>/);
+  assert.doesNotMatch(r, /ws-nb/);
+  assert.match(HTML, /\.ws-edit \{ display: flex; flex-direction: column;/);
+  assert.match(HTML, /\.ws-ta \{[^}]*border: 0;/);   // the box draws the border, not the text area
+  assert.doesNotMatch(HTML, /\.ws-nb \{/);
+});

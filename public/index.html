@@ -3721,6 +3721,78 @@
     body.rail-on #dayEditCancel { display: none; }
     body.rail-on #dayEditSave { flex: 1; width: 100%; }
     .sheet-close { display: none; }
+    /* ── Update Entry sheet (#34, approved 2026-11-14) ──
+       Date title + subtitle, Update Entry | Raise Dispute, a day-type segmented
+       control, Started / Left at rows (wheel), a live line, the note, and a
+       footer that stays pinned while the body scrolls. Right-hand sheet on
+       desktop, centred dialog on tablets, bottom sheet with a grabber on phones. */
+    #dayEditOverlay > .dialog { display: flex; flex-direction: column; overflow: hidden; }
+    #deMainPage { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
+    #deMainPage .de-pane { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
+    #deMainPage .de-pane[hidden] { display: none; }
+    #deMainPage .de-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; gap: 10px; }
+    #deMainPage .de-body > * { flex-shrink: 0; }
+    #deMainPage .de-foot { flex: none; border-top: 1px solid var(--border); }
+    #deEmailPage { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+    .de-head .dialog-title { padding-right: 84px; }
+    .de-trash { position: absolute; top: 10px; right: 10px; width: 32px; height: 32px; padding: 0; border: none; border-radius: 8px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center; background: var(--muted); color: var(--muted-fg); transition: color .15s, background .15s; }
+    .de-trash:hover { background: var(--danger-tint); color: var(--danger-text); }
+    .de-sec-label { font-size: 12px; font-weight: 600; color: var(--text-muted); letter-spacing: .02em; margin: 2px 2px -2px; }
+    /* Day type: four equal segments, icon over label; the selection glides and
+       the picked one takes its day-type colour. */
+    .modal-override-row.de-type { position: relative; isolation: isolate; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 2px;
+      padding: 3px; border-radius: 12px; background: var(--muted); border: 1px solid var(--border); flex-wrap: nowrap; }
+    .de-type .de-type-pill { position: absolute; z-index: 0; top: 3px; bottom: 3px; left: 0; width: 0; border-radius: 9px; background: var(--card);
+      box-shadow: 0 1px 2px rgba(0,0,0,.08), 0 0 0 1px var(--border); transition: transform .32s var(--ease-sheet), width .32s var(--ease-sheet); }
+    .dark .de-type .de-type-pill { background: var(--btn-secondary-hover); }
+    .de-type .modal-override-btn { position: relative; z-index: 1; height: auto; min-width: 0; padding: 9px 2px 8px; border: 0; border-radius: 9px;
+      display: flex; flex-direction: column; align-items: center; gap: 4px; background: transparent; color: var(--text-muted);
+      font: 500 12px var(--font); white-space: nowrap; cursor: pointer; transition: color .15s; }
+    .de-type .modal-override-btn:hover { background: transparent; color: var(--foreground); }
+    .de-type .modal-override-btn.active { background: transparent; color: var(--dt, var(--foreground)); }
+    .de-type .modal-override-btn svg { width: 18px; height: 18px; }
+    .de-type .modal-override-btn span { overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+    .de-type .modal-override-btn:focus-visible { outline: 2px solid var(--ring); outline-offset: -2px; }
+    /* Started / Left at: one grouped card, a row each; the clock opens the wheel. */
+    .de-rows { display: flex; flex-direction: column; border: 1px solid var(--border); border-radius: 12px; background: var(--card); overflow: hidden; }
+    .de-row { display: flex; align-items: center; gap: 8px; min-height: 48px; padding: 0 6px 0 12px; cursor: text; }
+    .de-row + .de-row { border-top: 1px solid var(--border); }
+    .de-row-k { display: inline-flex; align-items: center; gap: 8px; flex: none; width: 92px; font-size: 13px; font-weight: 500; color: var(--foreground); }
+    .de-row-k svg { width: 16px; height: 16px; color: var(--text-muted); }
+    .de-row .field-input.de-time { flex: 1; min-width: 0; height: 36px; padding: 0 6px; border: 0; background: transparent; box-shadow: none;
+      text-align: right; font-size: 14px; font-variant-numeric: tabular-nums; }
+    .de-row .field-input.de-time:focus { box-shadow: none; background: var(--muted); border-radius: 8px; }
+    .de-row .tp-icon-btn.de-wheel { position: static; transform: none; flex: none; width: 32px; height: 32px; border-radius: 8px; display: grid; place-items: center; }
+    .de-live { margin: 0 2px; min-height: 18px; font-size: 13px; color: var(--muted-fg); font-variant-numeric: tabular-nums; }
+    .de-live:empty { display: none; }
+    .de-note-wrap.visible { max-height: 200px; }
+    .de-note-wrap .de-sec-label { margin-bottom: 6px; }
+    /* Raise Dispute */
+    .de-intro { margin: 0 2px; font-size: 13px; line-height: 1.45; color: var(--muted-fg); }
+    .de-rec { display: flex; flex-direction: column; gap: 2px; padding: 12px 14px; border-radius: 12px; background: var(--card); border: 1px solid var(--border); }
+    .de-rec span { font-size: 12px; color: var(--text-muted); }
+    .de-rec b { font-size: 14px; font-weight: 600; color: var(--foreground); font-variant-numeric: tabular-nums; }
+    .de-chips.de-reasons { display: flex; flex-direction: column; gap: 0; border: 1px solid var(--border); border-radius: 12px; background: var(--card); overflow: hidden; }
+    .de-reasons .de-chip { display: flex; align-items: center; justify-content: space-between; width: 100%; height: 46px; padding: 0 14px; border: 0; border-radius: 0;
+      background: transparent; color: var(--foreground); font: 500 13px var(--font); text-align: left; cursor: pointer; }
+    .de-reasons .de-chip + .de-chip { border-top: 1px solid var(--border); }
+    .de-reasons .de-chip svg { width: 16px; height: 16px; opacity: 0; transition: opacity .15s; }
+    .de-reasons .de-chip[aria-checked="true"] { background: transparent; color: var(--foreground); border-color: var(--border); }
+    .de-reasons .de-chip[aria-checked="true"] svg { opacity: 1; }
+    @media (hover: hover) { .de-reasons .de-chip:hover { background: var(--muted); } }
+    @media (max-width: 640px) {
+      body:not(.rail-on) #dayEditOverlay { align-items: flex-end; padding: 0; }
+      body:not(.rail-on) #dayEditOverlay > .dialog { max-width: none; min-width: 0; width: 100%; max-height: 92dvh; border-radius: 24px 24px 0 0; border-bottom: none;
+        transform: translateY(100%); transition: transform .45s var(--ease-sheet); }
+      body:not(.rail-on) #dayEditOverlay.open > .dialog { transform: none; }
+      body:not(.rail-on) #dayEditOverlay > .dialog::before { content: ''; display: block; flex: none; width: 36px; height: 5px; border-radius: 3px;
+        background: var(--border-strong); margin: 10px auto 0; }
+      body:not(.rail-on) #dayEditOverlay > .dialog.sheet-dragging { transition: none !important; }
+      body:not(.rail-on) #deMainPage .de-foot { padding-bottom: calc(14px + env(safe-area-inset-bottom)); }
+      body:not(.rail-on) .de-trash { top: 14px; }
+    }
+    @media (prefers-reduced-motion: reduce) { .de-type .de-type-pill { transition: none; } }
     /* Same square as the Delete button beside it: 32px, 8px corners, muted fill. */
     body.rail-on #dayEditOverlay .sheet-close { display: grid; place-items: center; position: absolute; top: 10px; right: 10px;
       width: 32px; height: 32px; padding: 0; border: none; border-radius: 8px; background: var(--muted); color: var(--muted-fg); cursor: pointer;
@@ -5730,19 +5802,16 @@
          it out again. -->
     <div class="dialog de-pager">
       <div class="de-page" id="deMainPage">
-      <div class="dialog-head" style="position:relative">
+      <div class="dialog-head de-head" style="position:relative">
         <div class="dialog-title" id="dayEditTitle">Edit Day</div>
         <div class="dialog-desc" id="dayEditDesc">Update times or mark a special day</div>
-        <button id="dayEditDeleteBtn" title="Delete entry"
-          style="position:absolute;top:10px;right:10px;width:32px;height:32px;padding:0;
-            border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;
-            font-size:14px;transition:color .15s,background .15s,border-color .15s;">
+        <button id="dayEditDeleteBtn" class="de-trash" title="Delete entry" aria-label="Delete entry">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
             <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
           </svg>
         </button>
       </div>
-      <!-- Update Entry | Raise Dispute. The tabs show for today and past days. -->
+      <!-- Update Entry | Raise Dispute (#34). The tabs show for today and past days. -->
       <div class="set-tabs-shell de-tabs" id="deTabs">
         <div class="set-tabs" role="tablist" aria-label="Day options">
           <button type="button" class="set-tab active" role="tab" aria-selected="true" data-de-tab="edit">Update Entry</button>
@@ -5750,57 +5819,65 @@
           <span class="set-tab-ind" aria-hidden="true"></span>
         </div>
       </div>
-      <div id="deEditPane">
-      <div class="dialog-body">
-        <div class="modal-override-row">
-          <button class="modal-override-btn" id="deHalfDay" data-on-click="h78736406eb">Half Day</button>
-          <button class="modal-override-btn" id="deHoliday" data-on-click="hafbff54015">Holiday</button>
-          <button class="modal-override-btn" id="deLeave" data-on-click="h1bbffb6125">Full Day Leave</button>
+      <div id="deEditPane" class="de-pane">
+      <div class="dialog-body de-body">
+        <!-- Day type: one segmented control, the app's day-type icons and colours
+             (DAY_TYPES), filled in by _deTypeInit(). Full Day = no override. -->
+        <div class="de-sec-label" id="deTypeLabel">Day type</div>
+        <div class="modal-override-row de-type" id="deType" role="radiogroup" aria-labelledby="deTypeLabel">
+          <span class="de-type-pill" aria-hidden="true"></span>
+          <button type="button" class="modal-override-btn" id="deFullDay" role="radio" data-type="fullday">Full Day</button>
+          <button type="button" class="modal-override-btn" id="deHalfDay" role="radio" data-type="halfday">Half Day</button>
+          <button type="button" class="modal-override-btn" id="deLeave" role="radio" data-type="leave">On Leave</button>
+          <button type="button" class="modal-override-btn" id="deHoliday" role="radio" data-type="holiday">Holiday</button>
         </div>
         <div id="deTimeWrap">
-          <div class="modal-time-row" id="deTimeRow">
-            <div style="position:relative;flex:1" class="time-input-wrap">
-              <input type="text" class="field-input" id="deStart" placeholder="Start time" autocomplete="off" style="padding-left:38px">
-              <button type="button" class="tp-icon-btn" data-on-click="h793544eada" title="Pick time">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M16.5 13C17.0523 13 17.5 12.5523 17.5 12C17.5 11.4477 17.0523 11 16.5 11H13V5.5C13 4.94772 12.5523 4.5 12 4.5C11.4477 4.5 11 4.94772 11 5.5V12C11 12.5523 11.4477 13 12 13H16.5Z" fill="currentColor"/><path fill-rule="evenodd" clip-rule="evenodd" d="M12 1C5.92487 1 1 5.92487 1 12C1 18.0751 5.92487 23 12 23C18.0751 23 23 18.0751 23 12C23 5.92487 18.0751 1 12 1ZM3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12Z" fill="currentColor"/></svg>
+          <div class="de-rows" id="deTimeRow">
+            <label class="de-row time-input-wrap">
+              <span class="de-row-k"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2v8"/><path d="m4.93 10.93 1.41 1.41"/><path d="M2 18h2"/><path d="M20 18h2"/><path d="m19.07 10.93-1.41 1.41"/><path d="M22 22H2"/><path d="m8 6 4-4 4 4"/><path d="M16 18a4 4 0 0 0-8 0"/></svg>Started</span>
+              <input type="text" class="field-input de-time" id="deStart" placeholder="Start time" autocomplete="off">
+              <button type="button" class="tp-icon-btn de-wheel" data-on-click="h793544eada" title="Pick time" aria-label="Pick start time">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
               </button>
-            </div>
-            <span class="modal-time-sep">–</span>
-            <div style="position:relative;flex:1" class="time-input-wrap">
-              <input type="text" class="field-input" id="deEnd" placeholder="End time (optional)" autocomplete="off" style="padding-left:38px">
-              <button type="button" class="tp-icon-btn" data-on-click="hf33bddd233" title="Pick time">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M16.5 13C17.0523 13 17.5 12.5523 17.5 12C17.5 11.4477 17.0523 11 16.5 11H13V5.5C13 4.94772 12.5523 4.5 12 4.5C11.4477 4.5 11 4.94772 11 5.5V12C11 12.5523 11.4477 13 12 13H16.5Z" fill="currentColor"/><path fill-rule="evenodd" clip-rule="evenodd" d="M12 1C5.92487 1 1 5.92487 1 12C1 18.0751 5.92487 23 12 23C18.0751 23 23 18.0751 23 12C23 5.92487 18.0751 1 12 1ZM3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12Z" fill="currentColor"/></svg>
+            </label>
+            <label class="de-row time-input-wrap">
+              <span class="de-row-k"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 10V2"/><path d="m4.93 10.93 1.41 1.41"/><path d="M2 18h2"/><path d="M20 18h2"/><path d="m19.07 10.93-1.41 1.41"/><path d="M22 22H2"/><path d="m16 6-4 4-4-4"/><path d="M16 18a4 4 0 0 0-8 0"/></svg>Left at</span>
+              <input type="text" class="field-input de-time" id="deEnd" placeholder="End time (optional)" autocomplete="off">
+              <button type="button" class="tp-icon-btn de-wheel" data-on-click="hf33bddd233" title="Pick time" aria-label="Pick leave time">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
               </button>
-            </div>
+            </label>
           </div>
           <div class="err-msg" id="deErr">Invalid times — end must be after start.</div>
         </div>
-        <div class="de-note-wrap" id="deNoteWrap">
-          <div class="form-label" id="deNoteLabel" style="display:none;margin-bottom:6px"></div>
-          <textarea id="deNote" placeholder="Add a note (optional)" rows="1" maxlength="500"></textarea>
+        <p class="de-live" id="deLive" aria-live="polite"></p>
+        <div class="de-note-wrap visible" id="deNoteWrap">
+          <div class="de-sec-label" id="deNoteLabel">Note</div>
+          <textarea id="deNote" placeholder="Add a note (optional)" rows="2" maxlength="500" aria-labelledby="deNoteLabel"></textarea>
         </div>
       </div>
-      <div class="dialog-foot-row">
+      <div class="dialog-foot-row de-foot">
         <button class="btn btn-cancel" id="dayEditCancel">Cancel</button>
-        <button class="btn btn-primary" id="dayEditSave">Update</button>
+        <button class="btn btn-primary" id="dayEditSave">Save</button>
       </div>
       </div><!-- /deEditPane -->
       <!-- Raise Dispute: pick why the attendance system has this day wrong, then
            the Email Draft sheet writes it to HR with 5pm's timings for the day. -->
-      <div id="deDisputePane" hidden>
-        <div class="dialog-body">
-          <div class="form-sub">Ask HR to correct this day in your attendance system. 5pm's timings for the day go in the email.</div>
-          <div class="email-label" id="deReasonLabel">Reason</div>
-          <div class="de-chips" id="deDisputeReasons" role="radiogroup" aria-labelledby="deReasonLabel">
-            <button type="button" class="de-chip" role="radio" aria-checked="true" data-reason="missed">Missed Punch Out</button>
-            <button type="button" class="de-chip" role="radio" aria-checked="false" data-reason="glitch">Technical Glitch</button>
-            <button type="button" class="de-chip" role="radio" aria-checked="false" data-reason="notupdated">Not Updated</button>
+      <div id="deDisputePane" class="de-pane" hidden>
+        <div class="dialog-body de-body">
+          <p class="de-intro">Ask HR to correct this day in your attendance system. 5pm's timings for the day go in the email.</p>
+          <div class="de-rec" id="deRecorded"></div>
+          <div class="de-sec-label" id="deReasonLabel">Reason</div>
+          <div class="de-chips de-reasons" id="deDisputeReasons" role="radiogroup" aria-labelledby="deReasonLabel">
+            <button type="button" class="de-chip" role="radio" aria-checked="true" data-reason="missed">Missed punch out<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></button>
+            <button type="button" class="de-chip" role="radio" aria-checked="false" data-reason="glitch">Technical glitch<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></button>
+            <button type="button" class="de-chip" role="radio" aria-checked="false" data-reason="notupdated">Not updated<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></button>
           </div>
           <input class="field-input" id="deDisputeOther" type="text" maxlength="200" placeholder="Or write your own reason" aria-label="Your own reason">
         </div>
-        <div class="dialog-foot-row">
+        <div class="dialog-foot-row de-foot">
           <button class="btn btn-cancel" id="deDisputeCancel">Cancel</button>
-          <button class="btn btn-primary" id="deDisputeNext">Draft Email</button>
+          <button class="btn btn-primary" id="deDisputeNext">Draft email</button>
         </div>
       </div>
       </div><!-- /deMainPage -->

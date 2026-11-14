@@ -7821,8 +7821,10 @@ Kind regards,
       const log = dayLog(key);
       const d = new Date(key + 'T12:00');
       const _isFuturePlanModal = new Date(key + 'T12:00') > new Date() && key !== todayKey() && !!(log?.futurePlan);
-      el('dayEditTitle').textContent = _isFuturePlanModal ? 'Update Plan' : 'Update Entry';
-      el('dayEditTitle').dataset.editTitle = el('dayEditTitle').textContent; // what the first tab is called
+      // Header (#34): the date is the title; the subtitle names what this tab does.
+      const _deDate = new Date(_dayEditKey + 'T12:00');
+      el('dayEditTitle').textContent = _deDate.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
+      el('dayEditDesc').dataset.editDesc = _isFuturePlanModal ? 'Plan this day.' : 'Fix the times or the kind of day.';
       // Raise Dispute only makes sense for a day that has happened.
       const _canDispute = !wkndNote && (key || todayKey()) <= todayKey();
       el('deTabs').hidden = !_canDispute;
@@ -7833,7 +7835,6 @@ Kind regards,
       _deTab('edit');
       _deChip('missed');
       el('deDisputeOther').value = '';
-      el('dayEditDesc').textContent = `${MONTHS[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
       el('deStart').value = log?.loginDisplay || '';
       el('deEnd').value   = log?.checkoutDisplay || '';
       el('deErr').classList.remove('show');
@@ -7849,19 +7850,10 @@ Kind regards,
       const _effectiveOverride = log?.override || log?.futurePlan || null;
       const _effectiveNote     = log?.note || log?.futureReason || '';
       // Highlight active override; hide time row instantly (no transition on open)
-      ['deHalfDay','deHoliday','deLeave'].forEach(id => el(id)?.classList.remove('active'));
       const _deTimeWrap = el('deTimeWrap');
       if (_deTimeWrap) { _deTimeWrap.style.transition = 'none'; _deTimeWrap.classList.remove('hidden'); }
-      if (_effectiveOverride === 'halfday') {
-        el('deHalfDay').classList.add('active');
-      } else if (_effectiveOverride === 'holiday') {
-        el('deHoliday').classList.add('active');
-        if (_deTimeWrap) _deTimeWrap.classList.add('hidden');
-      } else if (_effectiveOverride === 'leave') {
-        el('deLeave').classList.add('active');
-        if (_deTimeWrap) _deTimeWrap.classList.add('hidden');
-      }
-      // Re-enable transition after the instant open state is set
+      _isWkndNoteModal = wkndNote;
+      _deSetType(['halfday', 'holiday', 'leave'].includes(_effectiveOverride) ? _effectiveOverride : 'fullday', true);
       requestAnimationFrame(() => { if (_deTimeWrap) _deTimeWrap.style.transition = ''; });
       // Note field — populate and show if there's an active override
       const _deNoteWrap = el('deNoteWrap');
@@ -7880,18 +7872,21 @@ Kind regards,
       const _overrideRow = el('dayEditOverlay')?.querySelector('.modal-override-row');
       const _deNoteLabel = el('deNoteLabel');
       if (_isWkndNoteModal) {
-        el('dayEditTitle').textContent = 'Update Note';
+        el('dayEditDesc').textContent = 'Weekend note';
         if (_overrideRow) _overrideRow.style.display = 'none';
+        el('deTypeLabel').style.display = 'none';
         if (_deTimeWrap) { _deTimeWrap.style.transition = 'none'; _deTimeWrap.style.display = 'none'; }
         if (_deNote) { _deNote.placeholder = 'write a short note'; _deNote.value = log?.note || ''; }
         if (_deNoteWrap) _deNoteWrap.classList.add('visible');
         if (_deNoteLabel) { _deNoteLabel.textContent = 'What did you do?'; _deNoteLabel.style.display = ''; }
       } else {
         if (_overrideRow) _overrideRow.style.display = '';
+        el('deTypeLabel').style.display = '';
         if (_deTimeWrap) _deTimeWrap.style.display = '';
         if (_deNote) _deNote.placeholder = 'Add a note (optional)';
-        if (_deNoteLabel) _deNoteLabel.style.display = 'none';
       }
+      _deFillRecorded(log);
+      _deUpdateLive();
       el('dayEditOverlay').classList.add('open');
       if (focusNote) requestAnimationFrame(() => el('deNote')?.focus());
     }
@@ -8039,21 +8034,73 @@ Kind regards,
       _isWkndNoteModal = false;
     }
 
-    function setDeOverride(type) {
-      const map = { halfday:'deHalfDay', holiday:'deHoliday', leave:'deLeave' };
-      const btnId = map[type];
-      if (!btnId) return;
-      const btn = el(btnId);
-      if (!btn) return;
-      const wasActive = btn.classList.contains('active');
-      ['deHalfDay','deHoliday','deLeave'].forEach(id => el(id)?.classList.remove('active'));
-      if (!wasActive) btn.classList.add('active'); // toggle off if same clicked
-      // Hide time row entirely for full-day overrides; show for halfday/none
-      const activeNow = wasActive ? null : type;
-      const hideTime = activeNow === 'holiday' || activeNow === 'leave';
-      el('deTimeWrap')?.classList.toggle('hidden', hideTime);
-      // Show/hide optional note field
-      el('deNoteWrap')?.classList.toggle('visible', !!activeNow);
+    // ── Update Entry sheet (#34, approved 2026-11-14) ──
+    // Day type = one segmented control with the app's day-type icons and colours
+    // (DAY_TYPES + WK_ICON). Full Day = no override; Leave / Holiday hide the times.
+    const _DE_NOTE_LABEL = { fullday: 'Note', halfday: 'Why a half day?', leave: 'Reason for leave', holiday: 'Which holiday?' };
+    function _deTypeInit() {
+      el('deType')?.querySelectorAll('[data-type]').forEach(b => {
+        const t = DAY_TYPES[b.dataset.type];
+        b.innerHTML = wkSvg(t.icon) + `<span>${t.label}</span>`;
+        if (t.tone) b.style.setProperty('--dt', `var(--${t.tone})`);
+        b.addEventListener('click', () => _deSetType(b.dataset.type));
+      });
+      el('deType')?.addEventListener('keydown', e => {
+        if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+        const all = [...el('deType').querySelectorAll('[data-type]')], i = all.findIndex(x => x.classList.contains('active'));
+        const n = all[(i + (e.key === 'ArrowRight' ? 1 : all.length - 1)) % all.length];
+        e.preventDefault(); _deSetType(n.dataset.type); n.focus();
+      });
+    }
+    function _deSetType(type, instant) {
+      const row = el('deType'); if (!row) return;
+      let on = null;
+      row.querySelectorAll('[data-type]').forEach(b => {
+        const a = b.dataset.type === type;
+        b.classList.toggle('active', a); b.setAttribute('aria-checked', String(a)); b.tabIndex = a ? 0 : -1;
+        if (a) on = b;
+      });
+      // The selection glides to the picked type (uiarc segmented control).
+      const pill = row.querySelector('.de-type-pill');
+      if (pill && on) {
+        if (instant) pill.style.transition = 'none';
+        pill.style.width = on.offsetWidth + 'px';
+        pill.style.transform = `translateX(${on.offsetLeft}px)`;
+        if (instant) requestAnimationFrame(() => { pill.style.transition = ''; });
+      }
+      el('deTimeWrap')?.classList.toggle('hidden', type === 'leave' || type === 'holiday');
+      if (!_isWkndNoteModal && el('deNoteLabel')) el('deNoteLabel').textContent = _DE_NOTE_LABEL[type] || 'Note';
+      _deUpdateLive();
+    }
+    function setDeOverride(type) { _deSetType(type); }
+    // The live line under the times: what this entry adds up to.
+    function _deLiveLine(dayName, type, secs, daily) {
+      if (type === 'leave' || type === 'holiday') return 'No hours for a day off. Your week adjusts.';
+      const hm = v => { const m = Math.round(v / 60); return `${Math.floor(m / 60)}h ${p2(m % 60)}m`; };
+      if (secs > 0) return `That makes ${dayName} ${hm(secs)}`;
+      if (type === 'halfday') return `Counts as ${hm(daily / 2)} toward your week.`;
+      return '';
+    }
+    function _deUpdateLive() {
+      const out = el('deLive'); if (!out) return;
+      const key = _dayEditKey || todayKey(), type = el('deType')?.querySelector('.active')?.dataset.type || 'fullday';
+      const s = parse(el('deStart').value || ''), e = parse(el('deEnd').value || '');
+      let secs = 0;
+      if (s && e) { const eAdj = e <= s ? new Date(e.getTime() + 864e5) : e; secs = Math.floor((eAdj - s) / 1000); }
+      out.textContent = _isWkndNoteModal ? '' : _deLiveLine(FULL_DAYS_EN[new Date(key + 'T12:00').getDay()], type, secs, cfg().dailyH * 3600);
+    }
+    // Raise Dispute: what 5pm recorded for the day goes in the email.
+    function _deRecordedText(inT, outT, secs) {
+      const hm = v => { const m = Math.round(v / 60); return `${Math.floor(m / 60)}h ${p2(m % 60)}m`; };
+      if (inT && outT && outT !== '—') return `${inT} – ${outT}${secs > 0 ? ' · ' + hm(secs) : ''}`;
+      if (inT) return `Started ${inT}, no end time`;
+      return 'No times for this day';
+    }
+    function _deFillRecorded(log) {
+      const box = el('deRecorded'); if (!box) return;
+      const l = log || {};
+      box.innerHTML = '<span>5pm recorded</span><b></b>';
+      box.querySelector('b').textContent = _deRecordedText(_loginDisplayFromLog(l), _checkoutDisplayFromLog(l), Math.round((l.hoursWorked || 0) * 3600));
     }
 
     // ── Export all logs as a local JSON file ───────────
@@ -9912,8 +9959,8 @@ Kind regards,
       el('deEditPane').hidden = which !== 'edit';
       el('deDisputePane').hidden = which !== 'dispute';
       // The title names the tab you're on.
-      const t = el('dayEditTitle');
-      t.textContent = which === 'dispute' ? 'Raise Dispute' : (t.dataset.editTitle || 'Update Entry');
+      const t = el('dayEditDesc');
+      t.textContent = which === 'dispute' ? 'Ask HR to fix this day.' : (t.dataset.editDesc || '');
       el('dayEditDeleteBtn').style.visibility = which === 'edit' && _deCanDelete ? '' : 'hidden';
     }
     el('deTabs').addEventListener('click', e => { const b = e.target.closest('[data-de-tab]'); if (b) _deTab(b.dataset.deTab); });
@@ -10162,6 +10209,15 @@ Kind regards,
     // Day edit modal
     el('dayEditSave').addEventListener('click', saveDayEditModal);
     el('dayEditCancel').addEventListener('click', closeDayEditModal);
+    _deTypeInit();
+    ['deStart', 'deEnd'].forEach(id => el(id).addEventListener('input', _deUpdateLive));
+    // Phones: a bottom sheet that follows your finger; the body scrolls, the
+    // footer stays pinned (#34).
+    window.Sheet?.attach(el('dayEditOverlay').querySelector('.dialog'), {
+      close: closeDayEditModal,
+      scroller: () => el('dayEditOverlay').querySelector('.de-pane:not([hidden]) .de-body'),
+      isOpen: () => el('dayEditOverlay').classList.contains('open'),
+    });
     el('dayEditOverlay').addEventListener('click', e => { if (e.target === el('dayEditOverlay')) closeDayEditModal(); });
     // Desktop sheet: a round close button (Cancel is hidden there) and Esc.
     (() => {

@@ -1305,3 +1305,21 @@ test('Saved Logins: count line, hold label, short times; tall cards + Hold to Lo
   assert.match(HTML, /@media \(hover: hover\) and \(pointer: fine\) \{\n\s+\.sl-out \{ opacity: 0;/);
   assert.match(extract('function _slHoldInit('), /ms = 1200/);
 });
+
+// ── Update Entry sheet (#34) ───────────────────────────────────────────────
+test('Update Entry: live line, recorded card, synced day-type control, pinned footer', () => {
+  const f = load(extract('function _deLiveLine(') + '\n' + extract('function _deRecordedText(') + '\nthis.o={_deLiveLine,_deRecordedText}', { Math, p2 }, 'o');
+  assert.equal(f._deLiveLine('Monday', 'fullday', 8 * 3600 + 24 * 60, 9 * 3600), 'That makes Monday 8h 24m');
+  assert.equal(f._deLiveLine('Monday', 'leave', 0, 9 * 3600), 'No hours for a day off. Your week adjusts.');
+  assert.equal(f._deLiveLine('Friday', 'holiday', 3600, 9 * 3600), 'No hours for a day off. Your week adjusts.');
+  assert.equal(f._deLiveLine('Monday', 'halfday', 0, 9 * 3600), 'Counts as 4h 30m toward your week.');
+  assert.equal(f._deLiveLine('Monday', 'fullday', 0, 9 * 3600), '');
+  assert.equal(f._deRecordedText('10:20 AM', '06:44 PM', 8 * 3600 + 24 * 60), '10:20 AM – 06:44 PM · 8h 24m');
+  assert.equal(f._deRecordedText('', '—', 0), 'No times for this day');
+  const HTML = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
+  for (const t of ['fullday', 'halfday', 'leave', 'holiday']) assert.match(HTML, new RegExp(`role="radio" data-type="${t}"`));
+  assert.match(extract('function _deTypeInit('), /DAY_TYPES\[b\.dataset\.type\][\s\S]*wkSvg\(t\.icon\)/);
+  assert.match(HTML, /#deMainPage \.de-body \{ flex: 1 1 auto; min-height: 0; overflow-y: auto;/);
+  assert.match(HTML, /#deMainPage \.de-foot \{ flex: none;/);
+  assert.match(HTML, /<button class="btn btn-primary" id="deDisputeNext">Draft email<\/button>/);
+});

@@ -318,12 +318,6 @@ window.__H = Object.assign(window.__H || {}, {
   h70155e2dab: function (event) { setAppTheme('dark', this) },
   // onclick: setAppTheme('light', this)
   hbaac90494f: function (event) { setAppTheme('light', this) },
-  // onclick: setDeOverride('halfday')
-  h78736406eb: function (event) { setDeOverride('halfday') },
-  // onclick: setDeOverride('holiday')
-  hafbff54015: function (event) { setDeOverride('holiday') },
-  // onclick: setDeOverride('leave')
-  h1bbffb6125: function (event) { setDeOverride('leave') },
   // onclick: showCheckoutModal('09:00 AM', new Date(), 9 * 3600)
   h52a198b696: function (event) { showCheckoutModal('09:00 AM', new Date(), 9 * 3600) },
   // onclick: showOutsideShiftModal(null)

@@ -15,56 +15,49 @@ use tauri::{AppHandle, Emitter};
 
 pub const PORT: u16 = 47893;
 
-// Served to the browser once sign-in returns. Colours mirror the app's success
-// tokens and follow the OS light/dark setting, which Chrome reports here.
-//
-// Chrome only lets a script close a tab it opened, and this one was opened by
-// Windows, so the close can be refused. The countdown swaps to a plain
-// instruction in that case rather than leaving a promise the page cannot keep.
-const SUCCESS_PAGE: &str = r#"<!doctype html>
-<html lang="en"><head><meta charset="utf-8"><title>Signed in to 5pm</title>
+// Served to the browser once sign-in returns: the approved "You're in" screen
+// (5pm sign-in design #8), one card in 5pm's colours that follows the OS
+// light/dark setting. "Open App" uses fivepm://, which brings the running app
+// to the front. The page never closes itself: Chrome refuses, because Windows
+// opened the tab, so the message just says the tab can be closed.
+const SUCCESS_PAGE: &str = r##"<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Signed in to 5pm</title>
 <style>
-  :root {
-    color-scheme: light dark;
-    --bg: #ffffff; --fg: #09090b; --muted: #71717a; --success: #16a34a; --success-bg: #f0fdf4;
-  }
-  @media (prefers-color-scheme: dark) {
-    :root { --bg: #09090b; --fg: #fafafa; --muted: #a1a1aa; --success: #4ade80; --success-bg: #052e16; }
-  }
+  /* The approved #8 "Browser: done" screen: one centred card (uiarc login-centered),
+     5pm cool graphite colours, follows the OS light/dark setting. All text >= 7:1. */
+  :root { color-scheme: light dark;
+    --bg: #eef0f4; --surface: #ffffff; --border: #dde1e8; --border-strong: #c3c8d2; --fg: #0c0e13; --muted: #474d59; --ok: #00774d; --hover: #f6f7fa; }
+  @media (prefers-color-scheme: dark) { :root {
+    --bg: #08090c; --surface: #13151a; --border: #22262f; --border-strong: #3b414d; --fg: #eef1f6; --muted: #a9b0bd; --ok: #74c7a0; --hover: #1c1f26; } }
   * { box-sizing: border-box; }
-  body { margin: 0; min-height: 100vh; display: grid; place-items: center;
-    background: var(--bg); color: var(--fg);
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif; }
-  main { text-align: center; padding: 24px; max-width: 320px; }
-  .mark { width: 56px; height: 56px; margin: 0 auto 20px; border-radius: 50%;
-    background: var(--success-bg); display: grid; place-items: center; }
-  h1 { font-size: 18px; font-weight: 600; margin: 0 0 6px; letter-spacing: -0.01em; }
-  p { font-size: 13px; color: var(--muted); margin: 0; }
+  body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 16px; background: var(--bg); color: var(--fg);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif; letter-spacing: -.01em; }
+  main { width: min(100%, 420px); padding: 32px; border: 1px solid var(--border); border-radius: 24px; background: var(--surface); }
+  svg { display: block; width: 48px; height: 48px; margin-bottom: 20px; color: var(--ok); }
+  .ring { stroke-dasharray: 140; stroke-dashoffset: 140; animation: draw .36s cubic-bezier(.65,0,.35,1) .16s forwards; }
+  .tick { stroke-dasharray: 32; stroke-dashoffset: 32; animation: draw .28s cubic-bezier(.16,1,.3,1) .52s forwards; }
+  @keyframes draw { to { stroke-dashoffset: 0; } }
+  h1 { margin: 0 0 8px; font-size: 28px; font-weight: 400; line-height: 1.1; letter-spacing: -.03em; }
+  p { margin: 0 0 24px; font-size: 15px; line-height: 1.45; color: var(--muted); }
+  a { display: flex; min-height: 44px; align-items: center; justify-content: center; border: 1px solid var(--border-strong); border-radius: 14px;
+    color: var(--fg); font-size: 14px; font-weight: 500; text-decoration: none; transition: background-color .15s; }
+  a:hover { background: var(--hover); }
+  a:focus-visible { outline: 2px solid var(--fg); outline-offset: 2px; }
+  @media (max-width: 400px) { main { padding: 24px 20px; } h1 { font-size: 24px; } }
+  @media (prefers-reduced-motion: reduce) { .ring, .tick { animation: none; stroke-dashoffset: 0; } }
 </style></head>
 <body>
   <main>
-    <div class="mark">
-      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="var(--success)"
-           stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-        <polyline points="20 6 9 17 4 12"/>
-      </svg>
-    </div>
-    <h1>You're Logged In</h1>
-    <p id="msg">This tab will be closed in 5.</p>
+    <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <g transform="rotate(-90 24 24)"><circle class="ring" cx="24" cy="24" r="22.25" stroke-width="1.5"/></g>
+      <path class="tick" d="M15.5 24.5l5.5 5.5 11.5-12" stroke-width="2"/>
+    </svg>
+    <h1>You&rsquo;re in</h1>
+    <p>You can close this tab and return to 5pm.</p>
+    <a href="fivepm://open">Open App</a>
   </main>
-  <script>
-    var left = 5;
-    var msg = document.getElementById('msg');
-    var timer = setInterval(function () {
-      left -= 1;
-      if (left > 0) { msg.textContent = 'This tab will be closed in ' + left + '.'; return; }
-      clearInterval(timer);
-      window.close();
-      // Still here a moment later means the browser refused to close the tab.
-      setTimeout(function () { msg.textContent = 'You can close this tab and return to 5pm.'; }, 250);
-    }, 1000);
-  </script>
-</body></html>"#;
+</body></html>"##;
 
 /// Binds the callback port and waits for the browser to arrive.
 /// A second call while one is already waiting is a no-op: the listener that is

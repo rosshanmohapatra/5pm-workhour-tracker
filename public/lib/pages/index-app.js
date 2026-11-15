@@ -923,7 +923,12 @@
           const text = penVisible.length > 1 ? `${penVisible.length} Penalties Found`
             : one.type === 'weekly' ? `Weekly Penalty Found: ${one.rangeStr}`
             : `1 Penalty Found on ${dayStr(one)}`;
-          notifs.push({ id, type: 'warn', text, cta: 'Review', ctaWeekKey: '' });
+          const n = penVisible.length, md = d => `${MONTHS[d.getMonth()].slice(0, 3)} ${d.getDate()}`, dd = d => `${FULL_DAYS_EN[d.getDay()].slice(0, 3)}, ${md(d)}`;
+          const latest = penVisible.reduce((a, p) => p.key > a.key ? p : a, penVisible[0]);
+          const pv = one.type === 'weekly' && n === 1 ? `The week of ${one.rangeStr} came up short.`
+            : n === 1 ? `${dd(one.date)} was short.` : n === 2 ? `${dd(penVisible[0].date)} and ${dd(penVisible[1].date)} were short.` : `${n} short days to resolve.`;
+          notifs.push({ id, type: 'warn', text, title: `Resolve ${n} ${n === 1 ? 'Penalty' : 'Penalties'}`, pv,
+            more: `${pv} Fix your hours or draft an email to your manager.`, time: md(latest.date), cta: 'Review', ctaWeekKey: '' });
           _notifPenKeys.set(id, keys);
         }
       }
@@ -934,7 +939,9 @@
         const sent = c.payrollNudges || {}, cyc = _statsPeriod('cycle', nowTz(), _salaryCycleStart(c), _salaryCycleEnd(c), _salaryCycleLen(c));
         const day = Object.keys(sent).sort().reverse().find(k => k >= dateKey(cyc.from) && k <= tk);
         const id = day && `payroll-${day}`;
-        if (day && !dismissed.includes(id)) notifs.push({ id, type: 'warn', text: `${sent[day].title}: ${sent[day].body}`, cta: 'Review', ctaWeekKey: '' });
+        if (day && !dismissed.includes(id)) { const dd = new Date(day + 'T00:00');
+          notifs.push({ id, type: 'warn', text: `${sent[day].title}: ${sent[day].body}`, title: sent[day].title, pv: sent[day].body,
+            time: day === tk ? 'Today' : `${MONTHS[dd.getMonth()].slice(0, 3)} ${dd.getDate()}`, cta: 'Review', ctaWeekKey: '' }); }
       }
 
       // Backup codes left, after a sign-in with a backup code (#8).
@@ -950,32 +957,51 @@
         const text = p.type === 'weekly'
           ? `Weekly Penalty Found: ${p.rangeStr} · Sample`
           : `1 Penalty Found on ${FULL_DAYS_EN[p.date.getDay()]} ${p.date.getDate()} ${MONTHS[p.date.getMonth()]} · Sample`;
-        notifs.push({ id, type: 'warn', text, cta: 'Check', ctaWeekKey: 'pen:' + p.key });
+        notifs.push({ id, type: 'warn', text, title: 'Resolve 1 Penalty · Sample', pv: text.replace(' · Sample', '') + '.', time: `${MONTHS[p.date.getMonth()].slice(0, 3)} ${p.date.getDate()}`, cta: 'Check', ctaWeekKey: 'pen:' + p.key });
       }
 
       if (c.weeklyOn && diff < -300) {
         const id = `surplus-${tk}`;
         if (!dismissed.includes(id)) {
-          notifs.push({ id, type: 'ok', text: 'You can leave early today.', surplus: dur(Math.abs(diff)) });
+          notifs.push({ id, type: 'ok', text: 'You can leave early today.', title: 'You Can Leave Early Today', pv: `You're ${dur(Math.abs(diff))} ahead this week.`,
+            more: `Your week is ahead of target, so today needs ${dur(Math.abs(diff))} less.`, time: 'Today', surplus: dur(Math.abs(diff)) });
         }
       }
 
       if (dow === 4 && c.weeklyOn) {
         const id = `thu-${tk}`;
         if (!dismissed.includes(id)) {
-          if (diff <= 0) notifs.push({ id, type: 'ok', text: "You're on track — you can leave early tomorrow." });
-          else if (diff > 300) notifs.push({ id, type: 'info', text: "Stick it out today! Finish strong so you can leave early tomorrow." });
+          if (diff <= 0) notifs.push({ id, type: 'ok', text: "You're on track — you can leave early tomorrow.", title: 'Leave Early Tomorrow', pv: "You're on track this week.", time: 'Today' });
+          else if (diff > 300) notifs.push({ id, type: 'info', text: "Stick it out today! Finish strong so you can leave early tomorrow.", title: 'Finish Strong Today', pv: 'A full day today means you can leave early tomorrow.', time: 'Today' });
         }
       }
 
       return notifs;
     }
 
+    // ── Notification center (#59, approved 2026-11-15; adapted from uiarc notification-center) ──
+    // All | Unread, a read state per notification (synced in cfg like dismissals),
+    // rows that open in place (opening one reads it, like Mail), Clear Read at the
+    // top, Mark All as Read at the bottom. Touch still swipes a row away.
+    let _ncView = 'all', _ncOpen = null;
+    function _ncRead() { return new Set(cfg().notifRead ?? []); }
+    function _ncSetRead(ids, on) {
+      const s = _ncRead(); ids.forEach(id => on ? s.add(id) : s.delete(id));
+      saveCfg({ ...cfg(), notifRead: pruneDismissed([...s]).slice(-80) });
+    }
+    // Rows close their own height on the way out, so the list shrinks with them.
+    function _ncCollapse(ids, then) {
+      const rows = ids.map(id => el('ni-' + id)).filter(Boolean);
+      if (!rows.length) return then();
+      rows.forEach((r, i) => setTimeout(() => { r.style.height = r.offsetHeight + 'px'; void r.offsetHeight; r.classList.add('nc-out'); }, Math.min(i * 40, 200)));
+      setTimeout(then, 340 + Math.min(rows.length * 40, 200));
+    }
     function renderNotifs() {
-      const notifs = buildNotifs();
+      const notifs = buildNotifs(), read = _ncRead();
       const list = el('notifList');
-      // P1 badge: animate in/out using spring slide instead of display toggle
-      const hasBadge = notifs.length > 0;
+      const un = notifs.filter(n => !read.has(n.id)).length, rd = notifs.length - un;
+      // The bell's dot means something is unread.
+      const hasBadge = un > 0;
       const _setBadge = (id) => {
         const b = el(id); if (!b) return;
         const wasShown = b.classList.contains('badge-show');
@@ -992,35 +1018,93 @@
       _setBadge('mobNotifBadge');
       el('notifBtn').classList.toggle('has-notifs', hasBadge);
       el('mobNotifBtn')?.classList.toggle('has-notifs', hasBadge);
+      el('notifBtn').setAttribute('aria-label', `Notifications${un ? `, ${un} unread` : ''}`);
 
-      if (!notifs.length) { list.innerHTML = `<div class="notif-empty">No notifications right now.</div>`; return; }
+      // Toolbar + footer.
+      if (el('ncUnN')) el('ncUnN').textContent = un || '';
+      document.querySelectorAll('#ncView [data-view]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.view === _ncView)));
+      requestAnimationFrame(_ncPill);
+      const clr = el('notifClearRead'); if (clr) { clr.classList.toggle('nc-gone', !rd); clr.tabIndex = rd ? 0 : -1; clr.setAttribute('aria-hidden', String(!rd)); }
+      if (el('ncFoot')) el('ncFoot').hidden = !un;
 
-      const warnSvg = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M12 5.5C12.5523 5.5 13 5.94772 13 6.5L13 13.5C13 14.0523 12.5523 14.5 12 14.5C11.4477 14.5 11 14.0523 11 13.5L11 6.5C11 5.94772 11.4477 5.5 12 5.5Z" fill="currentColor"/><path d="M12 18.5C12.8284 18.5 13.5 17.8284 13.5 17C13.5 16.1716 12.8284 15.5 12 15.5C11.1716 15.5 10.5 16.1716 10.5 17C10.5 17.8284 11.1716 18.5 12 18.5Z" fill="currentColor"/><path fill-rule="evenodd" clip-rule="evenodd" d="M1 12C1 5.92487 5.92487 1 12 1C18.0751 1 23 5.92487 23 12C23 18.0751 18.0751 23 12 23C5.92487 23 1 18.0751 1 12ZM12 3C7.02944 3 3 7.02944 3 12C3 16.9706 7.02944 21 12 21C16.9706 21 21 16.9706 21 12C21 7.02944 16.9706 3 12 3Z" fill="currentColor"/></svg>`;
-      const okSvg   = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path fill-rule="evenodd" clip-rule="evenodd" d="M21.2285 6.60358C21.619 6.9941 21.619 7.62726 21.2285 8.01779L10.2557 18.9906C9.86764 19.3786 9.23938 19.3815 8.84786 18.997L2.66233 12.9219C2.2683 12.5349 2.2626 11.9017 2.64959 11.5077L3.3503 10.7943C3.73729 10.4002 4.37043 10.3945 4.76445 10.7815L9.53589 15.4678L19.1072 5.89647C19.4977 5.50595 20.1309 5.50595 20.5214 5.89647L21.2285 6.60358Z" fill="currentColor"/></svg>`;
-      const infoSvg = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M12 18.5C12.5523 18.5 13 18.0523 13 17.5L13 10.5C13 9.94772 12.5523 9.5 12 9.5C11.4477 9.5 11 9.94772 11 10.5L11 17.5C11 18.0523 11.4477 18.5 12 18.5Z" fill="currentColor"/><path d="M12 8.5C12.8284 8.5 13.5 7.82843 13.5 7C13.5 6.17157 12.8284 5.5 12 5.5C11.1716 5.5 10.5 6.17157 10.5 7C10.5 7.82843 11.1716 8.5 12 8.5Z" fill="currentColor"/><path fill-rule="evenodd" clip-rule="evenodd" d="M1 12C1 18.0751 5.92487 23 12 23C18.0751 23 23 18.0751 23 12C23 5.92487 18.0751 1 12 1C5.92487 1 1 5.92487 1 12ZM12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12C21 16.9706 16.9706 21 12 21Z" fill="currentColor"/></svg>`;
+      const shown = _ncView === 'unread' ? notifs.filter(n => !read.has(n.id)) : notifs;
+      if (!shown.length) {
+        list.innerHTML = _ncView === 'unread' && notifs.length
+          ? `<div class="nc-empty"><strong>Nothing unread</strong><p>You've seen every notification.</p><button type="button" class="nc-link" data-nc="all">Show All</button></div>`
+          : `<div class="nc-empty"><strong>All clear</strong><p>New notifications will show up here.</p></div>`;
+        return;
+      }
 
-      list.innerHTML = notifs.map(n => {
+      const warnSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>`;
+      const okSvg   = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>`;
+      const infoSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>`;
+      const check = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>`;
+      const dot   = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="1"/></svg>`;
+      const x     = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>`;
+
+      list.innerHTML = shown.map(n => {
         const icon = n.type === 'warn' ? warnSvg : n.type === 'ok' ? okSvg : infoSvg;
-        // n.id and n.ctaWeekKey are internal keys (no user input), but escape defensively
-        const safeId  = _escHtml(n.id || '');
-        const safeCta = _escHtml(n.ctaWeekKey || '');
-        // Surplus is information, not an action, so it stays inline. The CTA is
-        // gone: the card itself carries the tap target now.
-        const actions = n.surplus
-          ? `<div class="notif-actions"><span class="notif-surplus">${_escHtml(n.surplus)} saved</span></div>`
-          : '';
-        // A card with nowhere to go is still tappable: the tap dismisses it,
-        // and it says so (hover shows the ×, touch shows "Tap to dismiss").
-        const tap = n.cta
-          ? ` data-on-click="h837093f811" data-click-a0="${safeId}" data-click-a1="${safeCta}" role="button" tabindex="0"`
-          : ` data-tap-dismiss="${safeId}" role="button" tabindex="0" aria-label="${_escHtml(n.text)} Tap to dismiss." title="Tap to dismiss"`;
-        const hint = n.cta ? '' : `<div class="notif-hint">Tap to dismiss</div>`;
-        return `<div class="notif-item ${n.cta ? 'notif-tappable' : 'notif-info-only'}" id="ni-${safeId}"${tap}>
+        const safeId = _escHtml(n.id || ''), isRead = read.has(n.id), open = _ncOpen === n.id;
+        const title = n.title || n.text, pv = n.pv || '', more = n.more || pv;
+        const cta = n.cta ? `<button type="button" class="nc-pri" data-on-click="h837093f811" data-click-a0="${safeId}" data-click-a1="${_escHtml(n.ctaWeekKey || '')}">${_escHtml(n.cta)}</button>` : '';
+        const surplus = n.surplus ? `<span class="notif-surplus">${_escHtml(n.surplus)} saved</span>` : '';
+        return `<div class="notif-item nc-row${isRead ? ' read' : ''}${open ? ' open' : ''}" id="ni-${safeId}" data-id="${safeId}" role="listitem">
           <div class="notif-icon ${n.type}">${icon}</div>
-          <div class="notif-body"><div class="notif-text">${_escHtml(n.text)}</div>${actions}${hint}</div>
-          <button type="button" class="notif-dismiss" data-dismiss="${safeId}" aria-label="Dismiss notification"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
+          <button type="button" class="nc-tog" aria-expanded="${open}" aria-label="${_escHtml(title)}${isRead ? '' : ', unread'}. ${open ? 'Hide details' : 'Show details'}">
+            <span class="nc-t"><strong>${_escHtml(title)}</strong><span class="nc-dot" aria-hidden="true"></span></span>
+            <span class="nc-pv">${_escHtml(open ? more : pv)}</span>
+          </button>
+          <time class="nc-time">${_escHtml(n.time || '')}</time>
+          <div class="nc-det"><div><div class="nc-acts">${surplus}${cta}
+            <button type="button" data-nc="read">${isRead ? dot + 'Mark as Unread' : check + 'Mark as Read'}</button>
+            <button type="button" data-nc="dismiss">${x}Dismiss</button></div></div></div>
         </div>`;
       }).join('');
+    }
+    // All | Unread: one fill glides between the two.
+    function _ncPill() {
+      const on = document.querySelector(`#ncView [data-view="${_ncView}"]`), pill = el('ncPill');
+      if (!on || !pill || !on.offsetWidth) return;
+      pill.style.width = on.offsetWidth + 'px'; pill.style.transform = `translateX(${on.offsetLeft}px)`;
+    }
+    function _ncInit() {
+      const list = el('notifList'); if (!list || list.dataset.ncInit) return;
+      list.dataset.ncInit = '1';
+      list.setAttribute('role', 'list');
+      list.addEventListener('click', e => {
+        if (e.target.closest('[data-nc="all"]')) { _ncView = 'all'; renderNotifs(); return; }
+        const row = e.target.closest('.nc-row'); if (!row) return;
+        const id = row.dataset.id, isRead = _ncRead().has(id);
+        const a = e.target.closest('[data-nc]');
+        if (a?.dataset.nc === 'read') {
+          if (!isRead && _ncView === 'unread') { _ncOpen = null; _ncSetRead([id], true); _ncCollapse([id], renderNotifs); return; }
+          _ncSetRead([id], !isRead); renderNotifs(); return;
+        }
+        if (a?.dataset.nc === 'dismiss') { if (_ncOpen === id) _ncOpen = null; _ncCollapse([id], () => { addDismissed(id); renderNotifs(); }); return; }
+        if (e.target.closest('.nc-pri')) { if (!isRead) _ncSetRead([id], true); return; }   // the CTA's own handler opens it
+        if (e.target.closest('.nc-tog')) {
+          // Opening a notification reads it (in All). Closing keeps its state.
+          _ncOpen = _ncOpen === id ? null : id;
+          if (_ncOpen === id && !isRead && _ncView === 'all') _ncSetRead([id], true);
+          renderNotifs();
+          requestAnimationFrame(() => el('ni-' + id)?.querySelector('.nc-tog')?.focus({ focusVisible: false, preventScroll: true }));
+        }
+      });
+      el('ncView')?.addEventListener('click', e => {
+        const b = e.target.closest('[data-view]'); if (!b || b.dataset.view === _ncView) return;
+        _ncView = b.dataset.view; _ncOpen = null; renderNotifs();
+      });
+      el('notifMarkAll')?.addEventListener('click', () => {
+        const read = _ncRead(), ids = buildNotifs().map(n => n.id).filter(id => !read.has(id));
+        _ncOpen = null; _ncSetRead(ids, true);
+        if (_ncView === 'unread') _ncCollapse(ids, renderNotifs); else renderNotifs();
+      });
+      el('notifClearRead')?.addEventListener('click', () => {
+        const read = _ncRead(), ids = buildNotifs().map(n => n.id).filter(id => read.has(id));
+        if (!ids.length) return;
+        _ncOpen = null;
+        _ncCollapse(ids, () => { ids.forEach(addDismissed); renderNotifs(); });
+      });
     }
 
     // Shared exit animation, used by the swipe and by Clear All so every
@@ -1131,20 +1215,7 @@
     }
     document.addEventListener('keydown', e => { if (e.key === 'Escape') closeNotifPanel(); });
     el('notifCloseBtn')?.addEventListener('click', closeNotifPanel);
-    // One notification at a time with a mouse (touch has the swipe): the × on each
-    // card. Capture phase, because a tappable card has its own click handler on
-    // the card (csp-handlers.js) that would otherwise run first and open it.
-    el('notifList')?.addEventListener('click', e => {
-      const x = e.target.closest('.notif-dismiss, [data-tap-dismiss]'); if (!x) return;
-      e.stopPropagation();
-      _dismissNotifItem(x.closest('.notif-item'), x.dataset.dismiss || x.dataset.tapDismiss, 1);
-    }, true);
-    el('notifList')?.addEventListener('keydown', e => {
-      if (e.key !== 'Enter' && e.key !== ' ') return;
-      const x = e.target.closest('[data-tap-dismiss]'); if (!x || e.target !== x) return;
-      e.preventDefault();
-      _dismissNotifItem(x, x.dataset.tapDismiss, 1);
-    });
+    _ncInit();
 
     // ── TARGET HTML ────────────────────────────────────
     // Derive a human-readable login time from a stored day log (works even when
@@ -9531,20 +9602,6 @@ Kind regards,
     // Mobile theme + notif
     el('mobNotifBtn')?.addEventListener('click', toggleNotifPanel);
     el('notifBtn').addEventListener('click', toggleNotifPanel);
-    el('notifClearAll').addEventListener('click', () => {
-      const pending = buildNotifs();
-      if (!pending.length) {
-        // Nothing to clear — iOS-style shake to say "stop clicking"
-        const btn = el('notifClearAll');
-        btn.classList.remove('ios-shake');
-        void btn.offsetWidth; // reflow so the animation can re-trigger
-        btn.classList.add('ios-shake');
-        btn.addEventListener('animationend', () => btn.classList.remove('ios-shake'), { once: true });
-        return;
-      }
-      pending.forEach(n => addDismissed(n.id));
-      renderNotifs();
-    });
     ['inpDailyH','inpDailyM'].forEach(id => {
       el(id)?.addEventListener('change', autoSaveSettings);
       el(id)?.addEventListener('input', autoSaveSettings);
@@ -11048,9 +11105,10 @@ Kind regards,
     }
     function _bkNotice(n) {
       if (!(n >= 0)) return null;
-      return { id: `backup-left-${n}`, type: n <= 2 ? 'warn' : 'info',
-        text: `You have ${_bkLeftText(n).replace(' left', '')} left.${n <= 2 ? ' Make new ones in Settings › Security.' : ''}`,
-        cta: 'Make new codes', ctaWeekKey: 'mfa:low' };
+      const text = `You have ${_bkLeftText(n).replace(' left', '')} left.${n <= 2 ? ' Make new ones in Settings › Security.' : ''}`;
+      return { id: `backup-left-${n}`, type: n <= 2 ? 'warn' : 'info', text, title: n === 1 ? '1 Backup Code Left' : `${n} Backup Codes Left`,
+        pv: n <= 2 ? 'Make new codes before you run out.' : 'Each code works once.', more: text, time: 'Today',
+        cta: 'Make New Codes', ctaWeekKey: 'mfa:low' };
     }
     function _bkInit() {
       el('bkCopyBtn')?.addEventListener('click', _copyBackupCodes);

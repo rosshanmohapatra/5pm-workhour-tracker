@@ -769,6 +769,57 @@
     .notif-actions { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
     .notif-surplus { font-size: 13px; font-weight: 600; color: var(--success); }
     .notif-empty { padding: 16px; font-size: 13px; color: var(--muted-fg); text-align: center; }
+    /* ── Notification center (#59, approved 2026-11-15; adapted from uiarc notification-center) ──
+       Same 360px drawer as the right-hand sheets on desktop. Title + close, All | Unread
+       with a gliding fill and a filled Clear Read, rows that open in place, and a
+       full-width Mark All as Read the size of Update Entry's Save. */
+    .nc-title { font-size: 18px; font-weight: 600; color: var(--foreground); }
+    .notif-card .notif-head { padding: 16px 16px 12px; border-bottom: 0; }
+    .nc-tools { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 52px; padding: 0 12px 10px; border-bottom: 1px solid var(--border-subtle, var(--border)); }
+    .nc-view { position: relative; display: inline-flex; gap: 2px; padding: 3px; border-radius: 12px; background: var(--card); box-shadow: inset 0 0 0 1px var(--border); }
+    .nc-pill { position: absolute; top: 3px; bottom: 3px; left: 0; width: 0; border-radius: 9px; background: var(--muted); transition: transform .3s var(--ease-sheet), width .3s var(--ease-sheet); }
+    .nc-view button { position: relative; z-index: 1; height: 30px; padding: 0 14px; border: 0; background: transparent; color: var(--muted-fg); font: 500 13px var(--font); cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+    .nc-view button[aria-pressed="true"] { color: var(--foreground); }
+    .nc-view em { font-style: normal; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+    .nc-fill { height: 30px; padding: 0 12px; border: 0; border-radius: 10px; background: var(--btn-secondary-bg); color: var(--btn-secondary-fg); font: 500 13px var(--font); cursor: pointer; white-space: nowrap; transition: opacity .2s, background .14s; }
+    .nc-fill:hover { background: var(--btn-secondary-hover); }
+    .nc-fill.nc-gone { opacity: 0; pointer-events: none; }
+    #notifList:has(.nc-row) { display: flex; flex-direction: column; gap: 2px; padding: 8px; }
+    #notifList .notif-item.nc-row { display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; column-gap: 12px; align-items: start; padding: 10px; border: 0; border-radius: 14px; overflow: hidden; }
+    #notifList .nc-row.open { background: var(--muted); }
+    @media (hover: hover) and (pointer: fine) { #notifList .nc-row:hover { background: var(--muted); } }
+    .nc-row .notif-icon { width: 34px; height: 34px; border-radius: 10px; }
+    .nc-row .notif-icon svg { width: 17px; height: 17px; }
+    .nc-row .notif-icon.info { background: var(--blue-bg, var(--muted)); color: var(--blue, var(--muted-fg)); }
+    .nc-tog { min-width: 0; display: grid; gap: 2px; padding: 1px 0 0; border: 0; background: transparent; color: var(--foreground); text-align: left; font: inherit; cursor: pointer; }
+    .nc-tog:focus-visible { outline: 2px solid var(--ring); outline-offset: 4px; border-radius: 6px; }
+    .nc-t { display: flex; align-items: center; gap: 7px; min-width: 0; }
+    .nc-t strong { font-size: 14px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .nc-row.read .nc-t strong { color: var(--muted-fg); font-weight: 500; }
+    .nc-dot { width: 7px; height: 7px; flex: none; border-radius: 50%; background: var(--foreground); transition: transform .25s, opacity .2s; }
+    .nc-row.read .nc-dot { transform: scale(0); opacity: 0; }
+    .nc-pv { font-size: 13px; color: var(--muted-fg); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .nc-row.open .nc-pv { white-space: normal; }
+    .nc-time { padding-top: 2px; font-size: 12px; color: var(--text-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .nc-det { grid-column: 2 / -1; display: grid; grid-template-rows: 0fr; transition: grid-template-rows .3s var(--ease-sheet); }
+    .nc-det > div { min-height: 0; overflow: hidden; }
+    .nc-row.open .nc-det { grid-template-rows: 1fr; }
+    .nc-acts { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 10px 0 2px; }
+    .nc-acts button { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 12px; border: 0; border-radius: 10px; background: var(--card); box-shadow: inset 0 0 0 1px var(--border);
+      color: var(--foreground); font: 500 13px var(--font); cursor: pointer; transition: background .14s, transform .1s; }
+    .nc-acts button:hover { box-shadow: inset 0 0 0 1px var(--border-strong); }
+    .nc-acts button:active { transform: scale(.97); }
+    .nc-acts .nc-pri { background: var(--foreground); color: var(--card); box-shadow: none; }
+    .nc-acts .nc-pri:hover { box-shadow: none; opacity: .9; }
+    .nc-acts svg { width: 14px; height: 14px; }
+    .nc-row.nc-out { height: 0 !important; padding-top: 0; padding-bottom: 0; opacity: 0; transition: height .3s var(--ease-sheet), padding .3s var(--ease-sheet), opacity .2s; }
+    .nc-empty { display: grid; justify-items: center; padding: 32px 16px 36px; text-align: center; }
+    .nc-empty strong { font-size: 14px; font-weight: 600; color: var(--foreground); }
+    .nc-empty p { margin: 4px 0 0; font-size: 13px; color: var(--muted-fg); }
+    .nc-link { margin-top: 12px; border: 0; background: none; color: var(--foreground); font: 500 13px var(--font); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+    .nc-foot { flex: none; display: flex; padding: 14px; border-top: 1px solid var(--border); }
+    .nc-foot .btn { flex: 1; height: 40px; }
+    @media (prefers-reduced-motion: reduce) { .nc-pill, .nc-det, .nc-row.nc-out { transition: none; } }
     /* iOS-style "nothing to clear" shake */
     @keyframes ios-shake {
       10%, 90% { transform: translateX(-1px); }
@@ -4133,14 +4184,18 @@
   <div class="notif-panel hidden" id="notifPanel">
     <div class="notif-card">
       <div class="notif-head">
-        <span class="section-label">Notifications</span>
+        <span class="nc-title">Notifications</span>
         <div class="notif-head-actions">
-          <button class="btn-secondary" id="notifClearAll" style="font-size:12px;height:30px;padding:0 10px">Clear All</button>
           <!-- Desktop drawer only: the same round close button as the Update Entry sheet -->
           <button type="button" class="sheet-close" id="notifCloseBtn" aria-label="Close notifications"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
         </div>
       </div>
-      <div id="notifList"><div class="notif-empty">No notifications right now.</div></div>
+      <div class="nc-tools">
+        <div class="nc-view" id="ncView" role="group" aria-label="Show"><span class="nc-pill" id="ncPill"></span><button type="button" data-view="all" aria-pressed="true">All</button><button type="button" data-view="unread" aria-pressed="false">Unread <em id="ncUnN"></em></button></div>
+        <button type="button" class="nc-fill" id="notifClearRead">Clear Read</button>
+      </div>
+      <div id="notifList"></div>
+      <div class="nc-foot" id="ncFoot" hidden><button type="button" class="btn btn-cancel" id="notifMarkAll">Mark All as Read</button></div>
     </div>
   </div>
 

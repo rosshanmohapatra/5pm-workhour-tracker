@@ -519,26 +519,31 @@ test('Notifications panel has a close button on desktop', () => {
 
 
 
-test('Each notification has its own dismiss button that never opens the card', () => {
+test('Notification center (#59): All | Unread, read state, rows that open, Clear Read, Mark All as Read', () => {
   const render = extract('function renderNotifs(');
-  assert.match(render, /<button type="button" class="notif-dismiss" data-dismiss="\$\{safeId\}" aria-label="Dismiss notification">/);
-  // Capture phase + stopPropagation: the card's own click handler must not run.
-  assert.match(SRC, /const x = e\.target\.closest\('\.notif-dismiss, \[data-tap-dismiss\]'\); if \(!x\) return;\n\s*e\.stopPropagation\(\);\n\s*_dismissNotifItem\(x\.closest\('\.notif-item'\), x\.dataset\.dismiss \|\| x\.dataset\.tapDismiss, 1\);\n\s*\}, true\);/);
+  // Every row has a title, a preview, a time; opening shows the CTA + Mark as Read/Unread + Dismiss.
+  assert.match(render, /const title = n\.title \|\| n\.text, pv = n\.pv \|\| '', more = n\.more \|\| pv;/);
+  assert.match(render, /\$\{isRead \? dot \+ 'Mark as Unread' : check \+ 'Mark as Read'\}/);
+  assert.match(render, /data-nc="dismiss">\$\{x\}Dismiss/);
+  assert.match(render, /const hasBadge = un > 0;/, 'the bell dot means unread');
+  assert.match(render, /el\('ncFoot'\)\.hidden = !un;/, 'Mark All as Read only while something is unread');
+  assert.match(render, /clr\.classList\.toggle\('nc-gone', !rd\)/, 'Clear Read only when something is read');
+  assert.match(render, /Nothing unread/); assert.match(render, /All clear/);
+  const init = extract('function _ncInit(');
+  assert.match(init, /if \(_ncOpen === id && !isRead && _ncView === 'all'\) _ncSetRead\(\[id\], true\);/, 'opening reads it');
+  assert.match(init, /ids\.forEach\(addDismissed\)/, 'Clear Read dismisses the read ones');
+  assert.match(extract('function _ncSetRead('), /notifRead: pruneDismissed\(\[\.\.\.s\]\)\.slice\(-80\)/, 'read state syncs in cfg');
+  // Each notification type carries a title.
+  const build = extract('function buildNotifs(');
+  assert.match(build, /title: `Resolve \$\{n\} \$\{n === 1 \? 'Penalty' : 'Penalties'\}`/);
+  assert.match(build, /title: 'You Can Leave Early Today'/);
+  assert.match(extract('function _bkNotice('), /cta: 'Make New Codes'/);
   const HTML = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
-  assert.match(HTML, /@media \(hover: hover\) and \(pointer: fine\) \{\n\s*\.notif-dismiss \{ display: grid;/);
-});
-
-test('A notification with nowhere to go dismisses on tap and says so', () => {
-  const render = extract('function renderNotifs(');
-  // No CTA: the card is a button that dismisses, with a hint for touch.
-  assert.match(render, /: ` data-tap-dismiss="\$\{safeId\}" role="button" tabindex="0"/);
-  assert.match(render, /const hint = n\.cta \? '' : `<div class="notif-hint">Tap to dismiss<\/div>`;/);
-  assert.match(render, /\$\{n\.cta \? 'notif-tappable' : 'notif-info-only'\}/);
-  // Keyboard: Enter / Space dismiss it too.
-  assert.match(SRC, /const x = e\.target\.closest\('\[data-tap-dismiss\]'\); if \(!x \|\| e\.target !== x\) return;/);
-  const HTML = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
-  assert.match(HTML, /\.notif-info-only \{ cursor: pointer; \}/);
-  assert.match(HTML, /@media \(hover: hover\) and \(pointer: fine\) \{ \.notif-hint \{ display: none; \} \}/);
+  assert.match(HTML, /<span class="nc-title">Notifications<\/span>/);
+  assert.match(HTML, /<button type="button" class="nc-fill" id="notifClearRead">Clear Read<\/button>/);
+  assert.match(HTML, /<button type="button" class="btn btn-cancel" id="notifMarkAll">Mark All as Read<\/button>/);
+  assert.doesNotMatch(HTML, /id="notifClearAll"/);
+  assert.match(HTML, /\.nc-foot \.btn \{ flex: 1; height: 40px; \}/, 'same size as Update Entry Save');
 });
 
 test('Card dismissals reach the notification; a notification dismiss never clears the card', () => {
@@ -1559,7 +1564,5 @@ test('Batch 2026-11-15: privacy contact, logo, Action Center menu, toggle rows, 
   assert.match(HTML, /\.ac-more \{[^}]*background: transparent; box-shadow: inset 0 0 0 1px var\(--border\);/);
   assert.match(HTML, /<label class="pay-switch">/);                                   // whole row toggles
   assert.match(HTML, /#viewSettings \[data-on-click\]:has\(> \.toggle\), #viewSettings \.pay-switch \{ padding: 10px 12px; margin: -10px -12px;/);
-  assert.match(HTML, /#notifList \.notif-item \{ border: 1px solid var\(--border\); border-radius: 12px; \}/);
   assert.doesNotMatch(HTML, /\.notif-item \+ \.notif-item \{ border-top/);
-  assert.match(HTML, /cursor: pointer; opacity: 0;/);                                 // × hidden until hover
 });

@@ -437,7 +437,12 @@
     .toggle:active, [data-on-click]:active > .toggle { --tw: 20px; --th: 12px; --ty: 2px; }
     .toggle input:focus-visible + .toggle-track { box-shadow: 0 0 0 2px var(--card), 0 0 0 3px #6B97FF; }
     /* Settings toggle rows: the whole row is clickable and shows it on hover (user, 2026-11-15). */
-    #viewSettings [data-on-click]:has(> .toggle), #viewSettings .pay-switch { padding: 10px 12px; margin: -10px -12px; border-radius: 12px; cursor: pointer; transition: background .15s; }
+    /* Rows in a tile list keep their own padding and fill edge to edge on hover; a toggle row sitting
+       loose in a card gets a little padding pulled back with a negative margin so its hover fill has room. */
+    #viewSettings [data-on-click]:has(> .toggle), #viewSettings .pay-switch { cursor: pointer; transition: background .15s; }
+    #viewSettings .tile-list > .pay-switch { padding: 14px 16px; }   /* a <label>, so the list's row padding doesn't reach it */
+    #viewSettings .tile-list [data-on-click][data-on-click]:has(> .toggle) { margin: 0; padding: 14px 16px; border-radius: 0; }   /* any toggle row inside a tile list sits on the list's grid */
+    #viewSettings :not(.tile-list) > [data-on-click]:has(> .toggle) { padding: 10px 12px; margin: -10px -12px; border-radius: 12px; }
     @media (hover: hover) and (pointer: fine) { #viewSettings [data-on-click]:has(> .toggle):hover, #viewSettings .pay-switch:hover { background: var(--muted); } }
     @media (hover: hover) and (pointer: fine) { #viewSettings .pay-switch:hover .toggle-track { filter: brightness(1.06); } }
     .toggle input:disabled + .toggle-track { opacity: .5; cursor: default; }
@@ -3969,7 +3974,7 @@
        presets rail | two months, the range as one soft pill per week with solid
        ends, today in its hover fill (never a ring), footer = range + Cancel/Save.
        Desktop: a panel anchored under the row. Phones: bottom sheet, chips, one month. */
-    .dialog.sc-dialog { max-width: 640px; min-width: 0; padding: 10px; border-radius: 20px; }
+    .dialog.sc-dialog { max-width: 720px; min-width: 0; padding: 10px; border-radius: 20px; }
     .overlay.sc-host.sc-pop { background: transparent; backdrop-filter: none; -webkit-backdrop-filter: none; display: block; }
     .overlay.sc-host.sc-pop > .dialog.sc-dialog { position: fixed; margin: 0; max-width: none; background: var(--surface-raised);
       box-shadow: 0 22px 55px rgb(0 0 0 / .28); transform-origin: top right; transform: scale(.97) translateY(-4px); opacity: 0;
@@ -4045,7 +4050,7 @@
     .wf-wh { position: sticky; top: 0; z-index: 2; display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 14px 16px 8px; background: var(--card); }
     .wf-wt { font-size: 18px; font-weight: 600; color: var(--foreground); }
     .wf-wr { font-size: 13px; color: var(--muted-fg); font-variant-numeric: tabular-nums; }
-    .wk-row.hl { background: var(--muted); }
+    .wk-row.hl, .wf-feed .wk-row.today { background: var(--muted); }   /* today rule: today always in its hover look */
     .wk-row.is-weekend .wk-type-lbl { color: var(--muted-fg); }
     .wk-chip.is-extra { color: var(--success); background: color-mix(in srgb, var(--success) 14%, var(--card)); }
     /* Overlay scrollbar (Fluent): a thin thumb while scrolling, wider on hover or drag. */

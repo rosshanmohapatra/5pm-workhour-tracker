@@ -3196,7 +3196,7 @@
       const pop = window.innerWidth > 640 && row;
       ov.classList.toggle('sc-pop', !!pop);
       if (pop) {
-        const r = row.getBoundingClientRect(), w = Math.min(640, window.innerWidth - 24);
+        const r = row.getBoundingClientRect(), w = Math.min(720, window.innerWidth - 24);
         dlg.style.width = w + 'px';
         dlg.style.left = Math.max(12, Math.min(r.right - w, window.innerWidth - w - 12)) + 'px';
         const h = dlg.offsetHeight || 420, below = window.innerHeight - r.bottom - 12;

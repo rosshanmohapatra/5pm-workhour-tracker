@@ -1563,7 +1563,7 @@ test('Batch 2026-11-15: privacy contact, logo, Action Center menu, toggle rows, 
   assert.match(HTML, /<img id="navLogo" src="\/icons\/brand-light\.svg" alt="5pm" height="32" style="display:block;border-radius:7px">/);  // no stroke
   assert.match(HTML, /\.ac-more \{[^}]*background: transparent; box-shadow: inset 0 0 0 1px var\(--border\);/);
   assert.match(HTML, /<label class="pay-switch">/);                                   // whole row toggles
-  assert.match(HTML, /#viewSettings \[data-on-click\]:has\(> \.toggle\), #viewSettings \.pay-switch \{ padding: 10px 12px; margin: -10px -12px;/);
+  assert.match(HTML, /#viewSettings :not\(\.tile-list\) > \[data-on-click\]:has\(> \.toggle\) \{ padding: 10px 12px; margin: -10px -12px;/);   // loose rows only; tile-list rows keep their padding
   assert.doesNotMatch(HTML, /\.notif-item \+ \.notif-item \{ border-top/);
 });
 

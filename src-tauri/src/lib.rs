@@ -1,5 +1,6 @@
 mod idle;
 mod oauth;
+mod privacy;
 mod shell;
 mod store;
 mod updater;
@@ -92,6 +93,12 @@ pub fn run() {
 
       // A launch at sign-in stays in the tray and announces itself with a
       // notification instead. Every other launch is someone opening the app.
+      // No microphone or camera, ever (see privacy.rs).
+      {
+        use tauri::Manager;
+        if let Some(w) = app.get_webview_window("main") { privacy::deny_media(&w); }
+      }
+
       if !shell::launched_by_autostart() {
         shell::show_main(app.handle());
       }

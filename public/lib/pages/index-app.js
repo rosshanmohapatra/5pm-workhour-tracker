@@ -12013,7 +12013,7 @@ Kind regards,
       _syncGlance(_refreshFromCloud(true, true));
 
       // Pull settings + wire up realtime — always, regardless of pull cooldown.
-      SbSync.pullSettings().then(remoteCfg => {
+      const _settingsPull = SbSync.pullSettings().then(remoteCfg => {
         // This device has a settings change the cloud never got (the app closed
         // before it went up): send it, don't overwrite it with the older copy.
         if (_cfgUnsent() && Store.getCfg()) {
@@ -12031,6 +12031,7 @@ Kind regards,
           } finally { _applyingRemote = false; }
         }
         initRealtimeSync();
+        return remoteCfg;
       });
 
       // Store rating, try 2: the app opened again after a first try that didn't end
@@ -12049,9 +12050,18 @@ Kind regards,
         switchTab(savedTab);
       }
 
-      // Show onboarding on first launch
+      // Show onboarding on first launch. On a device that has never opened 5pm
+      // (a new browser, a private window) there's no local copy yet, so wait for
+      // the account's settings to arrive first: an account that already has
+      // settings is not new and never sees onboarding again.
       if (!localStorage.getItem(OB_DONE_KEY) && !Store.getCfg()) {
-        setTimeout(openOnboarding, 300);
+        _settingsPull.then(remoteCfg => {
+          if (remoteCfg && typeof remoteCfg === 'object') {
+            try { localStorage.setItem(OB_DONE_KEY, '1'); } catch {}
+            return;
+          }
+          if (!localStorage.getItem(OB_DONE_KEY) && !Store.getCfg()) setTimeout(openOnboarding, 300);
+        });
       }
 
       // Show week plan modal if needed (only after onboarding is complete)

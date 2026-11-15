@@ -1438,7 +1438,7 @@ test('Login: screens, copy and the signed-in page', () => {
     assert.match(LOGIN, new RegExp(`\n  ${id}: \{ h: `), id);
   assert.match(LOGIN, /done: \{ h: \(\) => big\.ok \+ heading\('You’re in', 'Letting you in\.\.\.'\) \}/);   // user, 2026-11-15
   assert.match(LOGIN, /'That email and password don’t match\.'/);                  // one message, never says which emails exist
-  assert.match(LOGIN, /resetPasswordForEmail\(email\)/);                            // code, not a link
+  assert.match(LOGIN, /resetPasswordForEmail\(email, \{ redirectTo: resetTo \}\)/);  // code first; the link goes to the public app
   assert.match(LOGIN, /verifyOtp\(\{ email: S\.email, token, type: 'recovery' \}\)/);
   assert.match(LOGIN, /mediation: 'conditional'/);                                  // passkey autofill…
   assert.match(LOGIN, /Sign in with a passkey/);                                    // …with a quiet button where it's missing
@@ -1495,4 +1495,17 @@ test('No dead click handlers: every handler key is used by a page', () => {
 test('Login: crafted links can’t show the new-account screen or crash the page', () => {
   assert.match(LOGIN, /const fresh = session && Date\.now\(\) - Date\.parse\(session\.user\?\.created_at \|\| 0\) < 10 \* 60 \* 1000;\n\s*if \(na && fresh\)/);
   assert.match(LOGIN, /try \{ text = esc\(decodeURIComponent\(e\)\.slice\(0, 200\)\); \} catch/);
+});
+
+test('Onboarding waits for the account settings on a new device', () => {
+  // A new browser has no local copy yet; an existing account must not see onboarding again.
+  assert.match(SRC, /const _settingsPull = SbSync\.pullSettings\(\)/);
+  assert.match(SRC, /_settingsPull\.then\(remoteCfg => \{\s*if \(remoteCfg && typeof remoteCfg === 'object'\) \{\s*try \{ localStorage\.setItem\(OB_DONE_KEY/);
+  assert.doesNotMatch(SRC, /if \(!localStorage\.getItem\(OB_DONE_KEY\) && !Store\.getCfg\(\)\) \{\s*setTimeout\(openOnboarding, 300\);/);
+});
+
+test('Reset email link opens the public app, not the Site URL', () => {
+  // Without redirectTo the link goes to Supabase's Site URL, a Vercel alias behind a login wall.
+  assert.match(LOGIN, /resetPasswordForEmail\(email, \{ redirectTo: resetTo \}\)/);
+  assert.match(LOGIN, /const resetTo = \(window\.__TAURI__ \? 'https:\/\/whtracker\.vercel\.app' : location\.origin\) \+ '\/index\.html'/);
 });

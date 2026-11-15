@@ -3866,57 +3866,67 @@
     @media (hover: hover) and (pointer: fine) { .pay-row:hover .sc-val { color: var(--foreground); } }
 
     .sc-foot { font-size: 12px; line-height: 1.5; color: var(--text-muted); }
-    .dialog.sc-dialog { max-width: 620px; min-width: 0; padding: 0; }
-    .sc-head { position: relative; padding: 22px 22px 6px; }
-    .sc-head .dialog-desc { padding-right: 24px; }
-    .sc-x { position: absolute; top: 14px; right: 14px; width: 32px; height: 32px; border: 0; border-radius: 8px; display: grid; place-items: center;
-      background: var(--muted); color: var(--muted-fg); cursor: pointer; }
-    .sc-x:hover { background: var(--btn-secondary-hover); color: var(--foreground); }
-    .sc-x svg { width: 15px; height: 15px; }
-    .sc-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 10px 22px 0; }
-    .sc-field { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 9px 12px; border-radius: 12px; border: 1px solid var(--border);
-      background: var(--card); text-align: left; cursor: pointer; transition: border-color .15s, box-shadow .15s; font-family: var(--font); }
-    .sc-field span { font-size: 12px; color: var(--text-muted); }
-    .sc-field b { font-size: 14px; font-weight: 600; color: var(--foreground); font-variant-numeric: tabular-nums; }
-    .sc-field.on { border-color: var(--foreground); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ring) 18%, transparent); }
-    .sc-cal { position: relative; padding: 12px 18px 4px; }
-    .sc-months { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
-    .sc-mt { text-align: center; font-size: 13px; font-weight: 600; color: var(--foreground); height: 32px; line-height: 32px; }
-    .sc-nav { position: absolute; top: 12px; z-index: 1; width: 32px; height: 32px; border: 0; border-radius: 8px; display: grid; place-items: center;
+    /* Salary Cycle picker (#58, approved 2026-11-15; adapted from uiarc date-range-picker):
+       presets rail | two months, the range as one soft pill per week with solid
+       ends, today in its hover fill (never a ring), footer = range + Cancel/Save.
+       Desktop: a panel anchored under the row. Phones: bottom sheet, chips, one month. */
+    .dialog.sc-dialog { max-width: 640px; min-width: 0; padding: 10px; border-radius: 20px; }
+    .overlay.sc-host.sc-pop { background: transparent; backdrop-filter: none; -webkit-backdrop-filter: none; display: block; }
+    .overlay.sc-host.sc-pop > .dialog.sc-dialog { position: fixed; margin: 0; max-width: none; background: var(--surface-raised);
+      box-shadow: 0 22px 55px rgb(0 0 0 / .28); transform-origin: top right; transform: scale(.97) translateY(-4px); opacity: 0;
+      transition: transform .26s var(--ease-sheet), opacity .2s; }
+    .overlay.sc-host.sc-pop.open > .dialog.sc-dialog { transform: none; opacity: 1; }
+    .sc-body { display: flex; gap: 10px; }
+    .sc-rail { display: flex; flex-direction: column; gap: 2px; width: 9.5rem; flex: none; padding-right: 10px; border-right: 1px solid var(--border); }
+    .sc-preset { display: flex; align-items: center; height: 34px; padding: 0 12px; border: 0; border-radius: 12px; background: transparent; color: var(--muted-fg);
+      font: 400 13px var(--font); text-align: left; white-space: nowrap; cursor: pointer; transition: color .15s, background .15s; }
+    .sc-preset:hover { color: var(--foreground); }
+    .sc-preset[aria-pressed="true"] { color: var(--foreground); font-weight: 600; background: color-mix(in srgb, var(--foreground) 7%, transparent); }
+    .sc-preset:focus-visible, .sc-nav:focus-visible { outline: 2px solid var(--ring); outline-offset: -2px; }
+    .sc-cal { position: relative; flex: 1; min-width: 0; }
+    .sc-months { display: flex; gap: 20px; justify-content: center; }
+    .sc-month { width: 252px; }
+    .sc-mt { text-align: center; font-size: 14px; font-weight: 500; color: var(--foreground); height: 32px; line-height: 32px; }
+    .sc-nav { position: absolute; top: 0; z-index: 1; width: 32px; height: 32px; border: 0; border-radius: 999px; display: grid; place-items: center;
       background: transparent; color: var(--muted-fg); cursor: pointer; }
     .sc-nav:hover { background: var(--muted); color: var(--foreground); }
-    .sc-nav.prev { left: 18px; } .sc-nav.next { right: 18px; }
+    .sc-nav.prev { left: 0; } .sc-nav.next { right: 0; }
     .sc-nav svg { width: 16px; height: 16px; }
-    .sc-grid { display: grid; grid-template-columns: repeat(7, 1fr); row-gap: 2px; }
-    .sc-wd { height: 28px; display: grid; place-items: center; font-size: 12px; font-weight: 500; color: var(--text-muted); }
-    .sc-c { position: relative; height: 36px; border: 0; padding: 0; background: transparent; color: var(--foreground); font: 500 13px var(--font);
-      font-variant-numeric: tabular-nums; cursor: pointer; isolation: isolate; }
-    .sc-c::before { content: ''; position: absolute; inset: 2px; z-index: -1; border-radius: 10px; transition: background .12s; }
-    .sc-c:hover::before { background: var(--muted); }
-    .sc-c.in { background: var(--chip, var(--muted)); background: color-mix(in srgb, var(--foreground) 7%, transparent); }
-    .sc-c.start { background: linear-gradient(to right, transparent 50%, color-mix(in srgb, var(--foreground) 7%, transparent) 50%); }
-    .sc-c.end { background: linear-gradient(to left, transparent 50%, color-mix(in srgb, var(--foreground) 7%, transparent) 50%); }
-    .sc-c.start::before, .sc-c.end::before { background: var(--foreground); }
-    .sc-c.start, .sc-c.end { color: var(--background); font-weight: 600; }
-    .sc-c.today::after { content: ''; position: absolute; inset: 3px; border-radius: 9px; box-shadow: inset 0 0 0 1.5px var(--border-strong); pointer-events: none; }
-    .sc-c:focus-visible { outline: 2px solid var(--ring); outline-offset: -2px; border-radius: 10px; }
+    .sc-grid { display: grid; grid-template-columns: repeat(7, 36px); }
+    .sc-wd { height: 28px; display: grid; place-items: center; font-size: 12px; color: var(--text-muted); }
+    .sc-c { position: relative; height: 36px; border: 0; padding: 0; background: transparent; color: var(--foreground); font: 400 13px var(--font);
+      font-variant-numeric: tabular-nums; cursor: pointer; display: grid; place-items: center; }
+    .sc-c > span { position: relative; z-index: 1; display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; transition: background .15s, transform .1s; }
+    .sc-c:hover > span { background: color-mix(in srgb, var(--foreground) 8%, transparent); }
+    .sc-c:active > span { transform: scale(.9); }
+    .sc-c.in::before { content: ''; position: absolute; top: 3px; bottom: 3px; left: 0; right: 0; background: color-mix(in srgb, var(--foreground) 9%, transparent); }
+    .sc-c.in.rs::before { left: 3px; border-radius: 999px 0 0 999px; } .sc-c.in.re::before { right: 3px; border-radius: 0 999px 999px 0; }
+    .sc-c.in.rs.re::before { border-radius: 999px; }
+    .sc-c.in.start::before { left: 50%; border-radius: 0; } .sc-c.in.end::before { right: 50%; border-radius: 0; }
+    .sc-c.in.start.re::before, .sc-c.in.end.rs::before { display: none; }
+    .sc-c.today:not(.start):not(.end) > span { background: var(--muted); }
+    .sc-c.start > span, .sc-c.end > span { background: var(--foreground); color: var(--background); font-weight: 600; }
+    .sc-c:focus-visible { outline: none; } .sc-c:focus-visible > span { outline: 2px solid var(--ring); outline-offset: 1px; }
     .sc-pad { pointer-events: none; }
-    .sc-sum { display: flex; flex-direction: column; gap: 2px; margin: 8px 22px 0; padding: 12px 14px; border-radius: 12px; background: var(--surface-raised); border: 1px solid var(--border); }
-    .sc-sum b { font-size: 14px; font-weight: 600; color: var(--foreground); font-variant-numeric: tabular-nums; }
-    .sc-sum span { font-size: 12px; color: var(--muted-fg); }
-    .sc-sum.bad span { color: var(--warning); }
-    .sc-foot-row { padding: 14px 22px 18px; }
+    .sc-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 10px; padding: 10px 2px 0 12px; border-top: 1px solid var(--border); }
+    .sc-bar b { font-size: 14px; font-weight: 600; color: var(--foreground); font-variant-numeric: tabular-nums; }
+    .sc-acts { display: flex; gap: 6px; flex: none; }
+    .sc-acts .btn { width: auto; height: 34px; padding: 0 14px; font-size: 13px; font-weight: 600; border-radius: 11px; }
+    .sc-acts .btn-primary { min-width: 76px; }
     @media (max-width: 640px) {
       .overlay.sc-host { align-items: flex-end; padding: 0; }
-      .overlay.sc-host > .dialog.sc-dialog { width: 100%; max-width: none; border-radius: 24px 24px 0 0; border-bottom: none; transform: translateY(100%);
+      .overlay.sc-host > .dialog.sc-dialog { width: 100%; max-width: none; padding: 0 16px; border-radius: 24px 24px 0 0; border-bottom: none; transform: translateY(100%);
         transition: transform .45s var(--ease-sheet); }
       .overlay.sc-host.open > .dialog.sc-dialog { transform: none; }
-      .overlay.sc-host > .dialog.sc-dialog::before { content: ''; display: block; width: 36px; height: 5px; border-radius: 3px; background: var(--border-strong); margin: 10px auto 0; }
+      .overlay.sc-host > .dialog.sc-dialog::before { content: ''; display: block; width: 36px; height: 5px; border-radius: 3px; background: var(--border-strong); margin: 10px auto 12px; }
       .overlay.sc-host > .dialog.sc-dialog.sheet-dragging { transition: none !important; }
-      .sc-head { padding: 12px 18px 4px; } .sc-fields, .sc-foot-row { padding-left: 18px; padding-right: 18px; } .sc-sum { margin: 6px 18px 0; }
-      .sc-months { grid-template-columns: 1fr; }
+      .sc-body { flex-direction: column; }
+      .sc-rail { flex-direction: row; flex-wrap: wrap; gap: 6px; width: auto; padding: 0 0 12px; border-right: 0; border-bottom: 1px solid var(--border); }
+      .sc-preset { height: 32px; border: 1px solid var(--border); border-radius: 999px; }
+      .sc-month { width: auto; flex: 1; } .sc-grid { grid-template-columns: repeat(7, 1fr); } .sc-c { height: 40px; } .sc-c > span { width: 34px; height: 34px; }
       .sc-months .sc-month + .sc-month { display: none; }   /* one month at a time */
-      .sc-foot-row { padding-bottom: calc(16px + env(safe-area-inset-bottom)); }
+      .sc-bar { flex-direction: column; align-items: stretch; padding: 12px 0 calc(16px + env(safe-area-inset-bottom)); }
+      .sc-acts > .btn { flex: 1; height: 40px; }
     }
     /* ── Update Entry sheet (#34, approved 2026-11-14) ──
        Date title + subtitle, Update Entry | Raise Dispute, a day-type segmented
@@ -4621,12 +4631,12 @@
         <div class="settings-section">
           <div class="settings-section-header">Payroll</div>
           <div class="settings-group">
-            <div class="pay-row" id="scRow" role="button" tabindex="0" aria-haspopup="dialog">
+            <div class="pay-row" id="scRow" role="button" tabindex="0" aria-haspopup="dialog" aria-expanded="false">
               <div>
                 <div class="form-label">Salary Cycle</div>
-                <div class="form-sub">Repeats every month</div>
+                <div class="form-sub">Used for notifying you about penalties &amp; emails.</div>
               </div>
-              <span class="sc-val"><span id="scValue">1st – last day</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></span>
+              <span class="sc-val"><span id="scValue">Start of the Month</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></span>
             </div>
             <label class="pay-switch">
               <span>
@@ -5957,21 +5967,17 @@
        date-range-picker). Two months on desktop, one month in a bottom sheet
        on phones. Filled in by _scRender(). -->
   <div class="overlay sc-host" id="salaryOverlay">
-    <div class="dialog sc-dialog" role="dialog" aria-modal="true" aria-labelledby="scTitle">
-      <div class="sc-head">
-        <div class="dialog-title" id="scTitle">Salary Cycle</div>
-        <div class="dialog-desc">Pick the first and last day your company counts for one month's pay.</div>
-        <button type="button" class="sc-x" id="scClose" aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
+    <div class="dialog sc-dialog" role="dialog" aria-modal="true" aria-label="Salary Cycle">
+      <div class="sc-body">
+        <div class="sc-rail" id="scRail" role="group" aria-label="Common cycles"></div>
+        <div class="sc-cal" id="scCal"></div>
       </div>
-      <div class="sc-fields">
-        <button type="button" class="sc-field" id="scFieldFrom"><span>From</span><b id="scFromV"></b></button>
-        <button type="button" class="sc-field" id="scFieldTo"><span>To</span><b id="scToV"></b></button>
-      </div>
-      <div class="sc-cal" id="scCal"></div>
-      <div class="sc-sum" id="scSum" aria-live="polite"><b id="scSumMain"></b><span id="scSumSub"></span></div>
-      <div class="dialog-foot-row sc-foot-row">
-        <button type="button" class="btn btn-cancel" id="scCancel">Cancel</button>
-        <button type="button" class="btn btn-primary" id="scSave">Save</button>
+      <div class="sc-bar">
+        <b id="scSumMain" aria-live="polite"></b>
+        <div class="sc-acts">
+          <button type="button" class="btn btn-cancel" id="scCancel">Cancel</button>
+          <button type="button" class="btn btn-primary" id="scSave">Save</button>
+        </div>
       </div>
     </div>
   </div>

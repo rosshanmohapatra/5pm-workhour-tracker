@@ -1360,27 +1360,36 @@ test('Action Center: card copy, read filter, clear confirm, empty state', () => 
   assert.doesNotMatch(HTML, /Your Penalties/);
 });
 
-// ── Salary Cycle + Penalty Reminders (#41) ─────────────────────────────────
+// ── Salary Cycle + Penalty Reminders (#41, picker #58) ────────────────────
 function paySandbox() {
   const code = [extract('const _SX_MON = [', '];'), extract('const _sxMd = ', ';'), extract('function _statsPeriod('), extract('const _ord = ', ';'),
-    extract('function _cycleValue(', '; }'), extract('function _cycleRepeats('), extract('function _cycleSuggestTo(', '; }'), extract('const _scDays = ', ';'),
-    extract('function _scProblem('), extract('function _payrollNudge(')].join('\n');
-  return load(code + '\nthis.o = { _statsPeriod, _cycleValue, _cycleRepeats, _cycleSuggestTo, _scProblem, _payrollNudge };',
+    extract('const _SC_PRESETS = ', ';'), extract('const _SC_CUSTOM_LEN = ', ';'), extract('function _scPresetRange('), extract('function _scCustomRange(', '; }'),
+    extract('function _scPresetOf(', '; }'), extract('function _cycleValue('), extract('const _scDays = ', ';'), extract('function _payrollNudge(')].join('\n');
+  return load(code + '\nthis.o = { _statsPeriod, _scPresetRange, _scCustomRange, _scPresetOf, _cycleValue, _scDays, _payrollNudge };',
     { Math, Date, FULL_DAYS_EN: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'] }, 'o');
 }
-test('Salary Cycle: start and end days, the suggested To, the row value and summary', () => {
-  const f = paySandbox(), now = new Date(2026, 10, 13);
+test('Salary Cycle: presets, a 30-day custom cycle, the row value', () => {
+  const f = paySandbox(), now = new Date(2026, 10, 13), md = d => `${d.getMonth() + 1}/${d.getDate()}`;
+  // Month-based cycles (presets and older saved ranges) keep working.
   assert.equal(f._statsPeriod('cycle', now, 26, 25).sub, 'Oct 26 – Nov 25');
-  assert.equal(f._statsPeriod('cycle', now, 26, 24).sub, 'Oct 26 – Nov 24', 'a custom last day');
-  assert.equal(f._statsPeriod('cycle', new Date(2027, 0, 30), 1, 31).sub, 'Jan 1 – Jan 31');
   assert.equal(f._statsPeriod('cycle', new Date(2027, 1, 10), 1, 31).sub, 'Feb 1 – Feb 28', 'clamped to the month');
-  assert.equal(f._statsPeriod('cycle', new Date(2027, 1, 10), 28, 27).sub, 'Jan 28 – Feb 27');
-  const to = f._cycleSuggestTo(new Date(2026, 9, 26)); assert.equal(`${to.getMonth()}-${to.getDate()}`, '10-25', 'Oct 26 → Nov 25');
-  assert.equal(f._cycleValue(26, 25), '26th – 25th'); assert.equal(f._cycleValue(1, 31), '1st – last day'); assert.equal(f._cycleValue(22, 21), '22nd – 21st');
-  assert.equal(f._cycleRepeats(26, 25), 'Repeats every month, the 26th to the 25th of the next month.');
-  assert.equal(f._scProblem(new Date(2026, 9, 26), new Date(2026, 10, 25)), null);
-  assert.match(f._scProblem(new Date(2026, 9, 30), new Date(2026, 10, 29)), /1st to the 28th/);
-  assert.match(f._scProblem(new Date(2026, 9, 26), new Date(2026, 10, 5)), /28 to 31 days/);
+  // Presets: the cycle that contains today.
+  let r = f._scPresetRange(1, now); assert.equal(`${md(r.from)}-${md(r.to)}`, '11/1-11/30', 'Start of the Month');
+  r = f._scPresetRange(5, now); assert.equal(`${md(r.from)}-${md(r.to)}`, '11/5-12/4', '5th Day');
+  r = f._scPresetRange(7, new Date(2026, 10, 3)); assert.equal(`${md(r.from)}-${md(r.to)}`, '10/7-11/6', '7th Day, before the 7th');
+  // Custom: the picked date + 30 days, the picked date is day 1.
+  r = f._scCustomRange(new Date(2026, 10, 12)); assert.equal(`${md(r.from)}-${md(r.to)}`, '11/12-12/11'); assert.equal(f._scDays(r.from, r.to), 30);
+  assert.equal(f._statsPeriod('cycle', new Date(2026, 10, 20), 12, null, 30).sub, 'Nov 12 – Dec 11');
+  assert.equal(f._statsPeriod('cycle', new Date(2026, 10, 5), 12, null, 30).sub, 'Oct 12 – Nov 10', 'before the start day: last month\'s cycle');
+  assert.equal(f._statsPeriod('cycle', new Date(2026, 1, 28), 31, null, 30).sub, 'Feb 28 – Mar 29', 'a 31st start clamps in short months');
+  // Which preset is saved, and the row value.
+  assert.equal(f._scPresetOf(1, 31, 0), 1); assert.equal(f._scPresetOf(5, 4, 0), 5); assert.equal(f._scPresetOf(7, 6, 0), 7);
+  assert.equal(f._scPresetOf(26, 25, 0), 0, 'an older range shows as Custom'); assert.equal(f._scPresetOf(5, null, 30), 0, 'custom');
+  assert.equal(f._cycleValue(1, 31, 0), 'Start of the Month'); assert.equal(f._cycleValue(5, 4, 0), '5th Day');
+  assert.equal(f._cycleValue(12, null, 30, new Date(2026, 10, 12)), 'Custom · Nov 12');
+  const HTML = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
+  assert.match(HTML, /Used for notifying you about penalties &amp; emails\./);
+  assert.doesNotMatch(HTML, /id="scFieldFrom"/, 'From / To fields replaced by presets');
 });
 test('Penalty Reminders: gates, then the first matching rung of the ladder', () => {
   const f = paySandbox();
@@ -1409,7 +1418,7 @@ test('Penalty Reminders: gates, then the first matching rung of the ladder', () 
   assert.match(extract('function buildNotifs('), /cta: 'Review', ctaWeekKey: ''/);
   const HTML = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
   assert.match(HTML, /<div class="settings-section-header">Payroll<\/div>/);
-  assert.match(HTML, /Pick the first and last day your company counts for one month's pay\./);
+  assert.match(HTML, /id="scRail"/, 'the Salary Cycle picker has its presets rail');
 });
 test('Action Center: read rows show only while Show Read Items is on (muted, labelled Read)', () => {
   const m = extract('function _acOpenRowMenu(');

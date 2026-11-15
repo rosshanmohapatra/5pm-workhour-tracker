@@ -1566,3 +1566,12 @@ test('Batch 2026-11-15: privacy contact, logo, Action Center menu, toggle rows, 
   assert.match(HTML, /#viewSettings \[data-on-click\]:has\(> \.toggle\), #viewSettings \.pay-switch \{ padding: 10px 12px; margin: -10px -12px;/);
   assert.doesNotMatch(HTML, /\.notif-item \+ \.notif-item \{ border-top/);
 });
+
+test('Settings tabs (#56): a rail with one gliding pill, panels rise in', () => {
+  const HTML = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
+  assert.match(HTML, /body\.shell-new \.set-tabs \{[^}]*border-radius: 14px;[^}]*background: var\(--surface-raised\); box-shadow: inset 0 0 0 1px var\(--border\);/);
+  assert.match(HTML, /\.set-tab-ind \{ position: absolute; z-index: 0; top: 4px; bottom: 4px; left: 0; background: var\(--card\);/);
+  assert.doesNotMatch(HTML, /\.set-tab-ind \{[^}]*height: 2px/, 'the underline is gone');
+  assert.match(HTML, /@keyframes set-rise \{ from \{ opacity: 0; transform: translateY\(6px\); filter: blur\(3px\); \}/);
+  assert.match(extract('function moveIndicator('), /ind\.style\.left = t\.offsetLeft \+ 'px';/);
+});

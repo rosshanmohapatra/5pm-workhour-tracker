@@ -490,18 +490,20 @@
     body.shell-new #homeMain { flex: 0 0 auto; min-height: auto; gap: 24px; }
     body.shell-new #homeBottomSpacer { display: none; }
 
-    /* Settings tabs, after @uiarc/tabs: each tab keeps its natural width, and
-       when they don't all fit the row scrolls sideways with faded edges and
-       arrow buttons, instead of squeezing every label into one row. The active
-       tab is marked by a sliding bottom line. */
+    /* Settings tabs (#56, approved 2026-11-15; adapted from @uiarc/tabs): a bordered
+       rail on the raised surface with ONE card-coloured pill that glides to the
+       active tab. Tabs share the row; when they don't fit, the rail scrolls with
+       faded edges and arrow buttons (no arrows on touch). Update Entry's
+       Update Entry | Raise Dispute uses the same rail. */
     body.shell-new .set-tabs-shell { position: relative; margin-bottom: 16px; }
-    body.shell-new .set-tabs { position: relative; display: flex; gap: 4px; overflow-x: auto;
-      scrollbar-width: none; overscroll-behavior-x: contain; box-shadow: inset 0 -1px var(--border);
+    body.shell-new .set-tabs { position: relative; display: flex; gap: 2px; padding: 4px; overflow-x: auto;
+      scrollbar-width: none; overscroll-behavior-x: contain; border-radius: 14px;
+      background: var(--surface-raised); box-shadow: inset 0 0 0 1px var(--border);
       scroll-snap-type: x proximity; }
     body.shell-new .set-tab { scroll-snap-align: center; }
     /* Settings: when every tab fits, they share the row to the right edge.
        When they don't, they keep their size and scroll as before. */
-    body.shell-new .set-tabs-shell:not(.de-tabs) .set-tab { flex-grow: 1; }
+    body.shell-new .set-tabs-shell .set-tab { flex-grow: 1; }
     /* The panel's slide-in must never widen the page sideways. */
     body.shell-new #viewSettings .settings-panel { overflow-x: clip; }
     /* Touch: swipe the row; the faded edges show there is more. */
@@ -511,31 +513,30 @@
     body.shell-new .set-tabs-shell[data-right="true"] .set-tabs { mask-image: linear-gradient(to right, #000 calc(100% - 35px), transparent); }
     body.shell-new .set-tabs-shell[data-left="true"][data-right="true"] .set-tabs {
       mask-image: linear-gradient(to right, transparent, #000 35px, #000 calc(100% - 35px), transparent); }
-    body.shell-new .set-tab { flex: 0 0 auto; min-width: 5.5rem; min-height: 44px; display: inline-flex;
-      align-items: center; justify-content: center; gap: 7px; padding: 0 12px 2px; border: none;
-      background: transparent; border-radius: var(--radius-md) var(--radius-md) 0 0; cursor: pointer;
+    body.shell-new .set-tab { position: relative; z-index: 1; flex: 0 0 auto; min-width: 5.5rem; min-height: 36px; display: inline-flex;
+      align-items: center; justify-content: center; gap: 7px; padding: 0 12px; border: none;
+      background: transparent; border-radius: 10px; cursor: pointer;
       font-family: var(--font); font-size: 13px; font-weight: 500; color: var(--muted-fg);
       white-space: nowrap; -webkit-tap-highlight-color: transparent; transition: color .18s, background .18s; }
-    @media (hover: hover) and (pointer: fine) { body.shell-new .set-tab:hover { color: var(--foreground); background: var(--muted); } }
+    @media (hover: hover) and (pointer: fine) { body.shell-new .set-tab:hover:not(.active) { color: var(--foreground); background: color-mix(in srgb, var(--foreground) 5%, transparent); } }
     body.shell-new .set-tab:active { color: var(--foreground); }
     body.shell-new .set-tab:focus-visible { outline: 2px solid #6B97FF; outline-offset: -2px; }
     body.shell-new .set-tab.active { color: var(--foreground); font-weight: 600; }
-    body.shell-new .set-tabs-arrow { position: absolute; z-index: 2; top: 0; bottom: 1px; width: 33px; display: grid;
-      place-items: center; border: none; background: var(--background); color: var(--foreground); cursor: pointer; }
-    body.shell-new .set-tabs-arrow.l { left: 0; }
-    body.shell-new .set-tabs-arrow.r { right: 0; }
+    body.shell-new .set-tabs-arrow { position: absolute; z-index: 3; top: 1px; bottom: 1px; width: 33px; display: grid;
+      place-items: center; border: none; background: var(--surface-raised); color: var(--foreground); cursor: pointer; }
+    body.shell-new .set-tabs-arrow.l { left: 1px; border-radius: 13px 0 0 13px; }
+    body.shell-new .set-tabs-arrow.r { right: 1px; border-radius: 0 13px 13px 0; }
     body.shell-new .set-tabs-arrow[hidden] { display: none; }
-    /* One underline that slides, rather than a border appearing under each tab. */
-    .set-tab-ind { position: absolute; bottom: 0; left: 0; height: 2px; background: var(--foreground);
-      border-radius: 2px; transition: left .24s cubic-bezier(.4,0,.2,1), width .24s cubic-bezier(.4,0,.2,1); }
+    /* One pill that glides to the active tab (left + width set by the script). */
+    .set-tab-ind { position: absolute; z-index: 0; top: 4px; bottom: 4px; left: 0; background: var(--card);
+      border-radius: 10px; box-shadow: inset 0 0 0 1px var(--border), 0 1px 2px rgb(0 0 0 / .06);
+      transition: left .3s var(--ease-sheet), width .3s var(--ease-sheet); }
 
     body.shell-new .set-panel { display: none; }
     /* 24px, the same rhythm the home page cards use. */
     body.shell-new .set-panel.active { display: flex; flex-direction: column; gap: 24px; }
-    body.shell-new .set-panel.slide-right { animation: set-slide-right .24s cubic-bezier(.4,0,.2,1); }
-    body.shell-new .set-panel.slide-left  { animation: set-slide-left  .24s cubic-bezier(.4,0,.2,1); }
-    @keyframes set-slide-right { from { opacity: 0; transform: translateX(8px); } to { opacity: 1; transform: none; } }
-    @keyframes set-slide-left  { from { opacity: 0; transform: translateX(-8px); } to { opacity: 1; transform: none; } }
+    body.shell-new .set-panel.slide-right, body.shell-new .set-panel.slide-left { animation: set-rise .26s var(--ease-sheet); }
+    @keyframes set-rise { from { opacity: 0; transform: translateY(6px); filter: blur(3px); } to { opacity: 1; transform: none; filter: none; } }
     @media (prefers-reduced-motion: reduce) {
       body.shell-new .set-panel.slide-right, body.shell-new .set-panel.slide-left { animation: none; }
       .set-tab-ind { transition: none; }

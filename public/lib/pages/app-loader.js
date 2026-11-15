@@ -2,7 +2,7 @@
 // 5 as the app opens, one step per real loading step, then folds into the 5 PM
 // logo and glides into the logo's place (the left rail on desktop, the top bar
 // on phones). The title under it says what's happening:
-//   Clocking In → Almost 5 (only if the last step takes a while) → It's 5pm.
+//   nothing while it loads, then "It's 5pm" when it's ready (user, 2026-11-15).
 // On a slow load the clock never stops: it creeps toward 4:59, and only reaches
 // 5 when the app is really ready. "Taking longer than usual. Reload" after 6 s.
 //
@@ -41,7 +41,7 @@
   function step(v) {
     if (ready || v <= target) return;
     target = v;
-    if (v >= 420) setTimeout(function () { if (!ready) { waiting = true; title('Almost 5'); } }, 700);
+    if (v >= 420) setTimeout(function () { if (!ready) waiting = true; }, 700);
   }
   // Where the logo lives once the app is open: the rail on desktop, the top bar on phones.
   function slot() {
@@ -77,7 +77,6 @@
   }
   window.__appLoader = { step: step, done: done };
   setTimeout(function () { L.classList.add('slow'); }, 6000);
-  title('Clocking In');
   draw();
   if (reduce) { m = 0; } else raf = requestAnimationFrame(tick);
   step(180);

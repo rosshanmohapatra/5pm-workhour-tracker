@@ -1422,7 +1422,9 @@ test('Penalty Reminders: gates, then the first matching rung of the ladder', () 
   assert.match(extract('function _payrollSchedule('), /_payrollCheck\('target'\)/);
   assert.match(extract('function buildNotifs('), /cta: 'Review', ctaWeekKey: ''/);
   const HTML = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
-  assert.match(HTML, /<div class="settings-section-header">Payroll<\/div>/);
+  assert.match(SRC, /shift\.after\(el\('scRow'\), payroll\.querySelector\('\.pay-switch'\)\); payroll\.remove\(\);/, 'Salary Cycle + Penalty Reminders right under Shift Hours, no Payroll title');
+  assert.match(HTML, /<button type="button" class="info-tip" id="scInfo" aria-label="About the salary cycle" aria-describedby="scTip">/);
+  assert.match(SRC, /if \(el\('scTip'\)\) el\('scTip'\)\.textContent = `This cycle runs/);
   assert.match(HTML, /id="scRail"/, 'the Salary Cycle picker has its presets rail');
 });
 test('Action Center: read rows show only while Show Read Items is on (muted, labelled Read)', () => {
@@ -1613,9 +1615,9 @@ test('Week card feed (#55): every day in one feed, a calendar, Today, overlay sc
   assert.match(HTML, /\.wfc-d\.today \{ background: var\(--muted\); \}/, 'today in its hover fill, never a ring');
 });
 
-test('Page loader (#60): a clock from 9 to 5, three titles, never stalls, never holds the app', () => {
+test('Page loader (#60): a clock from 9 to 5, It is 5pm when ready, never stalls, never holds the app', () => {
   const AL = fs.readFileSync(path.join(WEB, 'lib', 'pages', 'app-loader.js'), 'utf8');
-  assert.match(AL, /title\('Clocking In'\)/); assert.match(AL, /title\('Almost 5'\)/); assert.match(AL, /title\('It\u2019s 5pm'\)/);
+  assert.doesNotMatch(AL, /title\('Clocking In'\)|title\('Almost 5'\)/, 'no text while loading'); assert.match(AL, /title\('It\u2019s 5pm'\)/);
   assert.match(AL, /target = Math\.min\(479\.4, target \+ \(479\.5 - target\) \* ease\(0\.012\)\)/, 'creeps toward 4:59, only 5 when ready');
   assert.match(AL, /setTimeout\(function \(\) \{ if \(!finished\) \{ m = 480; draw\(\); finish\(\); \} \}, 900\)/, 'lands even if frames are slow');
   assert.match(AL, /var ids = \['navLogo', 'mobLogo'\];/, 'rail logo on desktop, top bar on phones');
@@ -1626,4 +1628,15 @@ test('Page loader (#60): a clock from 9 to 5, three titles, never stalls, never 
   assert.match(HTML, /<div id="appLoaderHint">Taking longer than usual\. <button data-on-click="h248485a70e">Reload<\/button><\/div>/);
   assert.match(HTML, /<script src="\/lib\/pages\/app-loader\.js"><\/script>/);
   assert.match(HTML, /display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;/, 'title 10px under the icon');
+});
+
+test('Charts on touch: a tapped day stays until the same bar or outside is tapped', () => {
+  const w = extract('function _renderWkndSummary(');
+  assert.match(w, /if \(i === picked\) \{ picked = -1; rest\(\); \} else \{ picked = i; show\(i\); \}/);
+  assert.doesNotMatch(w, /addEventListener\('touchend', \(\) => setTimeout\(rest, 600\)\)/, 'no more snapping back after a second');
+  assert.match(SRC, /if \(i === sxPicked\) \{ sxPicked = -1; rest\(\); \} else sxPicked = i;/);
+  assert.doesNotMatch(SRC, /touchT = setTimeout\(rest, 1500\)/);
+  assert.match(extract('function _chartTapAway('), /if \(e\.pointerType !== 'mouse' && !chart\.contains\(e\.target\)\) cb\(\);/);
+  const HTML = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
+  assert.match(HTML, /\.wf-feed \{ position: relative; height: min\(460px, 62vh\); padding-top: 0;/, 'sticky week titles sit flush under the header');
 });

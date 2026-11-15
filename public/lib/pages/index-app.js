@@ -2937,6 +2937,13 @@
       if (diff <= 300) return { text: 'On target', tone: 'ok' };
       return { text: `${_wsGap(_minsGap(totalSecs, targetSecs))} over`, tone: 'ok' };
     }
+    // A finger landing anywhere outside a chart puts it back to its resting view.
+    // One listener per chart; it removes itself once the chart is replaced.
+    function _chartTapAway(chart, cb) {
+      const h = e => { if (!chart.isConnected) { document.removeEventListener('pointerdown', h, true); return; }
+        if (e.pointerType !== 'mouse' && !chart.contains(e.target)) cb(); };
+      document.addEventListener('pointerdown', h, true);
+    }
     function _renderWkndSummary(noteKey, ti, when) {
       const box = el('wkndSum'); if (!box) return;
       const wk = week(daySelectorWeekOffset), rows = _wkndDayData(wk);
@@ -3033,11 +3040,19 @@
       barsEl.addEventListener('mouseleave', () => { if (!barsEl.contains(document.activeElement)) rest(); });
       barsEl.addEventListener('focusout', e => { if (!barsEl.contains(e.relatedTarget)) rest(); });
       // Touch: a sideways drag scrubs; lifting the finger puts the week back.
-      barsEl.addEventListener('touchmove', e => {
-        const r = barsEl.getBoundingClientRect(), x = e.touches[0].clientX - r.left;
-        show(Math.max(0, Math.min(rows.length - 1, Math.floor(x / r.width * rows.length))));
-      }, { passive: true });
-      barsEl.addEventListener('touchend', () => setTimeout(rest, 600));
+      // Touch: a tap (or a sideways drag) picks a day and it STAYS picked. Tap the
+      // same bar again, or anywhere outside the chart, to put the week back.
+      let picked = -1, moved = false;
+      const touchAt = x => { const r = barsEl.getBoundingClientRect(); return Math.max(0, Math.min(rows.length - 1, Math.floor((x - r.left) / r.width * rows.length))); };
+      barsEl.addEventListener('touchstart', () => { moved = false; }, { passive: true });
+      barsEl.addEventListener('touchmove', e => { moved = true; picked = touchAt(e.touches[0].clientX); show(picked); }, { passive: true });
+      barsEl.addEventListener('touchend', e => {
+        if (moved) return;
+        const i = touchAt(e.changedTouches[0].clientX);
+        if (i === picked) { picked = -1; rest(); } else { picked = i; show(i); }
+        e.preventDefault();   // no emulated mouse events after the tap
+      });
+      _chartTapAway(barsEl, () => { if (picked >= 0) { picked = -1; rest(); } });
       requestAnimationFrame(() => requestAnimationFrame(() => barsEl.classList.add('grown')));
       // Note: tap the box to write; Save keeps it, Cancel leaves it as it was.
       const nb = box.querySelector('[data-ws="note"]');
@@ -3179,7 +3194,7 @@
     function renderPayrollRow() {
       const c = cfg(), p = _cycleNow(c);
       if (el('scValue')) el('scValue').textContent = _cycleValue(_salaryCycleStart(c), _salaryCycleEnd(c), _salaryCycleLen(c), p.from);
-      if (el('scFoot')) el('scFoot').textContent = `This cycle runs ${_scLabel(p.from)} to ${_scLabel(p.to)}. The Action Center's This Month follows it, and 5pm reminds you to resolve penalties before it closes.`;
+      if (el('scTip')) el('scTip').textContent = `This cycle runs ${_scLabel(p.from)} to ${_scLabel(p.to)}. The Action Center's This Month follows it, and 5pm reminds you to resolve penalties before it closes.`;
       if (el('inpPenRemind')) el('inpPenRemind').checked = c.penaltyReminders !== false;
     }
 
@@ -3263,6 +3278,10 @@
       document.addEventListener('keydown', e => { if (e.key === 'Escape' && ov.classList.contains('open')) { closeSalaryCycle(); el('scRow')?.focus(); } });
       window.Sheet?.attach(ov.querySelector('.dialog'), { close: closeSalaryCycle, isOpen: () => ov.classList.contains('open') && !ov.classList.contains('sc-pop') });
       el('inpPenRemind')?.addEventListener('change', e => { saveCfg({ ...cfg(), penaltyReminders: e.target.checked }); renderNotifs(); });
+      // The info button sits inside the row's <label>: a tap opens its tooltip, never flips the switch.
+      const info = el('scInfo');
+      info?.addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); info.parentElement.classList.toggle('open'); });
+      document.addEventListener('pointerdown', e => { if (!e.target.closest('.info-wrap')) info?.parentElement.classList.remove('open'); }, true);
       renderPayrollRow();
     }
 
@@ -3430,7 +3449,10 @@
       let touchT = 0;
       barsEl.addEventListener('pointermove', e => { clearTimeout(touchT); show(at(e.clientX)); });
       barsEl.addEventListener('pointerdown', e => { clearTimeout(touchT); show(at(e.clientX)); });
-      barsEl.addEventListener('pointerup', e => { if (e.pointerType !== 'mouse') touchT = setTimeout(rest, 1500); });
+      // Touch: the tapped day stays until the same bar is tapped again or the finger lands outside the chart.
+      let sxPicked = -1;
+      barsEl.addEventListener('pointerup', e => { if (e.pointerType === 'mouse') return; const i = at(e.clientX); if (i === sxPicked) { sxPicked = -1; rest(); } else sxPicked = i; });
+      _chartTapAway(barsEl, () => { if (sxPicked >= 0) { sxPicked = -1; rest(); } });
       barsEl.addEventListener('pointerleave', e => { if (e.pointerType === 'mouse' && !barsEl.contains(document.activeElement)) rest(); });
       barsEl.addEventListener('focusin', e => { const b = e.target.closest('.ws-bar'); if (b) show(+b.dataset.i); });
       barsEl.addEventListener('focusout', e => { if (!barsEl.contains(e.relatedTarget)) rest(); });
@@ -12852,9 +12874,11 @@ Kind regards,
         panels.General.appendChild(moved);
       }
 
-      // Payroll (#41): its own group on General, under the targets.
-      const payroll = sectionByName('Payroll');
-      if (payroll) panels.General.appendChild(payroll);
+      // Payroll (#41): Salary Cycle and Penalty Reminders sit right under Shift
+      // Hours in General's card, with no "Payroll" title (user, 2026-11-15).
+      const payroll = sectionByName('Payroll'), shift = el('inpShiftStart')?.closest('.form-field');
+      if (payroll && shift) { shift.after(el('scRow'), payroll.querySelector('.pay-switch')); payroll.remove(); }
+      else if (payroll) panels.General.appendChild(payroll);
 
       if (prefs) {
         const h = prefs.querySelector('.settings-section-header');

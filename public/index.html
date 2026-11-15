@@ -3969,7 +3969,17 @@
     .sc-val svg { width: 16px; height: 16px; color: var(--text-muted); }
     @media (hover: hover) and (pointer: fine) { .pay-row:hover .sc-val { color: var(--foreground); } }
 
-    .sc-foot { font-size: 12px; line-height: 1.5; color: var(--text-muted); }
+    /* Penalty Reminders' info button (#58 follow-up): the cycle dates live in its tooltip. */
+    .pay-title { align-items: center; gap: 6px; }
+    .info-wrap { position: relative; display: inline-flex; }
+    .info-tip { width: 20px; height: 20px; display: grid; place-items: center; padding: 0; border: 0; border-radius: 999px; background: transparent; color: var(--text-muted); cursor: pointer; }
+    .info-tip:hover, .info-tip:focus-visible { color: var(--foreground); background: var(--muted); outline: none; }
+    .info-tip svg { width: 14px; height: 14px; }
+    .info-tip-pop { position: absolute; z-index: 30; bottom: calc(100% + 8px); left: 50%; width: max-content; max-width: min(280px, 70vw); transform: translate(-50%, 4px);
+      padding: 8px 12px; border-radius: 10px; background: var(--surface-raised); box-shadow: inset 0 0 0 1px var(--border-strong), 0 12px 30px rgb(0 0 0 / .25);
+      font-size: 12px; font-weight: 400; line-height: 1.5; color: var(--foreground); text-align: left; white-space: normal;
+      opacity: 0; pointer-events: none; transition: opacity .15s, transform .2s var(--ease-sheet); }
+    .info-wrap:hover .info-tip-pop, .info-tip:focus-visible + .info-tip-pop, .info-wrap.open .info-tip-pop { opacity: 1; transform: translate(-50%, 0); }
     /* Salary Cycle picker (#58, approved 2026-11-15; adapted from uiarc date-range-picker):
        presets rail | two months, the range as one soft pill per week with solid
        ends, today in its hover fill (never a ring), footer = range + Cancel/Save.
@@ -4036,7 +4046,7 @@
     .wk-card { position: relative; overflow: visible; }   /* the calendar popover hangs below the header */
     .wf-head { position: relative; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
     .wf-trigger { display: inline-flex; align-items: center; gap: 8px; height: 34px; padding: 0 10px; margin-left: -10px; border: 0; border-radius: 10px; background: transparent;
-      color: var(--foreground); font: 600 15px var(--font); cursor: pointer; transition: background .14s; }
+      color: var(--foreground); font: 500 13px var(--font); cursor: pointer; transition: background .14s; }   /* same type as the Today button */
     .wf-trigger:hover, .wf-trigger[aria-expanded="true"] { background: var(--muted); }
     .wf-trigger > svg:first-child { width: 16px; height: 16px; color: var(--muted-fg); }
     .wf-trigger .tw-chevron { color: var(--muted-fg); transition: transform .2s; } .wf-trigger[aria-expanded="true"] .tw-chevron { transform: rotate(180deg); }
@@ -4045,7 +4055,7 @@
     .wf-today:hover { background: var(--muted); }
     @keyframes wfIn { from { opacity: 0; transform: scale(.94); } }
     .wf-wrap { position: relative; }
-    .wf-feed { position: relative; height: min(460px, 62vh); overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none; outline: none; }
+    .wf-feed { position: relative; height: min(460px, 62vh); padding-top: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none; outline: none; }
     .wf-feed::-webkit-scrollbar { display: none; }
     .wf-wh { position: sticky; top: 0; z-index: 2; display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 14px 16px 8px; background: var(--card); }
     .wf-wt { font-size: 18px; font-weight: 600; color: var(--foreground); }
@@ -4792,7 +4802,7 @@
             </div>
             <label class="pay-switch">
               <span>
-                <span class="form-label" id="penRemindLabel" style="display:block">Penalty Reminders</span>
+                <span class="form-label pay-title" style="display:flex"><span id="penRemindLabel">Penalty Reminders</span><span class="info-wrap"><button type="button" class="info-tip" id="scInfo" aria-label="About the salary cycle" aria-describedby="scTip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg></button><span class="info-tip-pop" role="tooltip" id="scTip"></span></span></span>
                 <span class="form-sub" style="display:block">A nudge in the cycle's last week, at a calm moment.</span>
               </span>
               <span class="toggle">
@@ -4800,7 +4810,6 @@
                 <span class="toggle-track"></span>
               </span>
             </label>
-            <div class="set-note sc-foot" id="scFoot"></div>
           </div>
         </div><!-- /Payroll section -->
 

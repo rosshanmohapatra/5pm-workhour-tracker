@@ -2044,10 +2044,45 @@
       cursor: pointer; display: flex; justify-content: space-between; height: auto; padding: 4px 8px; }
 
     /* ── Support modal QR + UPI sizing ── */
-    .support-qr  { width: min(250px, 100%); aspect-ratio: 1; border-radius: 12px; border: 1px solid var(--border); background: var(--muted); display: flex; align-items: center; justify-content: center; overflow: hidden; padding: 16px; }
-    .support-qr canvas, .support-qr img { width: 100%; height: auto; display: block; border-radius: 6px; }
-    .support-upi { width: min(250px, 100%); background: var(--muted); border: none; border-radius: var(--radius-md); padding: 8px 10px; display: flex; align-items: center; justify-content: space-between; gap: 6px; cursor: pointer; transition: background .12s; }
-    .support-upi:hover { background: var(--border); }
+    /* Contribute (#57): 5pm dialog spacing (head 22/22/16, body 16 22, foot 0 22 22). */
+    .dialog.ct-dialog { max-width: 400px; padding: 0; }
+    .ct-head { display: flex; align-items: center; gap: 12px; padding: 22px 22px 16px; }
+    .ct-photo { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; flex: none; background: var(--muted); }
+    .ct-who { flex: 1; min-width: 0; } .ct-who .dialog-desc { margin-top: 2px; }
+    .ct-back, .ct-x { width: 32px; height: 32px; flex: none; display: grid; place-items: center; border: 0; border-radius: 999px; background: var(--card);
+      box-shadow: inset 0 0 0 1px var(--border); color: var(--muted-fg); cursor: pointer; }
+    .ct-back:hover, .ct-x:hover { background: var(--muted); color: var(--foreground); }
+    .ct-back svg { width: 16px; height: 16px; } .ct-x svg { width: 14px; height: 14px; }
+    .ct-body { padding: 0 22px 16px; }
+    .ct-money { display: flex; align-items: center; gap: 8px; height: 76px; padding: 0 16px; border-radius: 16px; background: var(--surface-raised);
+      box-shadow: inset 0 0 0 1px var(--border); cursor: text; transition: box-shadow .15s; }
+    .ct-money:focus-within { box-shadow: inset 0 0 0 1px var(--border-strong), 0 0 0 3px color-mix(in srgb, var(--ring) 18%, transparent); }
+    .ct-sym { font-size: 32px; font-weight: 500; color: var(--muted-fg); }
+    .ct-money input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; color: var(--foreground); font: 600 36px var(--font-display, var(--font)); letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+    .ct-cur { flex: none; padding: 4px 8px; border-radius: 8px; background: var(--muted); color: var(--muted-fg); font-size: 12px; font-weight: 600; }
+    .ct-presets { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 10px; }
+    .ct-presets button { height: 36px; border: 0; border-radius: 11px; background: var(--card); box-shadow: inset 0 0 0 1px var(--border); color: var(--muted-fg);
+      font: 500 13px var(--font); cursor: pointer; transition: background .14s, color .14s; }
+    .ct-presets button:hover { color: var(--foreground); }
+    .ct-presets button[aria-pressed="true"] { background: var(--muted); color: var(--foreground); box-shadow: inset 0 0 0 1px var(--border-strong); font-weight: 600; }
+    .ct-hint { min-height: 18px; margin: 8px 0 0; font-size: 12px; color: var(--destructive); }
+    .ct-qr { position: relative; width: min(232px, 100%); aspect-ratio: 1; margin: 0 auto; padding: 14px; border-radius: 18px; background: #fff; box-shadow: inset 0 0 0 1px var(--border); }
+    .ct-qr-code canvas, .ct-qr-code img { width: 100% !important; height: auto !important; display: block; }
+    .ct-qr-logo { position: absolute; left: 50%; top: 50%; width: 22%; height: auto; transform: translate(-50%, -50%); border-radius: 22%; box-shadow: 0 0 0 4px #fff; }
+    .ct-qr-err { font-size: 13px; color: #545b69; text-align: center; margin: 40% 0 0; }
+    .ct-pay-amt { margin-top: 14px; text-align: center; font: 600 28px var(--font-display, var(--font)); letter-spacing: -.02em; color: var(--foreground); font-variant-numeric: tabular-nums; }
+    .ct-pay-line { margin: 4px 0 0; text-align: center; font-size: 13px; color: var(--muted-fg); }
+    .ct-foot { padding: 0 22px 22px; }
+    .ct-foot[hidden] { display: none; }
+    .ct-copy { gap: 8px; } .ct-copy svg { width: 15px; height: 15px; }
+    .ct-copy .ct-i-ok { display: none; color: var(--success); } .ct-copy.done .ct-i-ok { display: block; } .ct-copy.done .ct-i-copy { display: none; }
+    .ct-pay-wrap { position: relative; flex: 1; display: flex; } .ct-pay-wrap .btn { flex: 1; } .ct-pay-wrap:has(#ctPayUpi[hidden]) { display: none; }
+    .ct-apps { position: absolute; bottom: calc(100% + 8px); left: 0; right: 0; z-index: 5; display: flex; flex-direction: column; padding: 4px; border-radius: 14px;
+      background: var(--surface-raised); box-shadow: inset 0 0 0 1px var(--border), 0 16px 40px rgb(0 0 0 / .22); }
+    .ct-apps[hidden] { display: none; }
+    .ct-apps a { display: flex; align-items: center; height: 36px; padding: 0 12px; border-radius: 10px; color: var(--foreground); font-size: 13px; font-weight: 500; text-decoration: none; }
+    .ct-apps a:hover, .ct-apps a:focus-visible { background: var(--muted); outline: none; }
+    .ct-sep { height: 1px; margin: 4px 6px; background: var(--border); }
 
     /* ── Dev code interface (Dark Knight) ── */
     .diag-btn { height: 26px; padding: 0 10px; border-radius: 6px; font-size: 12px; font-weight: 500;
@@ -5597,25 +5632,40 @@
 
   <!-- ── Support Project Modal ── -->
   <div class="overlay" id="supportOverlay" data-on-click="h033ffc86cc">
-    <div class="dialog" style="max-width:550px">
-      <div class="dialog-head" style="display:flex;align-items:flex-start;justify-content:space-between;border-bottom:1px solid var(--border);padding:14px">
-        <div>
-          <div class="dialog-title">Contribute</div>
-          <div class="dialog-desc" style="margin-top:3px">If 5pm helped you leave work on time, help me make it better.</div>
-        </div>
-        <button class="btn-icon" data-on-click="hd99fc99687" title="Close" style="margin:-2px -2px 0 10px;flex-shrink:0">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-        </button>
+    <!-- Contribute (#57): pick an amount, then pay by UPI. -->
+    <div class="dialog ct-dialog" role="dialog" aria-modal="true" aria-labelledby="ctName">
+      <div class="dialog-head ct-head">
+        <button type="button" class="ct-back" id="ctBack" aria-label="Back" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button>
+        <img class="ct-photo" src="https://framerusercontent.com/images/u88DE05m7bwVdrx5jcyopewNaE.jpg?width=200&amp;height=200" alt="" width="44" height="44" loading="lazy" decoding="async">
+        <div class="ct-who"><div class="dialog-title" id="ctName">Roshan Mohapatra</div><div class="dialog-desc">Designer &amp; Developer</div></div>
+        <button type="button" class="ct-x" data-on-click="hd99fc99687" aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
       </div>
-      <div style="padding:14px;display:flex;flex-direction:column;align-items:center;gap:14px">
-        <!-- QR Code — capped at 220px, 1:1 -->
-        <div id="supportQrWrap" class="support-qr"></div>
-        <!-- UPI ID -->
-        <button id="upiCopyBtn" class="support-upi" data-on-click="had1af3fc7a">
-          <span id="upiLabel" style="font-size:13px;font-weight:400;font-family:var(--font);color:var(--muted-fg);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">roshan.394@superyes</span>
-          <svg id="upiCopyIcon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;color:var(--muted-fg)"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-          <svg id="upiCheckIcon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;color:var(--foreground);display:none"><polyline points="20 6 9 17 4 12"/></svg>
-        </button>
+      <div class="dialog-body ct-body">
+        <div id="ctPick">
+          <label class="ct-money"><span class="ct-sym" aria-hidden="true">₹</span><input id="ctAmount" inputmode="numeric" autocomplete="off" aria-label="Amount in rupees" aria-describedby="ctHint"><span class="ct-cur">INR</span></label>
+          <div class="ct-presets" id="ctPresets" role="group" aria-label="Amount">
+            <button type="button" data-amt="199">₹199</button><button type="button" data-amt="499">₹499</button><button type="button" data-amt="999">₹999</button><button type="button" data-amt="custom">Custom</button>
+          </div>
+          <p class="ct-hint" id="ctHint" aria-live="polite"></p>
+        </div>
+        <div id="ctPay" hidden>
+          <div class="ct-qr" id="ctQr"><img class="ct-qr-logo" src="/icons/email-icon.png" alt="" width="56" height="56"></div>
+          <div class="ct-pay-amt" id="ctPayAmt"></div>
+          <p class="ct-pay-line">Open your UPI app and scan to pay Roshan Mohapatra</p>
+        </div>
+      </div>
+      <div class="dialog-foot-row ct-foot" id="ctFootPick">
+        <button type="button" class="btn btn-primary" id="ctDonate">Donate</button>
+      </div>
+      <div class="dialog-foot-row ct-foot" id="ctFootPay" hidden>
+        <button type="button" class="btn btn-cancel ct-copy" id="upiCopyBtn" data-on-click="had1af3fc7a"><svg class="ct-i-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><svg class="ct-i-ok" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg><span>Copy UPI ID</span></button>
+        <div class="ct-pay-wrap">
+          <div class="ct-apps" id="ctApps" role="menu" hidden>
+            <a role="menuitem" data-app="gpay" href="#">Google Pay</a><a role="menuitem" data-app="phonepe" href="#">PhonePe</a><a role="menuitem" data-app="paytm" href="#">Paytm</a>
+            <span class="ct-sep" role="separator"></span><a role="menuitem" data-app="other" href="#">Other UPI app</a>
+          </div>
+          <button type="button" class="btn btn-primary" id="ctPayUpi" aria-haspopup="menu" aria-expanded="false">Pay with UPI</button>
+        </div>
       </div>
     </div>
   </div>

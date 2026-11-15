@@ -9995,6 +9995,7 @@ Kind regards,
     el('dayEditCancel').addEventListener('click', closeDayEditModal);
     _deTypeInit();
     _scInit();
+    _ctInit();
     _bkInit();
     ['deStart', 'deEnd'].forEach(id => el(id).addEventListener('input', _deUpdateLive));
     // Phones: a bottom sheet that follows your finger; the body scrolls, the
@@ -11252,32 +11253,87 @@ Kind regards,
       });
     }
 
-    // ── Support Development Modal ─────────────────────────────────────────
-    function openSupportModal() {
-      el('supportOverlay').classList.add('open');
-      var wrap = el('supportQrWrap');
-      if (wrap && !wrap.firstChild) _loadLib('qrcode').then(function () {
-        if (wrap.firstChild) return;
-        new QRCode(wrap, {
-          text: 'upi://pay?pa=roshan.394@superyes&pn=Roshan%20Mohapatra&cu=INR',
-          width: 256, height: 256,
-          colorDark: '#000000', colorLight: '#ffffff',
-          correctLevel: QRCode.CorrectLevel.M
-        });
-      }).catch(function () {});
+    // ── Contribute (#57, approved 2026-11-15) ──────────────────────────────
+    // Two views in one dialog: pick an amount (presets + a money input), then pay
+    // (a UPI QR for that amount, Copy UPI ID, and on phones Pay with UPI → app picker).
+    // Payments are critical: the link format is fixed and covered by tests.
+    const _UPI_ID = 'roshan.394@superyes', _UPI_NAME = 'Roshan Mohapatra';
+    const _CT_MIN = 10, _CT_MAX = 100000, _CT_PRESETS = [199, 499, 999];
+    let _ctAmt = 499, _ctView = 'pick';
+    // NPCI style: pa stays plain (the @ is not encoded), the amount has 2 decimals, INR.
+    function _upiQuery(amt) { return `pa=${_UPI_ID}&pn=${encodeURIComponent(_UPI_NAME)}&am=${(+amt).toFixed(2)}&cu=INR`; }
+    function upiLink(amt) { return `upi://pay?${_upiQuery(amt)}`; }
+    // A chosen app, skipping the device's default UPI handler. Android: an intent
+    // naming the package. iPhone: the app's own scheme. Other = the plain link.
+    const _UPI_APPS = { gpay: ['com.google.android.apps.nbu.paisa.user', 'gpay://upi/pay'], phonepe: ['com.phonepe.app', 'phonepe://pay'], paytm: ['net.one97.paytm', 'paytmmp://pay'] };
+    function _upiAppLink(amt, app, platform) {
+      const q = _upiQuery(amt), a = _UPI_APPS[app];
+      if (!a) return `upi://pay?${q}`;
+      return platform === 'android' ? `intent://pay?${q}#Intent;scheme=upi;package=${a[0]};end` : `${a[1]}?${q}`;
     }
-    function closeSupportModal() { el('supportOverlay').classList.remove('open'); }
+    const _ctFmt = n => new Intl.NumberFormat('en-IN').format(n);
+    const _ctOk = n => n >= _CT_MIN && n <= _CT_MAX;
+    function _ctRender() {
+      const pick = _ctView === 'pick';
+      el('ctPick').hidden = !pick; el('ctPay').hidden = pick; el('ctBack').hidden = pick;
+      el('ctFootPick').hidden = !pick; el('ctFootPay').hidden = pick;
+      const inp = el('ctAmount');
+      if (document.activeElement !== inp) inp.value = _ctAmt ? _ctFmt(_ctAmt) : '';
+      el('ctPresets').querySelectorAll('[data-amt]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.amt === 'custom' ? !_CT_PRESETS.includes(_ctAmt) : +b.dataset.amt === _ctAmt)));
+      const bad = !_ctOk(_ctAmt);
+      el('ctHint').textContent = !_ctAmt ? '' : _ctAmt < _CT_MIN ? `The smallest amount is ₹${_CT_MIN}.` : _ctAmt > _CT_MAX ? `The largest amount is ₹${_ctFmt(_CT_MAX)}.` : '';
+      el('ctDonate').disabled = bad;
+      el('ctPayAmt').textContent = `₹${_ctFmt(_ctAmt)}`;
+    }
+    function _ctQr() {
+      const wrap = el('ctQr'); if (!wrap) return;
+      wrap.querySelector('.ct-qr-code')?.remove();
+      const box = document.createElement('div'); box.className = 'ct-qr-code'; wrap.prepend(box);
+      _loadLib('qrcode').then(() => {
+        // High error correction so the 5pm icon in the middle never breaks the scan.
+        new QRCode(box, { text: upiLink(_ctAmt), width: 512, height: 512, colorDark: '#0c0e13', colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.H });
+      }).catch(() => { box.innerHTML = '<p class="ct-qr-err">Couldn’t load the QR code. Copy the UPI ID instead.</p>'; });
+    }
+    function openSupportModal() {
+      _ctView = 'pick'; _ctAmt = 499; _ctRender();
+      el('supportOverlay').classList.add('open');
+    }
+    function closeSupportModal() { el('supportOverlay').classList.remove('open'); _ctCloseApps(); }
     let _upiResetTimer = null;
     function _copyUpi() {
-      navigator.clipboard?.writeText('roshan.394@superyes');
-      // Copied state: swap icon only, no color change
-      el('upiCopyIcon').style.display = 'none';
-      el('upiCheckIcon').style.display = '';
+      navigator.clipboard?.writeText(_UPI_ID);
+      const b = el('upiCopyBtn'); b.classList.add('done');
       if (_upiResetTimer) clearTimeout(_upiResetTimer);
-      _upiResetTimer = setTimeout(() => {
-        el('upiCopyIcon').style.display = '';
-        el('upiCheckIcon').style.display = 'none';
-      }, 2000);
+      _upiResetTimer = setTimeout(() => b.classList.remove('done'), 1600);
+    }
+    function _ctCloseApps() { el('ctApps')?.setAttribute('hidden', ''); el('ctPayUpi')?.setAttribute('aria-expanded', 'false'); }
+    function _ctInit() {
+      const ov = el('supportOverlay'); if (!ov) return;
+      const plat = /Android/i.test(navigator.userAgent) ? 'android' : /iPhone|iPad|iPod/i.test(navigator.userAgent) ? 'ios' : '';
+      el('ctPayUpi').hidden = !plat;   // phones only; on a computer the QR is the way
+      el('ctPresets').addEventListener('click', e => {
+        const b = e.target.closest('[data-amt]'); if (!b) return;
+        if (b.dataset.amt === 'custom') { _ctAmt = 0; _ctRender(); el('ctAmount').value = ''; el('ctAmount').focus(); return; }
+        _ctAmt = +b.dataset.amt; _ctRender();
+      });
+      el('ctAmount').addEventListener('input', e => {
+        const digits = e.target.value.replace(/[^\d]/g, '').slice(0, 7);
+        _ctAmt = digits ? +digits : 0;
+        e.target.value = digits ? _ctFmt(_ctAmt) : '';
+        _ctRender();
+      });
+      el('ctAmount').addEventListener('keydown', e => { if (e.key === 'Enter' && _ctOk(_ctAmt)) el('ctDonate').click(); });
+      el('ctDonate').addEventListener('click', () => { if (!_ctOk(_ctAmt)) return; _ctView = 'pay'; _ctRender(); _ctQr(); });
+      el('ctBack').addEventListener('click', () => { _ctView = 'pick'; _ctCloseApps(); _ctRender(); });
+      el('ctPayUpi').addEventListener('click', e => {
+        e.stopPropagation();
+        const m = el('ctApps'), open = m.hasAttribute('hidden');
+        if (open) { m.querySelectorAll('[data-app]').forEach(a => { a.href = _upiAppLink(_ctAmt, a.dataset.app, plat); }); m.removeAttribute('hidden'); }
+        else m.setAttribute('hidden', '');
+        el('ctPayUpi').setAttribute('aria-expanded', String(open));
+      });
+      ov.addEventListener('click', e => { if (!e.target.closest('#ctApps, #ctPayUpi')) _ctCloseApps(); });
+      document.addEventListener('keydown', e => { if (e.key === 'Escape' && ov.classList.contains('open')) { if (!el('ctApps').hasAttribute('hidden')) _ctCloseApps(); else closeSupportModal(); } });
     }
 
     function closeUpwdModal() {

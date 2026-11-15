@@ -1575,3 +1575,22 @@ test('Settings tabs (#56): a rail with one gliding pill, panels rise in', () => 
   assert.match(HTML, /@keyframes set-rise \{ from \{ opacity: 0; transform: translateY\(6px\); filter: blur\(3px\); \}/);
   assert.match(extract('function moveIndicator('), /ind\.style\.left = t\.offsetLeft \+ 'px';/);
 });
+
+test('Contribute (#57): UPI links are exact (payments), presets, two views', () => {
+  const code = [extract('const _UPI_ID = ', ';'), extract('function _upiQuery(', '; }'), extract('function upiLink(', '; }'), extract('const _UPI_APPS = ', ';'), extract('function _upiAppLink(')].join('\n');
+  const f = load(code + '\nthis.o = { upiLink, _upiAppLink };', {}, 'o');
+  assert.equal(f.upiLink(499), 'upi://pay?pa=roshan.394@superyes&pn=Roshan%20Mohapatra&am=499.00&cu=INR');
+  assert.equal(f.upiLink(1234.5), 'upi://pay?pa=roshan.394@superyes&pn=Roshan%20Mohapatra&am=1234.50&cu=INR', 'two decimals');
+  assert.doesNotMatch(f.upiLink(10), /%40/, 'the @ in the UPI ID stays plain');
+  assert.equal(f._upiAppLink(199, 'gpay', 'android'), 'intent://pay?pa=roshan.394@superyes&pn=Roshan%20Mohapatra&am=199.00&cu=INR#Intent;scheme=upi;package=com.google.android.apps.nbu.paisa.user;end');
+  assert.equal(f._upiAppLink(199, 'phonepe', 'ios'), 'phonepe://pay?pa=roshan.394@superyes&pn=Roshan%20Mohapatra&am=199.00&cu=INR');
+  assert.equal(f._upiAppLink(199, 'paytm', 'ios'), 'paytmmp://pay?pa=roshan.394@superyes&pn=Roshan%20Mohapatra&am=199.00&cu=INR');
+  assert.equal(f._upiAppLink(199, 'other', 'android'), f.upiLink(199), 'Other = the plain link (device default)');
+  assert.match(SRC, /const _CT_MIN = 10, _CT_MAX = 100000, _CT_PRESETS = \[199, 499, 999\];/);
+  assert.match(extract('function _ctQr('), /correctLevel: QRCode\.CorrectLevel\.H/, 'high error correction under the icon');
+  const HTML = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
+  assert.match(HTML, /<div class="dialog-desc">Designer &amp; Developer<\/div>/);
+  assert.match(HTML, /<button type="button" class="btn btn-primary" id="ctDonate">Donate<\/button>/);
+  assert.match(HTML, /Open your UPI app and scan to pay Roshan Mohapatra/);
+  assert.match(HTML, />Google Pay<\/a><a role="menuitem" data-app="phonepe" href="#">PhonePe<\/a><a role="menuitem" data-app="paytm" href="#">Paytm<\/a>/);
+});

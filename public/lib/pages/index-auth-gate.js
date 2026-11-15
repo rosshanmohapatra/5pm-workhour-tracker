@@ -132,6 +132,21 @@
 
     window._sbClient.auth.onAuthStateChange(function(event, session) {
       if (session) {
+        // ── A brand-new Google/GitHub account made from Sign in (#8) ──
+        // login.js notes which button was used. Picking Google on Sign in with a
+        // Google account 5pm has never seen creates a new account: ask first
+        // (login.html?noaccount=…) instead of opening an empty app.
+        var intent = null;
+        try { intent = JSON.parse(localStorage.getItem('5pm_oauth_intent') || 'null'); } catch (e) {}
+        if (intent && intent.at && Date.now() - intent.at < 15 * 60 * 1000) {
+          try { localStorage.removeItem('5pm_oauth_intent'); } catch (e) {}
+          var made = Date.parse(session.user && session.user.created_at);
+          if (intent.mode === 'signin' && made && Date.now() - made < 5 * 60 * 1000) {
+            _bootDone = true;
+            window.location.replace('/login.html?noaccount=' + (/github/i.test(intent.provider) ? 'github' : 'google'));
+            return;
+          }
+        }
         // ── Two-factor step-up gate ──
         // If the account has a verified authenticator (nextLevel aal2) but this
         // session is still aal1 and hasn't satisfied MFA this tab, force the
@@ -148,8 +163,18 @@
               return /passkey|webauthn/i.test(m && m.method);
             });
             if (d && d.nextLevel === 'aal2' && d.currentLevel === 'aal1' && !viaPasskey) {
-              _bootDone = true;
-              window.location.replace('/login.html');
+              // A session that passed with a backup code stays aal1 but the
+              // database counts it as done (public.mfa_satisfied): open the app
+              // in every tab instead of asking for another code.
+              return window._sbClient.rpc('mfa_satisfied').then(function (r) {
+                if (r && r.data === true) {
+                  try { sessionStorage.setItem('wh_mfa_ok', '1'); } catch (e) {}
+                  _revealApp(session);
+                } else {
+                  _bootDone = true;
+                  window.location.replace('/login.html');
+                }
+              });
             } else {
               _revealApp(session);
             }
@@ -184,13 +209,17 @@
         // NOTE: 'wh_device_id' must stay in step with DEV_ID_KEY in the main
         // script. It identifies the browser rather than the account, so like
         // wh_theme it survives sign-out.
+        // A device that had an account's data was signed out (session ran out,
+        // or cut off from another device): the login page says so (#8).
+        var hadAccount = false;
+        try { hadAccount = !!localStorage.getItem('wh_owner_uid'); } catch (e) {}
         try {
           Object.keys(localStorage)
             .filter(function(k) { return k.indexOf('wh_') === 0 && k !== 'wh_theme' && k !== 'wh_device_id' && k !== 'wh_ios_install_seen'; })
             .forEach(function(k) { localStorage.removeItem(k); });
         } catch (e) {}
         _bootDone = true;
-        window.location.replace('/login.html');
+        window.location.replace(hadAccount ? '/login.html?reason=session' : '/login.html');
       } else if (event === 'SIGNED_OUT') {
         try { sessionStorage.removeItem('wh_mfa_ok'); } catch (e) {}
       }

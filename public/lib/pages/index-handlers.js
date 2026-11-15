@@ -10,8 +10,6 @@ window.__H = Object.assign(window.__H || {}, {
   h6e8f4ddeed: function (event) { autoSaveSettings() },
   // onchange: if(!this.checked) disableDevMode()
   h8064594bc5: function (event) { if(!this.checked) disableDevMode() },
-  // onchange: obToggleIncludeSaturday(this.checked)
-  h9146bd9f54: function (event) { obToggleIncludeSaturday(this.checked) },
   // onchange: onNotifToggleChange()
   hcf713bf8fc: function (event) { onNotifToggleChange() },
   // onchange: onRecommendTimingsChange(this.checked)
@@ -28,8 +26,6 @@ window.__H = Object.assign(window.__H || {}, {
   h06a0f13802: function (event) { Notification.requestPermission().then(function(p){if(p==='granted')document.getElementById('notifPermBar').classList.remove('show')}) },
   // onclick: _asrUpdate()
   hfc7764bd8f: function (event) { _asrUpdate() },
-  // onclick: _copyBackupCodes()
-  hf7caab5dc9: function (event) { _copyBackupCodes() },
   // onclick: _copyDiagLog()
   haab61e2144: function (event) { _copyDiagLog() },
   // onclick: _copyMfaSecret()
@@ -38,8 +34,6 @@ window.__H = Object.assign(window.__H || {}, {
   had1af3fc7a: function (event) { _copyUpi() },
   // onclick: _dismissRunningElsewhereBanner()
   h721b8ac2df: function (event) { _dismissRunningElsewhereBanner() },
-  // onclick: _downloadBackupCodes()
-  h77019e8e6d: function (event) { _downloadBackupCodes() },
   // onclick: _onSyncBtnClick()
   hbaa505cd7f: function (event) { _onSyncBtnClick() },
   // onclick: _rcSwitchPair('progress',this)
@@ -88,8 +82,6 @@ window.__H = Object.assign(window.__H || {}, {
   hb85c95a0ae: function (event) { addPasskey() },
   // onclick: applyShiftPreset(this.getAttribute('data-click-a0'),this.getAttribute('data-click-a1'))
   h3e4f8c7bd2: function (event) { applyShiftPreset(this.getAttribute('data-click-a0'),this.getAttribute('data-click-a1')) },
-  // onclick: authVerify()
-  hc38159dc96: function (event) { authVerify() },
   // onclick: backToDeleteFeedback()
   hfe373ca6db: function (event) { backToDeleteFeedback() },
   // onclick: cancelOrClearTpModal()
@@ -98,16 +90,12 @@ window.__H = Object.assign(window.__H || {}, {
   h2ac88a213a: function (event) { clearDevDateOverride() },
   // onclick: closeAutoStopRecovery()
   h6bf3bb701d: function (event) { closeAutoStopRecovery() },
-  // onclick: closeCheckoutModal()
-  h450089b5c0: function (event) { closeCheckoutModal() },
   // onclick: closeCreatePwdModal()
   h4a3a5904d3: function (event) { closeCreatePwdModal() },
   // onclick: closeDeleteModal()
   h141914e708: function (event) { closeDeleteModal() },
   // onclick: closeDevicesModal()
   h91fe521014: function (event) { closeDevicesModal() },
-  // onclick: closeFpModal()
-  h69037e5ab4: function (event) { closeFpModal() },
   // onclick: closeImportModal()
   h218e700fa8: function (event) { closeImportModal() },
   // onclick: closeIosInstall(event)
@@ -134,20 +122,14 @@ window.__H = Object.assign(window.__H || {}, {
   h69f23197dd: function (event) { confirmRemovePasskey() },
   // onclick: confirmTpModal()
   h11d2982109: function (event) { confirmTpModal() },
-  // onclick: devRevokeOthers()
-  h367b412f61: function (event) { devRevokeOthers() },
   // onclick: downloadForWindows(this)
   hcc56d74386: function (event) { downloadForWindows(this) },
   // onclick: downloadWeekReport()
   hf11c074512: function (event) { downloadWeekReport() },
   // onclick: el('cancelPlanOverlay').classList.remove('open')
   h60803b94db: function (event) { el('cancelPlanOverlay').classList.remove('open') },
-  // onclick: el('continueWorkingOverlay').classList.remove('open')
-  h9ff643fe8d: function (event) { el('continueWorkingOverlay').classList.remove('open') },
   // onclick: el('devModeToggle').click()
   hb03e1f492f: function (event) { el('devModeToggle').click() },
-  // onclick: el('endSessionOverlay').classList.remove('open')
-  h77a742fb72: function (event) { el('endSessionOverlay').classList.remove('open') },
   // onclick: el('importConfirmOverlay').classList.remove('open')
   heac8a99fb5: function (event) { el('importConfirmOverlay').classList.remove('open') },
   // onclick: el('inp24h').click()
@@ -172,32 +154,18 @@ window.__H = Object.assign(window.__H || {}, {
   h3a488fe697: function (event) { el('logoutOverlay').classList.remove('open') },
   // onclick: el('newPlanOverlay').classList.remove('open')
   h1bdb7f1b54: function (event) { el('newPlanOverlay').classList.remove('open') },
-  // onclick: el('obIncludeSat').click()
-  h3da55a4fae: function (event) { el('obIncludeSat').click() },
   // onclick: el('pkRemoveOverlay').classList.remove('open')
   h8a0431c316: function (event) { el('pkRemoveOverlay').classList.remove('open') },
   // onclick: el('weekPlanOverlay').classList.remove('open')
   h4d52d42341: function (event) { el('weekPlanOverlay').classList.remove('open') },
   // onclick: event.stopPropagation()
   h6d554283fa: function (event) { event.stopPropagation() },
-  // onclick: event.stopPropagation();_dismissPenaltyRow(this.closest('.penalty-row'))
-  h61f06aeef3: function (event) { event.stopPropagation();_dismissPenaltyRow(this.closest('.penalty-row')) },
-  // onclick: event.stopPropagation();clearTodayTarget()
-  h77514bfee8: function (event) { event.stopPropagation();clearTodayTarget() },
   // onclick: event.stopPropagation();openDayEditModal(this.getAttribute('data-click-a0'),true)
   h27129cfe3c: function (event) { event.stopPropagation();openDayEditModal(this.getAttribute('data-click-a0'),true) },
   // onclick: event.stopPropagation();resetQsShortcut()
   he8e64385df: function (event) { event.stopPropagation();resetQsShortcut() },
   // onclick: event.stopPropagation();startQsRecording()
   hc5fc1accce: function (event) { event.stopPropagation();startQsRecording() },
-  // onclick: fpBackToEmail()
-  h418322c9b7: function (event) { fpBackToEmail() },
-  // onclick: fpResend()
-  hb7eda186b0: function (event) { fpResend() },
-  // onclick: fpSendEmail()
-  hb81b94c73b: function (event) { fpSendEmail() },
-  // onclick: fpVerify()
-  h93f72182ed: function (event) { fpVerify() },
   // onclick: goToDeletePwd()
   hf9398af895: function (event) { goToDeletePwd() },
   // onclick: handleNotifCta(this.getAttribute('data-click-a0'),this.getAttribute('data-click-a1'))
@@ -226,8 +194,6 @@ window.__H = Object.assign(window.__H || {}, {
   h0d46da7c63: function (event) { mfaShowDisable() },
   // onclick: mfaShowManage()
   hfa2eb79cc6: function (event) { mfaShowManage() },
-  // onclick: mfaShowSuccess()
-  h3f17ee1b27: function (event) { mfaShowSuccess() },
   // onclick: mfaVerifyEnroll()
   ha18a9a252c: function (event) { mfaVerifyEnroll() },
   // onclick: navDaySelectorDay(-1)
@@ -244,26 +210,12 @@ window.__H = Object.assign(window.__H || {}, {
   hf5b8683dda: function (event) { npSetType('half') },
   // onclick: npSetType('late')
   h2676943c4a: function (event) { npSetType('late') },
-  // onclick: obSkip()
-  h33bd4b028a: function (event) { obSkip() },
-  // onclick: obStep(-1)
-  h12e82dc530: function (event) { obStep(-1) },
-  // onclick: obStep(1)
-  h7e2e5de73d: function (event) { obStep(1) },
-  // onclick: obSwitchTab('daily')
-  hb6b5e5ec42: function (event) { obSwitchTab('daily') },
-  // onclick: obSwitchTab('weekly')
-  h560bb462a2: function (event) { obSwitchTab('weekly') },
   // onclick: openAnalyticsWeekPicker(this)
   hcc29c6d1fd: function (event) { openAnalyticsWeekPicker(this) },
-  // onclick: openAuthView()
-  h670fc5e48d: function (event) { openAuthView() },
   // onclick: openAutoStopRecovery()
   he05a50dca0: function (event) { openAutoStopRecovery() },
   // onclick: openContinueWorkingModal('09:00 AM', 3 * 3600)
   h386fbeb337: function (event) { openContinueWorkingModal('09:00 AM', 3 * 3600) },
-  // onclick: openDailyTargetPicker(event)
-  hd664c7b280: function (event) { openDailyTargetPicker(event) },
   // onclick: openDayEditModal(selectedDayKey)
   hf5017a9390: function (event) { openDayEditModal(selectedDayKey) },
   // onclick: openDayEditModal(this.getAttribute('data-click-a0'))
@@ -274,12 +226,8 @@ window.__H = Object.assign(window.__H || {}, {
   h26e082bc21: function (event) { openDevDatePicker(this) },
   // onclick: openDevicesModal()
   hc41b20f447: function (event) { openDevicesModal() },
-  // onclick: openEmailModal(this.getAttribute('data-click-a0'))
-  h76411799e3: function (event) { openEmailModal(this.getAttribute('data-click-a0')) },
   // onclick: openImportModal()
   h52e490390c: function (event) { openImportModal() },
-  // onclick: openLoginLogoutPicker(event)
-  hcf7f64465c: function (event) { openLoginLogoutPicker(event) },
   // onclick: openLogoutModal()
   ha5895024d2: function (event) { openLogoutModal() },
   // onclick: openOnboarding()
@@ -288,8 +236,6 @@ window.__H = Object.assign(window.__H || {}, {
   h526061ddf1: function (event) { openPrivacyPolicy() },
   // onclick: openSupportModal()
   ha851ef3e6b: function (event) { openSupportModal() },
-  // onclick: openTpModal('asrEndTime',event,'End Time',_asrOnTimeChange)
-  h16a0fbc574: function (event) { openTpModal('asrEndTime',event,'End Time',_asrOnTimeChange) },
   // onclick: openTpModal('deEnd',event,'Logout')
   hf33bddd233: function (event) { openTpModal('deEnd',event,'Logout') },
   // onclick: openTpModal('deStart',event,'Login')
@@ -298,10 +244,6 @@ window.__H = Object.assign(window.__H || {}, {
   h630bcad8de: function (event) { openTpModal('inpShiftEnd',event) },
   // onclick: openTpModal('inpShiftStart',event)
   h9b8ff4420c: function (event) { openTpModal('inpShiftStart',event) },
-  // onclick: openTpModal('obShiftEnd',event)
-  h2938640370: function (event) { openTpModal('obShiftEnd',event) },
-  // onclick: openTpModal('obShiftStart',event)
-  h745e056836: function (event) { openTpModal('obShiftStart',event) },
   // onclick: openTpModal('tc-r7m2',event,'Started at',calculate)
   h835997ffb5: function (event) { openTpModal('tc-r7m2',event,'Started at',calculate) },
   // onclick: openWeekPicker(this)
@@ -320,12 +262,6 @@ window.__H = Object.assign(window.__H || {}, {
   h70155e2dab: function (event) { setAppTheme('dark', this) },
   // onclick: setAppTheme('light', this)
   hbaac90494f: function (event) { setAppTheme('light', this) },
-  // onclick: setDeOverride('halfday')
-  h78736406eb: function (event) { setDeOverride('halfday') },
-  // onclick: setDeOverride('holiday')
-  hafbff54015: function (event) { setDeOverride('holiday') },
-  // onclick: setDeOverride('leave')
-  h1bbffb6125: function (event) { setDeOverride('leave') },
   // onclick: showCheckoutModal('09:00 AM', new Date(), 9 * 3600)
   h52a198b696: function (event) { showCheckoutModal('09:00 AM', new Date(), 9 * 3600) },
   // onclick: showOutsideShiftModal(null)
@@ -362,14 +298,10 @@ window.__H = Object.assign(window.__H || {}, {
   h1e8a7114e5: function (event) { autoExpandTa(this) },
   // oninput: el('delPwdContinueBtn').disabled = this.value.length < 1
   hf2ee0f7d5a: function (event) { el('delPwdContinueBtn').disabled = this.value.length < 1 },
-  // oninput: el('fpVerifyBtn').disabled=this.value.length<6||fpExpired
-  h48bff94753: function (event) { el('fpVerifyBtn').disabled=this.value.length<6||fpExpired },
   // oninput: saveFutureDayReason(this.value)
   hc55a156350: function (event) { saveFutureDayReason(this.value) },
   // oninput: this.value=this.value.replace(/\D/g,'').slice(0,6);el('mfaVerifyBtn').disabled=this.value.
   hd4f1fc3f54: function (event) { this.value=this.value.replace(/\D/g,'').slice(0,6);el('mfaVerifyBtn').disabled=this.value.length<6 },
-  // oninput: updateObWeeklyCalc()
-  ha4dcc2a851: function (event) { updateObWeeklyCalc() },
   // oninput: updateWeeklyCalc()
   h13c3dda947: function (event) { updateWeeklyCalc() },
   // onkeydown: _wkndNoteKey(event,this)

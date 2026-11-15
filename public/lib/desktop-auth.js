@@ -48,7 +48,7 @@
 
   // The login page shows it under the form; the app (Settings › Connect) as a toast.
   function say(title, msg) {
-    if (typeof window.showAuthError === 'function') window.showAuthError(msg);
+    if (typeof window.showAuthError === 'function') window.showAuthError(msg, title);
     else if (typeof window.showToast === 'function') window.showToast(title, 'error', msg);
   }
 
@@ -60,8 +60,8 @@
   function waitHint() {
     clearTimeout(hintTimer);
     hintTimer = setTimeout(() => {
-      if (!handled) say('Still Waiting for Your Browser',
-        "Still waiting for your browser. If it can't get back to 5pm, this PC may be blocking it. Sign in with your email and password instead.");
+      if (!handled) say('Still waiting for your browser',
+        "If it can't get back to 5pm, this PC may be blocking it. Sign in with your email and password instead.");
     }, 30000);
   }
 
@@ -101,7 +101,7 @@
     } catch (e) {
       handled = false;
       console.error('[desktop-auth] passkey hand-off failed:', e);
-      say('Sign-In Failed', "Your browser signed in, but 5pm couldn't finish. Please try again.");
+      say("Sign-in didn't finish", "Your browser signed you in, but 5pm couldn't finish. Try again.");
     }
   }
 
@@ -122,7 +122,7 @@
       return;
     }
 
-    if (errorText) { console.error('[desktop-auth] provider returned:', errorText); say('Sign-In Failed', errorText); return; }
+    if (errorText) { console.error('[desktop-auth] provider returned:', errorText); say("Sign-in didn't finish", errorText); return; }
     if (!code) return;
 
     const sb = client();
@@ -136,7 +136,7 @@
     } catch (e) {
       handled = false;
       console.error('[desktop-auth] code exchange failed:', e);
-      say('Sign-In Failed', "Your browser signed in, but 5pm couldn't finish. Please try again.");
+      say("Sign-in didn't finish", "Your browser signed you in, but 5pm couldn't finish. Try again.");
     }
   }
 

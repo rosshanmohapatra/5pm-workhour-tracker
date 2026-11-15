@@ -41,8 +41,8 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
   <meta name="apple-mobile-web-app-title" content="5pm">
   <meta name="mobile-web-app-capable" content="yes">
-  <meta name="theme-color" content="#f5f5f7" media="(prefers-color-scheme: light)">
-  <meta name="theme-color" content="#09090b" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#eef0f4" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#08090c" media="(prefers-color-scheme: dark)">
 
   <!-- Open Graph -->
   <meta property="og:type"        content="website">
@@ -59,7 +59,7 @@
   <meta name="twitter:description" content="Real-time work hour tracking. Work your hours. Leave on time.">
   <meta name="twitter:image"       content="https://whtracker.vercel.app/icons/social-preview.svg">
   <link rel="preconnect" href="https://fonts.googleapis.com/">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap" rel="stylesheet" media="print" data-on-load="he403411552"><noscript><link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap" rel="stylesheet"></noscript>
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400..700&family=Inter:wght@100..900&display=swap" rel="stylesheet" media="print" data-on-load="he403411552"><noscript><link href="https://fonts.googleapis.com/css2?family=Geist:wght@400..700&family=Inter:wght@100..900&display=swap" rel="stylesheet"></noscript>
   <style>
     /* ── PWA App Loader ── */
     #appLoader {
@@ -89,17 +89,27 @@
     :root {
       /* Colours and surfaces follow uiarc's arc-foundation palette (oklch values
          converted to hex). Token names are 5pm's, so every rule follows. */
-      --background: #ffffff; --foreground: #0b0b0b; --card: #ffffff;
-      --surface-raised: #ffffff;
-      --muted: #f8f8f8; --muted-fg: #585858; --text-muted: #7d7d7d;
-      --border: #e9e9e9; --border-subtle: #f3f3f3; --border-strong: #c4c4c4;
-      --input: #c4c4c4; --input-bg: #f8f8f8; --ring: #0b0b0b;
-      --accent: #353535; --accent-subtle: rgba(53,53,53,.1);
+      /* Surfaces: "Cool graphite" (approved 2026-11-14). Five clear steps,
+         page → card → raised → chip (muted) → border, with a hint of blue.
+         Only surfaces use it; text, accent and status colours are unchanged. */
+      --background: #eef0f4; --foreground: #0c0e13; --card: #ffffff;
+      --surface-raised: #f6f7fa;
+      --muted: #e7eaf0; --muted-fg: #545b69; --text-muted: #747c8a;
+      --chart-bar: #c6ccd7;   /* bars in charts: a cool grey from the same family */
+      /* Progress bar (#44 C Slim): fill, shimmer, paused fill, lines, target line, tooltip. */
+      --pb-fill: #2a2f3a; --pb-shine: #6b7384; --pb-rest: #9aa1ad; --pb-line: #c6ccd7; --pb-target: #8b929e;
+      --tip-bg: #ffffff; --tip-bd: #dde1e8; --tip-sub: #545b69; --tip-shadow: 0 6px 18px rgba(12,14,19,.10);
+      --border: #dde1e8; --border-subtle: #eceef3; --border-strong: #c3c8d2;
+      --input: #c3c8d2; --input-bg: #f6f7fa; --ring: #0c0e13;
+      --accent: #333845; --accent-subtle: rgba(51,56,69,.1);
       --btn-primary-bg: #0b0b0b;
-      --btn-secondary-bg: #f1f1f1; --btn-secondary-fg: #0b0b0b; --btn-secondary-hover: #e3e3e3;
+      --btn-secondary-bg: #e7eaf0; --btn-secondary-fg: #0c0e13; --btn-secondary-hover: #dde1e8;
       --success: #00774d; --success-bg: #e8f1ec; --success-border: #c8ded2;
       --warning: #9f6202; --warning-bg: #f6efe8; --warning-border: #e9d8c8;
       --destructive: #bb2c54; --destructive-bg: #fbebed; --destructive-border: #f5cfd3;
+      /* Destructive button (#43): solid red 5.6:1 with white text, red text on grey, tint. */
+      --danger-solid: #c42b33; --danger-solid-hover: #b4232b; --danger-solid-press: #9f1f26;
+      --danger-text: #c42b33; --danger-tint: #fdecec;
       --blue: #136d9e; --blue-bg: #e8f0f6; --blue-border: #c9dbe8;
       --violet: #6850b9; --orchid: #943fa2; --teal: #007467;
       /* Today's date tile: a slight hint of the foreground in the surface. */
@@ -119,19 +129,28 @@
       --ease-sheet: cubic-bezier(.32,.72,0,1); --ease-sheet-out: cubic-bezier(.4,0,.6,1);
     }
     .dark {
-      --background: #141414; --foreground: #f2f2f2; --card: #191919;
-      --surface-raised: #1f1f1f;
-      --muted: #242424; --muted-fg: #b4b4b4; --text-muted: #8c8c8c;
-      --border: #2b2b2b; --border-subtle: #222222; --border-strong: #484848;
+      --background: #08090c; --foreground: #eef1f6; --card: #13151a;
+      --surface-raised: #1c1f26;
+      --muted: #2a2e38; --muted-fg: #a9b0bd; --text-muted: #828a98;
+      --chart-bar: #454c5b;
+      --pb-fill: #cfd4dd; --pb-shine: #ffffff; --pb-rest: #8b919d; --pb-line: #3b414d; --pb-target: #6b7280;
+      --tip-bg: #1c1f26; --tip-bd: #3b414d; --tip-sub: #a9b0bd; --tip-shadow: 0 6px 20px rgba(0,0,0,.45);
+      /* Borders a step quieter than the chip, so strokes don't grab attention. */
+      --border: #22262f; --border-subtle: #1a1d24; --border-strong: #3b414d;
       --btn-primary-bg: var(--foreground);
-      --btn-secondary-bg: #242424; --btn-secondary-fg: #f2f2f2; --btn-secondary-hover: #303030;
-      --input: #484848; --input-bg: #202020; --ring: #bebebe;
-      --accent: #bebebe; --accent-subtle: rgba(190,190,190,.14);
-      --success: #55d69f; --success-bg: #24302a; --success-border: #2f4c3d;
-      --warning: #f2bd68; --warning-bg: #332d25; --warning-border: #524531;
-      --destructive: #f0738f; --destructive-bg: #342628; --destructive-border: #533439;
-      --blue: #7cc4f0; --blue-bg: #272e33; --blue-border: #364752;
-      --violet: #aa9df4; --orchid: #dd8fe9; --teal: #37d5c1;
+      --btn-secondary-bg: #2a2e38; --btn-secondary-fg: #eef1f6; --btn-secondary-hover: #343947;
+      --input: #3b414d; --input-bg: #1c1f26; --ring: #b9bfca;
+      --accent: #b9bfca; --accent-subtle: rgba(185,191,202,.14);
+      /* Status colours "A · Soft" (approved 2026-11-14): same hues, 28% less
+         chroma, so they sit with Cool graphite instead of glowing on it.
+         Backgrounds = 12% of the colour over the card, borders = 24%. */
+      --success: #74c7a0; --success-bg: #1f2a2a; --success-border: #2a403a;
+      --warning: #deb97f; --warning-bg: #2b2926; --warning-border: #443c32;
+      --destructive: #d57c8e; --destructive-bg: #2a2128; --destructive-border: #422e36;
+      --danger-solid: #d2373d; --danger-solid-hover: #c9323a; --danger-solid-press: #b4232b;
+      --danger-text: #ef6a6f; --danger-tint: #2e1b20;
+      --blue: #89bad9; --blue-bg: #212931; --blue-border: #2f3d48;
+      --violet: #a39bd9; --orchid: #ca93d2; --teal: #68c6b8;
       --today-tile: color-mix(in srgb, var(--foreground) 15%, var(--card));
       /* ── Shadow scale (dark — stronger) ── */
       --shadow-xs: 0 1px 2px rgba(0,0,0,.18);
@@ -177,7 +196,7 @@
     svg { stroke-width: 1.5; }
 
     /* ── Section label ── */
-    .section-label { font-size: 11px; font-weight: 600; letter-spacing: .06em;
+    .section-label { font-size: 12px; font-weight: 600; letter-spacing: .06em;
       text-transform: uppercase; color: var(--muted-fg); }
 
     /* ── Navbar ── */
@@ -225,7 +244,7 @@
       pointer-events:none;z-index:0; }
     .mob-tab { display:flex;flex-direction:column;align-items:center;justify-content:center;
       gap:3px;padding:8px 20px;border:none;background:transparent;cursor:pointer;
-      color:var(--muted-fg);font-family:var(--font);font-size:10px;font-weight:600;
+      color:var(--muted-fg);font-family:var(--font);font-size:12px;font-weight:600;
       letter-spacing:.04em;transition:color .12s;
       border-radius:100px;min-width:72px;position:relative;z-index:1; }
     .mob-tab.active { color:var(--foreground); }
@@ -292,31 +311,52 @@
       color: var(--foreground); transition: background .14s; display: inline-flex;
       align-items: center; gap: 5px; }
     .btn-sm:hover { background: var(--border); }
-    .btn-ghost-danger { height: 36px; padding: 0 16px; font-size: 13px; font-weight: 600;
-      border-radius: var(--radius-md); font-family: var(--font); display: inline-flex; align-items: center;
-      background: var(--destructive-bg); color: var(--destructive); border: none;
-      cursor: pointer; transition: background .14s, color .14s;
-      white-space: nowrap; flex-shrink: 0; }
-    .btn-ghost-danger:hover { background: var(--destructive-bg); color: var(--destructive); filter: brightness(.92); }
-    .btn-ghost-danger:disabled { opacity: .4; cursor: not-allowed; }
-    .btn-ghost-danger:disabled:hover { filter: none; }
     .btn-secondary { height: 36px; padding: 0 16px; font-size: 13px; font-weight: 500;
       border-radius: var(--radius-md); font-family: var(--font); display: inline-flex; align-items: center; justify-content: center;
       background: var(--btn-secondary-bg); color: var(--btn-secondary-fg); border: none;
       cursor: pointer; transition: background .14s; white-space: nowrap; flex-shrink: 0; }
     .btn-secondary:hover { background: var(--btn-secondary-hover); }
-    .btn-ghost-destructive { height: 36px; padding: 0 16px; font-size: 13px; font-weight: 600;
-      border-radius: var(--radius-md); font-family: var(--font); display: inline-flex; align-items: center;
-      background: color-mix(in srgb, var(--destructive) 8%, transparent);
-      color: var(--destructive); border: 1px solid var(--destructive);
-      cursor: pointer; transition: background .14s; white-space: nowrap; flex-shrink: 0; }
-    .btn-ghost-destructive:hover { background: color-mix(in srgb, var(--destructive) 14%, transparent); }
-    .btn-ghost-destructive:disabled { opacity: .4; cursor: not-allowed; }
+    /* ── Destructive button (#43, approved 2026-11-14; adapted from uiarc button) ──
+       The ONLY destructive style in 5pm. Borderless, always red:
+       .btn-danger    Primary   solid red, white text: the confirm in a destructive dialog.
+       .btn-danger-2  Secondary grey chip, red text; turns solid red on hover / press.
+       .btn-danger-3  Tertiary  red text; a red tint on hover.
+       Add .sm for 30px. Disabled = grey with grey text (no red). Loading = aria-busy="true"
+       (spinner + the label, e.g. "Logging Out"). Focus = 2px red ring with a card gap. */
+    .btn-danger, .btn-danger-2, .btn-danger-3 { position: relative; height: 36px; padding: 0 16px; gap: 6px;
+      font: 600 13px var(--font); border: none; border-radius: var(--radius-md);
+      display: inline-flex; align-items: center; justify-content: center; white-space: nowrap; flex-shrink: 0;
+      cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent;
+      transition: background .14s, color .14s, box-shadow .14s; }
+    .btn-danger { background: var(--danger-solid); color: #fff; }
+    .btn-danger-2 { background: var(--btn-secondary-bg); color: var(--danger-text); }
+    .btn-danger-3 { background: transparent; color: var(--danger-text); }
+    @media (hover: hover) and (pointer: fine) {
+      .btn-danger:hover:not(:disabled) { background: var(--danger-solid-hover); }
+      .btn-danger-2:hover:not(:disabled) { background: var(--danger-solid-hover); color: #fff; }
+      .btn-danger-3:hover:not(:disabled) { background: var(--danger-tint); }
+    }
+    .btn-danger:active:not(:disabled), .btn-danger-2:active:not(:disabled) { background: var(--danger-solid-press); color: #fff; }
+    .btn-danger-3:active:not(:disabled) { background: var(--danger-tint); }
+    .btn-danger:focus-visible, .btn-danger-2:focus-visible, .btn-danger-3:focus-visible {
+      outline: none; box-shadow: 0 0 0 2px var(--card), 0 0 0 4px var(--danger-solid); }
+    .btn-danger:disabled:not([aria-busy="true"]), .btn-danger-2:disabled:not([aria-busy="true"]), .btn-danger-3:disabled:not([aria-busy="true"]) {
+      background: var(--muted); color: var(--text-muted); cursor: not-allowed; }
+    .btn-danger-3:disabled:not([aria-busy="true"]) { background: transparent; }
+    .btn-danger-2[aria-busy="true"] { background: var(--danger-solid); color: #fff; }
+    .btn-danger.sm, .btn-danger-2.sm, .btn-danger-3.sm { height: 30px; padding: 0 12px; font-size: 12px; }
+    .btn-danger svg, .btn-danger-2 svg, .btn-danger-3 svg { width: 14px; height: 14px; flex: none; }
+    .btn-danger[aria-busy="true"], .btn-danger-2[aria-busy="true"], .btn-danger-3[aria-busy="true"] { cursor: progress; }
+    .btn-danger[aria-busy="true"]::before, .btn-danger-2[aria-busy="true"]::before, .btn-danger-3[aria-busy="true"]::before {
+      content: ''; width: 12px; height: 12px; border: 1.5px solid currentColor; border-right-color: transparent;
+      border-radius: 50%; animation: btn-danger-spin .7s linear infinite; }
+    @keyframes btn-danger-spin { to { transform: rotate(360deg); } }
+    @media (prefers-reduced-motion: reduce) { .btn-danger, .btn-danger-2, .btn-danger-3 { transition: none; } }
     .theme-icon-wrap { position: relative; display: inline-flex; width: 16px; height: 16px; }
     .theme-icon-wrap .theme-icon-solid { position: absolute; top: 0; left: 0; opacity: 0; transition: opacity .18s ease; }
     .theme-icon-wrap .theme-icon-outline { transition: opacity .18s ease; }
     /* Keep the outline icon on hover — never swap to the filled/solid variant */
-    .fp-divider { display:flex;align-items:center;gap:10px;margin:2px 0;color:var(--muted-fg);font-size:11px; }
+    .fp-divider { display:flex;align-items:center;gap:10px;margin:2px 0;color:var(--muted-fg);font-size:12px; }
     .fp-divider::before,.fp-divider::after { content:'';flex:1;height:1px;background:var(--border); }
     .fp-oauth-btn { height:40px;display:flex;align-items:center;justify-content:center;gap:10px;
       width:100%;border:none;border-radius:var(--radius-md);background:var(--muted);
@@ -556,7 +596,7 @@
        its group (height glides, chevron turns). */
     body.shell-new .dev-sec { margin-top: 20px; }
     .dev-sec-head { display: flex; align-items: center; gap: 6px; width: 100%; padding: 4px 4px 8px; margin: 0;
-      border: none; background: none; cursor: pointer; color: var(--muted-fg); font: 600 11px/1 var(--font);
+      border: none; background: none; cursor: pointer; color: var(--muted-fg); font: 600 12px/1 var(--font);
       letter-spacing: .06em; text-transform: uppercase; text-align: left; border-radius: var(--radius-md);
       transition: color .14s; }
     .dev-sec-count { font-weight: 500; letter-spacing: 0; opacity: .7; }
@@ -629,7 +669,7 @@
     /* Account's buttons were full size next to the compact ones the sign-in
        rows build, so the Security tab had two button scales. */
     body.shell-new .set-panel[data-panel="Security"] .btn-secondary,
-    body.shell-new .set-panel[data-panel="Security"] .btn-ghost-destructive {
+    body.shell-new .set-panel[data-panel="Security"] .btn-danger-2 {
       height: 30px; font-size: 12px; padding: 0 12px; }
 
     /* The card hugs its notifications, top first, and scrolls past a cap:
@@ -681,6 +721,14 @@
     .notif-tappable { cursor: pointer; transition: background .12s; }
     .notif-tappable:hover { background: var(--muted); }
     .notif-tappable:active { background: var(--border); }
+    /* Information only: a tap dismisses it. Same hover/press feedback, and a
+       quiet "Tap to dismiss" line on touch (a mouse sees the × instead). */
+    .notif-info-only { cursor: pointer; }
+    .notif-info-only:hover { background: var(--muted); }
+    .notif-info-only:active { background: var(--border); }
+    .notif-info-only:focus-visible { outline: 2px solid var(--ring); outline-offset: -2px; }
+    .notif-hint { margin-top: 4px; font-size: 12px; color: var(--text-muted); }
+    @media (hover: hover) and (pointer: fine) { .notif-hint { display: none; } }
     .notif-card { background: color-mix(in srgb, var(--card) 90%, transparent); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); }
     .notif-head { padding: 12px; border-bottom: 1px solid var(--border);
       display: flex; align-items: center; justify-content: space-between; }
@@ -782,7 +830,7 @@
     .shift-combo-active-label { flex: 1; font-size: 13px; font-weight: 500;
       color: var(--muted-fg); display: none; }
     .shift-combo.active-state .shift-combo-active-label { display: none; }
-    .login-ap-hint { font-size: 11px; font-weight: 500; color: var(--warning, #f59e0b);
+    .login-ap-hint { font-size: 12px; font-weight: 500; color: var(--warning, #f59e0b);
       padding: 2px 4px; display: none; }
     .shift-resume-row { display: flex; gap: 8px; }
     .shift-resume-btn { flex: 1; height: 40px; border-radius: 10px; border: none;
@@ -925,7 +973,7 @@
     @media (max-width: 640px) { .qs-shortcut-row { display: none !important; } }
     .qs-capsule { display: inline-flex; align-items: center; background: var(--muted);
       border: 1px solid var(--border); border-radius: 4px; padding: 1px 6px;
-      font-size: 11px; font-weight: 600; font-family: var(--font); line-height: 1.6; }
+      font-size: 12px; font-weight: 600; font-family: var(--font); line-height: 1.6; }
     .qs-field-btn { display:inline-flex;align-items:center;justify-content:center;
       width:28px;height:28px;border-radius:6px;border:none;background:transparent;
       color:var(--muted-fg);cursor:pointer;flex-shrink:0;transition:background .15s,color .15s;
@@ -1053,7 +1101,7 @@
       box-shadow: 0 1px 3px rgba(0,0,0,.12); transition: transform .35s var(--ease-sheet), width .35s var(--ease-sheet); }
     .dark .td-seg .td-pill { background: var(--btn-secondary-hover); }
     .td-seg .td-type { position: relative; flex-direction: column; justify-content: center; gap: 4px; padding: 9px 2px 8px;
-      font-size: 11.5px; color: var(--muted-fg); background: transparent !important; border-radius: 9px; text-align: center;
+      font-size: 12px; color: var(--muted-fg); background: transparent !important; border-radius: 9px; text-align: center;
       transition: color .2s; }
     .td-seg .td-type svg { width: 18px; height: 18px; }
     .td-seg .td-type.active { color: var(--foreground); }
@@ -1147,15 +1195,37 @@
        Existing single bar, unchanged, reaching 100% = target complete. Overtime is a
        separate translucent overlay painted inside the SAME track (not an extension of
        it) — the base bar and its color never change once the target is hit. ── */
-    .rc-progress-track { height: 5px; background: var(--border); border-radius: 100px; overflow: hidden; width: 100%; position: relative; }
-    .rc-progress-fill { height: 100%; border-radius: 100px; background: var(--foreground);
-      transition: width .5s cubic-bezier(.4,0,.2,1), background .3s; position: relative; overflow: hidden; }
-    .rc-progress-fill.running::after { content: ''; position: absolute; top: 0; bottom: 0; left: 0; transform: translateX(-133.33%);
-      width: 60%; background: linear-gradient(90deg,transparent,rgba(255,255,255,.18),transparent);
-      animation: rc-shimmer 2s ease-in-out infinite; }
-    /* transform, not left: the GPU moves the shine; left re-laid out the bar 60 times a second */
-    @keyframes rc-shimmer { 0% { transform: translateX(-133.33%); } 100% { transform: translateX(233.33%); } }
+    /* Slim bar (#44 option C, approved 2026-11-14): 12px. One rounded track clips
+       everything; the lines are ONE repeating gradient on the straight part, the
+       target is the last line in a stronger grey, the fill is one div with a soft
+       shimmer (::after). Only transform / opacity animate; html.app-hidden pauses
+       it all. The cursor never changes over it. */
+    .rc-progress-track { --h: 12px; height: var(--h); background: transparent; border-radius: calc(var(--h) / 2); overflow: hidden;
+      clip-path: inset(0 round calc(var(--h) / 2)); width: 100%; position: relative; cursor: default; touch-action: pan-y; }
+    .rc-progress-track::before { content: ''; position: absolute; top: 0; bottom: 0; left: calc(var(--h) / 2); right: calc(var(--h) / 2);
+      background: repeating-linear-gradient(90deg, var(--pb-line) 0 2px, transparent 2px 7px); transition: opacity .4s; }
+    .rc-progress-track::after { content: ''; position: absolute; top: 0; bottom: 0; right: calc(var(--h) / 2 - 1px); width: 2px;
+      background: var(--pb-target); transition: opacity .4s; }
+    .rc-progress-fill { height: 100%; border-radius: calc(var(--h, 12px) / 2); background: var(--pb-fill); box-shadow: 5px 0 0 0 var(--card);
+      transition: width .6s cubic-bezier(.32,.72,0,1), background .4s; position: relative; overflow: hidden; z-index: 1; }
+    .rc-progress-fill::after { content: ''; position: absolute; top: 0; bottom: 0; left: 0; width: 40%; opacity: 0; transform: translateX(-120%);
+      background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--pb-shine) 65%, transparent), transparent); }
+    .rc-progress-fill.running::after { animation: rc-shimmer 3.6s ease-in-out infinite; }
+    @keyframes rc-shimmer { 0% { transform: translateX(-120%); opacity: 0; } 15% { opacity: .9; } 55%, 100% { transform: translateX(280%); opacity: 0; } }
     @media (prefers-reduced-motion: reduce) { .rc-progress-fill.running::after { animation: none; } }
+    /* Hover / drag: a guide line and a tooltip with the time you reach that point. */
+    #rcKpiGroup { position: relative; }
+    .pb-guide { position: absolute; width: 2px; border-radius: 2px; background: var(--foreground); opacity: 0; transform: translateX(-1px);
+      z-index: 2; pointer-events: none; transition: opacity .12s; }
+    .pb-tip { position: absolute; transform: translate(-50%, -100%); background: var(--tip-bg); color: var(--foreground);
+      border: 1px solid var(--tip-bd); border-radius: 10px; box-shadow: var(--tip-shadow); padding: 8px 12px;
+      display: flex; flex-direction: column; gap: 2px; white-space: nowrap; opacity: 0; pointer-events: none; z-index: 3;
+      transition: opacity .12s; font-variant-numeric: tabular-nums; text-align: left; }
+    .pb-tip b { font-size: 13px; font-weight: 600; line-height: 18px; }
+    .pb-tip span { font-size: 12px; font-weight: 500; color: var(--tip-sub); line-height: 16px; }
+    .pb-tip::after { content: ''; position: absolute; left: var(--ax, 50%); top: 100%; width: 8px; height: 8px; background: var(--tip-bg);
+      border-right: 1px solid var(--tip-bd); border-bottom: 1px solid var(--tip-bd); transform: translate(-50%, -4px) rotate(45deg); border-bottom-right-radius: 2px; }
+    #rcKpiGroup.pb-hover .pb-guide, #rcKpiGroup.pb-hover .pb-tip { opacity: 1; }
     .rc-progress-fill.done { background: var(--success); }
     /* Overtime overlay — sits on top of the (already 100%-filled) bar, revealing
        left-to-right as overtime accrues toward Auto Stop. Low-opacity flat tint only:
@@ -1165,7 +1235,8 @@
       background: var(--warning); opacity: .2; border-radius: 0 100px 100px 0;
       pointer-events: none;
       transition: left .5s cubic-bezier(.4,0,.2,1), width .5s cubic-bezier(.4,0,.2,1); }
-    .rc-progress-fill.dim  { background: var(--muted-fg); opacity: .5; }
+    .rc-progress-fill.dim, #rcKpiGroup.rc-paused .rc-progress-fill { background: var(--pb-rest); }   /* paused: grey, still */
+    #rcKpiGroup.rc-paused .rc-progress-fill::after { animation: none; }
     /* ── Description row ── */
     .rc-desc-row { display: flex; justify-content: center; align-items: center; min-height: 20px; padding: 32px 0; }
     .rc-desc-right { font-size: 12px; font-weight: 500; color: var(--muted-fg);
@@ -1175,7 +1246,7 @@
     /* Today card (approved 2026-11-13): each number states a fact and keeps one
        role (Clock: Started | Now → Left at; Hours: Worked | Target). Advice lives
        only in the centre chip during the session and the done banner after it. */
-    .rc-kcap { display: flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 500; color: var(--muted-fg); margin-top: 2px; }
+    .rc-kcap { display: flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 500; color: var(--muted-fg); margin-top: 2px; }
     .rc-right-col .rc-kcap { justify-content: flex-end; }
     .rc-live { width: 5px; height: 5px; border-radius: 50%; background: currentColor; animation: rc-live 2.4s cubic-bezier(.45,0,.55,1) infinite; }
     @keyframes rc-live { 50% { opacity: .3; } }
@@ -1185,12 +1256,20 @@
     /* At the target the bar thins into an edge-to-edge divider and the chip folds
        away; the done banner rises below the field. Neutral throughout. */
     .rc-progress-track { transition: height .7s var(--ease-sheet), margin .7s var(--ease-sheet), width .7s var(--ease-sheet), border-radius .7s, background .7s; }
-    .rc-progress-fill { transition: width .5s cubic-bezier(.4,0,.2,1), background .7s, border-radius .7s; }
-    #rcKpiGroup.rc-finished .rc-progress-track { height: 1px; border-radius: 0; margin: 0 -16px; width: calc(100% + 32px); background: var(--border); }
+    .rc-progress-fill { transition: width .6s cubic-bezier(.32,.72,0,1), background .7s, border-radius .7s; }
+    #rcKpiGroup.rc-finished .rc-progress-track::before, #rcKpiGroup.rc-finished .rc-progress-track::after { opacity: 0; }
+    #rcKpiGroup.rc-finished .pb-guide, #rcKpiGroup.rc-finished .pb-tip { display: none; }
+    #rcKpiGroup.rc-finished .rc-progress-track { height: 1px; border-radius: 0; clip-path: none; margin: 0 -16px; width: calc(100% + 32px); background: var(--border); }
     #rcKpiGroup.rc-finished .rc-progress-fill { background: var(--border); border-radius: 0; }
     #rcKpiGroup.rc-finished .rc-progress-fill::after, #rcKpiGroup.rc-finished .rc-progress-fill-ot { display: none; }
     .rc-desc-row { transition: padding .5s var(--ease-sheet), opacity .35s, min-height .5s var(--ease-sheet); }
     #rcKpiGroup.rc-finished .rc-desc-row { padding: 0; min-height: 0; opacity: 0; }
+    /* Overtime: the chip comes back as "41m over" under the divider (approved 2026-11-14). */
+    #rcKpiGroup.rc-finished.rc-over .rc-desc-row { padding: 32px 0; min-height: 20px; opacity: 1; }
+    /* Paused: everything frozen, no live dot. */
+    #rcKpiGroup.rc-paused .rc-live { display: none; }
+    /* Worked past 10 hours: a touch smaller so it never wraps on a 320px phone. */
+    .rc-worked.rc-long { font-size: 14px; }
     .ib[data-tone="violet"] { --ib-tone: var(--violet); --ib-tone-bg: color-mix(in srgb, var(--violet) 14%, transparent); }
     .ib-x { margin-left: auto; flex-shrink: 0; width: 28px; height: 28px; padding: 0; border: none; border-radius: 8px; background: none;
       color: var(--muted-fg); display: grid; place-items: center; cursor: pointer; align-self: center; }
@@ -1201,10 +1280,179 @@
     #doneBanner.swiping { transition: none; animation: none; }
     #doneBanner.leaving { transition: transform .35s cubic-bezier(.4,0,1,1), opacity .3s; opacity: 0; }
     #doneBanner { touch-action: pan-y; }
-    .ib-hint { display: none; margin: 6px 0 0; font-size: 10.5px; color: var(--muted-fg); text-align: center; }
+    .ib-hint { display: none; margin: 6px 0 0; font-size: 12px; color: var(--muted-fg); text-align: center; }
     .ib-hint.show { display: block; }
     .rc-desc-chip.ok   { color: var(--success); }
+    /* Day-type label: icon + text, no fill or border, so it reads as a label
+       and never as a button (user 2026-11-14). Same 34px line as the card's
+       icon buttons so the header row stays aligned. */
+    .dt-pill { display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0;
+      font-size: 13px; font-weight: 600; letter-spacing: .01em; background: none; color: var(--muted-fg); cursor: default; user-select: none; }
+    .dt-pill svg { width: 16px; height: 16px; }
+    .dt-pill.ed-pill svg { color: var(--dt, var(--muted-fg)); }   /* the day type's colour on the icon only */
+    /* Ended-day summary card (#31, approved 2026-11-14; layout from uiarc metric-card). */
+    #rcToday:has(> .ed-card) { align-self: stretch; }   /* #rcBody centres its children; the card spans the width */
+    .ed-card { background: var(--surface-raised); border: 1px solid var(--border); border-radius: 16px; padding: 12px 16px 16px; text-align: left; width: 100%; box-sizing: border-box; }
+    .ed-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    .ed-edit { width: 34px; height: 34px; display: inline-flex; align-items: center; justify-content: center; border-radius: 10px; }
+    .ed-edit svg { width: 16px; height: 16px; }
+    .ed-total { font-size: 36px; font-weight: 600; letter-spacing: -.03em; line-height: 1.05; margin-top: 6px; font-variant-numeric: tabular-nums; color: var(--foreground); }
+    .ed-title { font-size: 24px; font-weight: 600; letter-spacing: -.02em; margin-top: 6px; color: var(--foreground); }
+    .ed-sub { margin: 6px 0 0; font-size: 14px; line-height: 1.45; color: var(--muted-fg); }
+    .ed-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+    .ed-extra { color: var(--violet); background: color-mix(in srgb, var(--violet) 14%, var(--card)); }
+    .ed-rows { display: flex; flex-direction: column; margin-top: 14px; border-top: 1px solid var(--border); }
+    .ed-row { display: flex; align-items: center; gap: 10px; height: 44px; border-bottom: 1px solid var(--border-subtle); font-size: 14px; color: var(--muted-fg); }
+    .ed-row:last-child { border-bottom: 0; }
+    .ed-row svg { width: 16px; height: 16px; flex-shrink: 0; }
+    .ed-row b { margin-left: auto; font-weight: 600; color: var(--foreground); font-variant-numeric: tabular-nums; }
+    .ed-note { display: flex; gap: 10px; align-items: flex-start; width: 100%; margin-top: 12px; padding: 11px 12px; border-radius: 12px;
+      border: 1px dashed var(--border-strong); background: var(--card); color: var(--muted-fg); font: 400 13.5px/1.45 var(--font); text-align: left; cursor: pointer; }
+    .ed-note:hover { background: color-mix(in srgb, var(--muted) 50%, var(--card)); }
+    .ed-note.has { border-style: solid; border-color: var(--border); color: var(--foreground); }
+    .ed-note svg { width: 16px; height: 16px; flex-shrink: 0; margin-top: 1px; }
+    .ed-note span { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; white-space: pre-wrap; }
+    @media (max-width: 640px) { .ed-total { font-size: 32px; } }
+    /* Weekend summary card: the week's total, a chip, tiny bars, the note. */
+    /* Flat (#50, approved 2026-11-14): no inner card; the total, chip, chart and
+       note sit straight on the Today card. View Stats sits below the card. */
+    .ws-card { margin-bottom: 4px; text-align: left; }
+    .ws-total number-flow-group { display: inline-flex; align-items: baseline; gap: .25em; }
+    /* 32px (28px on phones). NumberFlow pads its digits by the mask height,
+       so the mask is kept small and the chip sits right under the number. */
+    .ws-total { font-size: 32px; font-weight: 600; letter-spacing: -.03em; line-height: 1.05; margin-top: 6px; --number-flow-mask-height: .1em;
+      font-variant-numeric: tabular-nums; color: var(--foreground); }
+    /* The variable row: the week's chip, or the hovered day's type + verdict. */
+    .ws-vary { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; min-height: 26px; }
+    .ws-chip { gap: 5px; } .ws-chip svg { width: 12px; height: 12px; }
+    .dt-chip { display: inline-flex; align-items: center; height: 22px; padding: 0 9px; border-radius: 6px; font-size: 12px; font-weight: 600;
+      color: var(--dt, var(--foreground)); background: color-mix(in srgb, var(--dt, var(--foreground)) 14%, transparent); }
+    /* Chart container: its own surface, a midline, the daily target dashed. */
+    .ws-chart { margin-top: 14px; padding: 14px 12px 12px; border-radius: 12px; background: var(--surface-raised); border: 1px solid var(--border); }
+    /* Letters sit inside the bars (#48, option A): no letter row, so the plot
+       gets the room (112px) and bars no longer look like they start halfway. */
+    .ws-plot { position: relative; height: 112px; }
+    .ws-grid { position: absolute; left: 0; right: 0; border-top: 1px solid var(--border-subtle); }
+    .ws-plot::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; border-top: 1px solid var(--border); }
+    .ws-target { position: absolute; left: 0; right: 0; border-top: 1px dashed var(--border-strong); z-index: 1; pointer-events: none; }
+    .ws-target em { position: absolute; right: 0; top: -17px; font: 500 12px var(--font); font-style: normal; color: var(--muted-fg); }
+    .ws-bars { position: absolute; inset: 0; display: flex; align-items: stretch; gap: 6px; }
+    .ws-bar { position: relative; flex: 1; display: flex; align-items: flex-end; border-radius: 7px 7px 0 0; outline: none; }
+    .ws-l { position: absolute; left: 0; right: 0; bottom: 7px; text-align: center; font-size: 12px; font-weight: 600;
+      color: var(--foreground); pointer-events: none; transition: color .15s; }
+    .ws-bar.hot .ws-l { color: var(--card); }   /* dark letter on the white hovered bar */
+    .ws-bar.off.hot .ws-l { color: var(--foreground); }
+    /* Bars are always solid (never see-through): gray, and white for the one
+       being hovered (user, 2026-11-14). */
+    .ws-bar i { display: block; width: 100%; height: var(--h); border-radius: 7px 7px 0 0;
+      background: var(--chart-bar); transform-origin: bottom; transform: scaleY(0);
+      transition: transform .55s cubic-bezier(.2,.8,.2,1) var(--d), background .15s; }
+    .ws-bar.hot i { background: var(--foreground); }
+    .ws-bar.off i { height: 3px; transform: none; border-radius: 2px; background: var(--border-strong); }
+    .ws-bar.off.hot i { background: var(--muted-fg); }
+    /* Leave / Holiday: thin diagonal lines only, no fill behind them (user, 2026-11-14).
+       Drawn as a 6px SVG tile, not a gradient, so every line has the same weight. */
+    .ws-defs { position: absolute; width: 0; height: 0; overflow: hidden; }
+    #wsHatch path, #wsHatchHot path { fill: none; stroke-width: 1.2; stroke-linecap: square; }
+    #wsHatch path { stroke: var(--chart-bar); }
+    #wsHatchHot path { stroke: var(--foreground); }
+    .ws-bar.rest i { background: none; overflow: hidden; }   /* keeps the 7px top corners on the lines */
+    .ws-hatch { display: block; width: 100%; height: 100%; }
+    .ws-hatch rect { fill: url(#wsHatch); }
+    .ws-bar.rest.hot .ws-hatch rect { fill: url(#wsHatchHot); }
+    .ws-bars.grown .ws-bar i { transform: scaleY(1); }
+    .ws-bar:focus-visible i { box-shadow: 0 0 0 2px var(--ring, #3b82f6); }
+    .ws-note { display: flex; gap: 10px; align-items: flex-start; width: 100%; margin-top: 14px; padding: 11px 12px; border-radius: 12px;
+      border: 1px dashed var(--border-strong); background: var(--card); color: var(--muted-fg); font: 400 13.5px/1.45 var(--font);
+      text-align: left; cursor: pointer; }
+    .ws-note svg { width: 16px; height: 16px; flex-shrink: 0; margin-top: 1px; }
+    .ws-note.has { border-style: solid; border-color: var(--border); color: var(--foreground); }
+    .ws-note span { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; white-space: pre-wrap; }
+    .ws-note:hover { background: color-mix(in srgb, var(--muted) 50%, var(--card)); }
+    /* Note editor (#49, approved 2026-11-14; adapted from uiarc textarea): one box,
+       the text area on top growing with the text, and a bottom row reserved for
+       Cancel / Save. Nothing but the two buttons ever sits in that row. */
+    .ws-edit { display: flex; flex-direction: column; margin-top: 14px; border-radius: 12px;
+      border: 1px solid var(--border-strong); background: var(--card); transition: border-color .15s, box-shadow .2s; }
+    .ws-edit:focus-within { border-color: var(--muted-fg); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ring) 18%, transparent); }
+    .ws-ta { display: block; width: 100%; box-sizing: border-box; min-height: 64px; padding: 12px 12px 4px; border: 0; border-radius: 12px 12px 0 0;
+      background: transparent; color: var(--foreground); font: 400 14px/1.5 var(--font); resize: none; outline: none; }
+    .ws-ta::placeholder { color: var(--text-muted); }
+    .ws-acts { display: flex; justify-content: flex-end; gap: 6px; padding: 6px 8px 8px; }
+    .ws-acts button { height: 30px; padding: 0 12px; border-radius: 9px; font-size: 12px; font-weight: 600; width: auto; }
+    #wkndStatsOut { display: none; }   /* #homeMain's gap spaces it from the card */
+    #homeMain:has(#rcBody.weekend-mode #weekendView.ws-on) #wkndStatsOut { display: block; }
+    .ws-stats { width: 100%; height: 42px; border-radius: 12px; font-size: 13px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 6px; }
+    @media (max-width: 640px) { .ws-total { font-size: 28px; } }
+    @media (prefers-reduced-motion: reduce) { .ws-bar i { transition: none; } }
     .rc-desc-chip.warn { color: var(--warning); }
+    /* ── Geist (#52): titles and big numbers; body text stays on --font. ── */
+    :root { --font-display: 'Geist', -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter', system-ui, sans-serif; }
+    .settings-title, .analytics-title, .dialog-title, .email-modal-title, .analytics-card-title, .sx-title, .ac-title, .wn-title,
+    .am-t, .ob2-hero h2, .ob2-q h2, .ob-title, .ed-title, .td-head,
+    .ws-total, .ed-total, .sx-total, .rc-worked, .rc-target-val, .day-clock, .sel-day-clock, .am-v { font-family: var(--font-display); }
+    /* ── Statistics card (#7, approved 2026-11-14) ──
+       Bottom of Home, every day. Reuses the weekend chart (.ws-chart / .ws-bar);
+       segmented control, period menu and KPIs adapted from uiarc. */
+    .sx-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 18px 18px 16px; }
+    .sx-hd { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+    .sx-title { font-size: 14px; font-weight: 600; color: var(--foreground); }
+    .sx-seg { position: relative; isolation: isolate; display: inline-flex; gap: 2px; padding: 3px; border-radius: 10px;
+      background: var(--surface-raised); border: 1px solid var(--border); }
+    .sx-seg button { position: relative; z-index: 1; height: 26px; padding: 0 12px; border: 0; border-radius: 7px; background: transparent;
+      font: 500 12px var(--font); color: var(--text-muted); cursor: pointer; transition: color .15s; -webkit-tap-highlight-color: transparent; }
+    .sx-seg button[aria-pressed="true"] { color: var(--foreground); }
+    @media (hover: hover) and (pointer: fine) { .sx-seg button:hover { color: var(--foreground); } }
+    .sx-seg button:focus-visible { outline: 2px solid var(--ring); outline-offset: 1px; }
+    .sx-gl { position: absolute; z-index: 0; top: 3px; bottom: 3px; left: 0; width: 0; border-radius: 7px; background: var(--muted);
+      box-shadow: 0 0 0 1px var(--border); transition: transform .32s var(--ease-sheet), width .32s var(--ease-sheet); }
+    .sx-per { display: flex; align-items: center; gap: 4px; margin-top: 14px; min-height: 28px; }
+    .sx-nav { width: 28px; height: 28px; border: 0; border-radius: 8px; display: grid; place-items: center; background: transparent; color: var(--muted-fg); cursor: pointer; }
+    .sx-nav:hover { background: var(--muted); color: var(--foreground); }
+    .sx-nav[aria-disabled="true"] { opacity: .35; cursor: default; background: none; }
+    .sx-nav svg, .sx-pb svg { width: 16px; height: 16px; }
+    .sx-pl { font-size: 13px; font-weight: 600; min-width: 96px; text-align: center; color: var(--foreground); }
+    .sx-pr { font-size: 12px; color: var(--text-muted); margin-left: auto; font-variant-numeric: tabular-nums; }
+    .sx-pm { position: relative; }
+    .sx-pb { display: inline-flex; align-items: center; gap: 4px; height: 28px; padding: 0 8px 0 10px; border: 1px solid var(--border); border-radius: 8px;
+      background: var(--card); font: 600 13px var(--font); color: var(--foreground); cursor: pointer; transition: background .12s, border-color .15s; }
+    .sx-pb svg { color: var(--text-muted); transition: transform .3s var(--ease-sheet); }
+    .sx-pb[data-state="open"] { border-color: var(--border-strong); background: var(--muted); }
+    .sx-pb[data-state="open"] svg { transform: rotate(180deg); }
+    @media (hover: hover) and (pointer: fine) { .sx-pb:hover { border-color: var(--border-strong); background: var(--muted); } }
+    .sx-menu { position: absolute; left: 0; top: calc(100% + 6px); z-index: 30; min-width: 220px; padding: 5px; border: 1px solid var(--border);
+      border-radius: 12px; background: var(--surface-raised); box-shadow: 0 10px 30px rgba(0,0,0,.22); transform-origin: top left;
+      opacity: 0; transform: translateY(-5px) scale(.97); visibility: hidden; pointer-events: none;
+      transition: opacity .14s ease, transform .2s var(--ease-sheet), visibility 0s linear .2s; }
+    .sx-menu.open { opacity: 1; transform: none; visibility: visible; pointer-events: auto; transition: opacity .14s ease, transform .2s var(--ease-sheet); }
+    .sx-mi { display: grid; grid-template-columns: 1fr 16px; align-items: center; gap: 10px; width: 100%; padding: 8px 9px; border: 0; border-radius: 8px;
+      background: transparent; text-align: left; cursor: pointer; color: var(--foreground); font-family: var(--font); }
+    .sx-mi:hover, .sx-mi:focus-visible { background: var(--muted); outline: none; }
+    .sx-mi b { display: block; font-size: 13px; font-weight: 500; }
+    .sx-mi span span { display: block; font-size: 12px; color: var(--text-muted); margin-top: 1px; }
+    .sx-mi svg { width: 16px; height: 16px; }
+    .sx-lab { font-size: 12px; color: var(--text-muted); margin: 16px 0 0; min-height: 16px; }
+    .sx-total { margin-top: 2px; }
+    .sx-chart { cursor: default; }
+    .sx-bars { touch-action: pan-y; user-select: none; -webkit-user-select: none; }
+    .sx-bars.month { gap: 3px; }
+    .sx-bars.month .ws-bar, .sx-bars.month .ws-bar i { border-radius: 4px 4px 0 0; }
+    .sx-ref { position: absolute; left: 0; right: 0; border-top: 1.5px dashed var(--muted-fg); pointer-events: none; z-index: 2; opacity: 0; transition: opacity .18s; }
+    .sx-ref.on { opacity: 1; }
+    .sx-let { display: flex; gap: 6px; margin-top: 8px; }
+    .sx-let span { flex: 1; min-width: 0; text-align: center; font-size: 12px; font-weight: 600; color: var(--text-muted); font-variant-numeric: tabular-nums; transition: color .15s; }
+    .sx-let span.h { color: var(--foreground); }
+    .sx-let.dates { display: block; position: relative; height: 16px; }
+    .sx-let.dates span { position: absolute; top: 0; flex: none; white-space: nowrap; transform: translateX(-50%); font-weight: 500; }
+    .sx-let.dates span.edge-l { transform: none; } .sx-let.dates span.edge-r { transform: translateX(-100%); }
+    .sx-let.dates span.mo { color: var(--foreground); font-weight: 600; }
+    .sx-kpis { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-top: 16px; padding: 16px 10px 0; border-top: 1px solid var(--border); }
+    .sx-kp { display: flex; flex-direction: column; gap: 4px; min-width: 0; padding: 8px 10px; margin: -8px -10px; border-radius: 10px; transition: background .15s; }
+    .sx-kp:hover { background: var(--muted); }
+    .sx-kp span { font-size: 12px; font-weight: 500; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .sx-kp b { font-size: 16px; font-weight: 600; color: var(--foreground); font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
+    @media (max-width: 640px) { .sx-card { padding: 16px 14px 14px; } .sx-kpis { gap: 12px; padding: 14px 8px 0; } }
+    @media (prefers-reduced-motion: reduce) { .sx-gl, .sx-menu, .sx-pb svg { transition: none; } }
     /* ── Empty state (no session started today) ── */
     #rcEmptyState { flex-direction: column; align-items: center; justify-content: center;
       text-align: center; width: 100%; padding: 40px 16px; }
@@ -1215,17 +1463,17 @@
     .rc-left-col { display: flex; flex-direction: column; gap: 2px; }
     .rc-right-col { margin-left:auto;display:flex;flex-direction:column;gap:2px;align-items:flex-end; }
     .rc-target-val { font-size:16px;font-weight:600;letter-spacing:-.3px;line-height:1.2;color:var(--foreground); }
-    .rc-target-label { font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted-fg);text-align:right; }
+    .rc-target-label { font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted-fg);text-align:right; }
     .rc-elapsed-row { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; margin-top: 2px; }
-    .rc-rem-sep { font-size: 11px; color: var(--muted-fg); opacity: 0.45; font-weight: 700; line-height: 1; }
-    .rc-rem-inline { font-size: 11px; font-weight: 600; letter-spacing: .04em; line-height: 1; }
-    .rc-rem-text { font-size: 11px; font-weight: 600; color: var(--muted-fg); letter-spacing: .06em; text-transform: uppercase; line-height: 1; }
+    .rc-rem-sep { font-size: 12px; color: var(--muted-fg); opacity: 0.45; font-weight: 700; line-height: 1; }
+    .rc-rem-inline { font-size: 12px; font-weight: 600; letter-spacing: .04em; line-height: 1; }
+    .rc-rem-text { font-size: 12px; font-weight: 600; color: var(--muted-fg); letter-spacing: .06em; text-transform: uppercase; line-height: 1; }
     /* 35% of the theme's OWN foreground, so the dimmed resting state works in
        both themes. This was hardcoded white with an identical .dark override, so
        light theme drew white text on the white card: 1.00:1 contrast, invisible. */
     .rc-worked { font-size: 16px; font-weight: 600; letter-spacing: -.3px; line-height: 1.2;
       color: color-mix(in srgb, var(--foreground) 45%, transparent); }
-    .rc-elapsed-label { font-size: 11px; font-weight: 600; letter-spacing: .08em;
+    .rc-elapsed-label { font-size: 12px; font-weight: 600; letter-spacing: .08em;
       text-transform: uppercase; color: var(--muted-fg); margin-top: 2px; }
     .rc-meta { display: flex; gap: 16px; flex-wrap: wrap; }
     .rc-meta-item { font-size: 12px; color: var(--muted-fg); }
@@ -1270,7 +1518,7 @@
     .ib-title:empty, .ib-text:empty { display: none; }
     .ib:has(.ib-title:not(:empty)):has(.ib-text:not(:empty)) { align-items: flex-start; }
     .ib:has(.ib-title:not(:empty)):has(.ib-text:not(:empty)) .ib-btn { align-self: center; }
-    .ib-meta { flex-shrink: 0; font-size: 11px; font-weight: 600; letter-spacing: .04em; color: var(--muted-fg); }
+    .ib-meta { flex-shrink: 0; font-size: 12px; font-weight: 600; letter-spacing: .04em; color: var(--muted-fg); }
     .ib-meta:empty { display: none; }
     /* Buttons are 5pm's compact .btn-secondary (Settings rows): 30px, 12px, 14px icon. */
     .ib .ib-btn { flex-shrink: 0; height: 30px; padding: 0 12px; font-size: 12px; gap: 5px; }
@@ -1290,7 +1538,7 @@
     .wk-head { padding: 12px 14px 12px 16px; border-bottom: 1px solid var(--border);
       display: flex; align-items: center; justify-content: space-between; gap: 10px; }
     .wk-head-left { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-    .wk-range { font-size: 11px; font-weight: 600; color: var(--foreground);
+    .wk-range { font-size: 12px; font-weight: 600; color: var(--foreground);
       text-transform: uppercase; letter-spacing: .08em; }
     .wk-minimize-btn { width: 28px; height: 28px; border-radius: 6px; border: none;
       background: transparent; color: var(--muted-fg); cursor: pointer;
@@ -1313,7 +1561,7 @@
     .wk-tile { width: var(--wk-tile); height: var(--wk-tile); flex-shrink: 0; border-radius: var(--radius-md);
       display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; line-height: 1;
       background: var(--btn-secondary-bg); color: var(--muted-fg); transition: background .12s, color .12s; }
-    .wk-tile-n { font-size: 10px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; }
+    .wk-tile-n { font-size: 12px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; }
     .wk-tile-d { font-size: 16px; font-weight: 700; font-variant-numeric: tabular-nums; }
     .wk-row.today .wk-tile, .wk-row.today:hover .wk-tile { background: var(--today-tile); color: var(--foreground); }
     .wk-row.is-future .wk-tile { background: transparent; box-shadow: inset 0 0 0 1px var(--border); }
@@ -1353,7 +1601,7 @@
       .wk-rows { --wk-pad-x: 12px; --wk-gap: 10px; }
       .wk-row { padding-right: 12px; }
       .wk-row.today .wk-end { flex-direction: column; align-items: flex-end; gap: 3px; }
-      .wk-row.today .wk-chip { height: 18px; padding: 0 6px; font-size: 11px; border-radius: 9px; order: 2; }
+      .wk-row.today .wk-chip { height: 18px; padding: 0 6px; font-size: 12px; border-radius: 9px; order: 2; }
     }
     @container wkcard (min-width: 520px) { .wk-row { min-height: 56px; padding-right: 20px; } }
     @media (prefers-reduced-motion: reduce) { .wk-live-dot { animation: none; } .wk-row, .wk-tile { transition: none; } }
@@ -1366,7 +1614,7 @@
     .wk-stat + .wk-stat { position: relative; text-align: right; }
     /* Short, floating divider: centred on the two numbers, clear of the card edge above and View Stats below */
     .wk-stat + .wk-stat::before { content: ''; position: absolute; left: 0; top: 14px; bottom: 14px; width: 1px; background: var(--border); }
-    .wk-stat-k { font-size: 11px; color: var(--text-muted); }
+    .wk-stat-k { font-size: 12px; color: var(--text-muted); }
     .wk-stat-v { font-size: 15px; font-weight: 600; letter-spacing: -.01em; font-variant-numeric: tabular-nums;
       color: var(--foreground); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .wk-stat-v[data-tone="over"] { color: var(--success); }
@@ -1419,7 +1667,7 @@
     .settings-desc { font-size: 12px; color: var(--muted-fg); }
     .form-field { display: flex; flex-direction: column; gap: 6px; }
     .form-label { font-size: 13px; font-weight: 500; color: var(--foreground); }
-    .form-sub   { font-size: 11px; color: var(--muted-fg); margin-top: 1px; }
+    .form-sub   { font-size: 12px; color: var(--muted-fg); margin-top: 1px; }
     .form-row   { display: flex; align-items: center; gap: 8px; }
     .weekly-block { border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
     .toggle-row { display: flex; align-items: center; justify-content: space-between;
@@ -1436,33 +1684,30 @@
     .rc-cards { position: relative; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
     .rc-card { position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 8px; text-align: left;
       padding: 12px; border-radius: 12px; border: 1px solid var(--border); background: transparent; color: var(--foreground);
-      font-family: var(--font); cursor: pointer; transition: background .15s; }
-    @media (hover: hover) { .rc-card:hover { background: var(--muted); } }
+      font-family: var(--font); cursor: pointer; transition: background .15s, border-color .25s; z-index: 1; }
+    /* Hover is half the selected fill, so the chosen card always reads as the stronger one. */
+    @media (hover: hover) { .rc-card:not(.active):hover { background: color-mix(in srgb, var(--muted) 50%, transparent); } }
+    /* Selected: filled a shade lighter than the card it sits on, no highlighted border (user, 2026-11-14). */
+    .rc-cards.ringed .rc-card.active { border-color: transparent; }
     .rc-ic { display: grid; color: var(--muted-fg); transition: color .2s; }
     .rc-ic svg { width: 17px; height: 17px; }
     .rc-card.active .rc-ic { color: var(--foreground); }
+    /* Active: the icon turns solid (monitor screen, sun disc, moon) — outline at rest (user, 2026-11-14). */
+    .rc-ic svg > * { fill: transparent; transition: fill .2s; }
+    .rc-card.active .rc-ic svg > * { fill: currentColor; }
     .rc-txt { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
     .rc-l { font-size: 13px; font-weight: 600; }
-    .rc-d { font-size: 11.5px; color: var(--muted-fg); }
-    .rc-dot { position: absolute; top: 12px; right: 12px; width: 14px; height: 14px; border-radius: 50%;
-      box-shadow: inset 0 0 0 1.5px var(--border-strong); display: grid; place-items: center; }
-    .rc-dot i { width: 6px; height: 6px; border-radius: 50%; background: var(--foreground); transform: scale(0);
-      transition: transform .28s cubic-bezier(.34,1.56,.64,1); }
-    .rc-card.active .rc-dot { box-shadow: inset 0 0 0 1.5px var(--foreground); }
-    .rc-card.active .rc-dot i { transform: scale(1); }
-    .rc-ring { position: absolute; left: 0; top: 0; width: 0; height: 0; border: 2px solid var(--foreground); border-radius: 14px;
+    .rc-ring { position: absolute; left: 0; top: 0; width: 0; height: 0; border-radius: 12px; background: var(--muted); z-index: 0;
       pointer-events: none; opacity: 0; transition: transform .42s var(--ease-sheet), width .42s var(--ease-sheet), height .42s var(--ease-sheet), opacity .2s; }
     .rc-cards.ringed .rc-ring { opacity: 1; }
     .rc-cards.no-anim .rc-ring { transition: none; }
     /* Narrow (phones): the same three cards in a row, titles only (user, 2026-11-13). */
     @container (max-width: 420px) {
       .rc-card { padding: 11px 10px; gap: 10px; }
-      .rc-dot { top: 11px; right: 10px; }
-      .rc-d { display: none; }
       .rc-l { font-size: 12.5px; line-height: 1.3; }   /* wraps, never cut ("Device Theme" on 375px) */
       .rc-txt { width: 100%; }
     }
-    @media (prefers-reduced-motion: reduce) { .rc-ring, .rc-dot i { transition: none; } }
+    @media (prefers-reduced-motion: reduce) { .rc-ring { transition: none; } }
     .st-tabs { display: flex; background: var(--background); border-radius: 8px; padding: 3px; gap: 2px; flex-shrink: 0; }
     .st-tab { background: transparent; border: none; border-radius: 6px; padding: 5px 12px;
       font-size: 12px; font-weight: 500; font-family: var(--font); color: var(--muted-fg);
@@ -1501,14 +1746,14 @@
     .tz-item-right { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
     .tz-item-auto { display: flex; align-items: center; color: var(--foreground); flex-shrink: 0; }
     .st-panel { margin-top: 12px; }
-    .st-panel-label { font-size: 11px; font-weight: 600; color: var(--muted-fg); letter-spacing: .04em; text-transform: uppercase; margin-bottom: 6px; }
+    .st-panel-label { font-size: 12px; font-weight: 600; color: var(--muted-fg); letter-spacing: .04em; text-transform: uppercase; margin-bottom: 6px; }
     /* Info icon button + tooltip */
     .info-icon-btn { display:inline-flex; align-items:center; justify-content:center; width:20px; height:20px; border-radius:50%; border:none; background:transparent; color:var(--muted-fg); cursor:pointer; padding:0; flex-shrink:0; }
     .info-icon-btn:hover { color:var(--foreground); }
     .info-tooltip { position:fixed; background:var(--background); color:var(--foreground); border:1px solid var(--border); border-radius:10px; padding:10px 12px; pointer-events:none; opacity:0; transition:opacity .15s; z-index:9500; max-width:220px; min-width:140px; box-shadow:0 4px 16px rgba(0,0,0,.12); text-align:left; white-space:normal; }
     .info-tooltip.visible { opacity:1; pointer-events:auto; }
     .info-tooltip-title { font-size:12px; font-weight:600; color:var(--foreground); line-height:1.3; margin-bottom:3px; }
-    .info-tooltip-desc { font-size:11px; color:var(--muted-fg); line-height:1.5; }
+    .info-tooltip-desc { font-size:12px; color:var(--muted-fg); line-height:1.5; }
     /* Plan blocks — shared base for Early Leave Plan & Stay Late Plans */
     .target-day-block { border-radius: 8px; padding: 0;
       display: flex; flex-direction: column; gap: 10px; }
@@ -1538,7 +1783,7 @@
     .settings-card-merged { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-xs); }
     .dark .settings-card-merged { box-shadow: none; }
     .settings-section { padding: 16px; }
-    .settings-section-header { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--muted-fg); margin-bottom: 14px; display: flex; align-items: center; justify-content: space-between; cursor: pointer; user-select: none; transition: margin-bottom .28s ease; }
+    .settings-section-header { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--muted-fg); margin-bottom: 14px; display: flex; align-items: center; justify-content: space-between; cursor: pointer; user-select: none; transition: margin-bottom .28s ease; }
     .settings-chevron { display: flex; color: var(--muted-fg); transition: transform .28s ease; }
     .settings-section.collapsed .settings-chevron { transform: rotate(-90deg); }
     .settings-section.collapsed .settings-section-header { margin-bottom: 0; }
@@ -1568,7 +1813,7 @@
     .sim-row { min-height: 40px; }
     .sim-icon { width:20px;height:20px;display:grid;place-items:center;flex-shrink:0;color:var(--foreground); }
     .sim-icon svg { width:18px;height:18px; }
-    .sim-badge { display:inline-flex;align-items:center;gap:5px;height:20px;padding:0 7px;border-radius:5px;font-size:11px;font-weight:500;
+    .sim-badge { display:inline-flex;align-items:center;gap:5px;height:20px;padding:0 7px;border-radius:5px;font-size:12px;font-weight:500;
       background:var(--success-bg);color:var(--success);flex-shrink:0;margin-left:auto; }
     .sim-badge i { width:5px;height:5px;border-radius:50%;background:currentColor; }
     .sim-btn { flex-shrink:0;font-size:12px;height:30px;padding:0 12px; }
@@ -1587,9 +1832,9 @@
     .sim-mi:hover:not(:disabled) { background:var(--muted); }
     .sim-mi.danger, .sim-mi.danger svg { color:var(--destructive); }
     .sim-mi:disabled { opacity:.45;cursor:default; }
-    .sim-why { margin:0;padding:0 10px 6px 32px;font-size:11px;color:var(--muted-fg); }
+    .sim-why { margin:0;padding:0 10px 6px 32px;font-size:12px;color:var(--muted-fg); }
     .sim-name { font-size:13px;font-weight:500;color:var(--foreground); }
-    .sim-status { font-size:11px;font-weight:500;margin-top:1px; }
+    .sim-status { font-size:12px;font-weight:500;margin-top:1px; }
     .sim-status.connected { color:var(--success); }
     .sim-status.not-connected { color:var(--muted-fg); }
     .sim-status.not-set { color:var(--muted-fg); }
@@ -1607,8 +1852,65 @@
     .set-card { background:var(--card); border-radius:var(--radius-md); padding:16px; }
     .set-page .dialog-head, .set-page .email-modal-sep { display:none !important; }
     .set-card [id^="mfaView"] > div { padding:0 !important; }
-    #devOthersWrap > div { justify-content:stretch !important; }
-    #devRevokeOthersBtn { width:100%; justify-content:center; }
+    /* ── Saved Logins (#42, approved 2026-11-14): this device as a hero card,
+       other devices as G1 tall cards in a 2-column grid, Hold to Log Out. ── */
+    #devList.sl-list { display: flex; flex-direction: column; gap: 0; background: none; border: 0; padding: 0; }
+    .sl-msg { font-size: 13px; color: var(--muted-fg); padding: 8px 4px; }
+    .sl-label { font-size: 12px; font-weight: 600; color: var(--text-muted); letter-spacing: .02em; margin: 20px 4px 8px; }
+    .sl-label:first-child { margin-top: 4px; }
+    .sl-hero { display: flex; align-items: center; gap: 14px; padding: 16px; border-radius: var(--radius-lg); background: var(--card); border: 1px solid var(--border); }
+    .sl-icon { width: 36px; height: 36px; border-radius: 10px; flex-shrink: 0; display: grid; place-items: center;
+      background: var(--surface-raised); border: 1px solid var(--border); color: var(--foreground); }
+    .sl-icon svg { width: 18px; height: 18px; }
+    .sl-hero .sl-icon { width: 48px; height: 48px; border-radius: 12px; }
+    .sl-hero .sl-icon svg { width: 22px; height: 22px; }
+    .sl-info { min-width: 0; flex: 1; }
+    .sl-name.dev-name { font-size: 14px; font-weight: 600; margin-left: -4px; width: calc(100% + 4px); }
+    .sl-hero .sl-name.dev-name { font-size: 16px; }
+    .sl-sub { font-size: 12px; color: var(--muted-fg); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .sl-hero .sl-sub { white-space: normal; }
+    .sl-live { display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0; font-size: 12px; font-weight: 600; color: var(--success); }
+    .sl-live i { width: 7px; height: 7px; border-radius: 50%; background: var(--success);
+      box-shadow: 0 0 0 3px color-mix(in srgb, var(--success) 22%, transparent); }
+    .sl-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+    .sl-card { display: flex; flex-direction: column; justify-content: space-between; gap: 22px; min-height: 128px; padding: 14px;
+      border-radius: var(--radius-lg); background: var(--card); border: 1px solid var(--border); transition: border-color .15s; }
+    .sl-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+    .sl-corner { position: relative; display: grid; justify-items: end; min-height: 30px; }
+    .sl-corner > * { grid-area: 1 / 1; }
+    .sl-time { font-size: 12px; color: var(--text-muted); white-space: nowrap; line-height: 30px; transition: opacity .15s; }
+    .sl-ago-t { display: none; }
+    /* Mouse: the time turns into Log Out while the card is hovered or focused. */
+    @media (hover: hover) and (pointer: fine) {
+      .sl-out { opacity: 0; pointer-events: none; transition: opacity .15s; }
+      .sl-card:hover, .sl-card:focus-within { border-color: var(--border-strong); }
+      .sl-card:hover .sl-out, .sl-card:focus-within .sl-out { opacity: 1; pointer-events: auto; }
+      .sl-card:hover .sl-time, .sl-card:focus-within .sl-time { opacity: 0; }
+    }
+    /* Touch: no hover, so Log Out is always there (quiet grey, red on press) and
+       the time moves into the platform line. */
+    @media not ((hover: hover) and (pointer: fine)) {
+      .sl-time { display: none; }
+      .sl-ago-t { display: inline; }
+    }
+    /* Hold to Log Out: grey chip with red text; the solid-red fill tracks the hold
+       and its white copy of the label is revealed by the same clip. */
+    .sl-others { margin-top: 20px; }
+    .sl-hold { position: relative; width: 100%; height: 44px; padding: 0 16px; border: 0; border-radius: var(--radius-md); overflow: hidden;
+      background: var(--btn-secondary-bg); color: var(--danger-text); font: 600 13px var(--font); cursor: pointer;
+      user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; touch-action: manipulation; -webkit-tap-highlight-color: transparent;
+      display: flex; align-items: center; justify-content: center; transition: background .14s; }
+    @media (hover: hover) and (pointer: fine) { .sl-hold:hover:not(:disabled) { background: var(--danger-tint); } }
+    .sl-hold:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--card), 0 0 0 4px var(--danger-solid); }
+    .sl-face { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+    .sl-fill { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: var(--danger-solid); color: #fff;
+      clip-path: inset(0 calc(100% - var(--p, 0) * 100%) 0 0); pointer-events: none; transition: clip-path .45s cubic-bezier(.32,.72,0,1); }
+    .sl-hold[aria-busy="true"] { background: var(--danger-solid); color: #fff; gap: 6px; }
+    .sl-hold[aria-busy="true"]::before { content: ''; width: 12px; height: 12px; border: 1.5px solid currentColor; border-right-color: transparent;
+      border-radius: 50%; animation: btn-danger-spin .7s linear infinite; }
+    .sl-keep { font-size: 12px; color: var(--text-muted); text-align: center; margin: 10px 0 0; }
+    @media (max-width: 360px) { .sl-grid { grid-template-columns: minmax(0, 1fr); } }
+    @media (prefers-reduced-motion: reduce) { .sl-fill, .sl-out, .sl-time { transition: none; } }
     .set-page-head { display:flex; align-items:flex-start; margin-bottom:8px; }
     .set-page-head .back-btn { margin-top:1px; }
     .pk-empty { background:var(--card); border-radius:var(--radius-md); padding:28px 16px;
@@ -1633,11 +1935,11 @@
     .dark .dev-name:focus { box-shadow:inset 0 0 0 2px rgba(250,250,250,.10); }
     /* Secondary title: the platform's own view. Never editable, so a renamed
        device is still identifiable. */
-    .dev-sub { font-size:11px; color:var(--muted-fg); margin-top:1px;
+    .dev-sub { font-size:12px; color:var(--muted-fg); margin-top:1px;
       overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
     .dev-actions { display:flex; align-items:center; gap:8px; flex-shrink:0; }
-    .dev-seen { font-size:11px; color:var(--muted-fg); white-space:nowrap; margin-top:2px; }
-    .dev-chip { font-size:11px; font-weight:600; background:var(--muted); color:var(--foreground);
+    .dev-seen { font-size:12px; color:var(--muted-fg); white-space:nowrap; margin-top:2px; }
+    .dev-chip { font-size:12px; font-weight:600; background:var(--muted); color:var(--foreground);
       border-radius:6px; padding:5px 10px; white-space:nowrap; }
 
     /* ── Authenticator (MFA) modal ── */
@@ -1690,10 +1992,10 @@
       overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .profile-chip {
       display: inline-flex; align-items: center; gap: 4px; height: 20px; padding: 0 8px;
-      border-radius: 100px; font-size: 10px; font-weight: 600; letter-spacing: .02em;
+      border-radius: 100px; font-size: 12px; font-weight: 600; letter-spacing: .02em;
       white-space: nowrap;
     }
-    .profile-chip.uid { background: var(--muted); color: var(--muted-fg); font-family: monospace; font-size: 9px; letter-spacing: 0;
+    .profile-chip.uid { background: var(--muted); color: var(--muted-fg); font-family: monospace; font-size: 12px; letter-spacing: 0;
       cursor: pointer; display: flex; justify-content: space-between; height: auto; padding: 4px 8px; }
 
     /* ── Support modal QR + UPI sizing ── */
@@ -1703,7 +2005,7 @@
     .support-upi:hover { background: var(--border); }
 
     /* ── Dev code interface (Dark Knight) ── */
-    .diag-btn { height: 26px; padding: 0 10px; border-radius: 6px; font-size: 11px; font-weight: 500;
+    .diag-btn { height: 26px; padding: 0 10px; border-radius: 6px; font-size: 12px; font-weight: 500;
       font-family: var(--font); background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.14);
       color: #e8e8e8; cursor: pointer; display: inline-flex; align-items: center; justify-content: center;
       gap: 5px; transition: background .12s; }
@@ -1715,7 +2017,7 @@
     body.shell-new .tile-list > #syncDiagWrap { padding: 0; margin: 0; border: none; border-radius: 0; }
     #syncDiagWrap > div:first-child { position: static !important; display: flex; align-items: center; justify-content: flex-end;
       gap: 4px; padding: 4px 4px 4px 14px; border-bottom: 1px solid var(--border); }
-    #syncDiagWrap > div:first-child::before { content: 'Log'; margin-right: auto; font: 600 11px/1 var(--font);
+    #syncDiagWrap > div:first-child::before { content: 'Log'; margin-right: auto; font: 600 12px/1 var(--font);
       letter-spacing: .05em; text-transform: uppercase; color: var(--muted-fg); }
     #syncDiagWrap .diag-btn { height: 28px; background: transparent; color: var(--muted-fg); border: none; border-radius: var(--radius-md); }
     @media (hover: hover) and (pointer: fine) { #syncDiagWrap .diag-btn:hover { background: var(--card); color: var(--foreground); } }
@@ -1763,7 +2065,7 @@
     .am-d { font-size: 13.5px; color: var(--muted-fg); line-height: 1.45; margin: 6px auto 0; max-width: 290px; }
     .am-facts { display: grid; grid-template-columns: repeat(3, 1fr); margin-top: 18px; border-radius: 14px; background: var(--muted); padding: 12px 4px; }
     .am-facts > div + div { border-left: 1px solid var(--border); }
-    .am-k { font-size: 10.5px; color: var(--muted-fg); }
+    .am-k { font-size: 12px; color: var(--muted-fg); }
     .am-v { font-size: 14.5px; font-weight: 600; color: var(--foreground); margin-top: 2px; font-variant-numeric: tabular-nums; }
     .am-tip { display: flex; gap: 10px; align-items: flex-start; text-align: left; margin-top: 10px; padding: 11px 12px; border-radius: 12px;
       background: var(--muted); font-size: 12.5px; line-height: 1.4; color: var(--foreground); }
@@ -1790,7 +2092,8 @@
     .am-btns .btn.btn-primary { width: 100%; height: 46px; font-size: 14.5px; border-radius: 13px; }
     .am-quiet { height: 38px; border: none; background: none; font: 500 14px var(--font); color: var(--muted-fg); cursor: pointer; border-radius: 10px; }
     .am-quiet:hover { color: var(--foreground); }
-    .am-quiet.danger { color: var(--destructive); font-weight: 600; }
+    .am-quiet.danger { color: var(--danger-text); font-weight: 600; transition: background .14s; }
+    .am-quiet.danger:hover, .am-quiet.danger:active { color: var(--danger-text); background: var(--danger-tint); }
     @media (max-width: 640px) {
       .overlay.am-host { align-items: flex-end; padding: 0; }
       .overlay.am-host > .dialog.am { max-width: none; width: 100%; border-radius: 24px 24px 0 0; border-bottom: none;
@@ -1824,7 +2127,7 @@
       color:var(--foreground);font-size:13px;font-weight:500;font-family:var(--font);
       cursor:pointer;text-decoration:none;transition:background .12s; }
     .sponsor-btn:hover { background:var(--border); }
-    .about-version-badge { font-size:11px;font-weight:600;letter-spacing:.06em;
+    .about-version-badge { font-size:12px;font-weight:600;letter-spacing:.06em;
       background:var(--muted);color:var(--muted-fg);padding:2px 8px;border-radius:6px; }
     .page-brand { position:fixed;top:12px;left:12px;z-index:10;display:inline-flex;
       align-items:center;text-decoration:none;line-height:0; }
@@ -1850,7 +2153,7 @@
     .co-stats-row { display:flex; align-items:stretch;
       background:var(--muted); border-radius:10px; overflow:hidden; }
     .co-stat { flex:1; min-width:0; padding:12px 14px; display:flex; flex-direction:column; gap:4px; }
-    .co-stat-label { font-size:10px; font-weight:500; color:var(--muted-fg);
+    .co-stat-label { font-size:12px; font-weight:500; color:var(--muted-fg);
       text-transform:uppercase; letter-spacing:.07em; }
     .co-stat-val { font-size:16px; font-weight:600; color:var(--foreground);
       letter-spacing:-.2px; line-height:1.25; white-space:nowrap; overflow:hidden;
@@ -1866,7 +2169,7 @@
       font-size:12px; font-weight:500; color:var(--muted-fg); line-height:1.45; }
     .co-insight { background: var(--success-bg); border: 1px solid var(--success-border);
       border-radius: 8px; padding: 10px 12px; }
-    .co-insight-label { font-size: 10px; font-weight: 600; color: var(--success);
+    .co-insight-label { font-size: 12px; font-weight: 600; color: var(--success);
       text-transform: uppercase; letter-spacing: .07em; margin-bottom: 4px; }
     .co-insight-text { font-size: 12px; color: var(--foreground); line-height: 1.5; }
 
@@ -1912,18 +2215,18 @@
       content: attr(data-tip);
       position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%);
       background: var(--foreground); color: var(--background);
-      font-size: 11px; font-weight: 500; white-space: nowrap;
+      font-size: 12px; font-weight: 500; white-space: nowrap;
       padding: 4px 8px; border-radius: 6px; pointer-events: none; z-index: 100;
     }
     .sc-item[data-tip]:hover::before {
       content: ''; position: absolute; bottom: calc(100% + 1px); left: 50%; transform: translateX(-50%);
       border: 5px solid transparent; border-top-color: var(--foreground); pointer-events: none; z-index: 100;
     }
-    .sc-day-label { font-size: 10px; font-weight: 600; color: var(--muted-fg);
+    .sc-day-label { font-size: 12px; font-weight: 600; color: var(--muted-fg);
       text-transform: capitalize; letter-spacing: .01em; text-align: center; }
     .sc-total-row { display: flex; align-items: center; justify-content: space-between;
       margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border); }
-    .sc-total-label { font-size: 11px; font-weight: 600; text-transform: uppercase;
+    .sc-total-label { font-size: 12px; font-weight: 600; text-transform: uppercase;
       letter-spacing: .08em; color: var(--muted-fg); }
     .sc-total-val { font-size: 15px; font-weight: 700; color: var(--success); }
 
@@ -1966,7 +2269,91 @@
       padding: 9px 10px; }
     .penalty-info { display: flex; flex-direction: column; gap: 2px; }
     .penalty-date { font-size: 13px; font-weight: 600; color: var(--foreground); }
-    .penalty-delta { font-size: 11px; color: var(--warning); font-weight: 500; }
+    .penalty-delta { font-size: 12px; color: var(--warning); font-weight: 500; }
+    /* ── Action Center (#39, approved 2026-11-14): restrained card, hairline rows,
+       amber text only, the week card's 44px date tiles. ── */
+    .ac-card { overflow: visible; padding: 18px 18px 8px; }
+    .ac-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+    .ac-title { font-size: 14px; font-weight: 600; color: var(--foreground); }
+    .ac-acts { display: flex; align-items: center; gap: 6px; }
+    .ac-markall { height: 30px; padding: 0 12px; font-size: 12px; }
+    .ac-markall:disabled { opacity: .45; cursor: default; }
+    .ac-more-wrap { position: relative; }
+    .ac-more { width: 30px; height: 30px; border: 0; border-radius: 8px; display: grid; place-items: center; background: var(--btn-secondary-bg);
+      color: var(--muted-fg); cursor: pointer; transition: background .12s, color .12s; }
+    .ac-more:hover, .ac-more[aria-expanded="true"] { background: var(--btn-secondary-hover); color: var(--foreground); }
+    .ac-more svg { width: 16px; height: 16px; }
+    .ac-menu { position: absolute; right: 0; top: calc(100% + 6px); z-index: 30; min-width: 220px; padding: 5px; border: 1px solid var(--border);
+      border-radius: 12px; background: var(--surface-raised); box-shadow: 0 10px 30px rgba(0,0,0,.22); transform-origin: top right;
+      opacity: 0; transform: translateY(-5px) scale(.97); visibility: hidden; pointer-events: none;
+      transition: opacity .14s ease, transform .2s var(--ease-sheet), visibility 0s linear .2s; }
+    .ac-menu.open { opacity: 1; transform: none; visibility: visible; pointer-events: auto; transition: opacity .14s ease, transform .2s var(--ease-sheet); }
+    .ac-mi { display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 9px; border: 0; border-radius: 8px; background: transparent;
+      font: 500 13px var(--font); color: var(--foreground); text-align: left; cursor: pointer; }
+    .ac-mi span { flex: 1; }
+    .ac-mi svg { width: 16px; height: 16px; flex: none; color: var(--muted-fg); }
+    .ac-mi:hover:not([disabled]), .ac-mi:focus-visible { background: var(--muted); outline: none; }
+    .ac-mi[role="menuitemcheckbox"] svg { order: 2; color: var(--foreground); opacity: 0; }
+    .ac-mi[aria-checked="true"] svg { opacity: 1; }
+    .ac-mi.danger, .ac-mi.danger svg { color: var(--danger-text); }
+    .ac-mi.danger:hover:not([disabled]) { background: var(--danger-tint); }
+    .ac-mi[disabled] { opacity: .45; cursor: default; }
+    .ac-sep { height: 1px; margin: 4px 2px; background: var(--border); }
+    .ac-seg { position: relative; isolation: isolate; display: grid; grid-template-columns: 1fr 1fr; gap: 2px; margin-top: 14px; padding: 3px;
+      border-radius: 10px; background: var(--surface-raised); border: 1px solid var(--border); }
+    .ac-seg button { position: relative; z-index: 1; height: 28px; border: 0; border-radius: 7px; background: transparent; cursor: pointer;
+      display: inline-flex; align-items: center; justify-content: center; gap: 6px; font: 500 12px var(--font); color: var(--text-muted); transition: color .15s; }
+    .ac-seg button[aria-selected="true"] { color: var(--foreground); }
+    .ac-seg button em { font-style: normal; font-variant-numeric: tabular-nums; color: var(--text-muted); }
+    .ac-seg button:focus-visible { outline: 2px solid var(--ring); outline-offset: 1px; }
+    .ac-gl { position: absolute; z-index: 0; top: 3px; bottom: 3px; left: 0; width: 0; border-radius: 7px; background: var(--muted);
+      box-shadow: 0 0 0 1px var(--border); transition: transform .32s var(--ease-sheet), width .32s var(--ease-sheet); }
+    .ac-cap { margin: 8px 2px 4px; font-size: 12px; color: var(--text-muted); }
+    #penaltiesList.ac-list { padding: 4px 0 8px; gap: 0; max-height: none; overflow-x: clip; overflow-y: visible; }
+    .ac-row { position: relative; display: flex; align-items: center; gap: 12px; padding: 10px 6px; border-radius: 10px; cursor: pointer;
+      --wk-tile: 44px; transition: background .12s, opacity .24s ease, transform .3s var(--ease-sheet); }
+    .ac-row + .ac-row::before { content: ''; position: absolute; left: 62px; right: 6px; top: 0; border-top: 1px solid var(--border-subtle); }
+    .ac-row:focus-visible { outline: 2px solid var(--ring); outline-offset: -2px; }
+    .ac-txt { flex: 1; min-width: 0; }
+    .ac-gap b { font-size: 14px; font-weight: 600; color: var(--warning); font-variant-numeric: tabular-nums; }
+    .ac-gap span { font-size: 12px; color: var(--text-muted); }
+    .ac-sub { font-size: 12px; color: var(--muted-fg); margin-top: 2px; font-variant-numeric: tabular-nums; }
+    .ac-resolve { height: 30px; padding: 0 12px; font-size: 12px; opacity: 0; pointer-events: none; transition: opacity .15s; }
+    @media (hover: hover) and (pointer: fine) {
+      .ac-row:hover { background: var(--muted); }
+      .ac-row:hover .wk-tile { background: var(--btn-secondary-hover); color: var(--foreground); }
+      .ac-row:hover .ac-resolve, .ac-row:focus-visible .ac-resolve, .ac-row.menu-on .ac-resolve { opacity: 1; pointer-events: auto; }
+    }
+    .ac-row.menu-on { background: var(--muted); }
+    .ac-row.read .ac-gap b { color: var(--muted-fg); }
+    .ac-row.read { opacity: .7; }
+    .ac-rmenu { top: calc(100% - 4px); right: 6px; min-width: 230px; cursor: default; }
+    .ac-row.menu-on { z-index: 5; }
+    .ac-mo { margin: 12px 6px 4px; font-size: 12px; font-weight: 600; color: var(--text-muted); }
+    .ac-mo:first-child { margin-top: 6px; }
+    .ac-caught { display: flex; align-items: center; gap: 12px; padding: 14px 6px; }
+    .ac-caught-i { width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; background: var(--success-bg); color: var(--success); flex: none; }
+    .ac-caught-i svg { width: 18px; height: 18px; }
+    .ac-caught b { display: block; font-size: 14px; font-weight: 600; color: var(--foreground); }
+    .ac-caught span { font-size: 12px; color: var(--muted-fg); }
+    /* Empty state (uiarc empty-state): the tray with today's date tile. */
+    .ac-empty { display: flex; flex-direction: column; align-items: center; text-align: center; padding: 22px 12px 16px; }
+    .ac-tray { position: relative; width: 84px; height: 70px; color: var(--border-strong); animation: ac-in .5s var(--ease-sheet) both; }
+    .ac-tray svg { position: absolute; left: 10px; bottom: 0; width: 64px; height: 56px; }
+    .ac-tray-tile { position: absolute; left: 25px; top: 0; width: 34px; height: 34px; border-radius: 9px; background: var(--card); border: 1px solid var(--border-strong);
+      display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1; gap: 2px; color: var(--muted-fg); }
+    .ac-tray-tile b { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .03em; }
+    .ac-tray-tile i { font-style: normal; font-size: 13px; font-weight: 700; color: var(--foreground); }
+    .ac-empty h3 { margin: 14px 0 0; font-size: 14px; font-weight: 600; color: var(--foreground); }
+    .ac-empty p { max-width: 19rem; margin: 6px auto 0; font-size: 13px; line-height: 1.45; color: var(--muted-fg); text-wrap: balance; }
+    @keyframes ac-in { from { opacity: 0; transform: scale(.92); } }
+    .ac-confirm { margin: 6px 0 4px; padding: 14px; border-radius: 12px; border: 1px solid var(--border); background: var(--surface-raised); }
+    .ac-cf-t { margin: 0; font-size: 14px; font-weight: 600; color: var(--foreground); }
+    .ac-cf-d { margin: 4px 0 12px; font-size: 13px; line-height: 1.45; color: var(--muted-fg); }
+    .ac-cf-a { display: flex; justify-content: flex-end; gap: 6px; }
+    .ac-cf-a .btn-secondary { height: 30px; padding: 0 12px; font-size: 12px; }
+    @media (max-width: 640px) { .ac-card { padding: 16px 14px 6px; } .ac-row + .ac-row::before { left: 62px; } }
+    @media (prefers-reduced-motion: reduce) { .ac-gl, .ac-menu, .ac-tray, .ac-row { transition: none; animation: none; } }
     .penalty-skel { display: grid; grid-template-columns: 1fr auto; gap: 18px 12px; padding: 20px 16px; }
     .penalty-empty { padding: 20px 16px; text-align: center; font-size: 13px; color: var(--muted-fg); }
     @keyframes shimmer { 0%{opacity:.4} 50%{opacity:.8} 100%{opacity:.4} }
@@ -2007,7 +2394,7 @@
     .email-textarea:focus { border-color: var(--ring); background: var(--background); }
     .email-modal-actions { display: flex; gap: 8px; margin-top: 12px; }
     .email-copy-btn { height: 26px; padding: 0 8px; border-radius: var(--radius); border: none;
-      background: var(--muted); color: var(--foreground); font-size: 11px; font-weight: 600;
+      background: var(--muted); color: var(--foreground); font-size: 12px; font-weight: 600;
       font-family: var(--font); cursor: pointer; transition: background .14s; display: inline-flex; align-items: center; gap: 4px; }
     .email-copy-btn:hover { background: var(--border); }
     .email-field-wrap { position: relative; }
@@ -2020,7 +2407,7 @@
     .email-tone { display: flex; align-items: center; gap: 4px; }
     .email-tone .wp-select { margin-left: auto; }
     .email-fields { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 8px 12px; }
-    .email-label { font-size: 11px; font-weight: 600; color: var(--muted-fg); letter-spacing: .05em; text-transform: uppercase; }
+    .email-label { font-size: 12px; font-weight: 600; color: var(--muted-fg); letter-spacing: .05em; text-transform: uppercase; }
     .email-preview { background: var(--muted); border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px;
       display: flex; flex-direction: column; gap: 8px; }
     .email-pv-meta { font-size: 12px; color: var(--muted-fg); overflow-wrap: anywhere; }
@@ -2038,15 +2425,9 @@
     .wn-fi svg { width: 17px; height: 17px; }
     .wn-ft { font-size: 14px; font-weight: 600; color: var(--foreground); }
     .wn-fs { font-size: 13px; color: var(--muted-fg); line-height: 1.45; margin-top: 2px; }
-    .wn-fixes { margin-top: 6px; border-radius: 12px; background: var(--muted); }
-    .wn-fixes-head { width: 100%; display: flex; align-items: center; justify-content: space-between; padding: 12px 14px;
-      background: none; border: none; font: 500 13px var(--font); color: var(--foreground); cursor: pointer; }
-    .wn-fixes-head svg { width: 14px; height: 14px; color: var(--muted-fg); transition: transform .3s var(--ease-sheet); }
-    .wn-fixes.open .wn-fixes-head svg { transform: rotate(180deg); }
-    .wn-fixes-body { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .4s var(--ease-sheet); }
-    .wn-fixes.open .wn-fixes-body { grid-template-rows: 1fr; }
-    .wn-fixes-body > ul { overflow: hidden; margin: 0; padding: 0 14px 0 30px; font-size: 13px; line-height: 1.55; color: var(--muted-fg); }
-    .wn-fixes.open .wn-fixes-body > ul { padding-bottom: 12px; }
+    .wn-fixes { margin-top: 6px; }
+    .wn-fixes-k { margin: 0 0 6px; font-size: 13px; font-weight: 600; color: var(--foreground); }
+    .wn-fixes ul { margin: 0; padding: 0 0 0 18px; font-size: 13px; line-height: 1.55; color: var(--muted-fg); }
     .wn-body { display: flex; flex-direction: column; gap: 18px; }
     .wn-section { display: flex; flex-direction: column; gap: 10px; }
     .wn-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
@@ -2415,7 +2796,7 @@
     .rpt-dim { color: var(--muted-fg); }
     .rpt-none { color: var(--text-muted); }
     .rpt-att { display: inline-flex; align-items: center; height: 20px; padding: 0 8px; border-radius: 10px;
-      font-size: 11px; font-weight: 500; color: var(--k); background: color-mix(in srgb, var(--k) 12%, var(--card)); }
+      font-size: 12px; font-weight: 500; color: var(--k); background: color-mix(in srgb, var(--k) 12%, var(--card)); }
     .rpt-table tr.rpt-sub td { height: 36px; font-size: 12px; font-weight: 600; color: var(--muted-fg); background: var(--muted); }
     .rpt-table tfoot td { height: 48px; font-weight: 600; border-top: 1px solid var(--border); border-bottom: 0; background: var(--muted); position: sticky; bottom: 0; }
     .rpt-tot-short { color: var(--warning); }
@@ -2437,7 +2818,7 @@
     body.rail-on .day-selector { position: relative; gap: 2px; padding: 0 !important; overflow: hidden; scroll-snap-type: none; }
     body.rail-on .day-sel-btn { flex: 0 0 calc((100% - 12px) / 7); position: relative; z-index: 1; gap: 4px; padding: 10px 2px;
       border-radius: 12px; background: transparent; color: var(--text-muted); transition: color .16s; }
-    body.rail-on .day-sel-btn .dsel-name { font-size: 11px; }
+    body.rail-on .day-sel-btn .dsel-name { font-size: 12px; }
     body.rail-on .day-sel-btn .dsel-num { font-size: 17px; font-weight: 600; font-variant-numeric: tabular-nums; }
     body.rail-on .day-sel-btn:hover:not(:disabled), body.rail-on .day-sel-btn.active,
     body.rail-on .day-sel-btn.wkd-btn.active { background: transparent; color: var(--foreground); }
@@ -2456,9 +2837,9 @@
     /* Dark: the pill must read as raised, so it's lighter than the track. */
     .dark body.rail-on .ds-glide { background: var(--btn-secondary-hover); box-shadow: 0 1px 2px rgba(0,0,0,.35), 0 0 0 1px rgba(255,255,255,.06); }
     @media (prefers-reduced-motion: reduce) { body.rail-on .ds-glide { transition: none; } }
-    .this-week-label { font-size: 11px; font-weight: 600; color: var(--muted-fg); letter-spacing: .06em; text-transform: uppercase; }
+    .this-week-label { font-size: 12px; font-weight: 600; color: var(--muted-fg); letter-spacing: .06em; text-transform: uppercase; }
     .this-week-label-btn { height:28px; padding:0 10px; border-radius:6px; border:none;
-      background:var(--btn-secondary-bg); color:var(--btn-secondary-fg); font-size:11px; font-weight:600;
+      background:var(--btn-secondary-bg); color:var(--btn-secondary-fg); font-size:12px; font-weight:600;
       font-family:var(--font); cursor:pointer; display:inline-flex; align-items:center; gap:5px;
       transition:background .12s; letter-spacing:.02em; white-space:nowrap; }
     .this-week-label-btn:hover { background:var(--btn-secondary-hover); }
@@ -2483,7 +2864,7 @@
       justify-content:center; cursor:pointer; transition:background .1s; padding:0; flex-shrink:0; }
     .wp-picker-nav:hover { background:var(--border); }
     .wp-picker-weekdays { display:grid; grid-template-columns:repeat(7,1fr); gap:4px; margin-bottom:4px; }
-    .wp-picker-weekdays span { text-align:center; font-size:10px; font-weight:600; color:var(--muted-fg);
+    .wp-picker-weekdays span { text-align:center; font-size:12px; font-weight:600; color:var(--muted-fg);
       letter-spacing:.06em; text-transform:uppercase; padding:4px 0; }
     .wp-picker-weekdays span.wp-wkd-hdr { color:var(--border); }
     .wp-picker-grid { display:flex; flex-direction:column; gap:4px; }
@@ -2533,7 +2914,7 @@
     .rc-io-box { flex:1; background:var(--muted); border-radius:var(--radius-md); padding:12px;
       border: none; display:flex; flex-direction:column; justify-content:center;
       transition: background 200ms ease, flex 300ms cubic-bezier(0.22,1,0.36,1); }
-    .rc-io-label { font-size:10px; font-weight:600; text-transform:uppercase;
+    .rc-io-label { font-size:12px; font-weight:600; text-transform:uppercase;
       letter-spacing:.08em; color:var(--muted-fg); margin-bottom:3px; }
     .rc-io-val { font-size:15px; font-weight:600; color:var(--foreground);
       font-variant-numeric: tabular-nums; line-height: 1; }
@@ -2562,14 +2943,14 @@
        weekday label on one baseline regardless of what's underneath. */
     .badge-days { display: flex; align-items: flex-start; justify-content: space-between; gap: 6px; width: 100%; }
     .badge-day { display: flex; flex-direction: column; align-items: center; gap: 4px; flex: 1; min-width: 0; }
-    .badge-day-name { font-size: 9px; font-weight: 700; color: var(--muted-fg);
+    .badge-day-name { font-size: 12px; font-weight: 700; color: var(--muted-fg);
       text-transform: uppercase; letter-spacing: .06em; }
     /* nowrap — "9h 10m" must stay on one line; wrapping is what broke the row above */
-    .badge-day-hrs { font-size: 10px; color: var(--muted-fg); font-variant-numeric: tabular-nums;
+    .badge-day-hrs { font-size: 12px; color: var(--muted-fg); font-variant-numeric: tabular-nums;
       white-space: nowrap; }
 
     /* ── Shift combo hint ── */
-    .shift-combo-hint { font-size:11px; color:var(--muted-fg); text-align:center;
+    .shift-combo-hint { font-size:12px; color:var(--muted-fg); text-align:center;
       letter-spacing:.01em; }
 
     /* ── Time picker wrapper (native time input styled) ── */
@@ -2604,7 +2985,7 @@
       padding:0 7px; background:var(--input-bg); color:var(--foreground);
       border:1px solid var(--input); border-radius:5px; outline:none; }
     .rc-io-inline-input:focus { border-color:var(--ring); }
-    .rc-io-save-btn { height:24px; padding:0 9px; font-size:11px; font-weight:600;
+    .rc-io-save-btn { height:24px; padding:0 9px; font-size:12px; font-weight:600;
       border-radius:5px; border:none; background:var(--foreground); color:var(--background);
       cursor:pointer; white-space:nowrap; transition:opacity .12s; }
     .rc-io-save-btn:hover { opacity:.85; }
@@ -2618,7 +2999,7 @@
       background:var(--blue-bg); border:1px solid var(--blue-border); border-radius:8px;
       padding:10px 12px; margin-top:2px; }
     .elt-left { display:flex; flex-direction:column; gap:1px; }
-    .elt-label { font-size:10px; font-weight:600; text-transform:uppercase;
+    .elt-label { font-size:12px; font-weight:600; text-transform:uppercase;
       letter-spacing:.08em; color:var(--blue); }
     .elt-status { font-size:12px; font-weight:500; color:var(--foreground); }
     .elt-right { display:flex; align-items:center; gap:5px; flex-shrink:0; }
@@ -2626,13 +3007,13 @@
       padding:0 7px; background:var(--input-bg); color:var(--foreground);
       border:1px solid var(--input); border-radius:6px; outline:none; text-align:center; }
     .elt-input:focus { border-color:var(--ring); }
-    .elt-set-btn { height:26px; padding:0 9px; font-size:11px; font-weight:600;
+    .elt-set-btn { height:26px; padding:0 9px; font-size:12px; font-weight:600;
       border-radius:5px; border:none; background:var(--blue); color:white;
       cursor:pointer; white-space:nowrap; transition:opacity .12s; }
     .elt-set-btn:hover { opacity:.85; }
     .elt-clear-btn { height:26px; width:26px; display:flex; align-items:center;
       justify-content:center; border-radius:5px; border:1px solid var(--blue-border);
-      background:transparent; color:var(--blue); cursor:pointer; font-size:11px;
+      background:transparent; color:var(--blue); cursor:pointer; font-size:12px;
       transition:background .12s; }
     .elt-clear-btn:hover { background:var(--blue-border); }
 
@@ -2666,7 +3047,7 @@
     .wh-toast.info    .wh-toast-icon { color:var(--blue); }
 
     /* ── Footer label ── */
-    .app-footer { position:fixed; bottom:14px; right:18px; font-size:11px; font-weight:500;
+    .app-footer { position:fixed; bottom:14px; right:18px; font-size:12px; font-weight:500;
       color:var(--muted-fg); pointer-events:none; z-index:50; font-family:var(--font);
       letter-spacing:.01em; }
 
@@ -2740,14 +3121,6 @@
       .btn-secondary { transition: none; }
       .btn-secondary:hover { background: var(--muted); }
       .btn-secondary:active { background: var(--muted); }
-
-      .btn-ghost-destructive { transition: none; }
-      .btn-ghost-destructive:hover { opacity: .75; }
-      .btn-ghost-destructive:active { opacity: .75; }
-
-      .btn-ghost-danger { transition: none; }
-      .btn-ghost-danger:hover { background: var(--destructive-bg); color: var(--destructive); border-color: var(--destructive-border); }
-      .btn-ghost-danger:active { background: var(--destructive-bg); color: var(--destructive); border-color: var(--destructive-border); }
 
       .shift-start-btn { transition: none; }
       .shift-start-btn:hover { opacity: .82; }
@@ -2899,7 +3272,7 @@
       display: flex; align-items: center; justify-content: flex-start;
     }
     .tp-modal-title {
-      font-size: 11px; font-weight: 600; color: var(--muted-fg);
+      font-size: 12px; font-weight: 600; color: var(--muted-fg);
       letter-spacing: .07em; text-transform: uppercase;
     }
     /* Wheel geometry: item 34px, 3 visible rows → wrap 102px, pad (102-34)/2 = 34 */
@@ -2965,7 +3338,7 @@
     .tp-tab {
       flex:none; padding:0 14px 10px 0; background:transparent; border:none;
       border-bottom:2px solid transparent; margin-bottom:-1px;
-      color:var(--muted-fg); font-size:11px; font-weight:600;
+      color:var(--muted-fg); font-size:12px; font-weight:600;
       font-family:var(--font); cursor:pointer; letter-spacing:.07em;
       text-transform:uppercase; transition:color .12s, border-color .12s;
     }
@@ -2982,59 +3355,61 @@
     /* ── Onboarding ── */
     /* ── Onboarding (one surface) ── */
     .ob2-overlay { align-items: center; justify-content: center; }
-    .ob2 { width: 380px; max-width: calc(100vw - 32px); height: min(620px, calc(100dvh - 32px)); display: flex; flex-direction: column;
-      background: var(--background); border: 1px solid var(--border); border-radius: 24px; padding: 20px; box-sizing: border-box;
-      box-shadow: 0 20px 60px rgba(0,0,0,.35); font-family: var(--font); color: var(--foreground); }
-    @media (max-width: 640px) { .ob2 { width: 100%; max-width: none; height: 100dvh; border: none; border-radius: 0;
-      padding: calc(20px + env(safe-area-inset-top)) 16px calc(14px + env(safe-area-inset-bottom)); } }
-    .ob2-main { flex: 1; min-height: 0; display: flex; flex-direction: column; }
-    .ob2-welcome { margin: auto 0; text-align: center; }
-    .ob2-welcome img { width: 68px; height: 68px; border-radius: 17px; }
-    .ob2-welcome h2 { font-size: 24px; font-weight: 600; letter-spacing: -.03em; line-height: 1.2; margin: 18px 0 0; }
-    .ob2-welcome p { font-size: 13.5px; color: var(--muted-fg); margin: 8px 0 0; }
-    .ob2-hd { display: flex; align-items: center; gap: 12px; }
-    .ob2-hd img { width: 40px; height: 40px; border-radius: 11px; }
-    .ob2-tt { font-size: 17px; font-weight: 600; margin: 0; } .ob2-st { font-size: 12px; color: var(--muted-fg); margin: 2px 0 0; }
-    .ob2-pv { margin-top: 14px; border-radius: 16px; background: var(--card); border: 1px solid var(--border); padding: 12px 14px; }
-    .ob2-pvtop { display: flex; justify-content: space-between; align-items: center; }
-    .ob2-who { font-size: 10.5px; font-weight: 600; color: var(--muted-fg); letter-spacing: .06em; }
-    .ob2-pill { font-size: 11px; font-weight: 600; background: var(--muted); border-radius: 6px; padding: 3px 8px; }
-    .ob2-kp { display: flex; justify-content: space-between; align-items: flex-end; margin-top: 12px; }
-    .ob2-K { font-size: 20px; font-weight: 600; letter-spacing: -.02em; height: 25px; overflow: hidden; font-variant-numeric: tabular-nums; }
-    .ob2-cap { font-size: 10.5px; color: var(--muted-fg); margin-top: 2px; }
-    .ob2-roll { display: inline-block; transition: transform .45s var(--ease-sheet), opacity .3s; }
-    .ob2-roll.out { transform: translateY(-70%); opacity: 0; }
-    .ob2-bar { height: 4px; border-radius: 99px; background: var(--border); margin-top: 10px; overflow: hidden; }
-    .ob2-bar i { display: block; height: 100%; width: 0; border-radius: 99px; background: var(--foreground); transition: width .8s var(--ease-sheet); }
-    .ob2-chip { text-align: center; margin-top: 9px; } .ob2-chip span { display: inline-flex; height: 20px; align-items: center; padding: 0 8px; border-radius: 6px; background: var(--muted); font-size: 11px; color: var(--muted-fg); }
-    .ob2-body { flex: 1; min-height: 0; overflow-y: auto; margin-top: 12px; }
-    .ob2-group { border-radius: 14px; background: var(--card); border: 1px solid var(--border); overflow: hidden; display: grid; grid-template-rows: 0fr; transition: grid-template-rows .5s var(--ease-sheet); }
-    .ob2-group > div { overflow: hidden; } .ob2-group.has { grid-template-rows: 1fr; }
-    .ob2-row { display: flex; align-items: center; gap: 10px; width: 100%; height: 44px; padding: 0 14px; border: none; background: none;
-      font: 400 13.5px var(--font); color: var(--foreground); cursor: pointer; text-align: left; animation: ob2-in .45s var(--ease-sheet); }
-    .ob2-row + .ob2-row { border-top: 1px solid var(--border); }
-    .ob2-gi { width: 26px; height: 26px; border-radius: 7px; display: grid; place-items: center; flex-shrink: 0;
-      background: color-mix(in srgb, var(--ob2-c) 15%, transparent); color: var(--ob2-c); }
-    .ob2-gi svg { width: 14px; height: 14px; }
-    .ob2-gk { flex: 1; color: var(--muted-fg); } .ob2-gv { font-weight: 600; font-variant-numeric: tabular-nums; }
-    .ob2-ask { margin-top: 14px; opacity: 0; transform: translateY(12px); transition: opacity .4s, transform .5s var(--ease-sheet); }
-    .ob2-ask.in { opacity: 1; transform: none; }
-    .ob2-qt { font-size: 16px; font-weight: 600; margin: 0 0 10px; letter-spacing: -.01em; }
-    .ob2-chips { display: flex; flex-wrap: wrap; gap: 7px; }
-    .ob2-c { height: 36px; padding: 0 14px; border-radius: 18px; border: none; background: var(--muted); color: var(--foreground);
-      font: 500 13.5px var(--font); cursor: pointer; transition: background .25s, color .25s, transform .12s; }
-    .ob2-c:active { transform: scale(.95); } .ob2-c.on { background: var(--foreground); color: var(--background); }
-    .ob2-c.other { background: transparent; box-shadow: inset 0 0 0 1px var(--border-strong); color: var(--muted-fg); }
-    .ob2-name { width: 100%; height: 46px; border-radius: 12px; padding: 0 14px; box-sizing: border-box; font: 400 15px var(--font);
+    .ob2 { width: 380px; max-width: calc(100vw - 32px); min-height: 460px; max-height: calc(100dvh - 32px); display: flex; flex-direction: column;
+      background: var(--background); border: 1px solid var(--border); border-radius: 24px; padding: 16px 20px 20px; box-sizing: border-box;
+      box-shadow: 0 20px 60px rgba(0,0,0,.35); font-family: var(--font); color: var(--foreground); overflow-y: auto; }
+    /* Phones: a bottom sheet only as tall as its content (no full-screen page), so
+       the answers and the button sit in thumb reach. */
+    @media (max-width: 640px) {
+      .ob-overlay.ob2-overlay { align-items: flex-end; padding: 0; }   /* beats the base .ob-overlay (centred, padded) */
+      .ob2 { width: 100%; max-width: none; min-height: 0; max-height: 92dvh; border: none; border-radius: 24px 24px 0 0;
+        padding: 12px 16px calc(16px + env(safe-area-inset-bottom)); animation: tp-sheet-in .4s var(--ease-sheet) both; }
+      .ob2-hero { padding: 28px 0 20px; }
+    }
+    .ob2-main { flex: 1; display: flex; flex-direction: column; }
+    .ob2-top { display: flex; align-items: center; justify-content: space-between; height: 32px; flex-shrink: 0; }
+    .ob2-back { width: 32px; height: 32px; margin-left: -6px; border-radius: 50%; border: none; background: none; color: var(--foreground);
+      display: grid; place-items: center; cursor: pointer; }
+    .ob2-back svg { width: 20px; height: 20px; }
+    @media (hover: hover) { .ob2-back:hover { background: var(--muted); } }
+    .ob2-sp { width: 32px; }
+    .ob2-dots { display: flex; gap: 5px; }
+    .ob2-dots i { width: 6px; height: 6px; border-radius: 3px; background: var(--border-strong); transition: width .3s var(--ease-sheet), background .3s; }
+    .ob2-dots i.on { width: 16px; background: var(--foreground); }
+    .ob2-pane { flex: 1; display: flex; flex-direction: column; animation: ob2-slide .32s var(--ease-sheet) both; }
+    @keyframes ob2-slide { from { opacity: 0; transform: translateX(calc(var(--dir, 1) * 14px)); } to { opacity: 1; transform: none; } }
+    @media (prefers-reduced-motion: reduce) { .ob2-pane { animation: none; } }
+    .ob2-hero { margin: auto 0; text-align: center; padding: 24px 0; }
+    .ob2-hero img { width: 64px; height: 64px; border-radius: 16px; display: block; margin: 0 auto; }
+    .ob2-hero h2 { font-size: 22px; font-weight: 600; letter-spacing: -.02em; line-height: 1.25; margin: 16px 0 0; }
+    .ob2-hero p { font-size: 14px; line-height: 1.5; color: var(--muted-fg); margin: 8px auto 0; max-width: 290px; }
+    .ob2-ok { width: 64px; height: 64px; border-radius: 50%; margin: 0 auto; display: grid; place-items: center;
+      background: color-mix(in srgb, var(--success) 15%, transparent); color: var(--success); }
+    .ob2-ok svg { width: 30px; height: 30px; }
+    .ob2-q { padding-top: 16px; }
+    .ob2-q h2 { font-size: 20px; font-weight: 600; letter-spacing: -.02em; line-height: 1.25; margin: 0; }
+    .ob2-q p { font-size: 13.5px; color: var(--muted-fg); margin: 4px 0 0; }
+    .ob2-opts { display: flex; flex-direction: column; gap: 8px; margin-top: 18px; }
+    .ob2-opt { display: flex; align-items: center; justify-content: space-between; height: 48px; padding: 0 16px; border-radius: 12px;
+      border: 1px solid var(--border); background: var(--card); color: var(--foreground); font: 500 15px var(--font); text-align: left;
+      cursor: pointer; transition: box-shadow .2s, transform .12s; }
+    .ob2-opt:active { transform: scale(.98); }
+    .ob2-opt svg { width: 18px; height: 18px; opacity: 0; transform: scale(.6); transition: opacity .2s, transform .25s cubic-bezier(.34,1.56,.64,1); }
+    .ob2-opt.on { border-color: transparent; box-shadow: inset 0 0 0 1.5px var(--foreground); }
+    .ob2-opt.on svg { opacity: 1; transform: none; }
+    .ob2-opt.other { color: var(--muted-fg); font-weight: 400; }
+    .ob2-opts [data-otherbox]:not(:empty) { display: grid; gap: 10px; padding-top: 4px; }
+    .ob2-name { margin-top: 18px; width: 100%; height: 46px; border-radius: 12px; padding: 0 14px; box-sizing: border-box; font: 400 15px var(--font);
       background: var(--card); border: 1px solid var(--border); color: var(--foreground); outline: none; }
     .ob2-name:focus { border-color: var(--border-strong); }
     .ob2-step { display: flex; align-items: center; justify-content: center; gap: 14px; margin-top: 12px; }
     .ob2-step button { width: 40px; height: 40px; border-radius: 12px; border: none; background: var(--muted); color: var(--foreground); font-size: 18px; cursor: pointer; }
     .ob2-step b { font-size: 22px; font-weight: 600; min-width: 110px; text-align: center; font-variant-numeric: tabular-nums; }
-    @keyframes ob2-in { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
     .ob2-foot { display: grid; gap: 8px; margin-top: 12px; flex-shrink: 0; }
     .ob2-b { width: 100%; height: 46px; border-radius: 13px; font-size: 15px; justify-content: center; }
     .ob2-b[hidden] { display: none; }
+    .ob2-skip { border: none; background: none; color: var(--muted-fg); font: 500 14px var(--font); height: 40px; cursor: pointer; }
+    @media (hover: hover) { .ob2-skip:hover { color: var(--foreground); } }
     .ob-overlay { position: fixed; inset: 0; z-index: 2000; background: rgba(0,0,0,.55);
       backdrop-filter: blur(6px); display: flex; align-items: center; justify-content: center; padding: 16px; }
     .ob-dialog { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-xl);
@@ -3044,7 +3419,7 @@
     .ob-progress-wrap { display: flex; align-items: center; gap: 10px; margin-bottom: 24px; }
     .ob-progress-bar { flex: 1; height: 3px; background: var(--border); border-radius: 2px; overflow: hidden; }
     .ob-progress-fill { height: 100%; background: var(--foreground); border-radius: 2px; transition: width .35s ease; }
-    .ob-progress-label { font-size: 11px; font-weight: 600; color: var(--muted-fg); white-space: nowrap; flex-shrink: 0; letter-spacing: .02em; }
+    .ob-progress-label { font-size: 12px; font-weight: 600; color: var(--muted-fg); white-space: nowrap; flex-shrink: 0; letter-spacing: .02em; }
     .ob-body { padding: 0 24px 24px; flex: 1; }
     .ob-panel { display: none; flex-direction: column; gap: 16px; }
     .ob-panel.active { display: flex; animation: ob-enter-fwd .25s ease both; }
@@ -3063,7 +3438,7 @@
     .ob-intro-text { display: flex; flex-direction: column; justify-content: center; gap: 4px; min-width: 0; }
     .ob-intro-text .ob-title { font-weight: 600; letter-spacing: -.4px; }
     .ob-intro-text .ob-desc { margin-top: 0; }
-    .ob-section-label { font-size: 11px; font-weight: 600; color: var(--muted-fg); letter-spacing: .06em; text-transform: uppercase; }
+    .ob-section-label { font-size: 12px; font-weight: 600; color: var(--muted-fg); letter-spacing: .06em; text-transform: uppercase; }
     .ob-foot { padding: 12px 20px 16px; border-top: 1px solid var(--border);
       display: flex; align-items: center; justify-content: space-between; gap: 8px; }
     .ob-btn-primary { height: 34px; padding: 0 12px; border-radius: var(--radius-md); border: none;
@@ -3153,7 +3528,7 @@
 
     /* ── Update Entry inside Today card ── */
     .rc-update-btn { height: 28px; padding: 0 10px; border-radius: 6px; border: none;
-      background: var(--btn-secondary-bg); color: var(--btn-secondary-fg); font-size: 11px; font-weight: 600;
+      background: var(--btn-secondary-bg); color: var(--btn-secondary-fg); font-size: 12px; font-weight: 600;
       font-family: var(--font); cursor: pointer; transition: background .12s;
       white-space: nowrap; display: none; }
     .rc-update-btn.visible { display: inline-flex; align-items: center; gap: 5px; }
@@ -3406,7 +3781,7 @@
     .rail-btn.active { background: var(--muted); color: var(--foreground); }
     .rail-btn:focus-visible { outline: 2px solid #6B97FF; outline-offset: 2px; }
     .rail-avatar { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center;
-      background: var(--muted); color: var(--foreground); font: 600 11px/1 var(--font); letter-spacing: .02em;
+      background: var(--muted); color: var(--foreground); font: 600 12px/1 var(--font); letter-spacing: .02em;
       box-shadow: inset 0 0 0 1px var(--border); }
     .rail-btn.active .rail-avatar { background: var(--card); }
     /* ── Desktop sheets (one component, Apple HIG) ───────────────────────
@@ -3450,6 +3825,176 @@
     body.rail-on #dayEditCancel { display: none; }
     body.rail-on #dayEditSave { flex: 1; width: 100%; }
     .sheet-close { display: none; }
+    /* ── Backup codes (#8 design): Save / Running low / Make new codes ── */
+    .bk-body { padding: 0 14px 14px; display: flex; flex-direction: column; gap: 12px; }
+    .bk-codes { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 20px; margin: 0; padding: 14px 16px; list-style: none; counter-reset: c;
+      border: 1px solid var(--border); border-radius: 12px; background: var(--surface-raised);
+      font-family: ui-monospace, "Cascadia Mono", "SF Mono", Consolas, monospace; font-size: 14px; letter-spacing: .04em; color: var(--foreground); }
+    .bk-codes li { counter-increment: c; display: flex; gap: 10px; align-items: baseline; }
+    .bk-codes li::before { content: counter(c); width: 1.4em; text-align: right; color: var(--text-muted); font-size: 12px; }
+    .bk-tools { display: flex; justify-content: flex-end; gap: 8px; margin-top: -2px; }
+    .bk-tool { position: relative; height: 32px; padding: 0 12px; gap: 6px; font-size: 12px; }
+    .bk-ic { display: grid; place-items: center; width: 14px; height: 14px; }
+    .bk-ic svg { width: 14px; height: 14px; }
+    .bk-ic .ok { color: var(--success); }
+    .bk-ic .ok path { stroke-dasharray: 24; stroke-dashoffset: 24; animation: bk-draw .2s ease-out 60ms forwards; }
+    @keyframes bk-draw { to { stroke-dashoffset: 0; } }
+    .bk-tip { position: absolute; z-index: 20; bottom: calc(100% + 8px); left: 50%; translate: -50% 0; padding: 6px 10px; border-radius: 10px;
+      background: var(--foreground); color: var(--background); font-size: 12px; font-weight: 500; white-space: nowrap; pointer-events: none;
+      box-shadow: 0 8px 22px rgba(0,0,0,.22); opacity: 0; transform: translateY(3px) scale(.97); transition: opacity .15s, transform .15s; }
+    .bk-tip.on { opacity: 1; transform: none; }
+    .bk-warn { display: flex; gap: 12px; align-items: flex-start; padding: 14px; border-radius: 12px; border: 1px solid var(--border); background: var(--surface-raised); }
+    .bk-warn-ic { width: 18px; height: 18px; flex: none; margin-top: 1px; color: var(--warning); }
+    .bk-warn b { display: block; font-size: 13px; font-weight: 600; color: var(--foreground); }
+    .bk-warn p { margin: 4px 0 0; font-size: 12px; line-height: 1.45; color: var(--muted-fg); }
+    .bk-check { display: flex; align-items: center; gap: 10px; margin-top: 12px; cursor: pointer; font-size: 13px; font-weight: 500; color: var(--foreground); }
+    .bk-check input { position: absolute; opacity: 0; pointer-events: none; }
+    .bk-box { position: relative; flex: none; width: 18px; height: 18px; border: 1px solid var(--border-strong); border-radius: 5px; background: var(--card); color: var(--background);
+      transition: background .15s, border-color .15s, transform .1s; }
+    .bk-box svg { position: absolute; inset: -1px; width: 18px; height: 18px; }
+    .bk-box path { stroke-dasharray: 14; stroke-dashoffset: 14; transition: stroke-dashoffset .2s ease-out 40ms; }
+    .bk-check input:checked + .bk-box { background: var(--foreground); border-color: var(--foreground); }
+    .bk-check input:checked + .bk-box path { stroke-dashoffset: 0; }
+    .bk-check:active .bk-box { transform: scale(.95); }
+    .bk-check input:focus-visible + .bk-box { box-shadow: 0 0 0 2px var(--card), 0 0 0 4px var(--foreground); }
+    .bk-done { height: 40px; width: 100%; font-size: 13px; border-radius: 10px; }
+    .bk-done:disabled:not(.btn-danger) { opacity: 1; background: var(--muted); color: var(--text-muted); cursor: not-allowed; }
+    .bk-quiet { height: 36px; width: 100%; justify-content: center; font-size: 13px; background: transparent; }
+    .mfa-left { font-size: 13px; color: var(--muted-fg); margin: 0 0 4px; }
+    .mfa-left b { color: var(--foreground); font-weight: 600; }
+    /* ── Payroll (#41): Salary Cycle row + range picker ── */
+    #viewSettings .pay-row, #viewSettings .pay-switch { display: flex; flex-direction: row; align-items: center; justify-content: space-between; gap: 12px; text-align: left; }
+    .pay-row { cursor: pointer; }
+    .pay-row:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+    .sc-val { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; font-weight: 500; color: var(--muted-fg); white-space: nowrap; }
+    .sc-val svg { width: 16px; height: 16px; color: var(--text-muted); }
+    @media (hover: hover) and (pointer: fine) { .pay-row:hover .sc-val { color: var(--foreground); } }
+
+    .sc-foot { font-size: 12px; line-height: 1.5; color: var(--text-muted); }
+    .dialog.sc-dialog { max-width: 620px; min-width: 0; padding: 0; }
+    .sc-head { position: relative; padding: 22px 22px 6px; }
+    .sc-head .dialog-desc { padding-right: 24px; }
+    .sc-x { position: absolute; top: 14px; right: 14px; width: 32px; height: 32px; border: 0; border-radius: 8px; display: grid; place-items: center;
+      background: var(--muted); color: var(--muted-fg); cursor: pointer; }
+    .sc-x:hover { background: var(--btn-secondary-hover); color: var(--foreground); }
+    .sc-x svg { width: 15px; height: 15px; }
+    .sc-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 10px 22px 0; }
+    .sc-field { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 9px 12px; border-radius: 12px; border: 1px solid var(--border);
+      background: var(--card); text-align: left; cursor: pointer; transition: border-color .15s, box-shadow .15s; font-family: var(--font); }
+    .sc-field span { font-size: 12px; color: var(--text-muted); }
+    .sc-field b { font-size: 14px; font-weight: 600; color: var(--foreground); font-variant-numeric: tabular-nums; }
+    .sc-field.on { border-color: var(--foreground); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ring) 18%, transparent); }
+    .sc-cal { position: relative; padding: 12px 18px 4px; }
+    .sc-months { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
+    .sc-mt { text-align: center; font-size: 13px; font-weight: 600; color: var(--foreground); height: 32px; line-height: 32px; }
+    .sc-nav { position: absolute; top: 12px; z-index: 1; width: 32px; height: 32px; border: 0; border-radius: 8px; display: grid; place-items: center;
+      background: transparent; color: var(--muted-fg); cursor: pointer; }
+    .sc-nav:hover { background: var(--muted); color: var(--foreground); }
+    .sc-nav.prev { left: 18px; } .sc-nav.next { right: 18px; }
+    .sc-nav svg { width: 16px; height: 16px; }
+    .sc-grid { display: grid; grid-template-columns: repeat(7, 1fr); row-gap: 2px; }
+    .sc-wd { height: 28px; display: grid; place-items: center; font-size: 12px; font-weight: 500; color: var(--text-muted); }
+    .sc-c { position: relative; height: 36px; border: 0; padding: 0; background: transparent; color: var(--foreground); font: 500 13px var(--font);
+      font-variant-numeric: tabular-nums; cursor: pointer; isolation: isolate; }
+    .sc-c::before { content: ''; position: absolute; inset: 2px; z-index: -1; border-radius: 10px; transition: background .12s; }
+    .sc-c:hover::before { background: var(--muted); }
+    .sc-c.in { background: var(--chip, var(--muted)); background: color-mix(in srgb, var(--foreground) 7%, transparent); }
+    .sc-c.start { background: linear-gradient(to right, transparent 50%, color-mix(in srgb, var(--foreground) 7%, transparent) 50%); }
+    .sc-c.end { background: linear-gradient(to left, transparent 50%, color-mix(in srgb, var(--foreground) 7%, transparent) 50%); }
+    .sc-c.start::before, .sc-c.end::before { background: var(--foreground); }
+    .sc-c.start, .sc-c.end { color: var(--background); font-weight: 600; }
+    .sc-c.today::after { content: ''; position: absolute; inset: 3px; border-radius: 9px; box-shadow: inset 0 0 0 1.5px var(--border-strong); pointer-events: none; }
+    .sc-c:focus-visible { outline: 2px solid var(--ring); outline-offset: -2px; border-radius: 10px; }
+    .sc-pad { pointer-events: none; }
+    .sc-sum { display: flex; flex-direction: column; gap: 2px; margin: 8px 22px 0; padding: 12px 14px; border-radius: 12px; background: var(--surface-raised); border: 1px solid var(--border); }
+    .sc-sum b { font-size: 14px; font-weight: 600; color: var(--foreground); font-variant-numeric: tabular-nums; }
+    .sc-sum span { font-size: 12px; color: var(--muted-fg); }
+    .sc-sum.bad span { color: var(--warning); }
+    .sc-foot-row { padding: 14px 22px 18px; }
+    @media (max-width: 640px) {
+      .overlay.sc-host { align-items: flex-end; padding: 0; }
+      .overlay.sc-host > .dialog.sc-dialog { width: 100%; max-width: none; border-radius: 24px 24px 0 0; border-bottom: none; transform: translateY(100%);
+        transition: transform .45s var(--ease-sheet); }
+      .overlay.sc-host.open > .dialog.sc-dialog { transform: none; }
+      .overlay.sc-host > .dialog.sc-dialog::before { content: ''; display: block; width: 36px; height: 5px; border-radius: 3px; background: var(--border-strong); margin: 10px auto 0; }
+      .overlay.sc-host > .dialog.sc-dialog.sheet-dragging { transition: none !important; }
+      .sc-head { padding: 12px 18px 4px; } .sc-fields, .sc-foot-row { padding-left: 18px; padding-right: 18px; } .sc-sum { margin: 6px 18px 0; }
+      .sc-months { grid-template-columns: 1fr; }
+      .sc-months .sc-month + .sc-month { display: none; }   /* one month at a time */
+      .sc-foot-row { padding-bottom: calc(16px + env(safe-area-inset-bottom)); }
+    }
+    /* ── Update Entry sheet (#34, approved 2026-11-14) ──
+       Date title + subtitle, Update Entry | Raise Dispute, a day-type segmented
+       control, Started / Left at rows (wheel), a live line, the note, and a
+       footer that stays pinned while the body scrolls. Right-hand sheet on
+       desktop, centred dialog on tablets, bottom sheet with a grabber on phones. */
+    #dayEditOverlay > .dialog { display: flex; flex-direction: column; overflow: hidden; }
+    #deMainPage { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
+    #deMainPage .de-pane { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
+    #deMainPage .de-pane[hidden] { display: none; }
+    #deMainPage .de-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; gap: 10px; }
+    #deMainPage .de-body > * { flex-shrink: 0; }
+    #deMainPage .de-foot { flex: none; border-top: 1px solid var(--border); }
+    #deEmailPage { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+    .de-head .dialog-title { padding-right: 84px; }
+    .de-trash { position: absolute; top: 10px; right: 10px; width: 32px; height: 32px; padding: 0; border: none; border-radius: 8px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center; background: var(--muted); color: var(--muted-fg); transition: color .15s, background .15s; }
+    .de-trash:hover { background: var(--danger-tint); color: var(--danger-text); }
+    .de-sec-label { font-size: 12px; font-weight: 600; color: var(--text-muted); letter-spacing: .02em; margin: 2px 2px -2px; }
+    /* Day type: four equal segments, icon over label; the selection glides and
+       the picked one takes its day-type colour. */
+    .modal-override-row.de-type { position: relative; isolation: isolate; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 2px;
+      padding: 3px; border-radius: 12px; background: var(--muted); border: 1px solid var(--border); flex-wrap: nowrap; }
+    .de-type .de-type-pill { position: absolute; z-index: 0; top: 3px; bottom: 3px; left: 0; width: 0; border-radius: 9px; background: var(--card);
+      box-shadow: 0 1px 2px rgba(0,0,0,.08), 0 0 0 1px var(--border); transition: transform .32s var(--ease-sheet), width .32s var(--ease-sheet); }
+    .dark .de-type .de-type-pill { background: var(--btn-secondary-hover); }
+    .de-type .modal-override-btn { position: relative; z-index: 1; height: auto; min-width: 0; padding: 9px 2px 8px; border: 0; border-radius: 9px;
+      display: flex; flex-direction: column; align-items: center; gap: 4px; background: transparent; color: var(--text-muted);
+      font: 500 12px var(--font); white-space: nowrap; cursor: pointer; transition: color .15s; }
+    .de-type .modal-override-btn:hover { background: transparent; color: var(--foreground); }
+    .de-type .modal-override-btn.active { background: transparent; color: var(--dt, var(--foreground)); }
+    .de-type .modal-override-btn svg { width: 18px; height: 18px; }
+    .de-type .modal-override-btn span { overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+    .de-type .modal-override-btn:focus-visible { outline: 2px solid var(--ring); outline-offset: -2px; }
+    /* Started / Left at: one grouped card, a row each; the clock opens the wheel. */
+    .de-rows { display: flex; flex-direction: column; border: 1px solid var(--border); border-radius: 12px; background: var(--card); overflow: hidden; }
+    .de-row { display: flex; align-items: center; gap: 8px; min-height: 48px; padding: 0 6px 0 12px; cursor: text; }
+    .de-row + .de-row { border-top: 1px solid var(--border); }
+    .de-row-k { display: inline-flex; align-items: center; gap: 8px; flex: none; width: 92px; font-size: 13px; font-weight: 500; color: var(--foreground); }
+    .de-row-k svg { width: 16px; height: 16px; color: var(--text-muted); }
+    .de-row .field-input.de-time { flex: 1; min-width: 0; height: 36px; padding: 0 6px; border: 0; background: transparent; box-shadow: none;
+      text-align: right; font-size: 14px; font-variant-numeric: tabular-nums; }
+    .de-row .field-input.de-time:focus { box-shadow: none; background: var(--muted); border-radius: 8px; }
+    .de-row .tp-icon-btn.de-wheel { position: static; transform: none; flex: none; width: 32px; height: 32px; border-radius: 8px; display: grid; place-items: center; }
+    .de-live { margin: 0 2px; min-height: 18px; font-size: 13px; color: var(--muted-fg); font-variant-numeric: tabular-nums; }
+    .de-live:empty { display: none; }
+    .de-note-wrap.visible { max-height: 200px; }
+    .de-note-wrap .de-sec-label { margin-bottom: 6px; }
+    /* Raise Dispute */
+    .de-intro { margin: 0 2px; font-size: 13px; line-height: 1.45; color: var(--muted-fg); }
+    .de-rec { display: flex; flex-direction: column; gap: 2px; padding: 12px 14px; border-radius: 12px; background: var(--card); border: 1px solid var(--border); }
+    .de-rec span { font-size: 12px; color: var(--text-muted); }
+    .de-rec b { font-size: 14px; font-weight: 600; color: var(--foreground); font-variant-numeric: tabular-nums; }
+    .de-chips.de-reasons { display: flex; flex-direction: column; gap: 0; border: 1px solid var(--border); border-radius: 12px; background: var(--card); overflow: hidden; }
+    .de-reasons .de-chip { display: flex; align-items: center; justify-content: space-between; width: 100%; height: 46px; padding: 0 14px; border: 0; border-radius: 0;
+      background: transparent; color: var(--foreground); font: 500 13px var(--font); text-align: left; cursor: pointer; }
+    .de-reasons .de-chip + .de-chip { border-top: 1px solid var(--border); }
+    .de-reasons .de-chip svg { width: 16px; height: 16px; opacity: 0; transition: opacity .15s; }
+    .de-reasons .de-chip[aria-checked="true"] { background: transparent; color: var(--foreground); border-color: var(--border); }
+    .de-reasons .de-chip[aria-checked="true"] svg { opacity: 1; }
+    @media (hover: hover) { .de-reasons .de-chip:hover { background: var(--muted); } }
+    @media (max-width: 640px) {
+      body:not(.rail-on) #dayEditOverlay { align-items: flex-end; padding: 0; }
+      body:not(.rail-on) #dayEditOverlay > .dialog { max-width: none; min-width: 0; width: 100%; max-height: 92dvh; border-radius: 24px 24px 0 0; border-bottom: none;
+        transform: translateY(100%); transition: transform .45s var(--ease-sheet); }
+      body:not(.rail-on) #dayEditOverlay.open > .dialog { transform: none; }
+      body:not(.rail-on) #dayEditOverlay > .dialog::before { content: ''; display: block; flex: none; width: 36px; height: 5px; border-radius: 3px;
+        background: var(--border-strong); margin: 10px auto 0; }
+      body:not(.rail-on) #dayEditOverlay > .dialog.sheet-dragging { transition: none !important; }
+      body:not(.rail-on) #deMainPage .de-foot { padding-bottom: calc(14px + env(safe-area-inset-bottom)); }
+      body:not(.rail-on) .de-trash { top: 14px; }
+    }
+    @media (prefers-reduced-motion: reduce) { .de-type .de-type-pill { transition: none; } }
     /* Same square as the Delete button beside it: 32px, 8px corners, muted fill. */
     body.rail-on #dayEditOverlay .sheet-close { display: grid; place-items: center; position: absolute; top: 10px; right: 10px;
       width: 32px; height: 32px; padding: 0; border: none; border-radius: 8px; background: var(--muted); color: var(--muted-fg); cursor: pointer;
@@ -3492,7 +4037,7 @@
       <div class="am-hero" id="coHero"></div>
       <p class="am-t" id="coTitle"></p>
       <p class="am-d" id="coDesc"></p>
-      <div class="am-facts"><div><div class="am-k">Started</div><div class="am-v" id="coStart">—</div></div><div><div class="am-k">Left at</div><div class="am-v" id="coLeft">—</div></div><div><div class="am-k">This week</div><div class="am-v" id="coWeek">—</div></div></div>
+      <div class="am-facts"><div><div class="am-k">Started</div><div class="am-v" id="coStart">—</div></div><div><div class="am-k">Left at</div><div class="am-v" id="coLeft">—</div></div><div><div class="am-k">Total</div><div class="am-v" id="coTotal">—</div></div></div>
       <div class="am-tip" id="coInsight"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18h6M10 22h4M12 2a7 7 0 0 0-4 12.7V17h8v-2.3A7 7 0 0 0 12 2z"/></svg><span id="coInsightText"></span></div>
       <div class="am-btns"><button class="btn btn-primary" id="coDone">Done</button></div>
     </div>
@@ -3582,7 +4127,7 @@
       <div class="notif-head">
         <span class="section-label">Notifications</span>
         <div class="notif-head-actions">
-          <button class="btn-secondary" id="notifClearAll" style="font-size:11px;height:30px;padding:0 10px">Clear All</button>
+          <button class="btn-secondary" id="notifClearAll" style="font-size:12px;height:30px;padding:0 10px">Clear All</button>
           <!-- Desktop drawer only: the same round close button as the Update Entry sheet -->
           <button type="button" class="sheet-close" id="notifCloseBtn" aria-label="Close notifications"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
         </div>
@@ -3608,6 +4153,11 @@
       </div>
 
       <div id="homeMain">
+      <!-- Leave / Holiday bar hatch, shared by the weekend and Statistics charts. -->
+      <svg class="ws-defs" width="0" height="0" aria-hidden="true"><defs>
+        <pattern id="wsHatch" width="6" height="6" patternUnits="userSpaceOnUse"><path d="M-1 1l2-2M0 6l6-6M5 7l2-2"/></pattern>
+        <pattern id="wsHatchHot" width="6" height="6" patternUnits="userSpaceOnUse"><path d="M-1 1l2-2M0 6l6-6M5 7l2-2"/></pattern>
+      </defs></svg>
       <!-- Selected day context — greeting hidden, clock remains -->
       <div class="sel-day-ctx">
         <div class="sel-day-left">
@@ -3679,7 +4229,7 @@
               Update Entry
             </button>
             <span class="rc-head-date" id="rcHeadDate"></span>
-            <div id="leaveChip" style="font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted-fg)">
+            <div id="leaveChip" style="font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted-fg)">
               <span id="leaveAt">—</span>
             </div>
           </div>
@@ -3727,6 +4277,8 @@
             <div class="rc-progress-fill" id="rcProgressFill" style="width:0%"></div>
             <div class="rc-progress-fill-ot" id="rcProgressFillOt"></div>
           </div>
+          <div class="pb-guide" id="pbGuide" aria-hidden="true"></div>
+          <div class="pb-tip" id="pbTip" aria-hidden="true"></div>
           <div class="rc-desc-row" id="rcDescRow">
             <span class="rc-desc-right" id="rcDescRight"></span>
           </div>
@@ -3804,6 +4356,8 @@
 
           <!-- ── Weekend / Holiday / Leave info state ── -->
           <div id="weekendView">
+            <!-- Weekend summary (approved 2026-11-14), drawn by _renderWkndSummary(). -->
+            <div id="wkndSum" style="display:none"></div>
             <!-- Info card: dashed + clickable on past override days, plain on weekends -->
             <div id="wkndOverrideInfoCard" style="text-align:center;padding:8px 0 14px">
               <div id="wkndPageTitle" style="font-size:17px;font-weight:700;color:var(--foreground);letter-spacing:-.02em;margin-bottom:4px">Weekend</div>
@@ -3836,12 +4390,6 @@
                 </div>
                 <div class="badge-days" id="wkndBadgeDays"></div>
               </div>
-              <div>
-                <button class="btn-secondary" style="height:38px;font-size:13px;padding:0 16px;width:100%;display:flex;align-items:center;justify-content:center;gap:6px" data-on-click="ha2992aba2f">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
-                  View Stats
-                </button>
-              </div>
             </div>
 
           </div>
@@ -3850,6 +4398,14 @@
       </div>
 
       </div><!-- /homeCard -->
+
+      <!-- Weekend: View Stats sits below the Home card (#50, flat weekend card). -->
+      <div id="wkndStatsOut">
+        <button type="button" class="btn-secondary ws-stats" data-on-click="ha2992aba2f">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+          View Stats
+        </button>
+      </div>
 
       <!-- Ongoing session banner — sits right below the home card, outside its
            chrome, so it always reads as "the card's own status" rather than being
@@ -3918,20 +4474,20 @@
       </div>
 
 
-      <!-- Penalty Checker -->
-      <div class="analytics-card">
-        <div class="analytics-card-head">
-          <span class="analytics-card-title">Your Penalties</span>
-          <button class="btn-secondary" id="penaltyClearAll" style="font-size:11px;height:30px;padding:0 10px">Clear All</button>
-        </div>
-        <div class="penalty-list" id="penaltiesList">
-          <!-- Placeholder until the first render fills the list -->
-          <div class="penalty-skel" aria-label="Loading penalties">
+      <!-- Action Center (#39): replaces the old penalty card; drawn by _renderPenaltyCard(). -->
+      <div class="analytics-card ac-card" id="acCard">
+        <div id="acTop"></div>
+        <div class="penalty-list ac-list" id="penaltiesList">
+          <!-- Loading (approved): tile + two lines per row until the first render -->
+          <div class="penalty-skel" aria-label="Loading">
             <div class="skel" style="width:46%;height:12px"></div><div class="skel" style="width:44px;height:12px"></div>
             <div class="skel" style="width:38%;height:12px"></div><div class="skel" style="width:36px;height:12px"></div>
           </div>
         </div>
       </div>
+
+      <!-- Statistics (#7): always at the bottom of Home, drawn by renderStats(). -->
+      <section class="sx-card" id="sxCard" aria-label="Statistics"></section>
 
     </main>
   </div>
@@ -3944,8 +4500,8 @@
         <div class="settings-header" style="flex-direction:row;align-items:center;padding-bottom:12px">
           <div class="settings-title">Settings</div>
           <div style="margin-left:auto;display:flex;align-items:center;gap:8px">
-            <div class="form-sub" id="settingsLastSaved" style="font-size:11px;color:var(--muted-fg)">Not saved yet</div>
-            <button class="btn-secondary" id="syncBtn" data-on-click="hbaa505cd7f" style="font-size:11px;height:30px;padding:0 10px;gap:6px">
+            <div class="form-sub" id="settingsLastSaved" style="font-size:12px;color:var(--muted-fg)">Not saved yet</div>
+            <button class="btn-secondary" id="syncBtn" data-on-click="hbaa505cd7f" style="font-size:12px;height:30px;padding:0 10px;gap:6px">
             <svg id="syncIconDefault" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
             <svg id="syncIconSpinner" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
             <svg id="syncIconCheck" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:none"><polyline points="20 6 9 17 4 12"/></svg>
@@ -3989,7 +4545,7 @@
               <div id="profileUidRow" style="display:none;margin-top:8px">
                 <div class="field-input" id="profileUid"
                   data-on-click="h3082bc57c8"
-                  style="cursor:pointer;display:inline-flex;align-items:center;gap:8px;font-family:monospace;font-size:11px;color:var(--muted-fg);padding:6px 10px;height:auto">
+                  style="cursor:pointer;display:inline-flex;align-items:center;gap:8px;font-family:monospace;font-size:12px;color:var(--muted-fg);padding:6px 10px;height:auto">
                   <span id="profileUidText" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">—</span>
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
                 </div>
@@ -4090,6 +4646,33 @@
 
         <div class="settings-section-divider"></div>
 
+        <!-- ── Payroll (#41): the salary cycle and penalty reminders ── -->
+        <div class="settings-section">
+          <div class="settings-section-header">Payroll</div>
+          <div class="settings-group">
+            <div class="pay-row" id="scRow" role="button" tabindex="0" aria-haspopup="dialog">
+              <div>
+                <div class="form-label">Salary Cycle</div>
+                <div class="form-sub">Repeats every month</div>
+              </div>
+              <span class="sc-val"><span id="scValue">1st – last day</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></span>
+            </div>
+            <div class="pay-switch">
+              <div>
+                <div class="form-label" id="penRemindLabel">Penalty Reminders</div>
+                <div class="form-sub">A nudge in the cycle's last week, at a calm moment.</div>
+              </div>
+              <label class="toggle">
+                <input type="checkbox" id="inpPenRemind" checked aria-labelledby="penRemindLabel">
+                <span class="toggle-track"></span>
+              </label>
+            </div>
+            <div class="set-note sc-foot" id="scFoot"></div>
+          </div>
+        </div><!-- /Payroll section -->
+
+        <div class="settings-section-divider"></div>
+
         <!-- ── Preferences ──
              Two groups on purpose: the bare settings first, then the ones that
              need a line of explanation. Keeps the top of the section scannable. -->
@@ -4098,22 +4681,22 @@
           <div class="settings-group">
 
             <!-- App Theme -->
-            <!-- uiarc Radio cards: a grid of three, a list on narrow screens. One ring
-                 glides to the chosen card and its dot springs in (_renderThemeTabs). -->
+            <!-- uiarc Radio cards: three cards, icon + title only (user, 2026-11-14).
+                 A fill glides to the chosen card (_placeThemeRing). -->
             <div class="appear-row">
               <div class="form-label">Appearance</div>
               <div class="rc-cards" id="themeTabs" role="radiogroup" aria-label="Appearance">
                 <button type="button" class="rc-card" id="themeTabAuto" role="radio" aria-checked="false" data-on-click="ha1e6c02f2c">
-                  <span class="rc-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg></span><span class="rc-dot" aria-hidden="true"><i></i></span>
-                  <span class="rc-txt"><span class="rc-l">Device Theme</span><span class="rc-d">Matches your device</span></span>
+                  <span class="rc-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg></span>
+                  <span class="rc-txt"><span class="rc-l">Device Theme</span></span>
                 </button>
                 <button type="button" class="rc-card" id="themeTabLight" role="radio" aria-checked="false" data-on-click="hbaac90494f">
-                  <span class="rc-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></span><span class="rc-dot" aria-hidden="true"><i></i></span>
-                  <span class="rc-txt"><span class="rc-l">Light</span><span class="rc-d">Always light</span></span>
+                  <span class="rc-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></span>
+                  <span class="rc-txt"><span class="rc-l">Light</span></span>
                 </button>
                 <button type="button" class="rc-card" id="themeTabDark" role="radio" aria-checked="false" data-on-click="h70155e2dab">
-                  <span class="rc-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg></span><span class="rc-dot" aria-hidden="true"><i></i></span>
-                  <span class="rc-txt"><span class="rc-l">Dark</span><span class="rc-d">Always dark</span></span>
+                  <span class="rc-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg></span>
+                  <span class="rc-txt"><span class="rc-l">Dark</span></span>
                 </button>
                 <span class="rc-ring" aria-hidden="true"></span>
               </div>
@@ -4423,7 +5006,7 @@
                 <div class="form-label">Log Out</div>
                 <div class="form-sub">Sign out on this device. Your data stays safe in your account.</div>
               </div>
-              <button class="btn-ghost-destructive" data-on-click="ha5895024d2">Log Out</button>
+              <button class="btn-danger-2" data-on-click="ha5895024d2">Log Out</button>
             </div>
 
           </div>
@@ -4621,12 +5204,12 @@
                   </button>
                   <button id="syncDiagCopy" class="diag-btn" data-on-click="haab61e2144">Copy Log</button>
                 </div>
-                <div id="syncDiagResult" style="padding:14px 12px 12px;background:#0a0a0a;border:1px solid #222;border-radius:var(--radius-md);font-size:11px;font-family:'SF Mono',ui-monospace,monospace;line-height:1.7;color:#8a8f98;white-space:pre-wrap;word-break:break-all;max-height:280px;overflow:auto"></div>
+                <div id="syncDiagResult" style="padding:14px 12px 12px;background:#0a0a0a;border:1px solid #222;border-radius:var(--radius-md);font-size:12px;font-family:'SF Mono',ui-monospace,monospace;line-height:1.7;color:#8a8f98;white-space:pre-wrap;word-break:break-all;max-height:280px;overflow:auto"></div>
               </div>
 
               <!-- Modals — conditional modals not otherwise triggerable -->
               <div>
-                <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted-fg);margin-bottom:14px">Modals</div>
+                <div style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted-fg);margin-bottom:14px">Modals</div>
                 <div style="display:flex;flex-direction:column;gap:8px">
 
                   <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
@@ -4783,9 +5366,9 @@
 
   <!-- Version pill -->
   <a href="https://github.com/rosshanmohapatra/5pm-workhour-tracker/releases" target="_blank" rel="noopener" class="version-pill">
-    <span style="font-size:11px;font-weight:600;color:var(--muted-fg);letter-spacing:.01em">5pm</span>
-    <span style="font-size:10px;font-weight:600;letter-spacing:.05em;
-      background:var(--muted);color:var(--muted-fg);padding:4px 7px;border-radius:100px">v1.2.31</span>
+    <span style="font-size:12px;font-weight:600;color:var(--muted-fg);letter-spacing:.01em">5pm</span>
+    <span style="font-size:12px;font-weight:600;letter-spacing:.05em;
+      background:var(--muted);color:var(--muted-fg);padding:4px 7px;border-radius:100px">v1.2.32</span>
   </a>
 
   <!-- ── Weekly Report Modal ── -->
@@ -4823,6 +5406,7 @@
   <div class="overlay am-host" id="continueWorkingOverlay" data-on-click="hc056d60086">
     <div class="dialog am" role="dialog" aria-modal="true" aria-labelledby="cwTitle">
       <p class="am-t" id="cwTitle">Continue today's session?</p>
+      <p class="am-d" id="cwNote" hidden></p>
       <div class="am-bars" aria-hidden="true"><i id="cwBarDone"></i><i class="rest" id="cwBarLeft"></i></div>
       <div class="am-bl"><span id="cwDone"></span><span id="cwLeft"></span></div>
       <div class="am-btns">
@@ -4838,7 +5422,7 @@
       <div class="am-hero ok pop" id="dtrHero"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path class="am-check" d="M5 12.5l4.5 4.5L19 7.5"/></svg></div>
       <p class="am-t" id="dtrTitle">That's your day.</p>
       <p class="am-d">Every hour's in. The rest of the day is yours.</p>
-      <div class="am-facts"><div><div class="am-k">Started</div><div class="am-v" id="dtrStart">—</div></div><div><div class="am-k">Worked</div><div class="am-v" id="dailyTargetHours">—</div></div><div><div class="am-k">This week</div><div class="am-v" id="dtrWeek">—</div></div></div>
+      <div class="am-facts"><div><div class="am-k">Started</div><div class="am-v" id="dtrStart">—</div></div><div><div class="am-k">Done at</div><div class="am-v" id="dtrDoneAt">—</div></div><div><div class="am-k">Total</div><div class="am-v" id="dailyTargetHours">—</div></div></div>
       <div class="am-btns">
         <button class="btn btn-primary" id="dailyTargetEndBtn">End for today</button>
         <button type="button" class="am-quiet" id="dailyTargetCancelBtn">Keep working</button>
@@ -4860,7 +5444,7 @@
       </div>
       <div style="padding:0 14px 14px;display:flex;justify-content:flex-end;gap:8px">
         <button class="btn-secondary" data-on-click="h60803b94db">Keep</button>
-        <button class="btn-ghost-destructive" id="cancelPlanConfirmBtn" style="height:38px;padding:0 16px;font-size:13px">Cancel Plan</button>
+        <button class="btn-danger" id="cancelPlanConfirmBtn">Cancel Plan</button>
       </div>
     </div>
   </div>
@@ -4907,7 +5491,7 @@
       </div>
       <div style="padding:14px;display:flex;justify-content:flex-end;gap:8px">
         <button class="btn-secondary" data-on-click="h3a488fe697">Stay Back</button>
-        <button class="btn-ghost-destructive" data-on-click="hc1fb0c2186">Log Out</button>
+        <button class="btn-danger" data-on-click="hc1fb0c2186">Log Out</button>
       </div>
     </div>
   </div>
@@ -4926,7 +5510,7 @@
       </div>
       <div style="padding:14px;display:flex;justify-content:flex-end;gap:8px">
         <button class="btn-secondary" data-on-click="h8a0431c316">Cancel</button>
-        <button class="btn-ghost-destructive" id="pkRemoveBtn" data-on-click="h69f23197dd">Remove</button>
+        <button class="btn-danger" id="pkRemoveBtn" data-on-click="h69f23197dd">Remove</button>
       </div>
     </div>
   </div>
@@ -4996,7 +5580,7 @@
         </div>
         <div style="padding:0 14px 14px;display:flex;justify-content:flex-end;gap:8px">
           <button type="button" class="btn-secondary" data-on-click="hfe373ca6db">Back</button>
-          <button type="button" class="btn-ghost-destructive" id="delPwdContinueBtn" data-on-click="hffc28330a5" disabled>Delete Forever</button>
+          <button type="button" class="btn-danger" id="delPwdContinueBtn" data-on-click="hffc28330a5" disabled>Delete Forever</button>
         </div>
       </div>
 
@@ -5009,93 +5593,6 @@
       <div style="display:flex;flex-direction:column;align-items:center;gap:16px;padding:36px 24px">
         <div class="leaving-spinner"></div>
         <div class="dialog-title" id="signingOutTitle">Logging Out</div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ── Forgot Password Modal ── -->
-  <div class="overlay" id="fpOverlay" style="z-index:2200">
-    <div class="dialog" style="max-width:360px">
-      <!-- View 1: Email request -->
-      <div id="fpViewEmail">
-        <div class="dialog-head" style="display:flex;align-items:flex-start;justify-content:space-between">
-          <div>
-            <div class="dialog-title">Account Recovery</div>
-            <div class="dialog-desc">Enter your email and we'll send you a reset code.</div>
-          </div>
-          <button class="btn-icon" data-on-click="h69037e5ab4" title="Close" style="margin:-4px -4px -4px 8px;flex-shrink:0">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-          </button>
-        </div>
-        <div class="dialog-body">
-          <input class="field-input" id="fpEntry" type="text" placeholder="you@example.com"
-            autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
-            data-lpignore="true" data-1p-ignore="true">
-          <div class="err-msg" id="fpEmailErr" style="margin-top:6px">Enter a valid email address.</div>
-        </div>
-        <div style="padding:0 14px 12px;display:flex;flex-direction:column;gap:8px">
-          <button id="fpSendEmailBtn" class="ob-btn-primary" style="height:40px;font-size:13px;width:100%;border-radius:8px" data-on-click="hb81b94c73b">Send an Email</button>
-          <div class="fp-divider">or</div>
-          <button class="fp-oauth-btn">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
-            Continue with Google
-          </button>
-          <button class="fp-oauth-btn">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0 1 12 6.844a9.59 9.59 0 0 1 2.504.337c1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.02 10.02 0 0 0 22 12.017C22 6.484 17.522 2 12 2z"/></svg>
-            Continue with GitHub
-          </button>
-          <button class="fp-oauth-btn" data-on-click="h670fc5e48d">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path fill-rule="evenodd" clip-rule="evenodd" d="M6 2C3.79086 2 2 3.79086 2 6V18C2 20.2091 3.79086 22 6 22H18C20.2091 22 22 20.2091 22 18V6C22 3.79086 20.2091 2 18 2H6ZM7 7H9V9H7V7ZM9 11H7V13H9V11ZM7 15H9V17H7V15ZM11 7H13V9H11V7ZM13 11H11V13H13V11ZM11 15H13V17H11V15ZM17 7H15V9H17V7ZM15 11H17V13H15V11ZM17 15H15V17H17V15Z" fill="currentColor"/></svg>
-            Use Authenticator
-          </button>
-        </div>
-        <div style="padding:0 14px 14px">
-          <button class="btn-secondary" style="width:100%;justify-content:center" data-on-click="h69037e5ab4">Back to Setup</button>
-        </div>
-      </div>
-      <!-- View 3: Authenticator -->
-      <div id="fpViewAuth" style="display:none">
-        <div class="dialog-head">
-          <div class="dialog-title">Authenticator Code</div>
-          <div class="dialog-desc">Enter the 6-digit code from your authenticator app.</div>
-        </div>
-        <div class="dialog-body">
-          <div style="display:flex;gap:8px;justify-content:center">
-            <input class="auth-digit" id="authD0" type="text" inputmode="numeric" maxlength="1" pattern="[0-9]" autocomplete="one-time-code">
-            <input class="auth-digit" id="authD1" type="text" inputmode="numeric" maxlength="1" pattern="[0-9]">
-            <input class="auth-digit" id="authD2" type="text" inputmode="numeric" maxlength="1" pattern="[0-9]">
-            <input class="auth-digit" id="authD3" type="text" inputmode="numeric" maxlength="1" pattern="[0-9]">
-            <input class="auth-digit" id="authD4" type="text" inputmode="numeric" maxlength="1" pattern="[0-9]">
-            <input class="auth-digit" id="authD5" type="text" inputmode="numeric" maxlength="1" pattern="[0-9]">
-          </div>
-        </div>
-        <div style="padding:0 14px 12px;display:flex;flex-direction:column;gap:8px">
-          <button class="ob-btn-primary" id="authVerifyBtn" style="height:40px;font-size:13px;width:100%;border-radius:8px" data-on-click="hc38159dc96" disabled>Verify Code</button>
-        </div>
-        <div style="padding:0 14px 14px">
-          <button class="btn-secondary" style="width:100%;justify-content:center" data-on-click="h418322c9b7">Use a Different Method</button>
-        </div>
-      </div>
-      <!-- View 2: OTP code -->
-      <div id="fpViewOTP" style="display:none">
-        <div class="dialog-head">
-          <div class="dialog-title">Enter Code</div>
-          <div class="dialog-desc">A 6-digit code was sent to <strong id="fpEmailDisplay"></strong>. It expires in 1 minute.</div>
-        </div>
-        <div class="dialog-body">
-          <input class="field-input fp-code-input" id="fpOtpInput" type="text" inputmode="numeric" maxlength="6" placeholder="000000" data-on-input="h48bff94753">
-          <div class="fp-timer" id="fpTimerWrap">Code expires in <span id="fpTimerDisplay">1:00</span></div>
-          <div id="fpExpiredMsg" style="display:none;text-align:center;margin-top:10px">
-            <div style="font-size:12px;color:var(--destructive);margin-bottom:10px">Code expired.</div>
-            <button class="btn-secondary" style="width:100%;justify-content:center" data-on-click="hb7eda186b0">Resend Code</button>
-          </div>
-        </div>
-        <div style="padding:0 14px 12px;display:flex;flex-direction:column;gap:8px">
-          <button class="ob-btn-primary" id="fpVerifyBtn" style="height:40px;font-size:13px;width:100%;border-radius:8px" data-on-click="h93f72182ed" disabled>Verify Code</button>
-        </div>
-        <div style="padding:0 14px 14px">
-          <button class="btn-secondary" style="width:100%;justify-content:center" data-on-click="h418322c9b7">Use a Different Email</button>
-        </div>
       </div>
     </div>
   </div>
@@ -5247,27 +5744,52 @@
         </div>
       </div>
 
-      <!-- View: Backup codes -->
+      <!-- View: Save your backup codes (#8 design): numbered two-column list,
+           Copy / Download that confirm with a check + tooltip, and a warning
+           card whose checkbox unlocks Done. -->
       <div id="mfaViewBackup" style="display:none">
         <div class="dialog-head" style="display:flex;align-items:flex-start;justify-content:space-between">
           <div>
-            <div class="dialog-title">Save Your Backup Codes</div>
-            <div class="dialog-desc">Store these somewhere safe. Each code works once if you lose access to your authenticator.</div>
+            <div class="dialog-title">Save your backup codes</div>
+            <div class="dialog-desc">If you can’t use your authenticator, each code signs you in once.</div>
           </div>
         </div>
-        <div style="padding:0 14px 14px;display:flex;flex-direction:column;gap:12px">
-          <div class="mfa-codes" id="mfaCodesGrid"></div>
-          <div style="display:flex;gap:8px">
-            <button class="btn-secondary" style="flex:1;justify-content:center;gap:6px" data-on-click="hf7caab5dc9">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-              <span id="mfaCopyLabel">Copy</span>
-            </button>
-            <button class="btn-secondary" style="flex:1;justify-content:center;gap:6px" data-on-click="h77019e8e6d">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-              Download
-            </button>
+        <div class="bk-body">
+          <ol class="bk-codes" id="mfaCodesGrid"></ol>
+          <div class="bk-tools">
+            <button type="button" class="btn-secondary bk-tool" id="bkCopyBtn"><span class="bk-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></span>Copy</button>
+            <button type="button" class="btn-secondary bk-tool" id="bkDownloadBtn"><span class="bk-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3M7 10l5 5 5-5M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/></svg></span>Download</button>
           </div>
-          <button class="ob-btn-primary" style="height:40px;font-size:13px;width:100%;border-radius:8px" data-on-click="h3f17ee1b27">I've Saved Them</button>
+          <div class="bk-warn" role="status">
+            <svg class="bk-warn-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4M12 17h.01"/></svg>
+            <div><b>You won’t see these again</b><p>Keep them somewhere safe. If you lose them, make new ones in Settings.</p>
+              <label class="bk-check"><input type="checkbox" id="bkSaved"><span class="bk-box"><svg viewBox="0 0 18 18" fill="none" aria-hidden="true"><path d="M4.8 9.3l2.9 2.9 5.6-6" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg></span>I’ve saved my backup codes</label></div>
+          </div>
+          <button type="button" class="ob-btn-primary bk-done" id="bkDoneBtn" disabled>Done</button>
+        </div>
+      </div>
+
+      <!-- View: Codes running low (opened from the Home notice) -->
+      <div id="mfaViewLow" style="display:none">
+        <div class="dialog-head">
+          <div class="dialog-title" id="bkLowTitle">2 backup codes left</div>
+          <div class="dialog-desc">You used one to sign in. Make new codes now so you don’t run out.</div>
+        </div>
+        <div class="bk-body">
+          <button type="button" class="ob-btn-primary bk-done" id="bkLowMake">Make New Codes</button>
+          <button type="button" class="btn-secondary bk-quiet" id="bkLowLater">Not now</button>
+        </div>
+      </div>
+
+      <!-- View: Make new backup codes? (old codes stop working) -->
+      <div id="mfaViewRegen" style="display:none">
+        <div class="dialog-head">
+          <div class="dialog-title">Make new backup codes?</div>
+          <div class="dialog-desc">You’ll get 10 new codes. Your old codes stop working right away.</div>
+        </div>
+        <div class="bk-body">
+          <button type="button" class="btn-danger bk-done" id="bkRegenBtn">Make New Codes</button>
+          <button type="button" class="btn-secondary bk-quiet" id="bkRegenCancel">Cancel</button>
         </div>
       </div>
 
@@ -5295,7 +5817,9 @@
           </button>
         </div>
         <div style="padding:0 14px 14px;display:flex;flex-direction:column;gap:8px">
-          <button class="btn-ghost-destructive" style="width:100%;justify-content:center" data-on-click="h0d46da7c63">Disable Two-Factor Authentication</button>
+          <p class="mfa-left" id="mfaLeft"></p>
+          <button type="button" class="btn-secondary" style="width:100%;justify-content:center" id="mfaMakeCodes">Make new backup codes</button>
+          <button class="btn-danger-2" style="width:100%" data-on-click="h0d46da7c63">Disable Two-Factor Authentication</button>
         </div>
       </div>
 
@@ -5309,7 +5833,7 @@
         </div>
         <div style="padding:0 14px 14px;display:flex;gap:8px">
           <button class="btn-secondary" style="flex:1;justify-content:center" data-on-click="hfa2eb79cc6">Cancel</button>
-          <button id="mfaDisableBtn" class="btn-ghost-destructive" style="flex:1;justify-content:center" data-on-click="ha5880d0f8f">Disable</button>
+          <button id="mfaDisableBtn" class="btn-danger" style="flex:1" data-on-click="ha5880d0f8f">Disable</button>
         </div>
       </div>
 
@@ -5334,11 +5858,10 @@
       <div id="devList" class="settings-group">
         <!-- populated by renderDevices() -->
       </div>
-      <div id="devOthersWrap" style="display:none">
-        <div class="email-modal-sep"></div>
-        <div style="display:flex;justify-content:flex-end">
-          <button class="btn-ghost-destructive" id="devRevokeOthersBtn" data-on-click="h367b412f61">Log Out Other Devices</button>
-        </div>
+      <div id="devOthersWrap" class="sl-others" style="display:none">
+        <!-- Hold to confirm (uiarc hold-to-confirm), wired by _slHoldInit() -->
+        <button type="button" class="sl-hold" id="devRevokeOthersBtn">Hold to Log Out Other Devices</button>
+        <p class="sl-keep">You stay signed in on this device.</p>
       </div>
     </div>
   </div>
@@ -5354,7 +5877,7 @@
       <div class="wh-toast-title" id="toastTitle"></div>
       <div class="wh-toast-desc" id="toastDesc"></div>
     </div>
-    <button class="btn-secondary" id="toastActionBtn" style="font-size:11px;height:auto;padding:8px;flex-shrink:0">Close</button>
+    <button class="btn-secondary" id="toastActionBtn" style="font-size:12px;height:auto;padding:8px;flex-shrink:0">Close</button>
   </div>
 
   <!-- ── Wheel Time Picker Modal ── -->
@@ -5425,8 +5948,8 @@
               style="flex:1;height:38px;padding:0 12px;font-size:13px;border-radius:8px;border:1px solid var(--border);background:var(--input-bg);color:var(--foreground)">
           </div>
         </div>
-        <div id="npExtraRow" style="display:none;margin-bottom:12px;padding:10px 14px;background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.25);border-radius:8px">
-          <div style="font-size:12px;line-height:1.5;color:#3b82f6;font-weight:500" id="npExtraText"></div>
+        <div id="npExtraRow" style="display:none;margin-bottom:12px;padding:10px 14px;background:var(--blue-bg);border:1px solid var(--blue-border);border-radius:8px">
+          <div style="font-size:12px;line-height:1.5;color:var(--blue);font-weight:500" id="npExtraText"></div>
         </div>
         <!-- Notes -->
         <div style="margin-bottom:4px">
@@ -5498,25 +6021,45 @@
   </div>
 
   <!-- Day Edit Modal -->
+  <!-- Salary Cycle (#41): a date range on a calendar (adapted from uiarc
+       date-range-picker). Two months on desktop, one month in a bottom sheet
+       on phones. Filled in by _scRender(). -->
+  <div class="overlay sc-host" id="salaryOverlay">
+    <div class="dialog sc-dialog" role="dialog" aria-modal="true" aria-labelledby="scTitle">
+      <div class="sc-head">
+        <div class="dialog-title" id="scTitle">Salary Cycle</div>
+        <div class="dialog-desc">Pick the first and last day your company counts for one month's pay.</div>
+        <button type="button" class="sc-x" id="scClose" aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
+      </div>
+      <div class="sc-fields">
+        <button type="button" class="sc-field" id="scFieldFrom"><span>From</span><b id="scFromV"></b></button>
+        <button type="button" class="sc-field" id="scFieldTo"><span>To</span><b id="scToV"></b></button>
+      </div>
+      <div class="sc-cal" id="scCal"></div>
+      <div class="sc-sum" id="scSum" aria-live="polite"><b id="scSumMain"></b><span id="scSumSub"></span></div>
+      <div class="dialog-foot-row sc-foot-row">
+        <button type="button" class="btn btn-cancel" id="scCancel">Cancel</button>
+        <button type="button" class="btn btn-primary" id="scSave">Save</button>
+      </div>
+    </div>
+  </div>
+
   <div class="overlay" id="dayEditOverlay">
     <!-- Two pages: the day (Update Entry | Raise Dispute) and, after Draft Email,
          the dispute email. The email page slides in from the right; Back slides
          it out again. -->
     <div class="dialog de-pager">
       <div class="de-page" id="deMainPage">
-      <div class="dialog-head" style="position:relative">
+      <div class="dialog-head de-head" style="position:relative">
         <div class="dialog-title" id="dayEditTitle">Edit Day</div>
         <div class="dialog-desc" id="dayEditDesc">Update times or mark a special day</div>
-        <button id="dayEditDeleteBtn" title="Delete entry"
-          style="position:absolute;top:10px;right:10px;width:32px;height:32px;padding:0;
-            border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;
-            font-size:14px;transition:color .15s,background .15s,border-color .15s;">
+        <button id="dayEditDeleteBtn" class="de-trash" title="Delete entry" aria-label="Delete entry">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
             <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
           </svg>
         </button>
       </div>
-      <!-- Update Entry | Raise Dispute. The tabs show for today and past days. -->
+      <!-- Update Entry | Raise Dispute (#34). The tabs show for today and past days. -->
       <div class="set-tabs-shell de-tabs" id="deTabs">
         <div class="set-tabs" role="tablist" aria-label="Day options">
           <button type="button" class="set-tab active" role="tab" aria-selected="true" data-de-tab="edit">Update Entry</button>
@@ -5524,57 +6067,65 @@
           <span class="set-tab-ind" aria-hidden="true"></span>
         </div>
       </div>
-      <div id="deEditPane">
-      <div class="dialog-body">
-        <div class="modal-override-row">
-          <button class="modal-override-btn" id="deHalfDay" data-on-click="h78736406eb">Half Day</button>
-          <button class="modal-override-btn" id="deHoliday" data-on-click="hafbff54015">Holiday</button>
-          <button class="modal-override-btn" id="deLeave" data-on-click="h1bbffb6125">Full Day Leave</button>
+      <div id="deEditPane" class="de-pane">
+      <div class="dialog-body de-body">
+        <!-- Day type: one segmented control, the app's day-type icons and colours
+             (DAY_TYPES), filled in by _deTypeInit(). Full Day = no override. -->
+        <div class="de-sec-label" id="deTypeLabel">Day type</div>
+        <div class="modal-override-row de-type" id="deType" role="radiogroup" aria-labelledby="deTypeLabel">
+          <span class="de-type-pill" aria-hidden="true"></span>
+          <button type="button" class="modal-override-btn" id="deFullDay" role="radio" data-type="fullday">Full Day</button>
+          <button type="button" class="modal-override-btn" id="deHalfDay" role="radio" data-type="halfday">Half Day</button>
+          <button type="button" class="modal-override-btn" id="deLeave" role="radio" data-type="leave">On Leave</button>
+          <button type="button" class="modal-override-btn" id="deHoliday" role="radio" data-type="holiday">Holiday</button>
         </div>
         <div id="deTimeWrap">
-          <div class="modal-time-row" id="deTimeRow">
-            <div style="position:relative;flex:1" class="time-input-wrap">
-              <input type="text" class="field-input" id="deStart" placeholder="Start time" autocomplete="off" style="padding-left:38px">
-              <button type="button" class="tp-icon-btn" data-on-click="h793544eada" title="Pick time">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M16.5 13C17.0523 13 17.5 12.5523 17.5 12C17.5 11.4477 17.0523 11 16.5 11H13V5.5C13 4.94772 12.5523 4.5 12 4.5C11.4477 4.5 11 4.94772 11 5.5V12C11 12.5523 11.4477 13 12 13H16.5Z" fill="currentColor"/><path fill-rule="evenodd" clip-rule="evenodd" d="M12 1C5.92487 1 1 5.92487 1 12C1 18.0751 5.92487 23 12 23C18.0751 23 23 18.0751 23 12C23 5.92487 18.0751 1 12 1ZM3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12Z" fill="currentColor"/></svg>
+          <div class="de-rows" id="deTimeRow">
+            <label class="de-row time-input-wrap">
+              <span class="de-row-k"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2v8"/><path d="m4.93 10.93 1.41 1.41"/><path d="M2 18h2"/><path d="M20 18h2"/><path d="m19.07 10.93-1.41 1.41"/><path d="M22 22H2"/><path d="m8 6 4-4 4 4"/><path d="M16 18a4 4 0 0 0-8 0"/></svg>Started</span>
+              <input type="text" class="field-input de-time" id="deStart" placeholder="Start time" autocomplete="off">
+              <button type="button" class="tp-icon-btn de-wheel" data-on-click="h793544eada" title="Pick time" aria-label="Pick start time">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
               </button>
-            </div>
-            <span class="modal-time-sep">–</span>
-            <div style="position:relative;flex:1" class="time-input-wrap">
-              <input type="text" class="field-input" id="deEnd" placeholder="End time (optional)" autocomplete="off" style="padding-left:38px">
-              <button type="button" class="tp-icon-btn" data-on-click="hf33bddd233" title="Pick time">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M16.5 13C17.0523 13 17.5 12.5523 17.5 12C17.5 11.4477 17.0523 11 16.5 11H13V5.5C13 4.94772 12.5523 4.5 12 4.5C11.4477 4.5 11 4.94772 11 5.5V12C11 12.5523 11.4477 13 12 13H16.5Z" fill="currentColor"/><path fill-rule="evenodd" clip-rule="evenodd" d="M12 1C5.92487 1 1 5.92487 1 12C1 18.0751 5.92487 23 12 23C18.0751 23 23 18.0751 23 12C23 5.92487 18.0751 1 12 1ZM3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12Z" fill="currentColor"/></svg>
+            </label>
+            <label class="de-row time-input-wrap">
+              <span class="de-row-k"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 10V2"/><path d="m4.93 10.93 1.41 1.41"/><path d="M2 18h2"/><path d="M20 18h2"/><path d="m19.07 10.93-1.41 1.41"/><path d="M22 22H2"/><path d="m16 6-4 4-4-4"/><path d="M16 18a4 4 0 0 0-8 0"/></svg>Left at</span>
+              <input type="text" class="field-input de-time" id="deEnd" placeholder="End time (optional)" autocomplete="off">
+              <button type="button" class="tp-icon-btn de-wheel" data-on-click="hf33bddd233" title="Pick time" aria-label="Pick leave time">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
               </button>
-            </div>
+            </label>
           </div>
           <div class="err-msg" id="deErr">Invalid times — end must be after start.</div>
         </div>
-        <div class="de-note-wrap" id="deNoteWrap">
-          <div class="form-label" id="deNoteLabel" style="display:none;margin-bottom:6px"></div>
-          <textarea id="deNote" placeholder="Add a note (optional)" rows="1" maxlength="500"></textarea>
+        <p class="de-live" id="deLive" aria-live="polite"></p>
+        <div class="de-note-wrap visible" id="deNoteWrap">
+          <div class="de-sec-label" id="deNoteLabel">Note</div>
+          <textarea id="deNote" placeholder="Add a note (optional)" rows="2" maxlength="500" aria-labelledby="deNoteLabel"></textarea>
         </div>
       </div>
-      <div class="dialog-foot-row">
+      <div class="dialog-foot-row de-foot">
         <button class="btn btn-cancel" id="dayEditCancel">Cancel</button>
-        <button class="btn btn-primary" id="dayEditSave">Update</button>
+        <button class="btn btn-primary" id="dayEditSave">Save</button>
       </div>
       </div><!-- /deEditPane -->
       <!-- Raise Dispute: pick why the attendance system has this day wrong, then
            the Email Draft sheet writes it to HR with 5pm's timings for the day. -->
-      <div id="deDisputePane" hidden>
-        <div class="dialog-body">
-          <div class="form-sub">Ask HR to correct this day in your attendance system. 5pm's timings for the day go in the email.</div>
-          <div class="email-label" id="deReasonLabel">Reason</div>
-          <div class="de-chips" id="deDisputeReasons" role="radiogroup" aria-labelledby="deReasonLabel">
-            <button type="button" class="de-chip" role="radio" aria-checked="true" data-reason="missed">Missed Punch Out</button>
-            <button type="button" class="de-chip" role="radio" aria-checked="false" data-reason="glitch">Technical Glitch</button>
-            <button type="button" class="de-chip" role="radio" aria-checked="false" data-reason="notupdated">Not Updated</button>
+      <div id="deDisputePane" class="de-pane" hidden>
+        <div class="dialog-body de-body">
+          <p class="de-intro">Ask HR to correct this day in your attendance system. 5pm's timings for the day go in the email.</p>
+          <div class="de-rec" id="deRecorded"></div>
+          <div class="de-sec-label" id="deReasonLabel">Reason</div>
+          <div class="de-chips de-reasons" id="deDisputeReasons" role="radiogroup" aria-labelledby="deReasonLabel">
+            <button type="button" class="de-chip" role="radio" aria-checked="true" data-reason="missed">Missed punch out<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></button>
+            <button type="button" class="de-chip" role="radio" aria-checked="false" data-reason="glitch">Technical glitch<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></button>
+            <button type="button" class="de-chip" role="radio" aria-checked="false" data-reason="notupdated">Not updated<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></button>
           </div>
           <input class="field-input" id="deDisputeOther" type="text" maxlength="200" placeholder="Or write your own reason" aria-label="Your own reason">
         </div>
-        <div class="dialog-foot-row">
+        <div class="dialog-foot-row de-foot">
           <button class="btn btn-cancel" id="deDisputeCancel">Cancel</button>
-          <button class="btn btn-primary" id="deDisputeNext">Draft Email</button>
+          <button class="btn btn-primary" id="deDisputeNext">Draft email</button>
         </div>
       </div>
       </div><!-- /deMainPage -->
@@ -5590,10 +6141,10 @@
     <p class="td-head">Today is a…</p>
     <div class="td-types td-seg" id="tdTypes" role="radiogroup" aria-label="Day type">
       <span class="td-pill" aria-hidden="true"></span>
-      <button type="button" class="td-type" data-plan="fullday" role="radio" data-on-click="h6111ed02c2"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span>Full Day</span></button>
-      <button type="button" class="td-type" data-plan="halfday" role="radio" data-on-click="ha3743ad448"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 1 0 18z" fill="currentColor"/></svg><span>Half Day</span></button>
-      <button type="button" class="td-type" data-plan="leave" role="radio" data-on-click="h1c1853eeb9"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 21h18M5 21V10l7-6 7 6v11"/></svg><span>On Leave</span></button>
-      <button type="button" class="td-type" data-plan="holiday" role="radio" data-on-click="ha06142f505"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg><span>Holiday</span></button>
+      <button type="button" class="td-type" data-plan="fullday" role="radio" data-on-click="h6111ed02c2"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 20V4a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/><rect width="20" height="14" x="2" y="6" rx="2"/></svg><span>Full Day</span></button>
+      <button type="button" class="td-type" data-plan="halfday" role="radio" data-on-click="ha3743ad448"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 10V2"/><path d="m4.93 10.93 1.41 1.41"/><path d="M2 18h2"/><path d="M20 18h2"/><path d="m19.07 10.93-1.41 1.41"/><path d="M22 22H2"/><path d="m16 6-4 4-4-4"/><path d="M16 18a4 4 0 0 0-8 0"/></svg><span>Half Day</span></button>
+      <button type="button" class="td-type" data-plan="leave" role="radio" data-on-click="h1c1853eeb9"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/></svg><span>On Leave</span></button>
+      <button type="button" class="td-type" data-plan="holiday" role="radio" data-on-click="ha06142f505"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5.8 11.3 2 22l10.7-3.79"/><path d="M4 3h.01"/><path d="M22 8h.01"/><path d="M15 2h.01"/><path d="M22 20h.01"/><path d="m22 2-2.24.75a2.9 2.9 0 0 0-1.96 3.12c.1.86-.57 1.63-1.45 1.63h-.38c-.86 0-1.6.6-1.76 1.44L14 10"/><path d="m22 13-.82-.33c-.86-.34-1.82.2-1.98 1.11c-.11.7-.72 1.22-1.43 1.22H17"/><path d="m11 2 .33.82c.34.86-.2 1.82-1.11 1.98C9.52 4.9 9 5.52 9 6.23V7"/><path d="M11 13c1.93 1.93 2.83 4.17 2 5-.83.83-3.07-.07-5-2-1.93-1.93-2.83-4.17-2-5 .83-.83 3.07.07 5 2Z"/></svg><span>Holiday</span></button>
     </div>
     <div class="td-kpis td-line" id="tdKpis" aria-live="polite"></div>
     <button type="button" class="btn btn-primary td-confirm" id="tdConfirm" data-on-click="h3d8c4a4b3a" disabled>Confirm</button>
@@ -5667,17 +6218,16 @@
 
 
   <!-- Outside Shift Modal -->
-  <div class="email-modal-overlay center-overlay" id="outsideShiftOverlay">
-    <div class="email-modal" style="padding:28px 14px 32px">
-      <div class="email-modal-head" style="margin-bottom:8px">
-        <span class="email-modal-title" style="font-size:16px">Working outside your schedule?</span>
-      </div>
-      <p style="font-size:13px;color:var(--muted-fg);margin:0 0 24px;line-height:1.5">
-        Your regular shift hours are <strong style="color:var(--foreground)" id="outsideShiftRange"></strong>.
-      </p>
-      <div style="display:flex;gap:10px">
-        <button class="shift-combo-btn" style="flex:1;background:var(--muted);color:var(--foreground);border:none" data-on-click="h777a3469ff">Cancel</button>
-        <button class="shift-combo-btn" style="flex:1" data-on-click="hf6ae0386e2">Override</button>
+  <!-- Start before your shift? (approved 2026-11-14, option A): Apple dialog on
+       desktop, bottom sheet on phones. Shown when starting 60+ min before the shift. -->
+  <div class="overlay am-host" id="outsideShiftOverlay" data-dismiss="osNotNow">
+    <div class="dialog am" role="dialog" aria-modal="true" aria-labelledby="osTitle">
+      <div class="am-hero"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2v8"/><path d="m4.93 10.93 1.41 1.41"/><path d="M2 18h2"/><path d="M20 18h2"/><path d="m19.07 10.93-1.41 1.41"/><path d="M22 22H2"/><path d="m8 6 4-4 4 4"/><path d="M16 18a4 4 0 0 0-8 0"/></svg></div>
+      <p class="am-t" id="osTitle">Start before your shift?</p>
+      <p class="am-d" id="osDesc"></p>
+      <div class="am-btns">
+        <button class="btn btn-primary" id="osStart" data-on-click="hf6ae0386e2">Start</button>
+        <button type="button" class="am-quiet" id="osNotNow" data-on-click="h777a3469ff">Not now</button>
       </div>
     </div>
   </div>
@@ -5797,14 +6347,13 @@
 
 <!-- ── ONBOARDING MODAL ── -->
 <div class="ob-overlay ob2-overlay" id="obOverlay" style="display:none">
-  <!-- Onboarding, reimagined (approved 2026-11-13): one surface, no pages. A
-       welcome, then one question at a time answered with chips; answers fold
-       into a grouped card, and a mini Home card fills in as you go. -->
+  <!-- Onboarding (approved 2026-11-14): intro, one question per screen with a
+       back chevron, outro. Drawn by openOnboarding() in index-app.js. -->
   <div class="ob2" id="ob2" role="dialog" aria-modal="true" aria-label="Set up 5pm">
     <div class="ob2-main" id="ob2Main"></div>
     <div class="ob2-foot">
-      <button type="button" class="btn-secondary ob2-b" id="ob2Sec" hidden>Skip for now</button>
       <button type="button" class="btn btn-primary ob2-b" id="ob2Pri">Set up my day</button>
+      <button type="button" class="btn-ghost ob2-b ob2-skip" id="ob2Sec" hidden>Skip</button>
     </div>
   </div>
 </div>

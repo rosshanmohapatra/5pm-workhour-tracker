@@ -7,6 +7,29 @@
 // bug fixes as "Fixed <problem>". No em dashes.
 window.WHATS_NEW = [
   {
+    version: '1.2.32',
+    improvements: [
+      { icon: 'shield',   title: 'New sign-in page',   line: 'Sign in with Google, GitHub or a passkey, and reset your password with a 6-digit code.' },
+      { icon: 'calendar', title: 'Statistics on Home', line: 'See your week or month in bars, with your longest, average and shortest day.' },
+      { icon: 'bell',     title: 'Action Center',      line: 'Short days land in one place, ready to email your manager or fix your hours.' },
+      { icon: 'calendar', title: 'Salary Cycle',       line: 'Set your pay cycle, and 5pm reminds you to resolve penalties before it closes.' },
+      { icon: 'clock',    title: 'Today card',         line: "See when you started, when you're done and how much is left." },
+      { icon: 'home',     title: 'Weekend view',       line: "Your week's total and each day in a chart, with room for a note." },
+      { icon: 'shield',   title: 'Saved Logins',       line: "See every device you're signed in on, and hold to log out of the others." },
+      { icon: 'palette',  title: 'A fresh look',       line: 'Cooler colours, clearer text and refined cards throughout 5pm.' },
+    ],
+    fixes: [
+      "Fixed a settings change made just before closing 5pm not being saved.",
+      "Fixed Pause counting your hours twice.",
+      "Fixed 5pm not starting when you began after the auto-stop time.",
+      "Fixed onboarding appearing again on a new device.",
+      "Fixed a backup code turning off two-step verification.",
+      "Fixed the password reset link opening the wrong page.",
+      "Fixed number animations not loading in the Windows app.",
+      "Fixed penalty notifications not matching the Penalty card.",
+    ],
+  },
+  {
     version: '1.2.31',
     improvements: [],
     fixes: [

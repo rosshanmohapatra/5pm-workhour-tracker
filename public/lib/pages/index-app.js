@@ -1,4 +1,4 @@
-    const APP_VERSION = '1.2.31';
+    const APP_VERSION = '1.2.32';
     localStorage.setItem('wh_ver', APP_VERSION);
 
     // ── HELPERS ─────────────────────────────────────────
@@ -125,13 +125,6 @@
     const CFG_DEF = { dailyH:9, weeklyH:45, weeklyOn:true, lateDays:[], earlyLeaveEntries:[], lateEntries:[], notifOn:false, notifTarget:true, notifKickstart:true, notifOvertime:true, name:'', position:'', targetDay:null, autoStopBuf:2, tzOffset:330, shiftType:'morning', workDays:5, recommendTimings:true, breakTime:true, use24h:false, tzName:'', dismissed:[], qsShortcut:{ mod:'ctrl', key:'s' } };
     function cfg() { const r=Store.getCfg(); return r?{...CFG_DEF,...r}:{...CFG_DEF}; }
 
-    // ── PUSH USER ID ───────────────────────────────────
-    // Returns the authenticated Supabase user ID for keying push subscriptions.
-    // Must be called after onAuthStateChange has fired (i.e. inside an async flow).
-    async function getPushUserId() {
-      const { data: { session } } = await window._sbClient.auth.getSession();
-      return session?.user?.id ?? null;
-    }
     // saveCfg defined in persistence layer
 
     function nowTz() {
@@ -170,6 +163,22 @@
     // Swiping away a sample notification is kept in memory, never in the synced settings.
     let _devSamplePenalties = false; // Developer Mode › Sample Penalties (memory only)
     const _sampleNotifDismissed = new Set();
+    // ── PENALTY CARD DISMISSALS ────────────────────────
+    // Kept on this device. One way only: dismissing a penalty on the card takes
+    // it out of the notification, but dismissing the notification never touches
+    // the card (user 2026-11-14), so a penalty can't vanish unseen.
+    let _penaltyData = [];
+    let _discardedPenalties = new Set(JSON.parse(localStorage.getItem('wh_discarded_penalties') || '[]'));
+    const _notifPenKeys = new Map();   // notification id → the penalty keys it covers (set by buildNotifs)
+    function _savePenDiscards() {
+      localStorage.setItem('wh_discarded_penalties', JSON.stringify([..._discardedPenalties]));
+    }
+    function discardPenalty(key) {
+      _discardedPenalties.add(key);
+      _savePenDiscards();
+      renderPenalties();
+      renderNotifs();   // the notification drops that day (or goes, if it was the last)
+    }
     function addDismissed(id) {
       if (id.startsWith('sample-notif-')) { _sampleNotifDismissed.add(id); return; }
       const d = getDismissed();
@@ -327,47 +336,8 @@
       el('autostopMsg').textContent = `You reached your target plus the ${buf} buffer.`;
       el('autostopBanner').classList.add('show');
     }
-    // Compact surplus/deficit: "+12m" instead of "+0h 12m". Uses Math.round for sub-hour values.
-    function durShort(secs) {
-      const sign = secs < 0 ? '-' : '+';
-      const abs  = Math.abs(secs);
-      if (abs < 60) return `${sign}0m`;
-      if (abs < 3600) { return `${sign}${Math.round(abs / 60)}m`; }
-      const h = Math.floor(abs / 3600), m = Math.round((abs % 3600) / 60);
-      return m > 0 ? `${sign}${h}h ${m}m` : `${sign}${h}h`;
-    }
     // Returns "Overtime" in daily mode, "Surplus" in weekly/recommend-timings mode
     function _surplusLabel() { return cfg().weeklyOn ? 'Surplus' : 'Overtime'; }
-    function durLong(secs) {
-      const s = Math.abs(secs), h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60);
-      if (h === 0) return `${m} min`;
-      if (m === 0) return `${h} hr`;
-      return `${h} hr ${m} min`;
-    }
-    // Returns HTML with grey unit suffixes (h / m) for the stats card
-    function durHtml(secs) {
-      const s = Math.abs(secs), h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60);
-      const sf = (u) => `<span class="co-val-suf">${u}</span>`;
-      if (h === 0) return `${m}${sf('m')}`;
-      if (m === 0) return `${h}${sf('h')}`;
-      return `${h}${sf('h')} ${m}${sf('m')}`;
-    }
-    // Daily Report variant: "12Hrs 29Mins" with grey long-form suffixes
-    function durHtmlLong(secs) {
-      const s = Math.abs(secs), h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60);
-      const sf = (u) => `<span class="co-val-suf">${u}</span>`;
-      if (h === 0) return `${m}${sf('Mins')}`;
-      if (m === 0) return `${h}${sf('Hrs')}`;
-      return `${h}${sf('Hrs')} ${m}${sf('Mins')}`;
-    }
-    // Returns HTML with grey AM/PM for a "H:MM AM" string.
-    // In 24h mode, reformat any stored 12h string and drop the AM/PM entirely.
-    function timeHtml(t) {
-      if (cfg().use24h) { const p = parse(t); return p ? short(p) : t.replace(/\s*(AM|PM)\s*$/i, ''); }
-      const i = t.lastIndexOf(' ');
-      if (i < 0) return t;
-      return `${t.slice(0, i)}<span class="co-val-suf"> ${t.slice(i + 1)}</span>`;
-    }
 
     // ── TIME PARSER ────────────────────────────────────
     function parse(raw) {
@@ -482,8 +452,9 @@
       return perm === 'granted';
     }
 
-    async function _fireNotif(type) {
-      const msg = _NOTIF_MSGS[type]; if (!msg) return;
+    async function _fireNotif(type) { const msg = _NOTIF_MSGS[type]; if (msg) return _fireNotifMsg(msg); }
+    async function _fireNotifMsg(msg) {
+      if (!msg) return;
       if (!('Notification' in window) || Notification.permission !== 'granted') return;
       // On iOS, Safari appends "from [App]" as a subtitle under the title, creating
       // a 3-line notification. Fold the title into the body so iOS stays at 2 lines.
@@ -533,6 +504,8 @@
     function scheduleNotifications(loginTimestamp) {
       const c = cfg();
       cancelScheduledNotifications(); // clear any previous timers
+      _payrollSchedule(loginTimestamp);   // Penalty Reminders' target moment (#41)
+      _rateSchedule(loginTimestamp);  // its own timer: runs even with notifications off
       if (!c.notifOn || Notification.permission !== 'granted') return;
 
       const targetSecs = effSecs();
@@ -560,6 +533,66 @@
     function cancelScheduledNotifications() {
       _notifTimers.forEach(id => clearTimeout(id));
       _notifTimers = [];
+      if (_rateTimer) { clearTimeout(_rateTimer); _rateTimer = null; }
+      if (_payTimer) { clearTimeout(_payTimer); _payTimer = null; }
+    }
+    let _payTimer = null;
+    function _payrollSchedule(loginTimestamp) {
+      if (_payTimer) clearTimeout(_payTimer);
+      const at = new Date(loginTimestamp).getTime() - _sessionAccSecs * 1000 + effSecs() * 1000;
+      const delay = at - Date.now();
+      if (delay > 0) _payTimer = setTimeout(() => { _payTimer = null; _payrollCheck('target'); }, delay);
+    }
+
+    // ── MICROSOFT STORE RATING (Store app only) ─────────────────────────────
+    // Opens Microsoft's own "Rate and review" dialog (stars + review are its UI;
+    // 5pm adds nothing in front of it). Only in the Microsoft Store package:
+    // never on the web or in the standalone installer build.
+    //  Try 1: at the "Almost done" moment (target − 5 min) of a session, even
+    //         with the Wrap-Up Reminder notification off.
+    //  Try 2: the next time 5pm opens, if try 1 didn't end in a submitted rating.
+    //  Then never again, whatever happened. A submitted rating ends it at once.
+    // State is per device (localStorage). Spec: user, 2026-11-12.
+    const RATE_KEY = 'wh_store_rate';
+    let _rateTimer = null;
+    function _rateState() { try { return JSON.parse(localStorage.getItem(RATE_KEY)) || {}; } catch { return {}; } }
+    function _rateSave(st) { try { localStorage.setItem(RATE_KEY, JSON.stringify(st)); } catch {} }
+    function _rateDue(st, at) {
+      if (st.done || (st.tries || 0) >= 2) return false;
+      return at === 'session' ? !st.tries : st.tries === 1;
+    }
+    async function _rateAsk(at) {
+      if (!window.__TAURI__ || DEV_SAMPLE || !_rateDue(_rateState(), at)) return;
+      try { if (!await window.__TAURI__.core.invoke('is_store_app')) return; } catch { return; }
+      // The dialog belongs to the 5pm window: wait until it's on screen (not in the tray).
+      if (document.visibilityState !== 'visible') {
+        document.addEventListener('visibilitychange', function again() {
+          if (document.visibilityState !== 'visible') return;
+          document.removeEventListener('visibilitychange', again);
+          _rateAsk(at);
+        });
+        return;
+      }
+      _queueModal(async () => {
+        const st = _rateState();
+        if (!_rateDue(st, at)) return;
+        st.tries = (st.tries || 0) + 1; _rateSave(st);   // counted before asking, so a crash can't re-ask forever
+        _nativeModalOpen = true;                         // other modals wait while Microsoft's dialog is up
+        let status = 'error';
+        try { status = await window.__TAURI__.core.invoke('store_rate_and_review'); } catch {}
+        _nativeModalOpen = false;
+        if (status === 'succeeded') { st.done = true; _rateSave(st); }
+      });
+    }
+    function _rateSchedule(loginTimestamp) {
+      if (_rateTimer) { clearTimeout(_rateTimer); _rateTimer = null; }
+      if (!window.__TAURI__ || !_rateDue(_rateState(), 'session')) return;
+      const targetSecs = effSecs();
+      if (!(targetSecs > 300)) return;
+      const baseMs = new Date(loginTimestamp).getTime() - _sessionAccSecs * 1000;
+      const delay = baseMs + (targetSecs - 300) * 1000 - Date.now();
+      if (delay < 0) return;   // already past "Almost done": wait for the next session
+      _rateTimer = setTimeout(() => { _rateTimer = null; _rateAsk('session'); }, delay);
     }
 
     // ── SLEEP / WAKE ──────────────────────────────────────────────────────────
@@ -633,11 +666,6 @@
       _notifTimers.push(id);
     }
 
-    // Toggle visibility of the inline remaining time display (next to elapsed label)
-    function showRem(show) {
-      const d = show ? '' : 'none';
-      ['rcRemSep','rcRemaining','rcRemText'].forEach(id => { const e = el(id); if (e) e.style.display = d; });
-    }
 
     async function onNotifToggleChange() {
       autoSaveSettings();
@@ -706,21 +734,15 @@
         : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>';
       el('coTitle').textContent = full ? `That's your ${durWorked(workedSecs)}.` : `That's ${durWorked(workedSecs)} today.`;
       el('coDesc').textContent = full ? "Every hour's in. The rest of the day is yours."
-        : `${durWorked(Math.ceil((eff - workedSecs) / 60) * 60)} short. It can be made up later this week.`; // rounded up, so worked + short = target
+        : `${durWorked(_minsGap(eff, workedSecs) || 60)} short. It can be made up later this week.`; // rounded up, so worked + short = target
       el('coStart').textContent = checkInStr;
       el('coLeft').textContent = short(checkoutTime);
-      el('coWeek').textContent = durWorked(_weekWorkedSecs(workedSecs));
+      el('coTotal').textContent = durWorked(workedSecs);   // today's hours: a daily modal, not the week
       const insight = tomorrowInsight();
       el('coInsight').style.display = insight ? '' : 'none';
       if (insight) el('coInsightText').textContent = insight;
       el('checkoutOverlay').classList.add('open');
     }
-    // This week's worked time, with today counted as `todaySecs` (it may not be saved yet).
-    function _weekWorkedSecs(todaySecs) {
-      const tk = todayKey();
-      return week().reduce((t, d) => t + (d.key === tk ? todaySecs : Math.round((dayLog(d.key)?.hoursWorked || 0) * 3600)), 0);
-    }
-
     function closeCheckoutModal() {
       el('checkoutOverlay').classList.remove('open');
       clearLogin();
@@ -801,6 +823,7 @@
     // ── END SESSION: pauses mid-day, keeps hours, shows Resume ───────────────
     function endSession() {
       if (!loginDate) return;
+      setTimeout(() => _payrollCheck('end'), 0);   // Penalty Reminders (#41), once the day is saved
       if (ticker) { clearInterval(ticker); ticker = null; }
       _stopCheckpoint();
       const now = new Date();
@@ -817,7 +840,11 @@
         sessionTag:      ex.sessionTag || 'realtime',
         sessionDate:     tk
       };
-      saveDayLogAndSync(tk, _esEntry);
+      // Same guard as End: the save syncs at once, and the sync's live rewrite
+      // would add this session again on top of the total just saved (Pause
+      // stored double the hours until the next tick; bug in 1.2.31 and earlier).
+      _sessionEnding = true;
+      try { saveDayLogAndSync(tk, _esEntry); } finally { _sessionEnding = false; }
       // Priority push — bypass dirty queue so other devices see the end immediately.
       { const _pk = tk, _pe = _esEntry;
         SbSync.pushDay(_pk, _pe).then(ok => { if (!ok) _markDirty(_pk); });
@@ -867,8 +894,6 @@
       _setTodayDateChip();
     }
 
-    // ── WEEK MINIMIZE (no-op — week card now always visible in analytics) ──
-    function setMinimized(min) { wkMinimized = min; /* no-op: week card in analytics */ }
 
     // ── ICON CONSTANTS ─────────────────────────────────
     const ICON_RABBIT = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle"><path d="M13 16a3 3 0 0 1 2.24 5"/><path d="M18 12h.01"/><path d="M18 21h-8a4 4 0 0 1-4-4 7 7 0 0 1 7-7h.2L9.6 6.4a1 1 0 1 1 3.448-1.206 1 1 0 0 1-.948 1.206"/><path d="M6.67 15.3A.944.944 0 0 0 6 16a1 1 0 0 0 1 1"/></svg>`;
@@ -879,42 +904,49 @@
       const c = cfg(), wk = week(), tk = todayKey();
       const dismissed = getDismissed();
       const notifs = [];
+      _notifPenKeys.clear();
       const dow = new Date().getDay();
       const eff = effSecs();
       const diff = eff - c.dailyH * 3600;
 
-      const penaltyDays = [];
-      for (const day of wk) {
-        if (day.key >= tk) continue; // skip today and all future days
-        const log = dayLog(day.key);
-        if (!log?.hoursWorked) continue;
-        const ov = log.override;
-        if (ov === 'holiday' || ov === 'leave') continue; // no penalty on off days
-        const dayTarget = ov === 'halfday' ? (c.dailyH * 3600) / 2 : c.dailyH * 3600;
-        const deficit = dayTarget - log.hoursWorked * 3600;
-        if (deficit > 300) penaltyDays.push({ day, deficit });
-      }
-      if (penaltyDays.length > 0) {
-        const id = `penalty-${wk[0].key}`;
+      // Penalties: exactly what the Penalty card lists (renderPenalties fills
+      // _penaltyData), minus anything dismissed there. Daily mode lists short
+      // days, weekly mode lists finished weeks that came up short. One
+      // notification covers them all; dismissing it clears them on the card.
+      const penVisible = _penaltyData.filter(p => !p.sample && !_discardedPenalties.has(p.key));
+      if (penVisible.length) {
+        const keys = penVisible.map(p => p.key).sort();
+        const id = `penalty-${keys[keys.length - 1]}`;   // a newer penalty gets a new notification
         if (!dismissed.includes(id)) {
-          let text;
-          if (penaltyDays.length === 1) {
-            const pd = penaltyDays[0];
-            text = `1 Penalty Found on ${pd.day.name} ${pd.day.date.getDate()} ${MONTHS[pd.day.date.getMonth()]}`;
-          } else if (penaltyDays.length === 2) {
-            text = `2 Penalties Found — ${penaltyDays[0].day.name} ${penaltyDays[0].day.date.getDate()} & ${penaltyDays[1].day.name} ${penaltyDays[1].day.date.getDate()} ${MONTHS[penaltyDays[1].day.date.getMonth()]}`;
-          } else {
-            text = `${penaltyDays.length} Penalties Found This Week`;
-          }
-          notifs.push({ id, type: 'warn', text, cta: 'Check', ctaWeekKey: wk[0].key });
+          const dayStr = p => `${FULL_DAYS_EN[p.date.getDay()]} ${p.date.getDate()} ${MONTHS[p.date.getMonth()]}`;
+          const one = penVisible[0];
+          const text = penVisible.length > 1 ? `${penVisible.length} Penalties Found`
+            : one.type === 'weekly' ? `Weekly Penalty Found: ${one.rangeStr}`
+            : `1 Penalty Found on ${dayStr(one)}`;
+          notifs.push({ id, type: 'warn', text, cta: 'Review', ctaWeekKey: '' });
+          _notifPenKeys.set(id, keys);
         }
       }
+
+      // Penalty Reminders (#41): the latest reminder of this cycle waits here
+      // until it's dismissed or nothing is left to resolve.
+      if (c.penaltyReminders !== false && penVisible.length) {
+        const sent = c.payrollNudges || {}, cyc = _statsPeriod('cycle', nowTz(), _salaryCycleStart(c), _salaryCycleEnd(c));
+        const day = Object.keys(sent).sort().reverse().find(k => k >= dateKey(cyc.from) && k <= tk);
+        const id = day && `payroll-${day}`;
+        if (day && !dismissed.includes(id)) notifs.push({ id, type: 'warn', text: `${sent[day].title}: ${sent[day].body}`, cta: 'Review', ctaWeekKey: '' });
+      }
+
+      // Backup codes left, after a sign-in with a backup code (#8).
+      { let n = null; try { n = localStorage.getItem('wh_backup_left'); } catch (_) {}
+        const bn = n != null ? _bkNotice(+n) : null; if (bn && !dismissed.includes(bn.id)) notifs.push(bn); }
 
       // Developer Mode › Sample Penalties: one notification per sample penalty,
       // each opening its own Email Draft. Memory only, like the samples.
       for (const p of _samplePenalties()) {
         const id = `sample-notif-${p.key}`;
-        if (_sampleNotifDismissed.has(id)) continue;
+        if (_sampleNotifDismissed.has(id) || _discardedPenalties.has(p.key)) continue;
+        _notifPenKeys.set(id, [p.key]);
         const text = p.type === 'weekly'
           ? `Weekly Penalty Found: ${p.rangeStr} · Sample`
           : `1 Penalty Found on ${FULL_DAYS_EN[p.date.getDay()]} ${p.date.getDate()} ${MONTHS[p.date.getMonth()]} · Sample`;
@@ -977,12 +1009,15 @@
         const actions = n.surplus
           ? `<div class="notif-actions"><span class="notif-surplus">${_escHtml(n.surplus)} saved</span></div>`
           : '';
+        // A card with nowhere to go is still tappable: the tap dismisses it,
+        // and it says so (hover shows the ×, touch shows "Tap to dismiss").
         const tap = n.cta
           ? ` data-on-click="h837093f811" data-click-a0="${safeId}" data-click-a1="${safeCta}" role="button" tabindex="0"`
-          : '';
-        return `<div class="notif-item${n.cta ? ' notif-tappable' : ''}" id="ni-${safeId}"${tap}>
+          : ` data-tap-dismiss="${safeId}" role="button" tabindex="0" aria-label="${_escHtml(n.text)} Tap to dismiss." title="Tap to dismiss"`;
+        const hint = n.cta ? '' : `<div class="notif-hint">Tap to dismiss</div>`;
+        return `<div class="notif-item ${n.cta ? 'notif-tappable' : 'notif-info-only'}" id="ni-${safeId}"${tap}>
           <div class="notif-icon ${n.type}">${icon}</div>
-          <div class="notif-body"><div class="notif-text">${_escHtml(n.text)}</div>${actions}</div>
+          <div class="notif-body"><div class="notif-text">${_escHtml(n.text)}</div>${actions}${hint}</div>
           <button type="button" class="notif-dismiss" data-dismiss="${safeId}" aria-label="Dismiss notification"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
         </div>`;
       }).join('');
@@ -1006,12 +1041,6 @@
       setTimeout(finish, 420);            // fallback if transitionend never lands
     }
 
-    function dismissNotif(id, dir) {
-      const item = el('ni-' + id);
-      if (item) { _dismissNotifItem(item, id, dir || 1); return; }
-      addDismissed(id);
-      renderNotifs();
-    }
 
     // Swipe either direction to dismiss. Touch only, so it simply never engages
     // on a desktop pointer — there, Clear All is the way.
@@ -1070,9 +1099,12 @@
     // notification stays until it's swiped away.
     function handleNotifCta(id, weekKey) {
       closeNotifPanel();
+      if (weekKey === 'mfa:low') { switchTab('settings'); openMfaLow(); return; }   // Home notice: backup codes left
       switchTab('analytics'); // one-page layout: Home, with Penalties freshly rendered
       // A sample notification names its penalty directly.
       if (weekKey.startsWith('pen:')) { openEmailModal(weekKey.slice(4)); return; }
+      // Several penalties: take them to the Penalty card.
+      if (!weekKey) { el('penaltiesList')?.closest('.analytics-card')?.scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
       const end = new Date(weekKey + 'T00:00'); end.setDate(end.getDate() + 6);
       const endKey = dateKey(end);
       const hits = _penaltyData.filter(p => !_discardedPenalties.has(p.key) &&
@@ -1103,10 +1135,16 @@
     // card. Capture phase, because a tappable card has its own click handler on
     // the card (csp-handlers.js) that would otherwise run first and open it.
     el('notifList')?.addEventListener('click', e => {
-      const x = e.target.closest('.notif-dismiss'); if (!x) return;
+      const x = e.target.closest('.notif-dismiss, [data-tap-dismiss]'); if (!x) return;
       e.stopPropagation();
-      _dismissNotifItem(x.closest('.notif-item'), x.dataset.dismiss, 1);
+      _dismissNotifItem(x.closest('.notif-item'), x.dataset.dismiss || x.dataset.tapDismiss, 1);
     }, true);
+    el('notifList')?.addEventListener('keydown', e => {
+      if (e.key !== 'Enter' && e.key !== ' ') return;
+      const x = e.target.closest('[data-tap-dismiss]'); if (!x || e.target !== x) return;
+      e.preventDefault();
+      _dismissNotifItem(x, x.dataset.tapDismiss, 1);
+    });
 
     // ── TARGET HTML ────────────────────────────────────
     // Derive a human-readable login time from a stored day log (works even when
@@ -1141,80 +1179,6 @@
         return short(new Date(atToday(log.loginTime).getTime() + Math.round(log.hoursWorked * 3600000)));
       }
       return '—';
-    }
-
-    function buildTargetHtml(eff, isDone) {
-      const tk = todayKey();
-      const log = dayLog(tk) || {};
-      const hasCustomTarget = log.todayTargetH != null;
-      // Use stored login time when session is ended (loginDate is null after checkout).
-      const inVal = loginDate ? _dayStartDisplay() : _loginDisplayFromLog(log);
-
-      // Duration card (active session) — shows "LoginTime → LogoutTime", opens tab picker
-      let leftCardHtml;
-      if (loginDate) {
-        const logoutDate = _leaveAt(eff);
-        const outVal = short(logoutDate);
-        leftCardHtml = `
-        <div class="rc-io-box editable" id="inTimeBox" data-on-click="hcf7f64465c">
-          <div class="rc-io-label">Duration</div>
-          <div class="rc-io-val-row">
-            <div class="rc-io-duration">
-              <span class="rc-io-val" id="metaLogin">${inVal}</span>
-              <span class="rc-io-duration-arrow">
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none"><path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-              </span>
-              <span class="rc-io-val" id="metaLogout">${outVal}</span>
-            </div>
-          </div>
-          <input type="hidden" id="inTimeEditInput" value="${inVal}">
-        </div>`;
-      } else {
-        // Session ended — show Duration card with actual login → logout times
-        const outVal = _checkoutDisplayFromLog(log);
-        leftCardHtml = `
-        <div class="rc-io-box" id="inTimeBox">
-          <div class="rc-io-label">Duration</div>
-          <div class="rc-io-val-row">
-            <div class="rc-io-duration">
-              <span class="rc-io-val" id="metaLogin">${inVal}</span>
-              <span class="rc-io-duration-arrow">
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none"><path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-              </span>
-              <span class="rc-io-val" id="metaLogout">${outVal}</span>
-            </div>
-          </div>
-          <input type="hidden" id="inTimeEditInput" value="${inVal}">
-        </div>`;
-      }
-
-      const ioHtml = `<div class="rc-io-row">
-        ${leftCardHtml}
-        <div class="rc-io-box editable" id="outTimeBox" data-on-click="hd664c7b280">
-          <div class="rc-io-label">${isDone ? 'Target Reached' : 'Target'}</div>
-          <div class="rc-io-val-row">
-            <span class="rc-io-val" id="metaTarget">${dur(eff)}</span>
-            ${!isDone && hasCustomTarget ? `<button class="rc-io-edit-btn" title="Reset to recommended" data-on-click="h77514bfee8" style="color:var(--muted-fg)">✕</button>` : ''}
-          </div>
-        </div>
-      </div>`;
-      return ioHtml;
-    }
-
-    function ackRec(answer) {
-      localStorage.setItem('wh_rec_ack_' + todayKey(), answer);
-      const row = el('recAckRow');
-      if (!row) return;
-      row.style.maxHeight = row.offsetHeight + 'px';
-      row.style.overflow = 'hidden';
-      requestAnimationFrame(() => {
-        row.style.transition = 'max-height .35s ease, opacity .3s ease, padding .35s ease';
-        row.style.maxHeight = '0';
-        row.style.opacity = '0';
-        row.style.paddingTop = '0';
-        row.style.paddingBottom = '0';
-      });
-      setTimeout(() => { if (row.parentNode) row.parentNode.removeChild(row); }, 380);
     }
 
     // ── TIME PICKER HELPER ────────────────────────────
@@ -1462,12 +1426,6 @@
     // ── Segmented time input logic ────────────────────────────────────────────
     let _tpSegSyncing = false;
 
-    function _tpSegFromDate(d) {
-      const input = el('tpFreeInput');
-      if (!input) return;
-      input.value = short(d); // honors the 24h setting
-    }
-
     function _tpSegClear() {
       const input = el('tpFreeInput'), inp = el('tc-r7m2');
       if (input) input.value = '';
@@ -1661,110 +1619,7 @@
       setTimeout(() => document.addEventListener('mousedown', _tpOutsideClick), 10);
     }
 
-    // Opens the wheel picker in duration mode — user picks H + M for today's target
-    function openDailyTargetPicker(event) {
-      if (event) { event.stopPropagation(); event.preventDefault(); }
-      _tpDurationMode = true;
-      _tp24Active = false; // duration uses 1–12 hours regardless of clock format
-      // Pre-fill wheels from the current effective target
-      const eff = effSecs();
-      const totalMins = Math.round(eff / 60);
-      const h = Math.max(1, Math.min(12, Math.floor(totalMins / 60)));
-      const m = Math.min(59, totalMins % 60);
-      _tpHIdx  = h - 1;   // TP_HOURS is ['01'..'12'], index 0='01'
-      _tpMIdx  = m;
-      _tpApIdx = 0;
-      _tpTargetId = null;
-      _tpCallback = null;
-      const tk = todayKey(), log = dayLog(tk) || {};
-      _tpClearFn = log.todayTargetH != null ? clearTodayTarget : null;
-      const cancelBtn = el('tpCancelBtn');
-      if (cancelBtn) cancelBtn.textContent = _tpClearFn ? 'Reset' : 'Cancel';
-      const modal = el('tpModal');
-      if (!modal) return;
-      modal.classList.add('tp-duration-mode');
-      const titleEl = el('tpModalTitle');
-      if (titleEl) titleEl.textContent = 'Target';
-      // Position centered below the tapped element
-      const refEl = event?.target?.closest('button,.rc-io-box,[data-tpid]') || event?.target;
-      const refRect = refEl?.getBoundingClientRect();
-      if (refRect) {
-        const GAP = 8, mW = 256, mH = 280, pad = 8;
-        let top = refRect.bottom + GAP;
-        let left = refRect.left + refRect.width / 2 - mW / 2;
-        if (left + mW > window.innerWidth - pad) left = window.innerWidth - mW - pad;
-        if (left < pad) left = pad;
-        if (top + mH > window.innerHeight - pad) top = Math.max(pad, refRect.top - mH - GAP);
-        if (top < pad) top = pad;
-        modal.style.top = top + 'px'; modal.style.left = left + 'px';
-      }
-      _tpPopulateWheel('tpWheelH',  _tpHoursArr(), _tpHIdx);
-      _tpPopulateWheel('tpWheelM',  TP_MINS,  _tpMIdx);
-      _tpPopulateWheel('tpWheelAp', TP_AMPM,  _tpApIdx);
-      _tpLive();
-      modal.classList.add('open');
-      setTimeout(() => document.addEventListener('mousedown', _tpOutsideClick), 10);
-    }
 
-    // Opens tpModal with Login/Logout tabs for the Duration card
-    function openLoginLogoutPicker(event) {
-      if (!loginDate) return;
-      if (event) { event.stopPropagation(); event.preventDefault(); }
-      _tpTabMode = true;
-      _tpDurationMode = false;
-      _tpActiveTab = 'login';
-      _tpTargetId = null; _tpCallback = null; _tpClearFn = null;
-      _tp24Active = _tpUse24();
-
-      // Pre-fill login wheels
-      const lH = loginDate.getHours(), lM = loginDate.getMinutes();
-      _tpLoginState = _tp24Active
-        ? { h: lH, m: lM, ap: 0 }
-        : { h: (lH % 12 || 12) - 1, m: lM, ap: lH >= 12 ? 1 : 0 };
-
-      // Pre-fill logout wheels (login + today's effective target)
-      const logoutDate = new Date(loginDate.getTime() + effSecs() * 1000);
-      const loH = logoutDate.getHours(), loM = logoutDate.getMinutes();
-      _tpLogoutState = _tp24Active
-        ? { h: loH, m: loM, ap: 0 }
-        : { h: (loH % 12 || 12) - 1, m: loM, ap: loH >= 12 ? 1 : 0 };
-
-      // Start on login tab
-      _tpHIdx = _tpLoginState.h; _tpMIdx = _tpLoginState.m; _tpApIdx = _tpLoginState.ap;
-
-      // Show tab bar, mark login active
-      const tabBar = el('tpTabBar');
-      if (tabBar) tabBar.style.display = 'flex';
-      el('tpTabLogin')?.classList.add('active');
-      el('tpTabLogout')?.classList.remove('active');
-
-      const modal = el('tpModal');
-      if (!modal) return;
-      modal.classList.toggle('tp-24h', _tp24Active);
-      const titleEl = el('tpModalTitle');
-      if (titleEl) titleEl.textContent = 'Started at';
-      const cancelBtn = el('tpCancelBtn');
-      if (cancelBtn) cancelBtn.textContent = 'Cancel';
-
-      const refEl = event?.target?.closest('button,.rc-io-box,[data-tpid]') || event?.target;
-      const refRect = refEl?.getBoundingClientRect();
-      if (refRect) {
-        const GAP = 8, mW = 256, mH = 330, pad = 8;
-        let top = refRect.bottom + GAP;
-        let left = refRect.left + refRect.width / 2 - mW / 2;
-        if (left + mW > window.innerWidth - pad) left = window.innerWidth - mW - pad;
-        if (left < pad) left = pad;
-        if (top + mH > window.innerHeight - pad) top = Math.max(pad, refRect.top - mH - GAP);
-        if (top < pad) top = pad;
-        modal.style.top = top + 'px'; modal.style.left = left + 'px';
-      }
-      _tpPopulateWheel('tpWheelH',  _tpHoursArr(), _tpHIdx);
-      _tpPopulateWheel('tpWheelM',  TP_MINS,  _tpMIdx);
-      _tpPopulateWheel('tpWheelAp', TP_AMPM,  _tpApIdx);
-      _tpLive();
-      modal.classList.add('open', 'tab-mode');
-      setTimeout(() => document.addEventListener('mousedown', _tpOutsideClick), 10);
-    }
 
     // Switches between Login and Logout tabs in tab-mode picker
     function _tpSwitchTab(tab) {
@@ -1791,31 +1646,7 @@
       _tpLive();
     }
 
-    // Removes the per-day target override, reverting to the weekly calc
-    function clearTodayTarget() {
-      const tk = todayKey(), ex = dayLog(tk) || {};
-      const updated = { ...ex };
-      delete updated.todayTargetH;
-      saveDayLog(tk, updated);
-      if (loginDate) render(); else renderEmptyState();
-    }
 
-    // ── TODAY'S DETAILS (info popover / mobile modal) ──────────────────
-    // Small circular progress indicator for rows that count toward a fixed end —
-    // an empty ring filling in as pct climbs, swapping to a solid checkmark once
-    // it's reached. Not used for rows with no end to count toward (Worked Duration).
-    function _tdProgressIcon(pct) {
-      const p = Math.max(0, Math.min(1, pct));
-      if (p >= 1) {
-        return `<svg class="td-ring" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="7" fill="var(--success)"/><path d="M4 7.3l2 2 4-4.6" stroke="var(--card)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>`;
-      }
-      const r = 5.5, C = 2 * Math.PI * r, dash = p * C;
-      return `<svg class="td-ring" viewBox="0 0 14 14" fill="none">
-        <circle cx="7" cy="7" r="${r}" stroke="var(--border)" stroke-width="2"/>
-        <circle class="td-ring-fill" cx="7" cy="7" r="${r}" stroke="var(--foreground)" stroke-width="2" stroke-linecap="round"
-          style="stroke-dasharray:${dash.toFixed(2)} ${C.toFixed(2)}" transform="rotate(-90 7 7)"/>
-      </svg>`;
-    }
 
     // Today's numbers. Fixed rows lead (Recommended, Worked Duration) and the
     // ones that come and go sit last (Remaining, Available Surplus, then any
@@ -2065,31 +1896,6 @@
       if (cb) cb();
     }
 
-    // ── EDITABLE IN TIME (today, active session) ──────
-    function toggleInTimeEdit() {
-      if (!loginDate) return;
-      const wrap = el('inTimeEditWrap');
-      if (!wrap) return;
-      const isOpen = wrap.classList.contains('open');
-      // Close out-target edit if open
-      const outWrap = el('outTargetEditWrap');
-      if (outWrap) outWrap.classList.remove('open');
-      if (isOpen) { wrap.classList.remove('open'); return; }
-      const inp = el('inTimeEditInput');
-      if (inp) { inp.value = short(loginDate); inp.focus(); }
-      // Wire native time picker
-      const picker = el('inTimeEditPicker');
-      if (picker) {
-        picker.value = `${p2(loginDate.getHours())}:${p2(loginDate.getMinutes())}`;
-        picker.oninput = picker.onchange = () => {
-          if (!picker.value) return;
-          const [hh, mm] = picker.value.split(':').map(Number);
-          const d = new Date(); d.setHours(hh, mm, 0, 0);
-          if (inp) inp.value = short(d);
-        };
-      }
-      wrap.classList.add('open');
-    }
 
     function saveInTimeEdit() {
       const inp = el('inTimeEditInput');
@@ -2116,20 +1922,6 @@
       render();
     }
 
-    // ── OUT TIME TARGET (personal early leave target) ─
-    function toggleOutTargetEdit() {
-      const wrap = el('outTargetEditWrap');
-      if (!wrap) return;
-      const isOpen = wrap.classList.contains('open');
-      // Close in-time edit if open
-      const inWrap = el('inTimeEditWrap');
-      if (inWrap) inWrap.classList.remove('open');
-      if (isOpen) { wrap.classList.remove('open'); return; }
-      const inp = el('outTargetEditInput');
-      const tk = todayKey(), log = dayLog(tk) || {};
-      if (inp) { inp.value = log.earlyLeaveTarget || ''; inp.focus(); }
-      wrap.classList.add('open');
-    }
 
     function saveOutTargetEdit() {
       const inp = el('outTargetEditInput');
@@ -2317,27 +2109,57 @@
       document.querySelectorAll('.rc-pair-tab').forEach((t, i) =>
         t.classList.toggle('rc-pair-tab-active', (i === 0) === (_rcCurrentPair === 'times')));
     }
-    // The two numbers state facts only, one role each. Clock: Started | Now (live).
-    // Hours: Worked (live) | Target. Advice goes in the chip (during) or the banner.
+    // Today card (approved 2026-11-14). The two numbers are facts, one role each:
+    // Clock = Started | Done at (when the target lands), Hours = Worked (live) |
+    // Target. The centre chip is the same on both tabs and always answers "how
+    // far from the target": "3h 12m left" before it, hidden at it, "41m over" after.
+    // The gap between two durations in the whole minutes the card shows, so
+    // Worked + left (or Target + over) always adds up to what's on screen, even
+    // when a Smart Timings target carries stray seconds (10h 10m 50s).
+    function _minsGap(a, b) { return Math.max(0, Math.floor(a / 60) - Math.floor(b / 60)) * 60; }
+    function _rcChip(worked, eff) {
+      if (!(eff > 0)) return null;
+      const rem = eff - worked;
+      if (rem > 0) return { text: rem < 60 ? _rcRemainingFmt(rem) + ' left' : _rcRemainingFmt(_minsGap(eff, worked) || 60) + ' left', over: false };
+      return -rem < 60 ? null : { text: _rcRemainingFmt(_minsGap(worked, eff) || 60) + ' over', over: true };
+    }
+    // When the target lands. Past midnight it says so in the caption, not the number.
+    function _rcDoneAt(at, now = new Date()) {
+      return { str: short(at), tomorrow: at > now && at.toDateString() !== now.toDateString() };
+    }
+    // "Target" when it's the number you set (or set for today); "Today's target"
+    // when Smart Timings changed it to keep the week on track.
+    function _rcTargetCap(eff) {
+      const c = cfg(), l = dayLog(todayKey()) || {}, daily = c.dailyH * 3600;
+      const own = l.todayTargetH != null ? l.todayTargetH * 3600 : (l.override === 'halfday' ? daily / 2 : daily);
+      return Math.abs(eff - own) > 30 ? "Today's target" : 'Target';
+    }
     function _rcPaintKpis(c) {
-      const live = '<i class="rc-live" aria-hidden="true"></i>';
+      const live = c.paused ? '' : '<i class="rc-live" aria-hidden="true"></i>';
       el('rcWorked').style.color = 'var(--foreground)';
       el('rcTarget').style.color = '';
+      el('rcTarget').title = '';
       if (_rcCurrentPair === 'times') {
+        _stopAnim('rcWorked');
+        el('rcWorked').classList.remove('rc-long');
         el('rcWorked').textContent = c.loginStr;
         el('rcWorkedCap').textContent = 'Started';
         _stopAnim('rcTarget');
-        el('rcTarget').textContent = c.nowStr;
-        el('rcTargetCap').innerHTML = live + 'Now';
-        _rcSetDesc(c.chipTimes ? `<span class="rc-desc-chip pill">${c.chipTimes}</span>` : '');
+        el('rcTarget').textContent = c.doneAtStr;
+        el('rcTargetCap').textContent = c.doneAtTomorrow ? 'Done at · tomorrow' : 'Done at';
       } else {
-        animateDuration('rcWorked', c.elapsedStr);
+        el('rcWorked').classList.toggle('rc-long', (c.workedSecs || 0) >= 36000);
+        // Coming from the Clock tab the number is a time: show the hours at once
+        // (no count-up from zero); later minute changes still animate.
+        if (el('rcWorked').dataset.animVal === undefined) { el('rcWorked').textContent = c.elapsedStr; el('rcWorked').dataset.animVal = c.elapsedStr; }
+        else animateDuration('rcWorked', c.elapsedStr);
         el('rcWorkedCap').innerHTML = live + 'Worked';
         _stopAnim('rcTarget');
         el('rcTarget').textContent = c.targetStr;
-        el('rcTargetCap').textContent = 'Target';
-        _rcSetDesc(c.chipProgress ? `<span class="rc-desc-chip pill">${c.chipProgress}</span>` : '');
+        el('rcTargetCap').textContent = c.targetCap || 'Target';
       }
+      _rcSetDesc(c.chip ? `<span class="rc-desc-chip pill${c.chipOver ? ' warn' : ''}">${c.chip}</span>` : '');
+      el('rcKpiGroup')?.classList.toggle('rc-over', !!c.chipOver);
     }
     // The done banner: after the target, with a coloured icon per moment. Dismissed
     // (× or swipe) it stays away until the next moment (done → late → overtime → ended).
@@ -2389,30 +2211,59 @@
       b.addEventListener('pointerup', end); b.addEventListener('pointercancel', end);
     })();
 
-    function _rcKpiTap(side, event) {
-      if (side === 'left') {
-        if (loginDate || _sessionAccSecs > 0) openLoginLogoutPicker(event);
-      } else {
-        // Target tap: open logout time picker on Times tab, duration picker on Progress tab
-        if (_currentPairIs('times') && loginDate) {
-          openLoginLogoutPicker(event);
-          _tpSwitchTab('logout');
-        } else {
-          openDailyTargetPicker(event);
-        }
-      }
-    }
-
     // otFrac: overtime progress toward Auto Stop (0..1), rendered as a translucent
     // overlay INSIDE the existing bar — the base fill/color is untouched by it.
     function _rcSetProgress(pct, barClass, otFrac) {
       const fill = el('rcProgressFill');
       const otFill = el('rcProgressFillOt');
       if (!fill) return;
-      fill.style.width = Math.min(pct * 100, 100) + '%';
-      fill.className = 'rc-progress-fill' + (barClass ? ' ' + barClass : '');
+      const w = _pbWidth(pct, _rcCache?.effSecs);
+      if (fill.style.width !== w) fill.style.width = w;
+      const cls = 'rc-progress-fill' + (barClass ? ' ' + barClass : '');
+      if (fill.className !== cls) fill.className = cls;
       if (otFill) otFill.style.width = Math.min(Math.max(otFrac || 0, 0), 1) * 100 + '%';
     }
+
+    // Fill width, snapped to whole minutes of the target (#44: the bar moves once a
+    // minute, never every frame), as a CSS width.
+    function _pbWidth(pct, effSecs) {
+      let p = Math.min(Math.max(pct || 0, 0), 1);
+      if (effSecs > 0 && p < 1) p = Math.floor(p * effSecs / 60) * 60 / effSecs;
+      return +(p * 100).toFixed(3) + '%';
+    }
+    // Hover tooltip on the bar (#44): the point under the pointer, snapped to 5
+    // minutes, as the time you reach it ("By 4:05 PM" ahead, "10:50 AM" behind)
+    // and "7h 00m done · 78%". startMs = when the day's clock started (virtual
+    // start, so pauses are already left out).
+    function _pbTipText(frac, effSecs, workedSecs, startMs) {
+      const f = Math.min(Math.max(frac, 0), 1);
+      const effMins = Math.round(effSecs / 60), mins = Math.round(f * effMins / 5) * 5;
+      const when = short(new Date(startMs + mins * 60000));
+      const ahead = mins * 60 > workedSecs;
+      return { title: ahead ? 'By ' + when : when, sub: `${Math.floor(mins / 60)}h ${p2(mins % 60)}m done · ${effMins ? Math.round(mins / effMins * 100) : 0}%`, frac: effMins ? mins / effMins : 0 };
+    }
+    (function _pbHover() {
+      const track = el('rcProgressTrack'), group = el('rcKpiGroup'), tip = el('pbTip'), guide = el('pbGuide');
+      if (!track || !group || !tip || !guide) return;
+      const show = e => {
+        const c = _rcCache; if (!(c?.effSecs > 0) || group.classList.contains('rc-finished')) return;
+        const r = track.getBoundingClientRect(), g = group.getBoundingClientRect();
+        const t = _pbTipText((e.clientX - r.left) / r.width, c.effSecs, c.workedSecs || 0, c.startMs || (Date.now() - (c.workedSecs || 0) * 1000));
+        const x = r.left - g.left + t.frac * r.width, top = r.top - g.top;
+        guide.style.left = x + 'px'; guide.style.top = (top - 3) + 'px'; guide.style.height = (r.height + 6) + 'px';
+        // Keep the tooltip inside the bar's width; its arrow keeps pointing at the guide.
+        const half = 64, tl = Math.min(Math.max(x, r.left - g.left + half), r.right - g.left - half);
+        tip.style.left = tl + 'px'; tip.style.top = (top - 12) + 'px'; tip.style.setProperty('--ax', `calc(50% + ${x - tl}px)`);
+        tip.innerHTML = `<b>${t.title}</b><span>${t.sub}</span>`;
+        group.classList.add('pb-hover');
+      };
+      const hide = () => group.classList.remove('pb-hover');
+      track.addEventListener('pointermove', show);
+      track.addEventListener('pointerdown', show);
+      track.addEventListener('pointerleave', e => { if (e.pointerType === 'mouse') hide(); });
+      track.addEventListener('pointerup', e => { if (e.pointerType !== 'mouse') setTimeout(hide, 1200); });
+      track.addEventListener('pointercancel', hide);
+    })();
 
     function _rcSetDesc(rightHtml) {
       const r = el('rcDescRight');
@@ -2497,8 +2348,7 @@
         selectedDayKey = todayKey();
         // A Half Day that was worked and ended still gets its "Done for today".
         const _pl = dayLog(todayKey()) || {};
-        if (_pl.checkoutDisplay && _pl.hoursWorked) _showDoneBanner('ended', 'violet', 'moon', 'Done for today',
-          `${durWorked(Math.round(_pl.hoursWorked * 3600))} · left at ${_checkoutDisplayFromLog(_pl)} · see you tomorrow`);
+        if (_pl.checkoutDisplay && _pl.hoursWorked) _showDoneBanner('ended', 'violet', 'moon', 'Done for today', 'See you tomorrow');
         else _hideDoneBanner();
         _setShiftCtaVisible(_todayOv === 'halfday');
         el('resultCard').style.display = '';
@@ -2516,6 +2366,34 @@
         ? _sessionAccSecs
         : (_logE.hoursWorked && _logE.checkoutDisplay ? Math.round(_logE.hoursWorked * 3600) : 0);
 
+      // Paused (Pause saves no checkoutTime; End and auto-stop do): the card stays,
+      // frozen at the pause. Done at is when the target would land on resuming now-ish;
+      // it updates on Resume. No "Done for today", no verdict.
+      if (endedSecs > 0 && !loginDate && _logE.checkoutDisplay && !_logE.checkoutTime && !_logE.autostopped) {
+        const pauseAt = _logE.lastUpdated ? new Date(_logE.lastUpdated) : new Date();
+        const doneAt = _rcDoneAt(new Date(pauseAt.getTime() + Math.max(0, eff - endedSecs) * 1000));
+        const chip = _rcChip(endedSecs, eff);
+        el('rcToday').innerHTML = ''; el('rcToday').style.display = 'none';
+        const _kg = el('rcKpiGroup'); if (_kg) { _kg.style.display = ''; _kg.classList.add('rc-paused'); }
+        const _pt = el('rcPairTabs'); if (_pt) _pt.style.visibility = '';
+        ['rcPairTabsRow', 'rcProgressTrack', 'rcDescRow'].forEach(id => { const e = el(id); if (e) e.style.display = ''; });
+        _rcCache = { loginStr: _loginDisplayFromLog(_logE) || '—', elapsedStr: durWorked(endedSecs), workedSecs: endedSecs,
+          doneAtStr: doneAt.str, doneAtTomorrow: doneAt.tomorrow, targetStr: eff > 0 ? durWorked(eff) : '—',
+          targetCap: _rcTargetCap(eff), chip: chip?.text || '', chipOver: !!chip?.over, paused: true,
+          pct: eff > 0 ? endedSecs / eff : 1, isDone: eff > 0 && endedSecs >= eff, effSecs: eff };
+        _rcMarkPairTab();
+        _rcPaintKpis(_rcCache);
+        _rcSetProgress(_rcCache.pct, '', 0);
+        _kg?.classList.toggle('rc-finished', _rcCache.isDone);
+        el('stayHint').style.display = 'none';
+        el('otBanner').classList.remove('show');
+        _hideDoneBanner();
+        if (!autoStopped) el('autostopBanner').classList.remove('show');
+        _updateDayNavBtns?.();
+        return;
+      }
+      el('rcKpiGroup')?.classList.remove('rc-paused');
+
       if (endedSecs > 0) {
         // The day is over — target reached or not, and however it ended (user hit End,
         // checked out, paused, or auto-stopped). Live KPIs and a progress bar describe
@@ -2529,11 +2407,12 @@
         // eff === 0 means the weekly target was already met, so there's no meaningful
         // per-day target to compare against — pass null to suppress the verdict line.
         el('rcToday').style.display = '';
-        el('rcToday').innerHTML = _pastDayKpiHtml(_loginStr, _logoutStr, endedSecs, eff > 0 ? eff : null);
+        el('rcToday').innerHTML = _endedDayCardHtml({ key: todayKey(), type: 'fullday', worked: endedSecs, target: eff > 0 ? eff : null, login: _loginStr, out: _logoutStr });
+        _bindEndedCard(el('rcToday'), todayKey());
         el('stayHint').style.display = 'none';
         el('otBanner').classList.remove('show');
         el('rcKpiGroup')?.classList.remove('rc-finished');
-        if (_logE.checkoutDisplay) _showDoneBanner('ended', 'violet', 'moon', 'Done for today', `${durWorked(endedSecs)} · left at ${_logoutStr} · see you tomorrow`);
+        if (_logE.checkoutDisplay) _showDoneBanner('ended', 'violet', 'moon', 'Done for today', 'See you tomorrow');
         else _hideDoneBanner();
         // Keep the auto-stop banner up — it's the only thing explaining why the day
         // ended on its own. (Previously cleared unconditionally here, which meant the
@@ -2567,7 +2446,6 @@
       el('autostopBanner').classList.remove('show');
     }
 
-    function _currentPairIs(pair) { return _rcCurrentPair === pair; }
     _rcMarkPairTab();   // the remembered view's tab
 
     // ── WEEKEND STATE ─────────────────────────────────
@@ -2898,6 +2776,8 @@
       const _isWeekendType = type === 'weekend';
       const statsSection = el('wkndStatsSection');
       if (statsSection) statsSection.style.display = _isWeekendType ? '' : 'none';
+      // Weekend summary on: View Stats shows below the Home card (#50).
+      el('weekendView')?.classList.toggle('ws-on', _isWeekendType);
 
       // For Holiday / Leave: hide WH stat rows (rc-numbers, progress bar, IO cards).
       // Half Day keeps them visible — user may still work a partial day.
@@ -2932,22 +2812,574 @@
           badgeCard.style.display = 'none';
         }
       }
+      // Weekends: the summary card replaces the title, note field and rings
+      // (approved 2026-11-14). Holiday / Leave / Half Day keep the view above.
+      const _sum = el('wkndSum');
+      const _edLog = dayLog(key) || {};
+      const _edCard = !_isWeekendType && !!key && key !== '__wknd__' && key <= tk
+        && (type !== 'halfday' || key < tk || !!_edLog.checkoutDisplay);
+      if (_sum && _edCard) {
+        const _w = _edLog.hoursWorked != null ? Math.round(_edLog.hoursWorked * 3600) : 0;
+        _sum.style.display = '';
+        _sum.innerHTML = _endedDayCardHtml({ key, type, worked: _w, target: type === 'halfday' ? cfg().dailyH * 1800 : null,
+          login: _w ? _loginDisplayFromLog(_edLog) : '', out: _w ? _checkoutDisplayFromLog(_edLog) : '', note: (_edLog.note || '').trim() });
+        _bindEndedCard(_sum, key);
+        if (_infoCard) _infoCard.style.display = 'none';
+        ['rcNumbers', 'rcToday', 'stayHint', 'otBanner'].forEach(id => { const _e = el(id); if (_e) _e.style.display = 'none'; });
+        const _rn = document.querySelector('.rc-numbers'); if (_rn) _rn.style.display = 'none';
+      } else if (_sum) {
+        _sum.style.display = _isWeekendType ? '' : 'none';
+        if (_isWeekendType) {
+          if (_infoCard) _infoCard.style.display = 'none';
+          if (_noteWrap) _noteWrap.style.display = 'none';
+          if (badgeCard) badgeCard.style.display = 'none';
+          _renderWkndSummary(noteKey, ti, when);
+        } else if (_infoCard) _infoCard.style.display = '';
+      }
     }
 
-    // Renders an inline attendance chip for the weekly report table
-    function _attChip(att) {
-      const MAP = {
-        'Full Day': { bg: 'var(--muted)',              fg: 'var(--muted-fg)', label: 'Full Day'  },
-        'Half Day': { bg: 'rgba(14,165,233,.12)',       fg: '#0ea5e9',         label: 'Half Day'  },
-        'Leave':    { bg: 'rgba(59,130,246,.12)',       fg: '#3b82f6',         label: 'On Leave'  },
-        'Holiday':  { bg: 'rgba(168,85,247,.12)',       fg: '#a855f7',         label: 'Holiday'   },
-      };
-      const c = MAP[att];
-      if (!c) return `<span style="color:var(--muted-fg)">—</span>`;
-      return `<span style="display:inline-flex;align-items:center;height:20px;padding:0 8px;` +
-             `border-radius:100px;font-size:10px;font-weight:600;letter-spacing:.02em;` +
-             `background:${c.bg};color:${c.fg};white-space:nowrap">${c.label}</span>`;
+    // ── WEEKEND SUMMARY CARD (approved 2026-11-14) ──────────────────────────
+    // One hero, the week's total; a chip against the week's target; tiny bars,
+    // one per work day (hover / drag / arrow keys roll the caption to that day,
+    // tap opens it); the weekend note. View Stats stays the existing button below.
+    let _wkndNoteEditing = false;
+    const _WKND_SVG = d => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
+    const _WKND_ICON = {
+      armchair: '<path d="M19 9V6a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v3"/><path d="M3 16a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-5a2 2 0 0 0-4 0v1.5a.5.5 0 0 1-.5.5h-9a.5.5 0 0 1-.5-.5V11a2 2 0 0 0-4 0z"/><path d="M5 18v2M19 18v2"/>',
+      check: '<path d="M20 6 9 17l-5-5"/>', plus: '<path d="M12 5v14M5 12h14"/>',
+      note: '<path d="M14 3v4a1 1 0 0 0 1 1h4"/><path d="M17 21H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2z"/><path d="M9 13h6M9 17h3"/>',
+    };
+    // The week's total against its target, in the chip's words.
+    const _wsGap = secs => wkSigned(secs).slice(1);   // "58mins", "1h 13mins", "1min"
+    function _wkndWeekChip(totalSecs, targetSecs) {
+      if (!(targetSecs > 0)) return null;
+      // Just the gap, in the week card's words (user, 2026-11-14): "58mins short",
+      // "1h 13mins short", "32mins over", or "On target".
+      const diff = totalSecs - targetSecs;
+      if (diff < -300) return { text: `${_wsGap(_minsGap(targetSecs, totalSecs))} short`, tone: '' };
+      if (diff <= 300) return { text: 'On target', tone: 'ok' };
+      return { text: `${_wsGap(_minsGap(totalSecs, targetSecs))} over`, tone: 'ok' };
     }
+    function _renderWkndSummary(noteKey, ti, when) {
+      const box = el('wkndSum'); if (!box) return;
+      const wk = week(daySelectorWeekOffset), rows = _wkndDayData(wk);
+      const c = cfg(), daily = c.dailyH * 3600;
+      const tk = todayKey();   // days still ahead count as 0, whatever is stored for them
+      const secs = wk.map(d => d.key > tk ? 0 : Math.round((dayLog(d.key)?.hoursWorked || 0) * 3600));
+      const total = secs.reduce((a, b) => a + b, 0);
+      const weekChip = _wkndWeekChip(total, adjustedWeeklyTarget(wk));
+      const FULL = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+      const mon = d => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      // Plot: the dashed line marks this week's longest day (not a fixed target or a
+      // limit, user 2026-11-14); bars scale so that day sits just under the top.
+      const best = Math.max(0, ...secs);
+      const top = best > 0 ? best * 1.12 : daily;
+      const bars = rows.map((r, i) => {
+        // Leave / Holiday: a striped bar at about a half day's height (marks the day
+        // off without competing with worked days). No entry: only the baseline.
+        const att = r.attendance, rest = att === 'Leave' || att === 'Holiday', off = !rest && secs[i] === 0;
+        const cls = rest ? 'rest' : off ? 'off' : '';
+        const h = rest ? Math.min(100, Math.round(daily / 2 / top * 100)) : off ? 0 : Math.max(6, Math.round(secs[i] / top * 100));
+        const hatch = rest ? '<svg class="ws-hatch" aria-hidden="true"><rect width="100%" height="100%"/></svg>' : '';
+        return `<span class="ws-bar ${cls}" data-i="${i}" tabindex="0" role="img" style="--h:${h}%;--d:${i * 60}ms"><i>${hatch}</i><b class="ws-l" aria-hidden="true">${FULL[wk[i].date.getDay()][0]}</b></span>`;
+      }).join('');
+      const note = dayLog(noteKey)?.note?.trim() || '';
+      const noteHtml = _wkndNoteEditing
+        ? `<div class="ws-edit"><textarea class="ws-ta" rows="2" maxlength="240" placeholder="${_infoNoteTitle('weekend')}" aria-label="Weekend note"></textarea><div class="ws-acts"><button type="button" class="btn-secondary" data-ws="cancel">Cancel</button><button type="button" class="btn btn-primary" data-ws="save">Save</button></div></div>`
+        : `<button type="button" class="ws-note${note ? ' has' : ''}" data-ws="note">${_WKND_SVG(note ? _WKND_ICON.note : _WKND_ICON.plus)}<span></span></button>`;
+      const chipHtml = (text, tone, check) => `<span class="rc-desc-chip pill${tone ? ' ' + tone : ''} ws-chip">${check ? _WKND_SVG(_WKND_ICON.check) : ''}${text}</span>`;
+      const weekRow = weekChip ? chipHtml(weekChip.text, weekChip.tone, weekChip.tone === 'ok') : '';
+      box.innerHTML = `<div class="ws-card">
+          <span class="dt-pill">${_WKND_SVG(WK_ICON[DAY_TYPES.weekend.icon])}${ti.title}</span>
+          <div class="ws-total"></div>
+          <div class="ws-vary" aria-live="polite">${weekRow}</div>
+          <div class="ws-chart">
+            <div class="ws-plot">
+              <span class="ws-grid" style="bottom:50%"></span>
+              ${best > 0 ? `<span class="ws-target" style="bottom:${Math.round(best / top * 100)}%"><em>${_rcRemainingFmt(best)}</em></span>` : ''}
+              <div class="ws-bars" role="group" aria-label="Hours by day">${bars}</div>
+            </div>
+          </div>
+          ${noteHtml}
+        </div>`;
+      // The variable row: the week's verdict, or, while a bar is hovered, that
+      // day's type chip and its own verdict (no date: the bar and strip say which).
+      const vary = box.querySelector('.ws-vary'), barsEl = box.querySelector('.ws-bars');
+      // The big number: the week's total, or the hovered day's hours, rolling
+      // between them with NumberFlow (the Today panel's rolling numbers).
+      const hero = box.querySelector('.ws-total');
+      const heroSecs = total;
+      // Always "Xh YYm" (even "0h 00m"): NumberFlow rolls between numbers of the
+      // same shape, so a day off rolls down to zero instead of snapping.
+      const heroText = v => { const m = Math.floor(v / 60); return `${Math.floor(m / 60)}h ${p2(m % 60)}m`; };
+      const rollTo = v => { if (v === hero._secs) return; hero._secs = v; _odoSet(hero, heroText(v)); };
+      hero._nf = null; rollTo(total);
+      _loadLib('numberflow').then(() => { if (!hero._nf) _odoSet(hero, heroText(hero._secs)); }, () => {});
+      const TYPE = { 'Half Day': ['Half Day', 'teal'], 'Leave': ['On Leave', 'blue'], 'Holiday': ['Holiday', 'orchid'] };
+      const noteBtn = box.querySelector('[data-ws="note"]');
+      const paintNote = (text, has) => { if (!noteBtn) return;
+        noteBtn.classList.toggle('has', has);
+        noteBtn.innerHTML = _WKND_SVG(has ? _WKND_ICON.note : _WKND_ICON.plus) + '<span></span>';
+        noteBtn.querySelector('span').textContent = text; };
+      const rest = () => { vary.innerHTML = weekRow; paintNote(note || _infoNoteTitle('weekend'), !!note); rollTo(heroSecs);
+        barsEl.querySelectorAll('.ws-bar').forEach(b => b.classList.remove('hot')); };
+      const show = i => {
+        const r = rows[i], att = r.attendance, log = dayLog(wk[i].key) || {};
+        const [label, tone] = TYPE[att] || [secs[i] ? 'Full Day' : 'No entry', ''];
+        const typeChip = `<span class="dt-chip"${tone ? ` style="--dt:var(--${tone})"` : ''}>${label}</span>`;
+        // Start and end of that day, when it has both.
+        const inT = secs[i] ? _loginDisplayFromLog(log) : '', outT = secs[i] ? _checkoutDisplayFromLog(log) : '';
+        const times = inT && outT && outT !== '—' ? chipHtml(`${inT} – ${outT}`, '') : '';
+        let verdict = '';
+        if (att === 'Leave' || att === 'Holiday') verdict = chipHtml('No hours', '');
+        else if (secs[i]) { const tgt = att === 'Half Day' ? daily / 2 : daily, d = secs[i] - tgt;
+          verdict = Math.abs(d) <= 300 ? chipHtml('On target', 'ok', true)
+            : d < 0 ? chipHtml(`${_wsGap(_minsGap(tgt, secs[i]))} short`, '') : chipHtml(`${_wsGap(_minsGap(secs[i], tgt))} over`, 'warn'); }
+        vary.innerHTML = typeChip + times + verdict;
+        rollTo(secs[i]);
+        // That day's note, if it has one; otherwise the weekend note stays.
+        const dn = (log.note || '').trim();
+        if (dn) paintNote(dn, true); else paintNote(note || _infoNoteTitle('weekend'), !!note);
+        barsEl.querySelectorAll('.ws-bar').forEach((b, j) => b.classList.toggle('hot', j === i));
+      };
+      barsEl.querySelectorAll('.ws-bar').forEach(b => {
+        const i = +b.dataset.i, d = wk[i].date;
+        b.setAttribute('aria-label', `${FULL[d.getDay()]}, ${mon(d)}: ${secs[i] ? durWorked(secs[i]) : 'no hours'}`);
+        b.addEventListener('mouseenter', () => show(i));
+        b.addEventListener('focus', () => show(i));
+        b.addEventListener('keydown', e => {
+          const all = [...barsEl.querySelectorAll('.ws-bar')];
+          if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') { e.preventDefault(); all[Math.max(0, Math.min(all.length - 1, i + (e.key === 'ArrowRight' ? 1 : -1)))].focus(); }
+          if (e.key === 'Escape') { b.blur(); rest(); }
+        });
+      });
+      barsEl.addEventListener('mouseleave', () => { if (!barsEl.contains(document.activeElement)) rest(); });
+      barsEl.addEventListener('focusout', e => { if (!barsEl.contains(e.relatedTarget)) rest(); });
+      // Touch: a sideways drag scrubs; lifting the finger puts the week back.
+      barsEl.addEventListener('touchmove', e => {
+        const r = barsEl.getBoundingClientRect(), x = e.touches[0].clientX - r.left;
+        show(Math.max(0, Math.min(rows.length - 1, Math.floor(x / r.width * rows.length))));
+      }, { passive: true });
+      barsEl.addEventListener('touchend', () => setTimeout(rest, 600));
+      requestAnimationFrame(() => requestAnimationFrame(() => barsEl.classList.add('grown')));
+      // Note: tap the box to write; Save keeps it, Cancel leaves it as it was.
+      const nb = box.querySelector('[data-ws="note"]');
+      if (nb) { nb.querySelector('span').textContent = note || _infoNoteTitle('weekend'); nb.addEventListener('click', () => { _wkndNoteEditing = true; _renderWkndSummary(noteKey, ti, when); }); }
+      const ta = box.querySelector('.ws-ta');
+      if (ta) {
+        ta.value = note; setTimeout(() => { _wkndNoteAutoGrow(ta); ta.focus(); }, 30);
+        ta.addEventListener('input', () => _wkndNoteAutoGrow(ta));   // grows to 5 lines, then scrolls
+        const done = save => { if (save) { if (el('wkndNote')) el('wkndNote').dataset.key = noteKey; saveWkndNote(ta.value); } _wkndNoteEditing = false; _renderWkndSummary(noteKey, ti, when); };
+        box.querySelector('[data-ws="save"]').addEventListener('click', () => done(true));
+        box.querySelector('[data-ws="cancel"]').addEventListener('click', () => done(false));
+        ta.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); done(true); } if (e.key === 'Escape') done(false); });
+      }
+    }
+
+    // ── STATISTICS CARD (#7, approved 2026-11-14) ───────────────────────────
+    // Always at the bottom of Home. Week | Month, a period row, the daily
+    // average as the headline, the bars (same chart language as the weekend
+    // card), and Longest day / Average / Shortest day under the chart.
+    // Adapted from uiarc bar-chart (scrub the plot, the headline is the
+    // readout), segmented-control (gliding selection) and dropdown-menu.
+    let _sxRange = 'week', _sxWeek = 0, _sxPer = 'cycle', _sxMenu = false;
+    const _SX_MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const _SX_DAY = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+    const _sxMd = d => `${_SX_MON[d.getMonth()]} ${d.getDate()}`;
+    // The salary cycle's first day of the month (1–28). Day 1 = calendar month.
+    function _salaryCycleStart(c) { const s = +(c || cfg()).salaryCycleStart; return s >= 1 && s <= 28 ? Math.floor(s) : 1; }
+    // The cycle's last day of the month (1–31). Default: the day before the start
+    // (the last day of the month when the cycle starts on the 1st).
+    function _salaryCycleEnd(c) {
+      const s = _salaryCycleStart(c), e = +(c || cfg()).salaryCycleEnd;
+      return e >= 1 && e <= 31 ? Math.floor(e) : (s === 1 ? 31 : s - 1);
+    }
+    // The Month tab's three periods around `now`: { from, to, name, sub }.
+    function _statsPeriod(kind, now, startDay, endDay) {
+      const y = now.getFullYear(), m = now.getMonth(), d0 = new Date(y, m, now.getDate());
+      let from, to, name;
+      if (kind === 'last30') { from = new Date(y, m, now.getDate() - 29); to = d0; name = 'Last 30 Days'; }
+      else if (kind === 'month') { from = new Date(y, m, 1); to = new Date(y, m + 1, 0); name = 'This Month'; }
+      else {
+        const s = startDay >= 1 && startDay <= 28 ? startDay : 1;
+        from = now.getDate() >= s ? new Date(y, m, s) : new Date(y, m - 1, s);
+        // Ends on endDay of the same month (cycle from the 1st) or of the next
+        // month, clamped to that month's length.
+        const e = endDay >= 1 && endDay <= 31 ? endDay : (s === 1 ? 31 : s - 1), mo = from.getMonth() + (s === 1 ? 0 : 1);
+        to = new Date(from.getFullYear(), mo, Math.min(e, new Date(from.getFullYear(), mo + 1, 0).getDate()));
+        name = 'Salary Cycle';
+      }
+      return { from, to, name, sub: `${_sxMd(from)} – ${_sxMd(to)}` };
+    }
+    // One bar per work day. kind: work | half | leave | holiday | none | later
+    // ("later" = still ahead, or today while it's still going).
+    function _statsRows(dates) {
+      const tk = todayKey(), daily = cfg().dailyH * 3600;
+      return dates.map(d => {
+        const key = dateKey(d), log = dayLog(key) || {}, ov = log.override;
+        const secs = Math.round((log.hoursWorked || 0) * 3600);
+        const ended = !loginDate && _checkoutDisplayFromLog(log) !== '—';
+        if (key > tk || (key === tk && !ended && ov !== 'leave' && ov !== 'holiday')) return { key, date: d, kind: 'later', secs: 0, tgt: daily };
+        if (ov === 'leave' || ov === 'holiday') return { key, date: d, kind: ov, secs, tgt: 0, log };
+        if (!secs) return { key, date: d, kind: 'none', secs: 0, tgt: daily, log };
+        return { key, date: d, kind: ov === 'halfday' ? 'half' : 'work', secs, tgt: ov === 'halfday' ? daily / 2 : daily, log };
+      });
+    }
+    // Longest / average / shortest over worked days only (leave, holiday and
+    // no-entry days don't count). null when nothing was worked.
+    function _statsSummary(rows) {
+      const w = rows.map((r, i) => ({ r, i })).filter(x => (x.r.kind === 'work' || x.r.kind === 'half') && x.r.secs > 0);
+      if (!w.length) return null;
+      let iMax = w[0].i, iMin = w[0].i;
+      for (const x of w) { if (x.r.secs > rows[iMax].secs) iMax = x.i; if (x.r.secs < rows[iMin].secs) iMin = x.i; }
+      const sum = w.reduce((a, x) => a + x.r.secs, 0), tgt = w.reduce((a, x) => a + x.r.tgt, 0);
+      return { n: w.length, avg: Math.round(sum / w.length), avgTgt: Math.round(tgt / w.length),
+        max: rows[iMax].secs, iMax, min: rows[iMin].secs, iMin };
+    }
+    // Month date labels (same rule for every period and Mon–Sat): the first bar,
+    // each month change, the last bar and each Monday, in that priority; drop any
+    // that would sit closer than `gap` px to one already placed.
+    function _statsDateLabels(dates, width, gap = 52) {
+      const n = dates.length; if (!n) return [];
+      const slot = width / n, cand = [];
+      dates.forEach((d, i) => {
+        const mo = i > 0 && d.getMonth() !== dates[i - 1].getMonth();
+        const pr = i === 0 ? 0 : mo ? 1 : i === n - 1 ? 2 : d.getDay() === 1 ? 3 : -1;
+        if (pr >= 0) cand.push({ i, pr, mo: i === 0 || mo, cx: (i + .5) * slot });
+      });
+      cand.sort((a, b) => a.pr - b.pr || a.i - b.i);
+      const placed = [];
+      for (const c of cand) if (placed.every(q => Math.abs(q.cx - c.cx) >= gap)) placed.push(c);
+      return placed.sort((a, b) => a.i - b.i);
+    }
+    // A day's (or the average's) gap to its target, in the week card's words.
+    function _statsVerdict(secs, tgt) {
+      if (!(tgt > 0)) return null;
+      const d = secs - tgt;
+      if (Math.abs(d) <= 300) return { text: 'On target', tone: 'ok' };
+      return d < 0 ? { text: `${_wsGap(_minsGap(tgt, secs))} short`, tone: '' } : { text: `${_wsGap(_minsGap(secs, tgt))} over`, tone: 'warn' };
+    }
+    // ── PAYROLL (#41, approved 2026-11-14) ──────────────────────────────────
+    // Settings › General › Payroll: the Salary Cycle (a range picked on a
+    // calendar, adapted from uiarc date-range-picker) and Penalty Reminders.
+    const _ord = n => n + (n % 10 === 1 && n % 100 !== 11 ? 'st' : n % 10 === 2 && n % 100 !== 12 ? 'nd' : n % 10 === 3 && n % 100 !== 13 ? 'rd' : 'th');
+    // "26th – 25th", "1st – last day".
+    function _cycleValue(s, e) { return s === 1 && e >= 28 ? '1st – last day' : `${_ord(s)} – ${_ord(e)}`; }
+    function _cycleRepeats(s, e) {
+      return s === 1 && e >= 28 ? 'Repeats every month, the 1st to the last day.'
+        : `Repeats every month, the ${_ord(s)} to the ${_ord(e)} of ${s === 1 ? 'the month' : 'the next month'}.`;
+    }
+    // A cycle that starts on `from`: the To it suggests is the day before the
+    // same date next month (editable).
+    function _cycleSuggestTo(from) { return new Date(from.getFullYear(), from.getMonth() + 1, from.getDate() - 1); }
+    const _scDays = (a, b) => Math.round((new Date(b.getFullYear(), b.getMonth(), b.getDate()) - new Date(a.getFullYear(), a.getMonth(), a.getDate())) / 864e5) + 1;
+    function _scLabel(d) { return `${_SX_MON[d.getMonth()]} ${d.getDate()}`; }
+
+    function renderPayrollRow() {
+      const c = cfg(), s = _salaryCycleStart(c), e = _salaryCycleEnd(c);
+      if (el('scValue')) el('scValue').textContent = _cycleValue(s, e);
+      const p = _statsPeriod('cycle', nowTz(), s, e);
+      if (el('scFoot')) el('scFoot').textContent = `This cycle runs ${_scLabel(p.from)} to ${_scLabel(p.to)}. The Action Center's This Month follows it, and 5pm reminds you to resolve penalties before it closes.`;
+      if (el('inpPenRemind')) el('inpPenRemind').checked = c.penaltyReminders !== false;
+    }
+
+    // ── Salary Cycle picker ──
+    let _sc = null;   // { from, to, active: 'from' | 'to', view: first month shown }
+    function openSalaryCycle() {
+      const c = cfg(), p = _statsPeriod('cycle', nowTz(), _salaryCycleStart(c), _salaryCycleEnd(c));
+      _sc = { from: p.from, to: p.to, active: 'from', view: new Date(p.from.getFullYear(), p.from.getMonth(), 1) };
+      _scRender();
+      el('salaryOverlay').classList.add('open');
+      requestAnimationFrame(() => el('scFieldFrom')?.focus());
+    }
+    function closeSalaryCycle() { el('salaryOverlay')?.classList.remove('open'); _sc = null; }
+    function _scPick(d) {
+      if (_sc.active === 'from' || d <= _sc.from) { _sc.from = d; _sc.to = _cycleSuggestTo(d); _sc.active = 'to'; }
+      else { _sc.to = d; _sc.active = 'from'; }
+      _scRender();
+    }
+    // Problems that keep Save off: null when the range is fine.
+    function _scProblem(from, to) {
+      if (!from || !to || to <= from) return 'Pick a last day after the first day.';
+      if (from.getDate() > 28) return 'Pick a first day from the 1st to the 28th, so every month has it.';
+      const n = _scDays(from, to);
+      if (n < 28 || n > 31) return 'A cycle runs about a month: 28 to 31 days.';
+      return null;
+    }
+    function _scRender() {
+      if (!_sc) return;
+      const box = el('scCal'), tk = todayKey(), WD = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'];
+      const month = off => {
+        const m0 = new Date(_sc.view.getFullYear(), _sc.view.getMonth() + off, 1), y = m0.getFullYear(), m = m0.getMonth();
+        const lead = (m0.getDay() + 6) % 7, len = new Date(y, m + 1, 0).getDate();
+        let cells = '';
+        for (let i = 0; i < lead; i++) cells += '<span class="sc-c sc-pad"></span>';
+        for (let d = 1; d <= len; d++) {
+          const dt = new Date(y, m, d), k = dateKey(dt);
+          const isS = +dt === +_sc.from, isE = +dt === +_sc.to, inR = dt > _sc.from && dt < _sc.to;
+          const cls = ['sc-c', isS && 'start', isE && 'end', inR && 'in', k === tk && 'today'].filter(Boolean).join(' ');
+          cells += `<button type="button" class="${cls}" data-d="${k}" aria-label="${dt.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}"${isS || isE ? ' aria-pressed="true"' : ''}>${d}</button>`;
+        }
+        return `<div class="sc-month"><div class="sc-mt">${m0.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</div>
+          <div class="sc-grid">${WD.map(w => `<span class="sc-wd">${w}</span>`).join('')}${cells}</div></div>`;
+      };
+      const nav = d => `<button type="button" class="sc-nav ${d}" data-nav="${d === 'prev' ? -1 : 1}" aria-label="${d === 'prev' ? 'Previous month' : 'Next month'}">${_WKND_SVG(d === 'prev' ? '<path d="m15 18-6-6 6-6"/>' : '<path d="m9 18 6-6-6-6"/>')}</button>`;
+      box.innerHTML = nav('prev') + nav('next') + `<div class="sc-months">${month(0)}${month(1)}</div>`;
+      el('scFromV').textContent = _scLabel(_sc.from);
+      el('scToV').textContent = _scLabel(_sc.to);
+      el('scFieldFrom').classList.toggle('on', _sc.active === 'from');
+      el('scFieldTo').classList.toggle('on', _sc.active === 'to');
+      const prob = _scProblem(_sc.from, _sc.to);
+      const s = _sc.from.getDate(), e = _sc.to.getDate();
+      el('scSumMain').textContent = `${_scLabel(_sc.from)} – ${_scLabel(_sc.to)} · ${_scDays(_sc.from, _sc.to)} days`;
+      el('scSumSub').textContent = prob || _cycleRepeats(s, e);
+      el('scSum').classList.toggle('bad', !!prob);
+      el('scSave').disabled = !!prob;
+    }
+    function _scSave() {
+      if (!_sc || _scProblem(_sc.from, _sc.to)) return;
+      saveCfg({ ...cfg(), salaryCycleStart: _sc.from.getDate(), salaryCycleEnd: _sc.to.getDate() });
+      closeSalaryCycle();
+      renderPayrollRow(); renderPenalties();
+      showToast('Salary Cycle Saved', 'success');
+    }
+    function _scInit() {
+      const ov = el('salaryOverlay'); if (!ov) return;
+      el('scRow')?.addEventListener('click', openSalaryCycle);
+      el('scRow')?.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openSalaryCycle(); } });
+      el('scCal').addEventListener('click', e => {
+        const n = e.target.closest('[data-nav]');
+        if (n) { _sc.view = new Date(_sc.view.getFullYear(), _sc.view.getMonth() + +n.dataset.nav, 1); _scRender(); return; }
+        const b = e.target.closest('[data-d]'); if (b) _scPick(new Date(b.dataset.d + 'T00:00'));
+      });
+      el('scFieldFrom').addEventListener('click', () => { _sc.active = 'from'; _sc.view = new Date(_sc.from.getFullYear(), _sc.from.getMonth(), 1); _scRender(); });
+      el('scFieldTo').addEventListener('click', () => { _sc.active = 'to'; _scRender(); });
+      el('scSave').addEventListener('click', _scSave);
+      el('scCancel').addEventListener('click', closeSalaryCycle);
+      el('scClose').addEventListener('click', closeSalaryCycle);
+      ov.addEventListener('click', e => { if (e.target === ov) closeSalaryCycle(); });
+      document.addEventListener('keydown', e => { if (e.key === 'Escape' && ov.classList.contains('open')) closeSalaryCycle(); });
+      window.Sheet?.attach(ov.querySelector('.dialog'), { close: closeSalaryCycle, isOpen: () => ov.classList.contains('open') });
+      el('inpPenRemind')?.addEventListener('change', e => { saveCfg({ ...cfg(), penaltyReminders: e.target.checked }); renderNotifs(); });
+      renderPayrollRow();
+    }
+
+    // ── Penalty Reminders: the smart ladder ──
+    // Gates: reminders on, the last 7 days of the cycle, at least one open
+    // penalty, a weekday, at most one a day. Never at the start of the day or
+    // mid-session: only right after saving a future day off, at the target, or
+    // at End. First match wins. Pure, so it can be tested.
+    //   ctx: { on, open, today, close (cycle's last day), sentToday, weekday,
+    //          offDate (a future day just saved as leave/holiday),
+    //          tomorrowOff, halfDay, shortDay, lastWeekday }
+    function _payrollNudge(ev, x) {
+      const day = d => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+      const left = Math.round((day(x.close) - day(x.today)) / 864e5);
+      if (!x.on || !(x.open > 0) || x.sentToday || !x.weekday || left < 0 || left > 6) return null;
+      const n = x.open === 1 ? '1 penalty' : `${x.open} penalties`;
+      const closes = `Salary cycle closes ${_SX_MON[x.close.getMonth()]} ${x.close.getDate()}.`;
+      const wd = d => FULL_DAYS_EN[d.getDay()];
+      if (ev === 'dayoff' && x.offDate && day(x.offDate) > day(x.today))
+        return { rung: 1, title: 'Before Your Day Off', body: `Resolve ${n} before ${wd(x.offDate)}. ${closes}` };
+      if (ev !== 'target' && ev !== 'end') return null;
+      if (x.tomorrowOff) return { rung: 2, title: 'Off Tomorrow', body: `Resolve ${n} before you go.` };
+      if (x.halfDay) return { rung: 3, title: 'Half Day Done', body: `A good moment to resolve ${n}. ${closes}` };
+      if (ev === 'target' && x.shortDay) return { rung: 4, title: 'Done Early Today', body: `Use the extra time to resolve ${n}.` };
+      if (x.lastWeekday) return { rung: 5, title: left === 1 ? 'Salary Cycle Closes Tomorrow' : `Salary Cycle Closes ${wd(x.close)}`, body: `Resolve ${n} so your attendance is right.` };
+      return null;
+    }
+    function _payrollCheck(ev, offKey) {
+      try {
+        const c = cfg(), tk = todayKey(), today = new Date(tk + 'T12:00');
+        const p = _statsPeriod('cycle', nowTz(), _salaryCycleStart(c), _salaryCycleEnd(c));
+        const fromK = dateKey(p.from), toK = dateKey(p.to);
+        const open = _penaltyData.filter(r => !r.sample && !_discardedPenalties.has(r.key) && r.key >= fromK && r.key <= toK).length;
+        // The next work day after today (Friday → Monday).
+        const next = new Date(today); do { next.setDate(next.getDate() + 1); } while (isWeekendKey(dateKey(next)));
+        const nl = dayLog(dateKey(next)) || {}, tl = dayLog(tk) || {};
+        const off = v => v === 'leave' || v === 'holiday';
+        const msg = _payrollNudge(ev, {
+          on: c.penaltyReminders !== false, open, today, close: p.to,
+          sentToday: !!(c.payrollNudges || {})[tk], weekday: !isWeekendKey(tk),
+          offDate: offKey ? new Date(offKey + 'T12:00') : null,
+          tomorrowOff: off(nl.override) || off(nl.futurePlan),
+          halfDay: tl.override === 'halfday' || tl.futurePlan === 'halfday',
+          shortDay: effSecs() < c.dailyH * 3600 - 300,
+          lastWeekday: next > p.to,
+        });
+        if (!msg) return null;
+        // One a day, in synced settings (last 10 kept), so other devices don't repeat it.
+        const log = { ...(c.payrollNudges || {}), [tk]: { title: msg.title, body: msg.body } };
+        const keys = Object.keys(log).sort(); while (keys.length > 10) delete log[keys.shift()];
+        saveCfg({ ...cfg(), payrollNudges: log });
+        _fireNotifMsg({ title: msg.title, body: msg.body, tag: 'payroll' });
+        renderNotifs();
+        return msg;
+      } catch (e) { return null; }
+    }
+
+    function _statsDates() {
+      if (_sxRange === 'week') return week(_sxWeek).map(d => d.date);
+      const p = _statsPeriod(_sxPer, nowTz(), _salaryCycleStart(), _salaryCycleEnd()), out = [], tk = todayKey();
+      for (const d = new Date(p.from); d <= p.to; d.setDate(d.getDate() + 1)) {
+        const k = dateKey(d); if (k > tk) break;
+        if (!isWeekendKey(k)) out.push(new Date(d));
+      }
+      return out;
+    }
+    const _SX_I = {
+      l: '<path d="m15 18-6-6 6-6"/>', r: '<path d="m9 18 6-6-6-6"/>', down: '<path d="m6 9 6 6 6-6"/>', check: '<path d="M20 6 9 17l-5-5"/>',
+    };
+    function renderStats() {
+      const box = el('sxCard'); if (!box) return;
+      const dates = _statsDates(), rows = _statsRows(dates), sum = _statsSummary(rows);
+      const wk = _sxRange === 'week', cs = _salaryCycleStart(), ce = _salaryCycleEnd();
+      const hm = v => { const m = Math.floor(v / 60); return `${Math.floor(m / 60)}h ${p2(m % 60)}m`; };
+      const top = Math.max(sum ? sum.max : 0, cfg().dailyH * 3600) * 1.12;
+      const pct = v => Math.max(0, Math.min(100, v / top * 100));
+      const daily = cfg().dailyH * 3600;
+      const svg = d => _WKND_SVG(d);
+      // Period row: ‹ This Week › on Week, a period menu on Month.
+      let per;
+      if (wk) {
+        const lbl = _sxWeek === 0 ? 'This Week' : _sxWeek === -1 ? 'Last Week' : `Week of ${_sxMd(dates[0])}`;
+        per = `<button type="button" class="sx-nav" data-sx="prev" aria-label="Previous week"${_sxWeek <= -26 ? ' aria-disabled="true"' : ''}>${svg(_SX_I.l)}</button>
+          <span class="sx-pl">${lbl}</span>
+          <button type="button" class="sx-nav" data-sx="next" aria-label="Next week"${_sxWeek >= 0 ? ' aria-disabled="true"' : ''}>${svg(_SX_I.r)}</button>
+          <span class="sx-pr">${_sxMd(dates[0])} – ${dates[dates.length - 1].getMonth() === dates[0].getMonth() ? dates[dates.length - 1].getDate() : _sxMd(dates[dates.length - 1])}</span>`;
+      } else {
+        const now = nowTz(), cur = _statsPeriod(_sxPer, now, cs, ce);
+        const items = ['cycle', 'last30', 'month'].map(k => { const p = _statsPeriod(k, now, cs, ce);
+          return `<button type="button" class="sx-mi" role="menuitemradio" aria-checked="${k === _sxPer}" data-p="${k}"><span><b>${p.name}</b><span>${_sxMd(p.from)} to ${_sxMd(p.to)}</span></span>${k === _sxPer ? svg(_SX_I.check) : '<i></i>'}</button>`; }).join('');
+        per = `<div class="sx-pm"><button type="button" class="sx-pb" data-sx="menu" aria-haspopup="menu" aria-expanded="${_sxMenu}" data-state="${_sxMenu ? 'open' : 'closed'}"><span>${cur.name}</span>${svg(_SX_I.down)}</button>
+          <div class="sx-menu${_sxMenu ? ' open' : ''}" role="menu" aria-label="Period">${items}</div></div>
+          <span class="sx-pr">${cur.sub}</span>`;
+      }
+      const bars = rows.map((r, i) => {
+        const rest = r.kind === 'leave' || r.kind === 'holiday', off = r.kind === 'none' || r.kind === 'later';
+        const h = rest ? pct(daily / 2) : off ? 0 : Math.max(4, pct(r.secs));
+        const hatch = rest ? '<svg class="ws-hatch" aria-hidden="true"><rect width="100%" height="100%"/></svg>' : '';
+        const d = r.date, said = rest ? (r.kind === 'leave' ? 'On Leave' : 'Holiday') : r.secs ? durWorked(r.secs) : 'no hours';
+        return `<span class="ws-bar ${rest ? 'rest' : off ? 'off' : ''}" data-i="${i}" tabindex="${i === 0 ? 0 : -1}" role="img" aria-label="${_SX_DAY[d.getDay()]}, ${_sxMd(d)}: ${said}" style="--h:${h.toFixed(1)}%;--d:${Math.min(i, 22) * (wk ? 60 : 18)}ms"><i>${hatch}</i></span>`;
+      }).join('');
+      const kpi = (k, label, v) => `<div class="sx-kp" data-k="${k}"><span>${label}</span><b>${sum ? hm(v) : '–'}</b></div>`;
+      box.innerHTML = `<div class="sx-hd"><span class="sx-title">Statistics</span>
+          <div class="sx-seg" role="group" aria-label="Range"><span class="sx-gl" aria-hidden="true"></span>
+            <button type="button" data-r="week" aria-pressed="${wk}">Week</button><button type="button" data-r="month" aria-pressed="${!wk}">Month</button></div></div>
+        <div class="sx-per">${per}</div>
+        <p class="sx-lab">Daily average</p>
+        <div class="ws-total sx-total"></div>
+        <div class="ws-vary sx-vary" aria-live="polite"></div>
+        <div class="ws-chart sx-chart">
+          <div class="ws-plot sx-plot">
+            <div class="ws-bars sx-bars${wk ? '' : ' month'}" role="group" aria-label="Hours by day">${bars}</div>
+            ${sum ? ['max', 'avg', 'min'].map(k => `<span class="sx-ref" data-k="${k}" style="bottom:${pct(sum[k]).toFixed(1)}%"></span>`).join('') : ''}
+          </div>
+          <div class="sx-let${wk ? '' : ' dates'}"></div>
+        </div>
+        <div class="sx-kpis">${kpi('max', 'Longest day', sum && sum.max)}${kpi('avg', 'Average', sum && sum.avg)}${kpi('min', 'Shortest day', sum && sum.min)}</div>`;
+      // Segmented control: the selection glides to the picked range.
+      const seg = box.querySelector('.sx-seg'), gl = seg.querySelector('.sx-gl');
+      const glide = () => { const b = seg.querySelector('[aria-pressed="true"]'); if (!b) return; gl.style.width = b.offsetWidth + 'px'; gl.style.transform = `translateX(${b.offsetLeft}px)`; };
+      if (box._sxGl) { gl.style.transition = 'none'; gl.style.width = box._sxGl.w; gl.style.transform = box._sxGl.t; gl.offsetWidth; gl.style.transition = ''; }
+      requestAnimationFrame(() => { glide(); box._sxGl = { w: gl.style.width, t: gl.style.transform }; });
+      // Axis: letters on Week (#48: Statistics keeps its letter row), dates on Month.
+      const let_ = box.querySelector('.sx-let'), barsEl = box.querySelector('.sx-bars');
+      const drawAxis = () => {
+        if (wk) { let_.innerHTML = rows.map(r => `<span>${_SX_DAY[r.date.getDay()][0]}</span>`).join(''); return; }
+        const W = barsEl.clientWidth, n = rows.length;
+        let_.innerHTML = _statsDateLabels(dates, W).map(c => {
+          const edge = n > 1 && c.i === 0 ? ' edge-l' : n > 1 && c.i === n - 1 ? ' edge-r' : '';
+          const left = edge === ' edge-l' ? 0 : edge === ' edge-r' ? W : c.cx;
+          return `<span class="${c.mo ? 'mo' : ''}${edge}" style="left:${left.toFixed(1)}px">${_sxMd(dates[c.i])}</span>`;
+        }).join('');
+      };
+      drawAxis();
+      if (!wk && !barsEl.clientWidth) requestAnimationFrame(drawAxis);
+      // Headline: the daily average at rest, the hovered day while scrubbing.
+      const lab = box.querySelector('.sx-lab'), hero = box.querySelector('.sx-total'), vary = box.querySelector('.sx-vary');
+      const chip = (v, check) => v ? `<span class="rc-desc-chip pill${v.tone ? ' ' + v.tone : ''} ws-chip">${check && v.tone === 'ok' ? svg(_SX_I.check) : ''}${v.text}</span>` : '';
+      const roll = text => _odoSet(hero, text);
+      hero._nf = null;
+      const TYPE = { half: ['Half Day', 'teal'], leave: ['On Leave', 'blue'], holiday: ['Holiday', 'orchid'], work: ['Full Day', ''] };
+      const refs = [...box.querySelectorAll('.sx-ref')];
+      const rest = () => {
+        lab.textContent = 'Daily average';
+        roll(sum ? hm(sum.avg) : '0h 00m');
+        vary.innerHTML = sum ? chip(_statsVerdict(sum.avg, sum.avgTgt), true) : `<span class="dt-chip">No hours yet</span>`;
+        barsEl.querySelectorAll('.ws-bar').forEach(b => b.classList.remove('hot'));
+        let_.querySelectorAll('span').forEach(s => s.classList.remove('h'));
+      };
+      const show = i => {
+        const r = rows[i]; if (!r) return;
+        lab.textContent = `${_SX_DAY[r.date.getDay()]}, ${_sxMd(r.date)}`;
+        roll(hm(r.kind === 'leave' || r.kind === 'holiday' ? 0 : r.secs));
+        const [label, tone] = TYPE[r.kind] || [r.kind === 'later' ? (r.key === todayKey() ? 'Today' : 'Coming up') : 'No entry', ''];
+        const type = `<span class="dt-chip"${tone ? ` style="--dt:var(--${tone})"` : ''}>${label}</span>`;
+        vary.innerHTML = type + (r.kind === 'leave' || r.kind === 'holiday' ? chip({ text: 'No hours', tone: '' }) : r.secs ? chip(_statsVerdict(r.secs, r.tgt), true) : '');
+        barsEl.querySelectorAll('.ws-bar').forEach((b, j) => b.classList.toggle('hot', j === i));
+        if (wk) let_.querySelectorAll('span').forEach((s, j) => s.classList.toggle('h', j === i));
+      };
+      rest();
+      _loadLib('numberflow').then(() => { if (!hero._nf && hero.isConnected) _odoSet(hero, hero.dataset.odo || '0h 00m'); }, () => {});
+      // Scrub: one handler over the plot (uiarc bar-chart's scrubber): pointer
+      // x picks the bar, gaps included; vertical swipes still scroll the page.
+      const at = x => { const b = barsEl.getBoundingClientRect(); return Math.max(0, Math.min(rows.length - 1, Math.floor((x - b.left) / b.width * rows.length))); };
+      let touchT = 0;
+      barsEl.addEventListener('pointermove', e => { clearTimeout(touchT); show(at(e.clientX)); });
+      barsEl.addEventListener('pointerdown', e => { clearTimeout(touchT); show(at(e.clientX)); });
+      barsEl.addEventListener('pointerup', e => { if (e.pointerType !== 'mouse') touchT = setTimeout(rest, 1500); });
+      barsEl.addEventListener('pointerleave', e => { if (e.pointerType === 'mouse' && !barsEl.contains(document.activeElement)) rest(); });
+      barsEl.addEventListener('focusin', e => { const b = e.target.closest('.ws-bar'); if (b) show(+b.dataset.i); });
+      barsEl.addEventListener('focusout', e => { if (!barsEl.contains(e.relatedTarget)) rest(); });
+      barsEl.addEventListener('keydown', e => {
+        const all = [...barsEl.querySelectorAll('.ws-bar')], cur = all.indexOf(document.activeElement);
+        if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+          e.preventDefault(); const n = Math.max(0, Math.min(all.length - 1, cur + (e.key === 'ArrowRight' ? 1 : -1)));
+          all.forEach((b, j) => b.tabIndex = j === n ? 0 : -1); all[n].focus();
+        }
+        if (e.key === 'Escape') { document.activeElement.blur(); rest(); }
+      });
+      // KPIs: hover only (no active state). Longest / Shortest highlight their
+      // day and show a dashed line at its height; Average shows the line.
+      box.querySelectorAll('.sx-kp').forEach(k => {
+        k.addEventListener('pointerenter', () => { if (!sum) return;
+          refs.forEach(r => r.classList.toggle('on', r.dataset.k === k.dataset.k));
+          if (k.dataset.k === 'avg') rest(); else show(sum[k.dataset.k === 'max' ? 'iMax' : 'iMin']); });
+        k.addEventListener('pointerleave', () => { refs.forEach(r => r.classList.remove('on')); rest(); });
+      });
+      requestAnimationFrame(() => requestAnimationFrame(() => barsEl.classList.add('grown')));
+      // Controls
+      seg.querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
+        if (b.dataset.r === _sxRange) return; _sxRange = b.dataset.r; _sxMenu = false;
+        try { localStorage.setItem('wh_sx_range', _sxRange); } catch (e) {}
+        renderStats();
+      }));
+      box.querySelectorAll('.sx-nav').forEach(b => b.addEventListener('click', () => {
+        if (b.getAttribute('aria-disabled') === 'true') return;
+        _sxWeek += b.dataset.sx === 'prev' ? -1 : 1; renderStats();
+        box.querySelector(`[data-sx="${b.dataset.sx}"]`)?.focus();
+      }));
+      const pb = box.querySelector('.sx-pb');
+      if (pb) {
+        const menu = box.querySelector('.sx-menu'), items = [...menu.querySelectorAll('.sx-mi')];
+        const setOpen = open => { _sxMenu = open; menu.classList.toggle('open', open); pb.setAttribute('aria-expanded', open); pb.dataset.state = open ? 'open' : 'closed';
+          if (open) (items.find(i => i.getAttribute('aria-checked') === 'true') || items[0]).focus(); };
+        pb.addEventListener('click', e => { e.stopPropagation(); setOpen(!_sxMenu); });
+        items.forEach(it => it.addEventListener('click', () => { _sxPer = it.dataset.p; _sxMenu = false;
+          try { localStorage.setItem('wh_sx_per', _sxPer); } catch (e) {} renderStats(); box.querySelector('.sx-pb')?.focus(); }));
+        menu.addEventListener('keydown', e => {
+          const i = items.indexOf(document.activeElement);
+          if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); items[(i + (e.key === 'ArrowDown' ? 1 : items.length - 1)) % items.length].focus(); }
+          if (e.key === 'Escape' || e.key === 'Tab') { setOpen(false); pb.focus(); }
+        });
+        if (!box._sxDoc) { box._sxDoc = true; document.addEventListener('click', e => { if (_sxMenu && !e.target.closest('.sx-pm')) { _sxMenu = false; const m = el('sxCard')?.querySelector('.sx-menu'); m?.classList.remove('open'); const b = el('sxCard')?.querySelector('.sx-pb'); if (b) { b.setAttribute('aria-expanded', 'false'); b.dataset.state = 'closed'; } } }); }
+      }
+      if (!box._sxRs) { box._sxRs = true; let t = 0; window.addEventListener('resize', () => { clearTimeout(t); t = setTimeout(() => { if (_sxRange === 'month') renderStats(); }, 150); }); }
+    }
+    try { const r = localStorage.getItem('wh_sx_range'), p = localStorage.getItem('wh_sx_per');
+      if (r === 'week' || r === 'month') _sxRange = r; if (p === 'cycle' || p === 'last30' || p === 'month') _sxPer = p; } catch (e) {}
+
 
     // ── REPORT (Weekly / Monthly) ────────────────────────────────────────────
     let _reportMode = 'week';        // 'week' | 'month'
@@ -3473,35 +3905,6 @@
 
     // ── ANIMATED NUMBER TICKER (react-animated-numbers style, 1.5× speed) ──
     const _animState = {};
-    function animateNum(elId, newText) {
-      const elem = el(elId);
-      if (!elem) return;
-      const old = elem.dataset.animVal;
-      if (old === newText) return; // no change
-      elem.dataset.animVal = newText;
-
-      // Extract numeric part to animate; fall back to instant swap for non-numeric
-      const newNum = parseFloat(newText);
-      const oldNum = parseFloat(old || '0');
-      if (isNaN(newNum) || isNaN(oldNum) || old == null) { elem.textContent = newText; return; }
-
-      const DURATION = 200; // ms — 1.5× faster than typical 300ms
-      const start = performance.now();
-      if (_animState[elId]) cancelAnimationFrame(_animState[elId]);
-      function tick(now) {
-        const t = Math.min((now - start) / DURATION, 1);
-        const ease = 1 - Math.pow(1 - t, 3); // cubic ease-out
-        const cur = oldNum + (newNum - oldNum) * ease;
-        // Preserve non-numeric suffix (e.g. "h 05m")
-        elem.textContent = newText.replace(/[\d.]+/, () => {
-          // Format integer-like numbers without decimals
-          return Number.isInteger(newNum) ? Math.round(cur) : cur.toFixed(1);
-        });
-        if (t < 1) _animState[elId] = requestAnimationFrame(tick);
-        else elem.textContent = newText;
-      }
-      _animState[elId] = requestAnimationFrame(tick);
-    }
 
     // ── P6 Text swap (blur + translateY exit → enter) ───────
     function swapText(elId, newText, styleObj) {
@@ -3746,10 +4149,7 @@
         _barClass   = 'running';
         // Time tab keeps the countdown chip; Progress tab shows the leave-by clock time
         // instead, since the leave time is already the Time tab's own right KPI.
-        _descRightTimes    = 'You can leave at ' + _logoutStr;   // Clock view's chip
-        // A countdown rounds up (4h 2m 50s left reads "4h 3m"), so Worked + to go
-        // adds up to the Target shown next to it.
-        _descRightProgress = _rcRemainingFmt(rem >= 60 ? Math.ceil(rem / 60) * 60 : rem) + ' to go';     // Hours view's chip
+        _descRightTimes = _descRightProgress = _rcChip(worked, eff)?.text || '';   // one chip, both tabs
         _otOverlayReset();
       } else if (isDone) {
         const ot = worked - eff;
@@ -3762,7 +4162,7 @@
         // No "Done for today" chip here — the doneBanner below the input ("You're
         // done. Head out!") already says that; this row only earns its keep once
         // there's a number worth reporting.
-        _descRightTimes = _descRightProgress = '';   // the banner takes over after the target
+        _descRightTimes = _descRightProgress = _rcChip(worked, eff)?.text || '';   // hidden at the target, "41m over" after
         // Delay the overlay's first appearance ~650ms so it reads as a deliberate
         // reveal rather than snapping in the instant the target's crossed.
         if (!_otOverlayArmed && !_otOverlayTimer) {
@@ -3783,17 +4183,19 @@
       }
 
       // Cache for pair-switching without full re-render
+      const _chip = _rcChip(worked, eff), _doneAt = _rcDoneAt(leaveDate, now);
+      el('rcKpiGroup')?.classList.remove('rc-paused');
       _rcCache = { loginStr: _loginStr, logoutStr: _logoutStr, elapsedStr: _elapsedStr,
+        doneAtStr: _doneAt.str, doneAtTomorrow: _doneAt.tomorrow, targetCap: _rcTargetCap(eff),
+        chip: _chip?.text || '', chipOver: !!_chip?.over, workedSecs: worked, paused: false,
         rightStr: _rightStr, rightClass: _rightClass, pct: eff > 0 ? worked / eff : 1,
         barClass: _barClass, descLeft: _loginStr + ' → ' + _logoutStr,
         descRightTimes: _descRightTimes, descRightProgress: _descRightProgress,
         nowStr: short(now), targetStr: eff > 0 ? durWorked(eff) : '—',
         chipTimes: _descRightTimes, chipProgress: _descRightProgress,
-        isDone: isDone };
+        isDone: isDone, effSecs: eff, startMs: now.getTime() - worked * 1000 };
 
-      // Hover tooltip on the right KPI — Remaining time, same on both Time/Progress tabs
-      const _remSecs = eff > 0 ? Math.max(0, eff - worked) : 0;
-      el('rcTarget').title = eff > 0 ? 'Remaining ' + (worked >= eff ? '0m' : dur(_remSecs)) : '';
+      // (No hover tooltip on the right KPI: it repeated the chip.)
 
       _rcPaintKpis(_rcCache);
       el('rcKpiGroup')?.classList.toggle('rc-finished', isDone && eff > 0);
@@ -3815,9 +4217,8 @@
         _showDoneBanner('week', 'success', 'check', 'Weekly target already met', 'Anything today is extra.');
       } else if (isDone) {
         const ot = worked - eff;
-        if (ot <= 60) _showDoneBanner('done', 'success', 'check', "You're done. Head out!", `${durWorked(worked)} today · nicely on time`);
-        else if (ot < 15 * 60) _showDoneBanner('late', 'warning', 'clock', `Should've left at ${short(leaveDate)}`, 'Head out when you can');
-        else _showDoneBanner('over', 'warning', 'clock', `${_rcRemainingFmt(ot)} overtime`, `Should've left at ${short(leaveDate)}`);
+        if (ot <= 60) _showDoneBanner('done', 'success', 'check', "You're done. Head out!", 'Nicely on time');
+        else _showDoneBanner('late', 'warning', 'clock', 'Time to head out', '');
         notify(eff);
         // Switch button to End once target is reached (only when still tracking)
         const _cbtn = el('calcBtn');
@@ -3844,7 +4245,7 @@
           loginDate = null; // session paused
           persistSession(); // clears the stored session so a reload can't resurrect the pre-pause loginDate
         }
-        _openDayDone(_workedNow);
+        _queueModal(() => { if (!dayLog(todayKey())?.checkoutTime && !autoStopped) _openDayDone(_workedNow); });
       } else if (!isDone) wasDone = false;
 
       // Saved every 30s, not every second (the screen still ticks from
@@ -4444,42 +4845,66 @@
     }
 
 
-    // Override label helper used in past-day view
-    function overrideLabel(ov) {
-      if (ov === 'holiday') return '<span style="font-size:12px;font-weight:600;color:#a855f7;background:rgba(168,85,247,.12);padding:2px 8px;border-radius:6px;border:1px solid rgba(168,85,247,.3)">Holiday</span>';
-      if (ov === 'leave')   return '<span style="font-size:12px;font-weight:600;color:#3b82f6;background:rgba(59,130,246,.12);padding:2px 8px;border-radius:6px;border:1px solid rgba(59,130,246,.3)">Full Day Leave</span>';
-      if (ov === 'halfday') return '<span style="font-size:12px;font-weight:600;color:#0ea5e9;background:rgba(14,165,233,.12);padding:2px 8px;border-radius:6px;border:1px solid rgba(14,165,233,.3)">Half Day</span>';
-      return '';
-    }
 
-    // Builds the two bottom KPI cards for past/future days.
-    // Shows Duration (loginTime → logoutTime with arrow) + Surplus card.
-    // Shared "Update Entry" button markup. Used by past days and by today once the
-    // session has ended — in that state the shift CTA resets to "Start" (which would
-    // begin a NEW session), so this is the only way to correct the day's times.
-    function _updateEntryBtnHtml() {
-      const pencil = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
-      return `<button data-on-click="hf5017a9390" style="display:inline-flex;align-items:center;gap:6px;padding:7px 16px;border-radius:8px;border:1.5px solid var(--border);background:var(--muted);color:var(--foreground);font-family:var(--font);font-size:13px;font-weight:500;cursor:pointer;transition:background .15s">${pencil}Update Entry</button>`;
+    // How an ended day landed, in the chip's words (approved 2026-11-14, option A):
+    // "2h 15m short of your 9h" (grey) · "41m over your 9h" (amber) · "Right on
+    // target" (green, within 5 minutes either way). Naming the target says what
+    // it was measured against: today's target after End, the daily one on past days.
+    function _dayVerdictText(workedSecs, targetSecs) {
+      if (workedSecs == null || !(targetSecs > 0)) return null;
+      const diff = workedSecs - targetSecs, of = _rcRemainingFmt(targetSecs);
+      if (Math.abs(diff) <= 300) return { text: 'Right on target', tone: 'ok' };
+      return diff < 0
+        ? { text: `${_rcRemainingFmt(_minsGap(targetSecs, workedSecs))} short of your ${of}`, tone: 'short' }
+        : { text: `${_rcRemainingFmt(_minsGap(workedSecs, targetSecs))} over your ${of}`, tone: 'over' };
     }
-
-    function _pastDayKpiHtml(loginDisp, outDisp, workedSecs, targetSecs) {
-      const arrow = `<span style="display:inline-flex;align-items:center;color:var(--muted-fg);margin:0 6px"><svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M5 12H19M19 12L13 6M19 12L13 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>`;
-      // Duration alongside the times — "how long" is the thing you actually judge
-      // the day by, and deriving it from two clock times in your head is friction.
-      const durPart = workedSecs != null
-        ? `<span style="color:var(--muted-fg);font-weight:500;margin-left:8px">(${durWorked(workedSecs)})</span>`
-        : '';
-      const ioLine = `<div style="display:inline-flex;align-items:center;font-size:16px;font-weight:600;letter-spacing:-.3px;line-height:1.2">${loginDisp}${arrow}${outDisp}${durPart}</div>`;
-      let msgLine = '';
-      if (workedSecs != null && targetSecs != null) {
-        const diff = workedSecs - targetSecs;
-        if (diff < -300) {
-          msgLine = `<span style="font-size:12px;color:var(--muted-fg)">You missed the target by ${dur(Math.abs(diff))}</span>`;
-        } else if (diff > 300) {
-          msgLine = `<span style="font-size:12px;color:var(--success)">You worked ${dur(diff)} more. Overtime!</span>`;
-        }
+    function _dayVerdictHtml(workedSecs, targetSecs) {
+      const v = _dayVerdictText(workedSecs, targetSecs);
+      if (!v) return '';
+      // The same chip as the Today card's centre chip ("3h 12m left" / "41m over").
+      const tone = v.tone === 'ok' ? ' ok' : v.tone === 'over' ? ' warn' : '';
+      const check = v.tone === 'ok' ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>' : '';
+      return `<span class="rc-desc-chip pill${tone}" style="gap:4px">${check}${v.text}</span>`;
+    }
+    // ── ENDED-DAY SUMMARY CARD (#31, approved 2026-11-14) ──
+    // Today after End / auto-stop and every past day. One card: day-type label
+    // top-left, pencil top-right (Edit Day); the Total; how it landed; Started /
+    // Left at rows; on Half Day / Leave / Holiday the day's note (or "Add a note").
+    // o = { key, type: fullday|halfday|leave|holiday|noentry, worked, target, login, out, note }
+    function _endedDayCardHtml(o) {
+      const t = o.type === 'noentry' ? { label: 'No entry', icon: 'noentry', tone: '' } : DAY_TYPES[o.type] || DAY_TYPES.fullday;
+      const off = o.type === 'leave' || o.type === 'holiday';
+      const hm = s => { const m = Math.floor(s / 60); return `${Math.floor(m / 60)}h ${p2(m % 60)}m`; };
+      const pill = `<span class="dt-pill ed-pill"${t.tone ? ` style="--dt:var(--${t.tone})"` : ''}>${wkSvg(t.icon)}${t.label}</span>`;
+      const editBtn = o.type === 'noentry'
+        ? `<button type="button" class="btn-icon ed-edit" data-ed="edit" aria-label="Add entry" title="Add entry">${wkSvg('plus')}</button>`
+        : `<button type="button" class="btn-icon ed-edit" data-ed="edit" aria-label="Edit day" title="Edit day">${wkSvg('pencil')}</button>`;
+      let hero = '', line = '';
+      if (o.type === 'noentry') {
+        line = '<p class="ed-sub">Nothing was logged on this day.</p>';
+      } else if (off && !(o.worked > 0)) {
+        hero = '<div class="ed-title">Day off</div>';
+        line = `<p class="ed-sub">${o.key === todayKey() ? 'No hours today.' : 'No hours this day.'} Your week adjusts.</p>`;
+      } else {
+        hero = `<div class="ed-total">${hm(o.worked || 0)}</div>`;
+        line = off ? '<div class="ed-chips"><span class="rc-desc-chip pill ed-extra">All extra, on top of your week</span></div>'
+                   : (() => { const v = _dayVerdictHtml(o.worked, o.target); return v ? `<div class="ed-chips">${v}</div>` : ''; })();
       }
-      return `<div style="display:flex;flex-direction:column;align-items:center;gap:10px;padding:4px 0">${ioLine}${msgLine}${_updateEntryBtnHtml()}</div>`;
+      const rows = o.worked > 0 && o.login && o.login !== '—'
+        ? `<div class="ed-rows"><div class="ed-row">${wkSvg('sunrise')}<span>Started</span><b>${_escHtml(o.login)}</b></div>`
+          + (o.out && o.out !== '—' ? `<div class="ed-row">${wkSvg('halfday')}<span>Left at</span><b>${_escHtml(o.out)}</b></div>` : '') + '</div>'
+        : '';
+      // Note box only on Half Day / Leave / Holiday; full days and missing days have none.
+      const note = (o.type === 'halfday' || off)
+        ? (o.note ? `<button type="button" class="ed-note has" data-ed="note">${wkSvg('note')}<span>${_escHtml(o.note)}</span></button>`
+                  : `<button type="button" class="ed-note" data-ed="note">${wkSvg('plus')}<span>Add a note</span></button>`)
+        : '';
+      return `<div class="ed-card"><div class="ed-head">${pill}${editBtn}</div>${hero}${line}${rows}${note}</div>`;
+    }
+    // Wires the card's pencil / note box (no inline handlers: CSP).
+    function _bindEndedCard(box, key) {
+      box.querySelector('[data-ed="edit"]')?.addEventListener('click', () => openDayEditModal(key));
+      box.querySelector('[data-ed="note"]')?.addEventListener('click', () => openDayEditModal(key, true));
     }
 
     function renderPastDay(key) {
@@ -4491,16 +4916,6 @@
       const _dayName = _pastDay?.name || 'Day';
       const _targetLabel = _dayName + "'s Target";
 
-      // Helper: reset all card state cleanly (no session data)
-      function _clearCardState() {
-        swapText('rcElapsedLabel', '', { color: '' });
-        showRem(false);
-        if (el('rcTargetLabel')) swapText('rcTargetLabel', 'Remaining');
-        el('stayHint').style.display = 'none';
-        el('otBanner').classList.remove('show');
-        _hideDoneBanner();
-        el('autostopBanner')?.classList.remove('show');
-      }
       // holiday / leave / halfday are routed through weekendView by selectDay — dead path
 
       const isFutureDay = key > todayKey();
@@ -4519,13 +4934,11 @@
         _setTodayDateChip();
         el('stayHint').style.display = 'none';
         el('otBanner').classList.remove('show'); _hideDoneBanner();
-        const _emptyMsg = isFutureDay ? '' : `<div style="display:flex;flex-direction:column;align-items:center;gap:14px;padding:8px 0">
-          <span style="font-size:13px;color:var(--muted-fg)">No logs recorded</span>
-          <button data-on-click="hf5017a9390" style="display:inline-flex;align-items:center;gap:6px;padding:7px 16px;border-radius:8px;border:1.5px solid var(--border);background:var(--muted);color:var(--foreground);font-family:var(--font);font-size:13px;font-weight:500;cursor:pointer;transition:background .15s"><svg width="13" height="13" viewBox="0 0 13 13" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M6.5 1v11M1 6.5h11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>Add Entry</button>
-        </div>`;
+        const _emptyMsg = isFutureDay ? '' : _endedDayCardHtml({ key, type: 'noentry' });
         const _noDataContent = _emptyMsg + targetRow;
         el('rcToday').innerHTML = _noDataContent;
         el('rcToday').style.display = _noDataContent ? '' : 'none';
+        _bindEndedCard(el('rcToday'), key);
         return;
       }
       // Past day with data: all display lives in rcToday, hide the KPI group
@@ -4540,21 +4953,10 @@
       const loginDisp = log.loginDisplay || _loginDisplayFromLog(log);
       const outDisp   = _checkoutDisplayFromLog(log);
       el('rcToday').style.display = '';
-      el('rcToday').innerHTML = targetRow + _pastDayKpiHtml(loginDisp, outDisp, worked, target);
+      el('rcToday').innerHTML = targetRow + _endedDayCardHtml({ key, type: 'fullday', worked, target, login: loginDisp, out: outDisp });
+      _bindEndedCard(el('rcToday'), key);
     }
 
-    // ── HISTORY CARD ───────────────────────────────────
-    function isEarlyLogin(log) {
-      if (!log?.loginTime) return false;
-      const parts = log.loginTime.split(':').map(Number);
-      return parts[0] < 9; // before 9 AM
-    }
-
-    function isLateLogin(log) {
-      if (!log?.loginTime) return false;
-      const parts = log.loginTime.split(':').map(Number);
-      return parts[0] >= 10; // after 10 AM considered late
-    }
 
     // ── WEEK CARD ───────────────────────────────────────
     // One row per work day: date tile · what kind of day it was · ± vs target · hours.
@@ -4591,6 +4993,21 @@
       plus:    '<path d="M5 12h14"/><path d="M12 5v14"/>',
       pause:   '<rect x="14" y="4" width="4" height="16" rx="1"/><rect x="6" y="4" width="4" height="16" rx="1"/>',
       check:   '<path d="M20 6 9 17l-5-5"/>',
+      fullday: '<path d="M16 20V4a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/><rect width="20" height="14" x="2" y="6" rx="2"/>',
+      weekend: '<path d="M19 9V6a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v3"/><path d="M3 16a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-5a2 2 0 0 0-4 0v1.5a.5.5 0 0 1-.5.5h-9a.5.5 0 0 1-.5-.5V11a2 2 0 0 0-4 0z"/><path d="M5 18v2M19 18v2"/>',
+      noentry: '<path d="M4.2 4.2A2 2 0 0 0 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 1.82-1.18"/><path d="M21 15.5V6a2 2 0 0 0-2-2H9.5"/><path d="M16 2v4"/><path d="M3 10h7"/><path d="M21 10h-5.5"/><path d="m2 2 20 20"/>',
+      sunrise: '<path d="M12 2v8"/><path d="m4.93 10.93 1.41 1.41"/><path d="M2 18h2"/><path d="M20 18h2"/><path d="m19.07 10.93-1.41 1.41"/><path d="M22 22H2"/><path d="m8 6 4-4 4 4"/><path d="M16 18a4 4 0 0 0-8 0"/>',
+      pencil:  '<path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/><path d="m15 5 4 4"/>',
+      note:    '<path d="M14 3v4a1 1 0 0 0 1 1h4"/><path d="M17 21H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2z"/><path d="M9 13h6M9 17h3"/>',
+    };
+    // Day types, synced across the app (#32, approved 2026-11-14): week card,
+    // Stats chip, Today panel, Edit Day, ended-day card. Tone = a theme token.
+    const DAY_TYPES = {
+      fullday: { label: 'Full Day', icon: 'fullday', tone: '' },
+      halfday: { label: 'Half Day', icon: 'halfday', tone: 'teal' },
+      leave:   { label: 'On Leave', icon: 'leave',   tone: 'blue' },
+      holiday: { label: 'Holiday',  icon: 'holiday', tone: 'orchid' },
+      weekend: { label: 'Weekend',  icon: 'weekend', tone: '' },
     };
     const wkSvg = name => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${WK_ICON[name]}</svg>`;
 
@@ -4766,36 +5183,6 @@
     }
 
 
-    function setDayOverride(key, type) {
-      const c = cfg();
-      const ex = dayLog(key) || {};
-      if (type === 'halfday') {
-        saveDayLogAndSync(key, { ...ex, hoursWorked: c.dailyH / 2, override: type });
-      } else if (type === 'holiday' || type === 'leave') {
-        saveDayLogAndSync(key, { ...ex, hoursWorked: 0, override: type });
-      }
-      renderHistory();
-      document.querySelectorAll('.wk-dropdown.open').forEach(d => d.classList.remove('open'));
-    }
-
-    function saveDayEdit(key) {
-      const startEl = el('dStart-' + key), endEl = el('dEnd-' + key);
-      const s = parse(startEl.value), e = parse(endEl.value);
-      if (!s || !e || e <= s) { startEl.style.borderColor = 'var(--destructive)'; return; }
-      startEl.style.borderColor = '';
-      const workedSecs = Math.floor((e - s) / 1000);
-      const ex = dayLog(key) || {};
-      saveDayLogAndSync(key, { ...ex,
-        loginTime: `${s.getHours()}:${s.getMinutes()}:${s.getSeconds()}`,
-        loginDisplay: short(s),
-        checkoutDisplay: short(e),
-        hoursWorked: workedSecs / 3600,
-        lastUpdated: new Date().toISOString()
-      });
-      renderHistory();
-      document.querySelectorAll('.wk-dropdown.open').forEach(d => d.classList.remove('open'));
-    }
-
     // ── CALCULATE ──────────────────────────────────────
     function showErr(msg) {
       el('errMsg').textContent = msg;
@@ -4887,6 +5274,9 @@
       selectDay(todayKey());
       _rcTransitionToActive();
       render();
+      // A start time already past auto-stop (e.g. 7:00 AM typed at 7 PM) is stopped
+      // by that first render: nothing left to tick, alert or sync as running.
+      if (!loginDate) return;
       if (ticker) clearInterval(ticker);
       ticker = setInterval(render, 1000);
       scheduleNotifications(loginDate.toISOString());
@@ -4904,9 +5294,9 @@
     }
     function showOutsideShiftModal(p) {
       _pendingLoginP = p;
-      const c = cfg();
-      const r = el('outsideShiftRange');
-      if (r) r.textContent = `${c.shiftStart || '09:00 AM'} – ${c.shiftEnd || '06:00 PM'}`;
+      const c = cfg(), at = short(p);
+      el('osDesc').textContent = `Your shift starts at ${c.shiftStart || '09:00 AM'}. Your day will count from ${at}.`;
+      el('osStart').textContent = `Start at ${at}`;
       el('outsideShiftOverlay')?.classList.add('open');
     }
     function closeOutsideShiftModal() {
@@ -4922,12 +5312,16 @@
     // Start, unless today already has hours from an ended session: then ask to
     // continue it, so a new start never wipes them. Override (outside your shift)
     // used to skip this and start from zero (bug in 1.2.29 and earlier).
-    function _startOrContinue(p) {
+    // Hours already logged today by a session that has ended (0 while one runs).
+    function _todayEndedSecs() {
+      if (loginDate) return 0;
       const todayLog = dayLog(todayKey());
-      const existingSecs = _sessionAccSecs > 0
-        ? _sessionAccSecs
+      return _sessionAccSecs > 0 ? _sessionAccSecs
         : (todayLog?.hoursWorked ? Math.round(todayLog.hoursWorked * 3600) : 0);
-      if (existingSecs > 0 && !loginDate) {
+    }
+    function _startOrContinue(p) {
+      const existingSecs = _todayEndedSecs();
+      if (existingSecs > 0) {
         openContinueWorkingModal(p, existingSecs);
         return;
       }
@@ -4945,18 +5339,46 @@
       // If there's already an active session and the new time is within 1 hour
       // of the current login, it's a small correction — skip the outside-shift warning.
       const isSmallCorrection = loginDate && Math.abs(p - loginDate) <= 3600000;
-      if (isOutsideShift(p) && !isSmallCorrection) { showOutsideShiftModal(p); return; }
+      // A day that already has hours asks one question only: "Continue today's
+      // session?" (which mentions the shift), never "Start before your shift?" first.
+      if (isOutsideShift(p) && !isSmallCorrection && !_todayEndedSecs()) { showOutsideShiftModal(p); return; }
 
       _startOrContinue(p);
+    }
+
+    // ── ONE MODAL AT A TIME ─────────────────────────────
+    // Modals that open by themselves (Done for the Day, Auto-Stopped, the Monday
+    // week plan, What's New, the Store rating) never land on top of another one:
+    // they queue and open, oldest first, once nothing else is open.
+    const _modalQueue = [];
+    let _modalPump = null, _nativeModalOpen = false;
+    function _anyModalOpen() {
+      if (_nativeModalOpen || document.body.classList.contains('driver-active')) return true;
+      if (el('obOverlay')?.style.display === 'flex') return true;
+      return [...document.querySelectorAll('.overlay.open, .email-modal-overlay.open, .wp-picker-overlay.open, .td-panel.open, .ios-install-sheet.open')]
+        .some(n => getComputedStyle(n).display !== 'none');
+    }
+    function _queueModal(open) {
+      _modalQueue.push(open);
+      if (!_modalPump) _modalPump = setTimeout(_pumpModals, 0);
+    }
+    function _pumpModals() {
+      _modalPump = null;
+      if (!_modalQueue.length) return;
+      if (!_anyModalOpen()) _modalQueue.shift()();
+      if (_modalQueue.length) _modalPump = setTimeout(_pumpModals, 400);
     }
 
     // ── CONTINUE WORKING MODAL ────────────────────────
     let _cwPendingLogin = null;
     function openContinueWorkingModal(pendingLogin, existingSecs) {
       _cwPendingLogin = pendingLogin;
+      const early = pendingLogin instanceof Date && isOutsideShift(pendingLogin);
+      el('cwNote').textContent = early ? `Your shift starts at ${cfg().shiftStart || '09:00 AM'}.` : '';
+      el('cwNote').hidden = !early;
       const left = Math.max(0, effSecs() - existingSecs);
       el('cwDone').textContent = `${durWorked(existingSecs)} done`;
-      el('cwLeft').textContent = left > 0 ? `${durWorked(Math.ceil(left / 60) * 60)} to go` : 'Target already in';
+      el('cwLeft').textContent = left > 0 ? `${durWorked(_minsGap(effSecs(), existingSecs) || 60)} to go` : 'Target already in';
       el('cwBarDone').style.flex = String(Math.max(1, existingSecs));
       el('cwBarLeft').style.flex = String(left);
       el('cwBarLeft').style.display = left > 0 ? '' : 'none';
@@ -5308,21 +5730,6 @@
       log('\n//////Done//////');
     }
 
-    function toggleCard(id) {
-      el(id).classList.toggle('collapsed');
-    }
-
-    function toggleSetTargetTooltip(e) {
-      e.stopPropagation();
-      const tip = el('setTargetTooltip');
-      const isVisible = tip.classList.contains('visible');
-      tip.classList.toggle('visible', !isVisible);
-      if (!isVisible) {
-        const hide = () => { tip.classList.remove('visible'); document.removeEventListener('click', hide); };
-        setTimeout(() => document.addEventListener('click', hide), 0);
-      }
-    }
-
     // ── Clock settings (Advanced) ──────────────────────
     // Classic UTC-offset + region-name list (the same set most OS/scheduling apps
     // use) instead of raw IANA ids like "Asia/Kolkata" — matches the reference the
@@ -5668,29 +6075,6 @@
       switchWorkDays(n);
     }
 
-    function obToggleIncludeSaturday(checked) {
-      const n = checked ? 6 : 5;
-      const inp = el('obWorkDays'); if (inp) inp.value = n;
-      const dialog = document.querySelector('.ob-dialog');
-      const curH = dialog ? dialog.offsetHeight : 0;
-      updateObWeeklyCalc();
-      obBuildStep3Pickers(); // rebuild pickers so Saturday appears/disappears
-      if (dialog && curH > 0) {
-        requestAnimationFrame(() => {
-          const newH = dialog.scrollHeight;
-          if (Math.abs(newH - curH) > 2) {
-            dialog.style.height = curH + 'px';
-            dialog.style.overflow = 'hidden';
-            dialog.style.transition = 'height .3s cubic-bezier(0.4,0,0.2,1)';
-            requestAnimationFrame(() => {
-              dialog.style.height = newH + 'px';
-              setTimeout(() => { dialog.style.height = ''; dialog.style.overflow = ''; dialog.style.transition = ''; }, 320);
-            });
-          }
-        });
-      }
-    }
-
     function autoSaveSettings() {
       if (_populatingSettings) return;   // the form is being filled from settings, nothing to save
       const _dailyHVal = parseInt(el('inpDailyH').value, 10) || 0;
@@ -5727,7 +6111,10 @@
                 // Clock timezone persists via its own handler — carry it through,
                 // otherwise saving any unrelated setting would silently reset it.
                 tzName: cfg().tzName || '',
-                qsShortcut: _qsShortcut });
+                qsShortcut: _qsShortcut,
+                // Payroll (#41) has its own handlers: carry it through.
+                salaryCycleStart: cfg().salaryCycleStart, salaryCycleEnd: cfg().salaryCycleEnd,
+                penaltyReminders: cfg().penaltyReminders, payrollNudges: cfg().payrollNudges });
       // If session is running, refresh button state to reflect break-time change
       if (loginDate) setCalcBtnState('running');
       renderDaySelector(); // refresh strip in case work-days changed
@@ -5789,7 +6176,7 @@
         const s = new Date(); s.setHours(h,0,0,0);
         const re = h + dh, e = new Date(); e.setHours(Math.floor(re)%24, Math.round((re%1)*60),0,0);
         const ss=short(s), es=short(e);
-        return `<button type="button" class="plan-btn${ss===cur?' selected':''}" data-on-click="h3e4f8c7bd2" data-click-a0="${ss}" data-click-a1="${es}" style="font-size:11px;white-space:nowrap">${ss} – ${es}</button>`;
+        return `<button type="button" class="plan-btn${ss===cur?' selected':''}" data-on-click="h3e4f8c7bd2" data-click-a0="${ss}" data-click-a1="${es}" style="font-size:12px;white-space:nowrap">${ss} – ${es}</button>`;
       }).join('');
     }
     function applyShiftPreset(s, e) {
@@ -5915,7 +6302,7 @@
         // Holiday → pizza icon, no ring
         if (log?.override === 'holiday') {
           return `<div class="sc-item" data-tip="Holiday">
-            <div style="width:52px;height:52px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:rgba(34,197,94,.1);border:1.5px solid rgba(34,197,94,.3);color:#22c55e">${pizzaSvg}</div>
+            <div style="width:52px;height:52px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:var(--success-bg);border:1.5px solid var(--success-border);color:var(--success)">${pizzaSvg}</div>
             <div class="sc-day-label">${dName.slice(0,3)}</div>
           </div>`;
         }
@@ -5923,7 +6310,7 @@
         // Full Day Leave → flat blue-tinted circle with "Leave" label
         if (log?.override === 'leave') {
           return `<div class="sc-item" data-tip="On Leave">
-            <div style="width:52px;height:52px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:rgba(59,130,246,.1);border:1.5px solid rgba(59,130,246,.3);font-size:9px;font-weight:700;color:#3b82f6;letter-spacing:.04em;text-align:center">Leave</div>
+            <div style="width:52px;height:52px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:var(--blue-bg);border:1.5px solid var(--blue-border);font-size:12px;font-weight:700;color:var(--blue);letter-spacing:.04em;text-align:center">Leave</div>
             <div class="sc-day-label">${dName.slice(0,3)}</div>
           </div>`;
         }
@@ -5936,12 +6323,12 @@
           return `<div class="sc-item" data-tip="Half Day · ${hdWorked}">
             <div style="position:relative;width:52px;height:52px">
               <svg width="52" height="52" viewBox="0 0 44 44" style="position:absolute;inset:0;overflow:visible">
-                <circle cx="22" cy="22" r="20" fill="none" stroke="rgba(168,85,247,.2)" stroke-width="3"/>
-                <circle cx="22" cy="22" r="20" fill="none" stroke="#a855f7" stroke-width="3"
+                <circle cx="22" cy="22" r="20" fill="none" stroke="color-mix(in srgb, var(--teal) 20%, transparent)" stroke-width="3"/>
+                <circle cx="22" cy="22" r="20" fill="none" stroke="var(--teal)" stroke-width="3"
                   stroke-dasharray="${CIRC}" stroke-dashoffset="${halfOffset.toFixed(2)}"
                   stroke-linecap="round" transform="rotate(-90 22 22)"/>
               </svg>
-              <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#a855f7">½</div>
+              <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:var(--teal)">½</div>
             </div>
             <div class="sc-day-label">${dName.slice(0,3)}</div>
           </div>`;
@@ -5958,11 +6345,11 @@
             const half  = (extra - whole) >= 0.4 && (extra - whole) < 0.9;
             const lbl   = half ? `+${whole}.5H` : `+${whole}H`;
             return ringItem(dName, 1, 'var(--success)', 'var(--success-border)',
-              `<span style="font-size:9px;font-weight:700;color:var(--success);letter-spacing:-.2px">${lbl}</span>`,
+              `<span style="font-size:12px;font-weight:700;color:var(--success);letter-spacing:-.2px">${lbl}</span>`,
               '', `${dur(log.hoursWorked * 3600)} logged · +${dur(diff)} surplus`);
           } else if (diff < -300) {
             return ringItem(dName, pct, 'var(--destructive)', 'var(--destructive-bg)',
-              `<span style="font-size:10px;font-weight:700;color:var(--destructive)">!</span>`,
+              `<span style="font-size:12px;font-weight:700;color:var(--destructive)">!</span>`,
               '', `${dur(log.hoursWorked * 3600)} logged · ${dur(Math.abs(diff))} short`);
           } else {
             return ringItem(dName, pct, 'var(--foreground)', 'var(--border)',
@@ -5999,13 +6386,8 @@
       }
     }
 
-    let _penaltyData = [];
-    let _discardedPenalties = new Set(JSON.parse(localStorage.getItem('wh_discarded_penalties') || '[]'));
-    function discardPenalty(key) {
-      _discardedPenalties.add(key);
-      localStorage.setItem('wh_discarded_penalties', JSON.stringify([..._discardedPenalties]));
-      renderPenalties();
-    }
+    // _penaltyData / _discardedPenalties / discardPenalty live next to the
+    // dismissed notifications (top of the file), so both stay in sync.
 
     // Fly a penalty row off to the right, then clear it. Shared by the X button,
     // the touch swipe and Clear All so every dismissal looks the same. Animates
@@ -6085,181 +6467,227 @@
       list.addEventListener('touchcancel', endSwipe);
     }
 
-    function clearAllPenalties() {
-      const visible = _penaltyData.filter(p => !_discardedPenalties.has(p.key));
-      if (!visible.length) {
-        const btn = el('penaltyClearAll');
-        btn.classList.remove('ios-shake');
-        void btn.offsetWidth;
-        btn.classList.add('ios-shake');
-        btn.addEventListener('animationend', () => btn.classList.remove('ios-shake'), { once: true });
-        return;
-      }
-      // Persist up front so a re-render mid-animation can't resurrect the rows.
-      visible.forEach(p => _discardedPenalties.add(p.key));
-      localStorage.setItem('wh_discarded_penalties', JSON.stringify([..._discardedPenalties]));
-      const rows = [...document.querySelectorAll('#penaltiesList .penalty-row')];
-      if (!rows.length) { renderPenalties(); return; }
-      // Stagger so they cascade off rather than leaving in one block.
-      const STEP = 60;
-      rows.forEach((row, i) => setTimeout(() => _dismissPenaltyRow(row, () => {}), i * STEP));
-      setTimeout(renderPenalties, rows.length * STEP + 340);
-    }
 
-    // ── Helper: get all Mon–Fri days in a given month up to today ──
-    function getWeekdaysInMonth(year, month) {
-      const days = [], now = new Date();
-      for (let d = new Date(year, month, 1); d.getMonth() === month && d <= now; d.setDate(d.getDate() + 1)) {
-        const dow = d.getDay();
-        if (dow !== 0 && dow !== 6) days.push(new Date(d));
-      }
-      return days;
-    }
 
-    // ── Helper: get all Mon–Fri weeks (arrays of 5 days) in a month up to today ──
-    function getWeeksInMonth(year, month) {
-      const days = getWeekdaysInMonth(year, month);
-      const weeks = [], seen = new Set();
-      for (const d of days) {
-        // Monday of this week
-        const dow = d.getDay();
-        const mon = new Date(d); mon.setDate(d.getDate() - (dow === 0 ? 6 : dow - 1)); mon.setHours(0,0,0,0);
-        const monKey = dateKey(mon);
-        if (!seen.has(monKey)) {
-          seen.add(monKey);
-          // Build 5-day week from Monday
-          const wkDays = [];
-          for (let i = 0; i < 5; i++) {
-            const wd = new Date(mon); wd.setDate(mon.getDate() + i);
-            if (wd.getMonth() === month || true) wkDays.push(wd); // include cross-month
-          }
-          weeks.push({ monKey, days: wkDays });
-        }
-      }
-      return weeks;
-    }
-
+    // Re-renders the card, then the notifications whenever the card's list
+    // changed (they show the same penalties).
     function renderPenalties() {
-      const c = cfg();
-      const now = new Date();
-      const container = el('penaltiesList');
-      // Delegated + idempotent, so binding it once here (rather than after every
-      // return path below) covers the whole function regardless of which branch
-      // returns early, and survives innerHTML rebuilds since it's on the container.
-      _initPenaltySwipe();
-
-      const tenDaysAgo = new Date(now); tenDaysAgo.setDate(tenDaysAgo.getDate() - 10); tenDaysAgo.setHours(0,0,0,0);
-
+      const sig = () => _penaltyData.filter(p => !_discardedPenalties.has(p.key)).map(p => p.key).join();
+      const before = sig();
+      _renderPenaltyCard();
+      renderStats();
+      if (sig() !== before && typeof renderNotifs === 'function') renderNotifs();
+    }
+    // ── ACTION CENTER (#39, approved 2026-11-14; replaces "Your Penalties") ──
+    // Rows are always single days: short days in daily mode, and in weekly mode
+    // the short days of a finished week that came up short. Two tabs: This Week
+    // and This Month (the salary cycle). "Read" replaces the old dismiss (kept in
+    // the same wh_discarded_penalties set, so the notification follows it);
+    // "Clear all" hides rows for good (wh_cleared_penalties). Adapted from uiarc
+    // empty-state, dropdown-menu, segmented-control and toast (Undo).
+    let _acTab = 'week', _acShowRead = false, _acConfirm = false, _acLoaded = false;
+    let _acCleared = new Set();
+    // Marked as read while you're here: the row stays where it is, muted and
+    // labelled Read, instead of leaving the list (user, 2026-11-15).
+    const _acKeepRead = new Set();
+    try {
+      _acCleared = new Set(JSON.parse(localStorage.getItem('wh_cleared_penalties') || '[]'));
+      const t = localStorage.getItem('wh_ac_tab'); if (t === 'week' || t === 'month') _acTab = t;
+      _acShowRead = localStorage.getItem('wh_ac_show_read') === '1';
+    } catch (e) {}
+    const _acSave = () => { try { localStorage.setItem('wh_cleared_penalties', JSON.stringify([..._acCleared])); localStorage.setItem('wh_ac_tab', _acTab); localStorage.setItem('wh_ac_show_read', _acShowRead ? '1' : '0'); } catch (e) {} };
+    // "1h 35m", "2h", "45m".
+    function _acDur(secs) { const m = Math.round(secs / 60), h = Math.floor(m / 60), r = m % 60; return h ? `${h}h${r ? ' ' + r + 'm' : ''}` : `${r}m`; }
+    // Short days among `dates` (work days, oldest first). logOf(key) → day log.
+    // weekTarget(days) → that week's target in seconds (weekly mode only).
+    function _acShortDays(dates, logOf, c, tk, weekTarget) {
+      const daily = c.dailyH * 3600, out = [];
+      const dayRow = (d, key, log) => {
+        if (!log || log.hoursWorked == null || log.override === 'leave' || log.override === 'holiday') return null;
+        const half = log.override === 'halfday', tgt = half ? daily / 2 : daily, worked = Math.round(log.hoursWorked * 3600);
+        return tgt - worked > 300 ? { key, date: d, deficit: tgt - worked, worked, tgt, half, log, type: 'daily' } : null;
+      };
       if (!c.weeklyOn) {
-        // ── DAILY MODE: flag each weekday below dailyH ──────────────────
-        const penalties = [];
-        const days = getWeekdaysInMonth(now.getFullYear(), now.getMonth());
-        for (const d of days) {
-          if (new Date(d) < tenDaysAgo) continue; // discard items older than 10 days
-          const key = dateKey(d);
-          if (key >= todayKey()) continue; // never flag today or future days
-          const log = dayLog(key);
-          // Skip override days — holiday/leave reduce weekly target, not penalised
-          if (log?.override === 'holiday' || log?.override === 'leave') continue;
-          if (log?.hoursWorked != null) {
-            // Half-day: compare against half-target, not full
-            const dayTarget = log?.override === 'halfday'
-              ? (c.dailyH * 3600) / 2
-              : c.dailyH * 3600;
-            const deficit = dayTarget - log.hoursWorked * 3600;
-            if (deficit > 300) penalties.push({ date: new Date(d), key, deficit, log, type: 'daily' });
-          }
+        for (const d of dates) { const key = dateKey(d); if (key >= tk) continue; const r = dayRow(d, key, logOf(key)); if (r) out.push(r); }
+        return out;
+      }
+      // Weekly: only finished weeks that came up short list their short days.
+      const n = c.workDays === 6 ? 6 : 5, seen = new Map();
+      for (const d of dates) {
+        const mon = new Date(d); mon.setDate(d.getDate() - ((d.getDay() + 6) % 7)); mon.setHours(0, 0, 0, 0);
+        const mk = dateKey(mon);
+        if (!seen.has(mk)) {
+          const days = Array.from({ length: n }, (_, i) => { const x = new Date(mon); x.setDate(mon.getDate() + i); return { key: dateKey(x), date: x }; });
+          const done = days[n - 1].key < tk;
+          const total = days.reduce((a, x) => a + Math.round((logOf(x.key)?.hoursWorked || 0) * 3600), 0);
+          seen.set(mk, done && weekTarget(days) - total > 300);
         }
-        penalties.push(..._samplePenalties());
-        _penaltyData = penalties;
-        const visibleDaily = penalties.filter(p => !_discardedPenalties.has(p.key));
-
-        if (!visibleDaily.length) {
-          container.innerHTML = '<div class="penalty-empty">No daily penalties this month.</div>';
-          return;
-        }
-        container.innerHTML = visibleDaily.map(_penRow).join('');
-
+        if (!seen.get(mk)) continue;
+        const key = dateKey(d); if (key >= tk) continue;
+        const r = dayRow(d, key, logOf(key)); if (r) out.push(r);
+      }
+      return out;
+    }
+    // The two tabs' rows, oldest first: { week, month, all }.
+    function _acCollect() {
+      const c = cfg(), tk = todayKey(), now = nowTz();
+      const wkDates = week(0).map(d => d.date);
+      const p = _statsPeriod('cycle', now, _salaryCycleStart(c), _salaryCycleEnd(c)), mDates = [];
+      for (const d = new Date(p.from); d <= p.to; d.setDate(d.getDate() + 1)) { const k = dateKey(d); if (k >= tk) break; if (!isWeekendKey(k)) mDates.push(new Date(d)); }
+      const wt = days => adjustedWeeklyTarget(days);
+      const samples = _samplePenalties().filter(s => s.type === 'daily').map(s => ({ ...s, worked: Math.round((s.log.hoursWorked || 0) * 3600), tgt: s.log.override === 'halfday' ? c.dailyH * 1800 : c.dailyH * 3600, half: s.log.override === 'halfday' }));
+      const keep = r => !_acCleared.has(r.key);
+      const wkRows = _acShortDays(wkDates, dayLog, c, tk, wt).concat(samples).filter(keep);
+      const moRows = _acShortDays(mDates, dayLog, c, tk, wt).concat(samples).filter(keep);
+      const all = new Map(); [...moRows, ...wkRows].forEach(r => all.set(r.key, r));
+      const byDate = (a, b) => a.date - b.date;
+      return { week: wkRows.sort(byDate), month: moRows.sort(byDate), all: [...all.values()].sort(byDate), cycle: p, wkDates };
+    }
+    const _AC_SVG = d => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
+    const _AC_I = {
+      more: '<circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/>',
+      check: '<path d="M20 6 9 17l-5-5"/>', mail: '<rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>',
+      edit: '<path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/>', read: '<path d="M18 6 7 17l-5-5"/><path d="m22 10-7.5 7.5L13 16"/>',
+      unread: '<circle cx="12" cy="12" r="4"/>', trash: '<path d="M3 6h18"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"/>',
+    };
+    function _acRowHtml(r, read) {
+      const d = r.date, wd = FULL_DAYS_EN[d.getDay()].slice(0, 3);
+      const sub = `${_acDur(r.worked)} of ${_acDur(r.tgt)}${r.half ? ' · Half day' : ''}${r.sample ? ' · Sample' : ''}${read ? ' · Read' : ''}`;
+      return `<div class="penalty-row ac-row${read ? ' read' : ''}" data-penalty-key="${r.key}" tabindex="0" role="button" aria-haspopup="menu" aria-label="${FULL_DAYS_EN[d.getDay()]}, ${MONTHS[d.getMonth()]} ${d.getDate()}: ${_acDur(r.deficit)} short">
+          <div class="wk-tile ac-tile"><span class="wk-tile-n">${wd}</span><span class="wk-tile-d">${d.getDate()}</span></div>
+          <div class="ac-txt"><div class="ac-gap"><b>${_acDur(r.deficit)}</b> <span>short</span></div><div class="ac-sub">${sub}</div></div>
+          <button type="button" class="btn-secondary ac-resolve" tabindex="-1" aria-hidden="true">Resolve</button>
+        </div>`;
+    }
+    // Rows with a month label each time the list crosses into a new month.
+    function _acListHtml(rows, read) {
+      const months = new Set(rows.map(r => r.date.getMonth()));
+      let last = -1, html = '';
+      for (const r of rows) {
+        if (months.size > 1 && r.date.getMonth() !== last) { last = r.date.getMonth(); html += `<div class="ac-mo">${MONTHS[last]}</div>`; }
+        html += _acRowHtml(r, read || _discardedPenalties.has(r.key));
+      }
+      return html;
+    }
+    function _renderPenaltyCard() {
+      const card = el('acCard'), list = el('penaltiesList');
+      if (!card || !list) return;
+      _initPenaltySwipe();
+      const data = _acCollect();
+      _penaltyData = data.all;
+      const rowsOf = t => data[t];
+      const unread = t => rowsOf(t).filter(r => !_discardedPenalties.has(r.key));
+      const rows = rowsOf(_acTab), un = unread(_acTab), rd = rows.filter(r => _discardedPenalties.has(r.key));
+      const first = data.wkDates[0], lastD = data.wkDates[data.wkDates.length - 1];
+      const cap = _acTab === 'week'
+        ? `${MONTHS[first.getMonth()].slice(0, 3)} ${first.getDate()} – ${first.getMonth() === lastD.getMonth() ? lastD.getDate() : MONTHS[lastD.getMonth()].slice(0, 3) + ' ' + lastD.getDate()}`
+        : `Salary cycle · ${data.cycle.sub}`;
+      const top = el('acTop');
+      top.innerHTML = `<div class="ac-head"><span class="ac-title">Action Center</span>
+          <div class="ac-acts"><button type="button" class="btn-secondary ac-markall" id="acMarkAll"${un.length ? '' : ' disabled'}>Mark all as read</button>
+            <div class="ac-more-wrap"><button type="button" class="ac-more" id="acMore" aria-haspopup="menu" aria-expanded="false" aria-label="More">${_AC_SVG(_AC_I.more)}</button>
+              <div class="ac-menu" id="acMoreMenu" role="menu" aria-label="Action Center options">
+                <button type="button" class="ac-mi" role="menuitemcheckbox" aria-checked="${_acShowRead}" data-ac="showread"><span>Show read penalties</span>${_AC_SVG(_AC_I.check)}</button>
+                <div class="ac-sep" role="separator"></div>
+                <button type="button" class="ac-mi danger" role="menuitem" data-ac="clear"${rows.length ? '' : ' disabled'}><span>Clear all penalties</span>${_AC_SVG(_AC_I.trash)}</button>
+              </div></div></div></div>
+        <div class="ac-seg" role="tablist" aria-label="Period"><span class="ac-gl" aria-hidden="true"></span>
+          ${['week', 'month'].map(t => `<button type="button" role="tab" aria-selected="${t === _acTab}" data-t="${t}">${t === 'week' ? 'This Week' : 'This Month'}<em>${unread(t).length}</em></button>`).join('')}</div>
+        <p class="ac-cap">${cap}</p>`;
+      // Body: inline confirm › empty › all caught up › rows (+ read ones when on).
+      if (_acConfirm && rows.length) {
+        list.innerHTML = `<div class="ac-confirm" role="alertdialog" aria-labelledby="acCfT"><p class="ac-cf-t" id="acCfT">Clear all ${rows.length} ${rows.length === 1 ? 'penalty' : 'penalties'}?</p>
+          <p class="ac-cf-d">They leave the Action Center for good, read or not. Your hours stay as they are.</p>
+          <div class="ac-cf-a"><button type="button" class="btn-secondary" data-ac="cf-no">Cancel</button><button type="button" class="btn-danger sm" data-ac="cf-yes">Clear All</button></div></div>`;
+      } else if (!rows.length) {
+        list.innerHTML = `<div class="ac-empty"><div class="ac-tray" aria-hidden="true">
+            <svg viewBox="0 0 64 56" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 34 14 12a4 4 0 0 1 3.8-2.8h28.4A4 4 0 0 1 50 12l8 22v12a4 4 0 0 1-4 4H10a4 4 0 0 1-4-4Z"/><path d="M6 34h14l3 6h18l3-6h14"/></svg>
+            <span class="ac-tray-tile"><b>${FULL_DAYS_EN[nowTz().getDay()].slice(0, 3)}</b><i>${nowTz().getDate()}</i></span></div>
+          <h3>Yay, nothing to resolve</h3><p>Your hours add up and there's no email to send. Anything that needs fixing lands here.</p></div>`;
       } else {
-        // ── WEEKLY MODE: report per week, flag on Monday if weekly total < weeklyH ──
-        const now = new Date();
-        const thisMonday = (() => {
-          const d = new Date(now); const dow = d.getDay();
-          d.setDate(d.getDate() - (dow === 0 ? 6 : dow - 1)); d.setHours(0,0,0,0); return d;
-        })();
-
-        // Collect past complete weeks (Mon–Fri finished) + current partial week
-        const weeks = getWeeksInMonth(now.getFullYear(), now.getMonth());
-        const penalties = [];
-
-        for (const wk of weeks) {
-          const monDate = new Date(wk.monKey + 'T00:00');
-          const isCurrentWeek = monDate >= thisMonday;
-          // Only report on completed weeks; discard weeks older than 10 days
-          if (isCurrentWeek) continue;
-          // Ensure Friday of the week is fully in the past (don't flag incomplete weeks)
-          const fri = new Date(monDate); fri.setDate(monDate.getDate() + 4);
-          if (dateKey(fri) >= todayKey()) continue;
-          if (monDate < tenDaysAgo) continue;
-
-          // Sum all logged hours in this week
-          let totalSecs = 0, hasAnyData = false;
-          for (const d of wk.days) {
-            const log = dayLog(dateKey(d));
-            if (log?.hoursWorked != null) { totalSecs += log.hoursWorked * 3600; hasAnyData = true; }
-          }
-          if (!hasAnyData) continue;
-
-          // Adjust target for override days in this week
-          const wkAdj = adjustedWeeklyTarget(wk.days.map(d => ({ key: dateKey(d), date: d })));
-          const deficit = wkAdj - totalSecs;
-          if (deficit > 300) {
-            const fri = wk.days[4];
-            const rangeStr = `${MONTHS[monDate.getMonth()]} ${monDate.getDate()}–${fri.getDate()}`;
-            penalties.push({
-              date:     monDate,
-              key:      wk.monKey,
-              deficit,
-              totalSecs,
-              rangeStr,
-              log:      {},
-              type:     'weekly',
-              wkDays:   wk.days
-            });
-          }
-        }
-
-        // Also surface current week's running deficit as a warning (not a penalty yet)
-        let currentWkSecs = 0;
-        const currentWk = getWeeksInMonth(now.getFullYear(), now.getMonth()).find(wk => {
-          const monDate = new Date(wk.monKey + 'T00:00');
-          return monDate >= thisMonday;
+        // Unread rows, plus the ones read during this visit (still in place).
+        const shown = rows.filter(r => !_discardedPenalties.has(r.key) || _acKeepRead.has(r.key));
+        let html = shown.length ? _acListHtml(shown, false)
+          : `<div class="ac-caught"><span class="ac-caught-i">${_AC_SVG(_AC_I.check)}</span><div><b>All caught up</b><span>Read penalties are under the ⋯ menu.</span></div></div>`;
+        const older = rd.filter(r => !_acKeepRead.has(r.key));
+        if (_acShowRead && older.length) html += `<div class="ac-mo ac-read-l">Read</div>` + _acListHtml(older, true);
+        list.innerHTML = html;
+      }
+      _acLoaded = true;
+      _acBind(card, rows, un);
+    }
+    function _acBind(card, rows, un) {
+      const seg = card.querySelector('.ac-seg'), gl = seg.querySelector('.ac-gl');
+      const glide = () => { const b = seg.querySelector('[aria-selected="true"]'); if (b) { gl.style.width = b.offsetWidth + 'px'; gl.style.transform = `translateX(${b.offsetLeft}px)`; } };
+      if (card._acGl) { gl.style.transition = 'none'; gl.style.width = card._acGl.w; gl.style.transform = card._acGl.t; gl.offsetWidth; gl.style.transition = ''; }
+      requestAnimationFrame(() => { glide(); card._acGl = { w: gl.style.width, t: gl.style.transform }; });
+      seg.querySelectorAll('[data-t]').forEach(b => b.addEventListener('click', () => { if (b.dataset.t === _acTab) return; _acTab = b.dataset.t; _acConfirm = false; _acSave(); _renderPenaltyCard(); }));
+      // ⋯ menu
+      const more = el('acMore'), menu = el('acMoreMenu');
+      const setMenu = open => { menu.classList.toggle('open', open); more.setAttribute('aria-expanded', String(open)); if (open) menu.querySelector('.ac-mi:not([disabled])')?.focus(); };
+      more.addEventListener('click', e => { e.stopPropagation(); _acCloseRowMenu(); setMenu(!menu.classList.contains('open')); });
+      menu.addEventListener('keydown', e => {
+        const items = [...menu.querySelectorAll('.ac-mi:not([disabled])')], i = items.indexOf(document.activeElement);
+        if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); items[(i + (e.key === 'ArrowDown' ? 1 : items.length - 1)) % items.length]?.focus(); }
+        if (e.key === 'Escape') { setMenu(false); more.focus(); }
+      });
+      menu.querySelector('[data-ac="showread"]').addEventListener('click', () => { _acShowRead = !_acShowRead; _acSave(); _renderPenaltyCard(); });
+      menu.querySelector('[data-ac="clear"]').addEventListener('click', () => { _acConfirm = true; _renderPenaltyCard(); el('penaltiesList').querySelector('[data-ac="cf-no"]')?.focus(); });
+      el('acMarkAll').addEventListener('click', () => _acMarkAllRead(un));
+      const list = el('penaltiesList');
+      list.querySelector('[data-ac="cf-no"]')?.addEventListener('click', () => { _acConfirm = false; _renderPenaltyCard(); });
+      list.querySelector('[data-ac="cf-yes"]')?.addEventListener('click', () => {
+        rows.forEach(r => _acCleared.add(r.key)); _acConfirm = false; _acSave(); renderPenalties(); renderNotifs();
+      });
+      if (!card._acDoc) {
+        card._acDoc = true;
+        document.addEventListener('click', e => {
+          if (!e.target.closest('.ac-more-wrap')) { el('acMoreMenu')?.classList.remove('open'); el('acMore')?.setAttribute('aria-expanded', 'false'); }
+          if (!e.target.closest('.ac-rmenu') && !e.target.closest('.ac-row')) _acCloseRowMenu();
         });
-        if (currentWk) {
-          for (const d of currentWk.days) {
-            const log = dayLog(dateKey(d));
-            if (log?.hoursWorked != null) currentWkSecs += log.hoursWorked * 3600;
-          }
-        }
-
-        penalties.push(..._samplePenalties());
-        _penaltyData = penalties;
-        const visibleWeekly = penalties.filter(p => !_discardedPenalties.has(p.key));
-
-        if (!visibleWeekly.length) {
-          container.innerHTML = '<div class="penalty-empty">No weekly penalties this month.</div>';
-          return;
-        }
-
-        container.innerHTML = visibleWeekly.map(_penRow).join('');
+        // A row (or its Resolve button) opens the Resolve menu.
+        list.addEventListener('click', e => { if (e.target.closest('.ac-rmenu')) return; const row = e.target.closest('.ac-row'); if (row && !row.dataset.dismissing) _acOpenRowMenu(row); });
+        list.addEventListener('keydown', e => { if (e.target.closest('.ac-rmenu')) return; const row = e.target.closest('.ac-row'); if (row && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); _acOpenRowMenu(row); } });
       }
     }
-
-    // One penalty row; samples can be either type in either mode.
-    function _penRow(p) {
-      const label = p.type === 'weekly' ? `Week of ${p.rangeStr}`
-        : `${FULL_DAYS_EN[p.date.getDay()]}, ${MONTHS[p.date.getMonth()]} ${p.date.getDate()}`;
-      return penaltyRowHtml(p, label + (p.sample ? ' · Sample' : ''), `−${durWorked(p.deficit)}`);
+    function _acCloseRowMenu() { document.querySelectorAll('.ac-rmenu').forEach(m => m.remove()); document.querySelectorAll('.ac-row.menu-on').forEach(r => r.classList.remove('menu-on')); }
+    function _acOpenRowMenu(row) {
+      const was = row.classList.contains('menu-on');
+      _acCloseRowMenu(); if (was) return;
+      const key = row.dataset.penaltyKey, read = _discardedPenalties.has(key);
+      const m = document.createElement('div');
+      m.className = 'ac-rmenu ac-menu open'; m.setAttribute('role', 'menu');
+      m.innerHTML = `<button type="button" class="ac-mi" role="menuitem" data-r="email">${_AC_SVG(_AC_I.mail)}<span>Draft email to manager</span></button>
+        <button type="button" class="ac-mi" role="menuitem" data-r="fix">${_AC_SVG(_AC_I.edit)}<span>Fix my hours</span></button>
+        <button type="button" class="ac-mi" role="menuitem" data-r="read">${_AC_SVG(read ? _AC_I.unread : _AC_I.read)}<span>${read ? 'Mark as unread' : 'Mark as read'}</span></button>`;
+      row.classList.add('menu-on');
+      row.appendChild(m);
+      m.querySelector('.ac-mi')?.focus();
+      m.addEventListener('keydown', e => {
+        const items = [...m.querySelectorAll('.ac-mi')], i = items.indexOf(document.activeElement);
+        if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); items[(i + (e.key === 'ArrowDown' ? 1 : items.length - 1)) % items.length].focus(); }
+        if (e.key === 'Escape') { _acCloseRowMenu(); row.focus(); }
+      });
+      m.addEventListener('click', e => {
+        const b = e.target.closest('[data-r]'); if (!b) return;
+        _acCloseRowMenu();
+        if (b.dataset.r === 'email') openEmailModal(key);
+        else if (b.dataset.r === 'fix') openDayEditModal(key);
+        else if (read) { _discardedPenalties.delete(key); _acKeepRead.delete(key); _savePenDiscards(); renderPenalties(); renderNotifs(); }
+        else { _discardedPenalties.add(key); _acKeepRead.add(key); _savePenDiscards(); renderPenalties(); renderNotifs(); }
+      });
+    }
+    // Mark all as read: the rows stay in place, muted and labelled Read; a toast offers Undo.
+    function _acMarkAllRead(un) {
+      if (!un.length) return;
+      un.forEach(r => _discardedPenalties.add(r.key));
+      un.forEach(r => _acKeepRead.add(r.key));
+      _savePenDiscards();
+      renderNotifs();
+      renderPenalties();
+      showToast(`Marked ${un.length} as read`, 'none', '', { label: 'Undo', onClick: () => {
+        un.forEach(r => _discardedPenalties.delete(r.key)); _savePenDiscards(); renderPenalties(); renderNotifs();
+      } });
     }
 
     // Developer Mode: two short days and one short week for trying Email Draft.
@@ -6286,23 +6714,6 @@
         { key: 'sample-w1', sample: true, type: 'weekly', date: mon, deficit: Math.max(c.weeklyH * 3600 - total, 320 * 60),
           totalSecs: total, rangeStr: `${MONTHS[mon.getMonth()]} ${mon.getDate()}–${fri.getDate()}`, log: {}, wkDays, dayLogs },
       ];
-    }
-
-    function penaltyRowHtml(p, dateStr, shortDesc, isWeekly) {
-      return `<div class="penalty-row" data-penalty-key="${p.key}" data-on-click="h76411799e3" data-click-a0="${p.key}">
-        <div class="penalty-row-main">
-          <div class="penalty-info">
-            <span class="penalty-date">${dateStr}</span>
-            ${shortDesc ? `<span class="penalty-delta">${shortDesc}</span>` : ''}
-          </div>
-          <div style="display:flex;gap:6px;flex-shrink:0">
-            <button class="btn-sm penalty-discard-btn" title="Dismiss" aria-label="Dismiss"
-              data-on-click="h61f06aeef3">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-            </button>
-          </div>
-        </div>
-      </div>`;
     }
 
     // ── EMAIL DRAFT ────────────────────────────────────
@@ -6826,17 +7237,13 @@ Kind regards,
       if (!e) return;
       el('wnVersion').textContent = 'Version ' + e.version;
       el('wnBody').innerHTML = wnBodyHtml(e);
-      el('wnBody').querySelector('.wn-fixes-head')?.addEventListener('click', ev => {
-        const box = ev.currentTarget.parentElement, open = box.classList.toggle('open');
-        ev.currentTarget.setAttribute('aria-expanded', String(open));
-      });
       el('whatsNewOverlay').classList.add('open');
     }
     function closeWhatsNew() { el('whatsNewOverlay').classList.remove('open'); }
 
     // What's New body. An improvement is either a plain line (older releases) or
     // { icon, title, line }: an icon bubble, a short title and one line, as in
-    // Apple's "What's new". Fixes fold into one row ("3 fixes").
+    // Apple's "What's new". Fixes follow as a plain list.
     const WN_ICONS = {
       home:     ['--violet',  '<path d="M3 10.5 12 3l9 7.5V21H3z"/><path d="M9 21v-6h6v6"/>'],
       bell:     ['--blue',    '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.9 1.9 0 0 0 3.4 0"/>'],
@@ -6857,9 +7264,9 @@ Kind regards,
       };
       const fixes = e.fixes || [];
       const feats = e.improvements?.length ? `<div class="wn-feats">${e.improvements.map(feat).join('')}</div>` : '';
+      // Fixes are plain text under a small heading, always shown (no dropdown).
       const fixBox = fixes.length
-        ? `<div class="wn-fixes"><button type="button" class="wn-fixes-head" aria-expanded="false"><span>${fixes.length} ${fixes.length === 1 ? 'fix' : 'fixes'}</span>${svg('<path d="m6 9 6 6 6-6"/>')}</button>`
-          + `<div class="wn-fixes-body"><ul>${fixes.map(t => `<li>${_escHtml(t)}</li>`).join('')}</ul></div></div>`
+        ? `<div class="wn-fixes"><p class="wn-fixes-k">Bug fixes</p><ul>${fixes.map(t => `<li>${_escHtml(t)}</li>`).join('')}</ul></div>`
         : '';
       return feats + fixBox;
     }
@@ -6876,10 +7283,7 @@ Kind regards,
       // The onboarding flag alone isn't enough: accounts set up before it existed lack it.
       if (!seen && !localStorage.getItem(OB_DONE_KEY) && !Store.getCfg()) { markSeen(); return; }
       if (!_wnEntry(APP_VERSION)) { markSeen(); return; }                       // nothing to tell
-      if (document.querySelector('.overlay.open, .email-modal-overlay.open, .td-panel.open, .ios-install-sheet.open')
-          || el('obOverlay')?.style.display === 'flex') return;
-      openWhatsNew(APP_VERSION);
-      markSeen();
+      _queueModal(() => { openWhatsNew(APP_VERSION); markSeen(); });             // after anything already open
     }
 
     // Recipients and the contact's name come from the synced settings, saved
@@ -6937,7 +7341,7 @@ Kind regards,
     function openDevicesModal() {
       _setPage('pageDevices', 'Saved Logins', "Devices where you're signed in to 5pm.", page => {
         const list = el('devList');
-        list.classList.add('tile-list');
+        list.classList.add('sl-list');
         page.append(list, el('devOthersWrap'));
         el('devModalOverlay')?.remove();
       });
@@ -7019,10 +7423,10 @@ Kind regards,
       let workedSecs = _sessionAccSecs;
       if (loginDate) workedSecs += Math.max(0, Math.floor((new Date() - loginDate) / 1000));
       // The target is the same one the Today card shows (this week's spread),
-      // and "early" rounds up like the card's countdown, so it matches the chip.
+      // and "early" is in the same whole minutes as the card, so it matches the chip.
       const targetSecs = effSecs() || dailySecs;
       const remSecs = Math.max(0, targetSecs - workedSecs);
-      const remShown = Math.ceil(remSecs / 60) * 60;   // rounded up, like the card's countdown
+      const remShown = _minsGap(targetSecs, workedSecs) || 60;   // whole minutes, like the card's chip
       const isHalfDay = workedSecs <= halfSecs;
       const desc = el('endSessionDesc');
       const note = el('endSessionHalfDayNote');
@@ -7170,8 +7574,10 @@ Kind regards,
       const log = dayLog(key);
       const d = new Date(key + 'T12:00');
       const _isFuturePlanModal = new Date(key + 'T12:00') > new Date() && key !== todayKey() && !!(log?.futurePlan);
-      el('dayEditTitle').textContent = _isFuturePlanModal ? 'Update Plan' : 'Update Entry';
-      el('dayEditTitle').dataset.editTitle = el('dayEditTitle').textContent; // what the first tab is called
+      // Header (#34): the date is the title; the subtitle names what this tab does.
+      const _deDate = new Date(_dayEditKey + 'T12:00');
+      el('dayEditTitle').textContent = _deDate.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
+      el('dayEditDesc').dataset.editDesc = _isFuturePlanModal ? 'Plan this day.' : 'Fix the times or the kind of day.';
       // Raise Dispute only makes sense for a day that has happened.
       const _canDispute = !wkndNote && (key || todayKey()) <= todayKey();
       el('deTabs').hidden = !_canDispute;
@@ -7182,7 +7588,6 @@ Kind regards,
       _deTab('edit');
       _deChip('missed');
       el('deDisputeOther').value = '';
-      el('dayEditDesc').textContent = `${MONTHS[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
       el('deStart').value = log?.loginDisplay || '';
       el('deEnd').value   = log?.checkoutDisplay || '';
       el('deErr').classList.remove('show');
@@ -7198,19 +7603,10 @@ Kind regards,
       const _effectiveOverride = log?.override || log?.futurePlan || null;
       const _effectiveNote     = log?.note || log?.futureReason || '';
       // Highlight active override; hide time row instantly (no transition on open)
-      ['deHalfDay','deHoliday','deLeave'].forEach(id => el(id)?.classList.remove('active'));
       const _deTimeWrap = el('deTimeWrap');
       if (_deTimeWrap) { _deTimeWrap.style.transition = 'none'; _deTimeWrap.classList.remove('hidden'); }
-      if (_effectiveOverride === 'halfday') {
-        el('deHalfDay').classList.add('active');
-      } else if (_effectiveOverride === 'holiday') {
-        el('deHoliday').classList.add('active');
-        if (_deTimeWrap) _deTimeWrap.classList.add('hidden');
-      } else if (_effectiveOverride === 'leave') {
-        el('deLeave').classList.add('active');
-        if (_deTimeWrap) _deTimeWrap.classList.add('hidden');
-      }
-      // Re-enable transition after the instant open state is set
+      _isWkndNoteModal = wkndNote;
+      _deSetType(['halfday', 'holiday', 'leave'].includes(_effectiveOverride) ? _effectiveOverride : 'fullday', true);
       requestAnimationFrame(() => { if (_deTimeWrap) _deTimeWrap.style.transition = ''; });
       // Note field — populate and show if there's an active override
       const _deNoteWrap = el('deNoteWrap');
@@ -7229,18 +7625,21 @@ Kind regards,
       const _overrideRow = el('dayEditOverlay')?.querySelector('.modal-override-row');
       const _deNoteLabel = el('deNoteLabel');
       if (_isWkndNoteModal) {
-        el('dayEditTitle').textContent = 'Update Note';
+        el('dayEditDesc').textContent = 'Weekend note';
         if (_overrideRow) _overrideRow.style.display = 'none';
+        el('deTypeLabel').style.display = 'none';
         if (_deTimeWrap) { _deTimeWrap.style.transition = 'none'; _deTimeWrap.style.display = 'none'; }
         if (_deNote) { _deNote.placeholder = 'write a short note'; _deNote.value = log?.note || ''; }
         if (_deNoteWrap) _deNoteWrap.classList.add('visible');
         if (_deNoteLabel) { _deNoteLabel.textContent = 'What did you do?'; _deNoteLabel.style.display = ''; }
       } else {
         if (_overrideRow) _overrideRow.style.display = '';
+        el('deTypeLabel').style.display = '';
         if (_deTimeWrap) _deTimeWrap.style.display = '';
         if (_deNote) _deNote.placeholder = 'Add a note (optional)';
-        if (_deNoteLabel) _deNoteLabel.style.display = 'none';
       }
+      _deFillRecorded(log);
+      _deUpdateLive();
       el('dayEditOverlay').classList.add('open');
       if (focusNote) requestAnimationFrame(() => el('deNote')?.focus());
     }
@@ -7326,31 +7725,6 @@ Kind regards,
       } else { extraEl.style.display = 'none'; }
     }
 
-    function openNewPlanModal(key) {
-      _newPlanKey  = key;
-      _newPlanType = null; // nothing selected by default
-      const wk = week(0), day = wk.find(d => d.key === key);
-      const d  = day ? day.date : new Date(key + 'T00:00');
-      el('newPlanDesc').textContent = `${FULL_DAYS_EN[d.getDay()]}, ${MONTHS[d.getMonth()]} ${d.getDate()}`;
-      // Clear all chip selections
-      ['npEarlyLeave','npStayLate','npHalfDay','npAllDay'].forEach(id => el(id)?.classList.remove('active'));
-      // Reset fields
-      el('npStartTime').value = '';
-      el('npEndTime').value   = '';
-      el('npNotes').value     = '';
-      el('npExtraRow').style.display  = 'none';
-      el('npTimeRow').style.display   = 'none';
-      el('npCalcBlock').style.opacity = '0.4';
-      el('npLeaveAt').textContent     = '—';
-      el('npHoursLeft').textContent   = '—';
-      el('npErr').classList.remove('show');
-      // Apply recommend timings: hide Early Leave + Stay Late chips when disabled
-      const rec = cfg().recommendTimings !== false;
-      el('npEarlyLeave').style.display = rec ? '' : 'none';
-      el('npStayLate').style.display   = rec ? '' : 'none';
-      el('newPlanOverlay').classList.add('open');
-    }
-
     function closeNewPlanModal() {
       el('newPlanOverlay').classList.remove('open');
       _newPlanKey = null;
@@ -7388,21 +7762,73 @@ Kind regards,
       _isWkndNoteModal = false;
     }
 
-    function setDeOverride(type) {
-      const map = { halfday:'deHalfDay', holiday:'deHoliday', leave:'deLeave' };
-      const btnId = map[type];
-      if (!btnId) return;
-      const btn = el(btnId);
-      if (!btn) return;
-      const wasActive = btn.classList.contains('active');
-      ['deHalfDay','deHoliday','deLeave'].forEach(id => el(id)?.classList.remove('active'));
-      if (!wasActive) btn.classList.add('active'); // toggle off if same clicked
-      // Hide time row entirely for full-day overrides; show for halfday/none
-      const activeNow = wasActive ? null : type;
-      const hideTime = activeNow === 'holiday' || activeNow === 'leave';
-      el('deTimeWrap')?.classList.toggle('hidden', hideTime);
-      // Show/hide optional note field
-      el('deNoteWrap')?.classList.toggle('visible', !!activeNow);
+    // ── Update Entry sheet (#34, approved 2026-11-14) ──
+    // Day type = one segmented control with the app's day-type icons and colours
+    // (DAY_TYPES + WK_ICON). Full Day = no override; Leave / Holiday hide the times.
+    const _DE_NOTE_LABEL = { fullday: 'Note', halfday: 'Why a half day?', leave: 'Reason for leave', holiday: 'Which holiday?' };
+    function _deTypeInit() {
+      el('deType')?.querySelectorAll('[data-type]').forEach(b => {
+        const t = DAY_TYPES[b.dataset.type];
+        b.innerHTML = wkSvg(t.icon) + `<span>${t.label}</span>`;
+        if (t.tone) b.style.setProperty('--dt', `var(--${t.tone})`);
+        b.addEventListener('click', () => _deSetType(b.dataset.type));
+      });
+      el('deType')?.addEventListener('keydown', e => {
+        if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+        const all = [...el('deType').querySelectorAll('[data-type]')], i = all.findIndex(x => x.classList.contains('active'));
+        const n = all[(i + (e.key === 'ArrowRight' ? 1 : all.length - 1)) % all.length];
+        e.preventDefault(); _deSetType(n.dataset.type); n.focus();
+      });
+    }
+    function _deSetType(type, instant) {
+      const row = el('deType'); if (!row) return;
+      let on = null;
+      row.querySelectorAll('[data-type]').forEach(b => {
+        const a = b.dataset.type === type;
+        b.classList.toggle('active', a); b.setAttribute('aria-checked', String(a)); b.tabIndex = a ? 0 : -1;
+        if (a) on = b;
+      });
+      // The selection glides to the picked type (uiarc segmented control).
+      const pill = row.querySelector('.de-type-pill');
+      if (pill && on) {
+        if (instant) pill.style.transition = 'none';
+        pill.style.width = on.offsetWidth + 'px';
+        pill.style.transform = `translateX(${on.offsetLeft}px)`;
+        if (instant) requestAnimationFrame(() => { pill.style.transition = ''; });
+      }
+      el('deTimeWrap')?.classList.toggle('hidden', type === 'leave' || type === 'holiday');
+      if (!_isWkndNoteModal && el('deNoteLabel')) el('deNoteLabel').textContent = _DE_NOTE_LABEL[type] || 'Note';
+      _deUpdateLive();
+    }
+    function setDeOverride(type) { _deSetType(type); }
+    // The live line under the times: what this entry adds up to.
+    function _deLiveLine(dayName, type, secs, daily) {
+      if (type === 'leave' || type === 'holiday') return 'No hours for a day off. Your week adjusts.';
+      const hm = v => { const m = Math.round(v / 60); return `${Math.floor(m / 60)}h ${p2(m % 60)}m`; };
+      if (secs > 0) return `That makes ${dayName} ${hm(secs)}`;
+      if (type === 'halfday') return `Counts as ${hm(daily / 2)} toward your week.`;
+      return '';
+    }
+    function _deUpdateLive() {
+      const out = el('deLive'); if (!out) return;
+      const key = _dayEditKey || todayKey(), type = el('deType')?.querySelector('.active')?.dataset.type || 'fullday';
+      const s = parse(el('deStart').value || ''), e = parse(el('deEnd').value || '');
+      let secs = 0;
+      if (s && e) { const eAdj = e <= s ? new Date(e.getTime() + 864e5) : e; secs = Math.floor((eAdj - s) / 1000); }
+      out.textContent = _isWkndNoteModal ? '' : _deLiveLine(FULL_DAYS_EN[new Date(key + 'T12:00').getDay()], type, secs, cfg().dailyH * 3600);
+    }
+    // Raise Dispute: what 5pm recorded for the day goes in the email.
+    function _deRecordedText(inT, outT, secs) {
+      const hm = v => { const m = Math.round(v / 60); return `${Math.floor(m / 60)}h ${p2(m % 60)}m`; };
+      if (inT && outT && outT !== '—') return `${inT} – ${outT}${secs > 0 ? ' · ' + hm(secs) : ''}`;
+      if (inT) return `Started ${inT}, no end time`;
+      return 'No times for this day';
+    }
+    function _deFillRecorded(log) {
+      const box = el('deRecorded'); if (!box) return;
+      const l = log || {};
+      box.innerHTML = '<span>5pm recorded</span><b></b>';
+      box.querySelector('b').textContent = _deRecordedText(_loginDisplayFromLog(l), _checkoutDisplayFromLog(l), Math.round((l.hoursWorked || 0) * 3600));
     }
 
     // ── Export all logs as a local JSON file ───────────
@@ -7937,11 +8363,21 @@ Kind regards,
       _scheduleIdleSync();
     }
 
+    // A settings change goes up within a couple of seconds (not the 20 s idle
+    // sync), and is remembered on this device until the cloud has it. Without
+    // that, closing the app right after a change lost it, and the next launch's
+    // pull put the old value back (Smart Timings "turning itself back on").
+    const CFG_UNSENT_KEY = 'wh_cfg_unsent';
+    let _cfgSyncTimer = null;
     function _markCfgDirty() {
       if (_applyingRemote) return;
       _dirtyCfg = true;
+      if (!DEV_SAMPLE) { try { localStorage.setItem(CFG_UNSENT_KEY, String(Date.now())); } catch {} }
+      if (_cfgSyncTimer) clearTimeout(_cfgSyncTimer);
+      _cfgSyncTimer = setTimeout(() => { _cfgSyncTimer = null; _flushSync({ silent: true }); }, 1500);
       _scheduleIdleSync();
     }
+    function _cfgUnsent() { try { return localStorage.getItem(CFG_UNSENT_KEY); } catch { return null; } }
 
     function _hasPending() {
       return _dirtyDays.size > 0 || _dirtyCfg;
@@ -7983,8 +8419,11 @@ Kind regards,
       }
       // Settings push
       if (cfgDirty) {
+        const unsentAt = _cfgUnsent();
         const ok = await SbSync.pushSettings(cfg());
         if (!ok) { failed = true; _lastFailedCfg = true; }
+        // Clear the marker only if nothing changed while this push was in flight.
+        else if (unsentAt && _cfgUnsent() === unsentAt) { try { localStorage.removeItem(CFG_UNSENT_KEY); } catch {} }
       }
 
       _syncInFlight = false;
@@ -8530,6 +8969,7 @@ Kind regards,
       } else if (activeOverride === 'holiday' || activeOverride === 'leave') {
         if (_isFutureDay) {
           saveDayLogAndSync(key, { ...ex, futurePlan: activeOverride, ...(_deNoteVal ? { futureReason: _deNoteVal } : { futureReason: null }) });
+          setTimeout(() => _payrollCheck('dayoff', key), 0);   // Penalty Reminders, rung 1
         } else {
           saveDayLogAndSync(key, { ...ex, hoursWorked: 0, override: activeOverride, sessionTag: 'edited', ...(_deNoteVal ? { note: _deNoteVal } : { note: null }) });
         }
@@ -8851,36 +9291,6 @@ Kind regards,
     }
 
 
-    // ── RESUME SHIFT ────────────────────────────────────
-    function resumeShift() {
-      const now = new Date();
-      const tk  = todayKey();
-      const prevLog = dayLog(tk);
-      // Guard: only resume if the paused session belongs to today
-      if (!prevLog || prevLog.sessionDate !== tk) {
-        return;
-      }
-      const midnight = new Date(); midnight.setHours(23,59,59,999);
-      if (now >= midnight) return;
-      // Restore accumulated hours — don't restart from zero
-      if (_sessionAccSecs === 0 && prevLog.hoursWorked != null) {
-        _sessionAccSecs = Math.round(prevLog.hoursWorked * 3600);
-      }
-      loginDate = now; wasDone = false; notifSent = false; autoStopped = false;
-      setCalcBtnState('running');
-      el('shiftInputRow').classList.add('active-state');
-      el('shiftActiveLabel').textContent = `Resumed · ${dur(_sessionAccSecs)} prior`;
-      el('autostopBanner').classList.remove('show');
-      // Running again, so the pause's end time goes (see _writeLiveLog).
-      const { checkoutDisplay: _pauseEnd, checkoutTime: _pauseEndTime, ...resumed } = prevLog;
-      saveDayLogAndSync(tk, { ...resumed, sessionTag: 'realtime', autostopped: false, lastUpdated: now.toISOString() });
-      persistSession();
-      scheduleNotifications(loginDate.toISOString()); // reschedule on resume
-      _startCheckpoint(); // periodic sync while session active
-      selectDay(tk); render();
-      if (ticker) clearInterval(ticker);
-      ticker = setInterval(render, 1000);
-    }
 
     // ── THEME ──────────────────────────────────────────
     const _faviconLight = '/icons/favicon-light.svg';
@@ -9031,16 +9441,17 @@ Kind regards,
       });
       _placeThemeRing();
     }
-    // The ring glides to the chosen card. Measured, so it follows the grid / list
+    // The selection fill glides to the chosen card. Measured, so it follows the grid / list
     // switch; placed without animation the first time it becomes visible.
     let _themeRingShown = false;
     function _placeThemeRing() {
       const wrap = el('themeTabs'), ring = wrap?.querySelector('.rc-ring'), on = wrap?.querySelector('.rc-card.active');
       if (!ring || !on || !on.offsetWidth) return;   // Settings not on screen yet
       if (!_themeRingShown) wrap.classList.add('no-anim');
-      ring.style.transform = `translate(${on.offsetLeft - 3}px, ${on.offsetTop - 3}px)`;
-      ring.style.width = on.offsetWidth + 6 + 'px';
-      ring.style.height = on.offsetHeight + 6 + 'px';
+      // The fill sits exactly behind the chosen card (it used to be a ring around it).
+      ring.style.transform = `translate(${on.offsetLeft}px, ${on.offsetTop}px)`;
+      ring.style.width = on.offsetWidth + 'px';
+      ring.style.height = on.offsetHeight + 'px';
       wrap.classList.add('ringed');
       if (!_themeRingShown) { _themeRingShown = true; void wrap.offsetWidth; wrap.classList.remove('no-anim'); }
     }
@@ -9105,7 +9516,6 @@ Kind regards,
       pending.forEach(n => addDismissed(n.id));
       renderNotifs();
     });
-    el('penaltyClearAll').addEventListener('click', clearAllPenalties);
     ['inpDailyH','inpDailyM'].forEach(id => {
       el(id)?.addEventListener('change', autoSaveSettings);
       el(id)?.addEventListener('input', autoSaveSettings);
@@ -9247,8 +9657,8 @@ Kind regards,
       el('deEditPane').hidden = which !== 'edit';
       el('deDisputePane').hidden = which !== 'dispute';
       // The title names the tab you're on.
-      const t = el('dayEditTitle');
-      t.textContent = which === 'dispute' ? 'Raise Dispute' : (t.dataset.editTitle || 'Update Entry');
+      const t = el('dayEditDesc');
+      t.textContent = which === 'dispute' ? 'Ask HR to fix this day.' : (t.dataset.editDesc || '');
       el('dayEditDeleteBtn').style.visibility = which === 'edit' && _deCanDelete ? '' : 'hidden';
     }
     el('deTabs').addEventListener('click', e => { const b = e.target.closest('[data-de-tab]'); if (b) _deTab(b.dataset.deTab); });
@@ -9497,6 +9907,17 @@ Kind regards,
     // Day edit modal
     el('dayEditSave').addEventListener('click', saveDayEditModal);
     el('dayEditCancel').addEventListener('click', closeDayEditModal);
+    _deTypeInit();
+    _scInit();
+    _bkInit();
+    ['deStart', 'deEnd'].forEach(id => el(id).addEventListener('input', _deUpdateLive));
+    // Phones: a bottom sheet that follows your finger; the body scrolls, the
+    // footer stays pinned (#34).
+    window.Sheet?.attach(el('dayEditOverlay').querySelector('.dialog'), {
+      close: closeDayEditModal,
+      scroller: () => el('dayEditOverlay').querySelector('.de-pane:not([hidden]) .de-body'),
+      isOpen: () => el('dayEditOverlay').classList.contains('open'),
+    });
     el('dayEditOverlay').addEventListener('click', e => { if (e.target === el('dayEditOverlay')) closeDayEditModal(); });
     // Desktop sheet: a round close button (Cancel is hidden there) and Esc.
     (() => {
@@ -9515,7 +9936,9 @@ Kind regards,
 
     // End Session modal
     el('endSessionCancelBtn').addEventListener('click', () => el('endSessionOverlay').classList.remove('open'));
-    el('endSessionConfirmBtn').addEventListener('click', confirmEndSession);
+    // The "Leave early?" sheet already showed the hours and what's left, and the
+    // Home summary line keeps them: no second sheet after it (same as Done → End).
+    el('endSessionConfirmBtn').addEventListener('click', () => { _skipDaySummary = true; confirmEndSession(); });
     el('endSessionOverlay').addEventListener('click', e => { if (e.target === el('endSessionOverlay')) el('endSessionOverlay').classList.remove('open'); });
 
     // Toast undo button
@@ -9551,9 +9974,11 @@ Kind regards,
     function _openDayDone(workedSecs) {
       const hero = el('dtrHero'); hero.innerHTML = hero.innerHTML;   // replays the pop and the drawn check
       el('dtrTitle').textContent = `That's your ${durWorked(workedSecs)}.`;
+      // Same facts as the Today card's Clock tab, plus today's total (a daily
+      // modal, so no week figure): Started · Done at · Total.
       el('dtrStart').textContent = _dayStartDisplay();
+      el('dtrDoneAt').textContent = loginDate ? short(_leaveAt(effSecs())) : short(new Date());
       el('dailyTargetHours').textContent = durWorked(workedSecs);
-      el('dtrWeek').textContent = durWorked(_weekWorkedSecs(workedSecs));
       el('dailyTargetReachedOverlay').classList.add('open');
     }
     // Phones: the Apple-style sheets follow your finger; pulling one down does what
@@ -9731,7 +10156,6 @@ Kind regards,
         closeWeekReport();
         closeDeleteModal();
         closeUpwdModal?.();
-        closeFpModal?.();
         closeSupportModal?.();
         closeImportModal?.();
         closeAutoStopRecovery?.();
@@ -9770,7 +10194,7 @@ Kind regards,
       const parts = ['<span class="qs-capsule">' + modLabel + '</span>'];
       if (sc.shift) parts.push('<span class="qs-capsule">Shift</span>');
       parts.push('<span class="qs-capsule">' + keyLabel + '</span>');
-      const sep = '<span style="color:var(--muted-fg);font-size:11px;font-weight:400;padding:0 1px">+</span>';
+      const sep = '<span style="color:var(--muted-fg);font-size:12px;font-weight:400;padding:0 1px">+</span>';
       disp.innerHTML = '<span style="display:inline-flex;align-items:center;gap:3px">' + parts.join(sep) + '</span>';
       _updateQsResetBtn(true);
     }
@@ -9792,7 +10216,7 @@ Kind regards,
       if (e.repeat) return;
       if (['Control', 'Meta', 'Alt', 'Shift'].includes(e.key)) {
         const disp = el('qsShortcutDisplay');
-        if (disp) disp.innerHTML = '<span style="color:var(--muted-fg);font-size:11px">Press Ctrl, Cmd, or Alt, then type a key.</span>';
+        if (disp) disp.innerHTML = '<span style="color:var(--muted-fg);font-size:12px">Press Ctrl, Cmd, or Alt, then type a key.</span>';
         return;
       }
       if (!e.ctrlKey && !e.metaKey && !e.altKey) {
@@ -9861,13 +10285,6 @@ Kind regards,
       if (free) free.placeholder = label;
       const ph = el('tc-r7m2-ph');
       if (ph && !ph.classList.contains('tc-ph-has-val')) ph.textContent = label;
-    }
-    function _tcActivate() {
-      const ph = el('tc-r7m2-ph'), inp = el('tc-r7m2');
-      if (!ph || !inp) return;
-      ph.style.display = 'none';
-      inp.style.display = '';
-      inp.focus();
     }
     function _tcDeactivate() {
       const ph = el('tc-r7m2-ph'), inp = el('tc-r7m2');
@@ -9976,287 +10393,6 @@ Kind regards,
 
     // ── ONBOARDING ──────────────────────────────────
     const OB_DONE_KEY = 'wh_ob_done';
-    let _obStep = 1;
-    let _obIsWeekly = false;
-
-    function obSwitchTab(tab) {
-      _obIsWeekly = tab === 'weekly';
-      el('obTabDaily').classList.toggle('active', !_obIsWeekly);
-      el('obTabWeekly').classList.toggle('active', _obIsWeekly);
-      const lbl = el('obTargetLabel');
-      if (lbl) lbl.textContent = _obIsWeekly ? 'Weekly Target' : 'Daily Target';
-      updateObWeeklyCalc();
-    }
-
-    function updateObWeeklyCalc() {
-      const info = el('obWeeklyCalcInfo'); if (!info) return;
-      const dh = parseFloat(el('obDailyH')?.value) || 0;
-      const dm = parseFloat(el('obDailyM')?.value) || 0;
-      const days = parseInt(el('obWorkDays')?.value || '5', 10) || 5;
-      const isWeekly = _obIsWeekly;
-      const totalMins = (dh * 60 + dm) * days;
-      const wh = Math.floor(totalMins / 60);
-      const wm = totalMins % 60;
-      if (isWeekly) {
-        info.textContent = `Based on ${dh}h${dm ? ' ' + dm + 'm' : ''} daily × ${days} days, that's ${wh}h${wm ? ' ' + wm + 'm' : ''} weekly.`;
-      } else {
-        info.textContent = `That's ${wh}h${wm ? ' ' + wm + 'm' : ''} weekly (${days} working days).`;
-      }
-      // Sync hidden weekly fields so obSaveStep3 can read them
-      const whi = el('obWeeklyH'); if (whi) whi.value = wh;
-      const wmi = el('obWeeklyM'); if (wmi) wmi.value = wm;
-    }
-
-    function obAnimateTo(step, dir) {
-      const dialog = document.querySelector('.ob-dialog');
-      const currentH = dialog ? dialog.offsetHeight : 0;
-
-      // Deactivate all panels
-      [1,2,3,4].forEach(s => {
-        const p = el('obPanel' + s);
-        if (p) p.classList.remove('active', 'dir-back');
-      });
-
-      // Activate target panel
-      const incoming = el('obPanel' + step);
-      if (!incoming) return;
-      if (dir < 0) incoming.classList.add('dir-back');
-      incoming.classList.add('active');
-
-      // Animate dialog height
-      if (dialog) {
-        const newH = dialog.offsetHeight;
-        if (newH !== currentH && currentH > 0) {
-          dialog.style.height = currentH + 'px';
-          dialog.style.overflow = 'hidden';
-          dialog.style.transition = 'height .3s ease';
-          requestAnimationFrame(() => {
-            dialog.style.height = newH + 'px';
-            setTimeout(() => {
-              dialog.style.height = '';
-              dialog.style.overflow = '';
-              dialog.style.transition = '';
-            }, 320);
-          });
-        }
-      }
-    }
-
-    function obUpdateSteps(step, dir) {
-      // Instagram Stories stepper
-      for (let i = 1; i <= 4; i++) {
-        const seg = el('obSeg' + i);
-        if (!seg) continue;
-        seg.classList.remove('done', 'current');
-        if (i < step) seg.classList.add('done');
-        else if (i === step) seg.classList.add('current');
-      }
-      el('obBackBtn').style.visibility = step > 1 ? 'visible' : 'hidden';
-      const nextBtn = el('obNextBtn');
-      if (step === 4) nextBtn.textContent = 'Done';
-      else nextBtn.textContent = 'Next Step';
-      el('obSkipBtn').style.display = step === 4 ? 'none' : '';
-      obAnimateTo(step, dir != null ? dir : 1);
-    }
-
-    function obSaveStep2() {
-      const name = (el('obDisplay')?.value || '').trim();
-      const company = (el('obCompany')?.value || '').trim();
-      const position = (el('obPosition')?.value || '').trim();
-      const c = cfg();
-      saveCfg({ ...c, name, company, position });
-    }
-
-    function obBuildStep3Pickers() {
-      const days = parseInt(el('obWorkDays')?.value || '5', 10) || 5;
-      const names = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'].slice(0, days);
-      const earlyPicker = el('obEarlyPicker');
-      if (earlyPicker) {
-        const prev = [...earlyPicker.querySelectorAll('.plan-btn.selected')].map(b => +b.dataset.oday);
-        earlyPicker.innerHTML = names.map((n,i) =>
-          `<button type="button" class="plan-btn${prev.includes(i+1)?' selected':''}" data-oday="${i+1}">${n}</button>`
-        ).join('');
-        earlyPicker.querySelectorAll('[data-oday]').forEach(b => b.addEventListener('click', () => b.classList.toggle('selected')));
-      }
-      const latePicker = el('obLatePicker');
-      if (latePicker) {
-        const prev = [...latePicker.querySelectorAll('.plan-btn.selected')].map(b => +b.dataset.lday);
-        latePicker.innerHTML = names.map((n,i) =>
-          `<button type="button" class="plan-btn${prev.includes(i+1)?' selected':''}" data-lday="${i+1}">${n}</button>`
-        ).join('');
-        latePicker.querySelectorAll('[data-lday]').forEach(b => b.addEventListener('click', () => b.classList.toggle('selected')));
-      }
-    }
-
-    function obPopulateStep3Days() {
-      updateObWeeklyCalc();
-    }
-
-    function obSaveStep3() {
-      const c = cfg();
-      const shiftStart = (el('obShiftStart')?.value || '09:00 AM').trim();
-      const shiftEnd = (el('obShiftEnd')?.value || '06:00 PM').trim();
-      const shiftType = deriveShiftType(shiftStart);
-      const dh = parseInt(el('obDailyH')?.value, 10) || 9;
-      const dm = parseInt(el('obDailyM')?.value, 10) || 0;
-      const dailyH = dh + dm / 60;
-      const wh = parseInt(el('obWeeklyH')?.value, 10) || 45;
-      const wm = parseInt(el('obWeeklyM')?.value, 10) || 0;
-      const weeklyH = wh + wm / 60;
-      const weeklyOn = _obIsWeekly;
-      const workDays = parseInt(el('obWorkDays')?.value || '5', 10) || 5;
-      saveCfg({ ...c, shiftStart, shiftEnd, shiftType, dailyH, weeklyH, weeklyOn, workDays });
-    }
-
-    function obPopulateWeekPanel() {
-      const wk = week(0), tk = todayKey();
-      const rows = el('obWpDayRows');
-      if (rows) { rows.innerHTML = _wpDayRowsHtml(wk, tk, 'obWpSel'); rows.onchange = _wpOnChange; window.MenuSelect?.enhance(rows); }
-    }
-
-    function obSaveWeekPanel() {
-      // Day overrides are saved live via wpSetOverride; nothing extra to save here
-    }
-
-    function obStep(dir) {
-      if (_obStep === 2 && dir === 1) obSaveStep2();
-      if (_obStep === 3 && dir === 1) obSaveStep3();
-      if (_obStep === 4 && dir === 1) { obFinish(); return; }
-      const prev = _obStep;
-      _obStep = Math.max(1, Math.min(4, _obStep + dir));
-      if (_obStep !== prev) {
-        if (_obStep === 3) obPopulateStep3Days();
-        obUpdateSteps(_obStep, dir);
-      }
-    }
-
-    function obSkip() {
-      obFinish();
-    }
-
-    // ── Forgot Password ──────────────────────────────────────────────────────
-    let _fpTimer = null, fpExpired = false;
-    function openFpModal() {
-      el('fpOverlay').classList.add('open');
-      el('fpViewEmail').style.display = '';
-      el('fpViewOTP').style.display = 'none';
-      el('fpEntry').value = '';
-      el('fpEntry').setAttribute('inputmode', 'email'); // set only when modal opens — not on page load
-      el('fpEmailErr').classList.remove('show');
-    }
-    function closeFpModal() {
-      el('fpOverlay').classList.remove('open');
-      if (_fpTimer) { clearInterval(_fpTimer); _fpTimer = null; }
-    }
-    function fpSendEmail() {
-      const email = el('fpEntry').value.trim();
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-        el('fpEmailErr').classList.add('show'); return;
-      }
-      el('fpEmailErr').classList.remove('show');
-      // Loading state on button during simulated send
-      const btn = el('fpSendEmailBtn');
-      const origText = btn.textContent;
-      btn.disabled = true;
-      btn.textContent = 'Sending…';
-      btn.style.opacity = '0.7';
-      // Simulate async email send — timer starts ONLY after this resolves
-      setTimeout(() => {
-        btn.disabled = false;
-        btn.textContent = origText;
-        btn.style.opacity = '';
-        el('fpEmailDisplay').textContent = email;
-        el('fpViewEmail').style.display = 'none';
-        el('fpViewOTP').style.display = '';
-        el('fpOtpInput').value = '';
-        el('fpOtpInput').disabled = false;
-        el('fpVerifyBtn').disabled = true;
-        el('fpExpiredMsg').style.display = 'none';
-        el('fpTimerWrap').style.display = '';
-        fpExpired = false;
-        fpStartTimer(60);
-      }, 800);
-    }
-    function fpStartTimer(secs) {
-      if (_fpTimer) clearInterval(_fpTimer);
-      let remaining = secs;
-      const fmt = s => Math.floor(s/60)+':'+(String(s%60).padStart(2,'0'));
-      el('fpTimerDisplay').textContent = fmt(remaining);
-      _fpTimer = setInterval(() => {
-        remaining--;
-        if (remaining <= 0) {
-          clearInterval(_fpTimer); _fpTimer = null;
-          fpExpired = true;
-          el('fpTimerWrap').style.display = 'none';
-          el('fpExpiredMsg').style.display = '';
-          el('fpVerifyBtn').disabled = true;
-          el('fpOtpInput').disabled = true;
-        } else {
-          el('fpTimerDisplay').textContent = fmt(remaining);
-        }
-      }, 1000);
-    }
-    function fpResend() {
-      fpExpired = false;
-      el('fpOtpInput').disabled = false;
-      el('fpOtpInput').value = '';
-      el('fpVerifyBtn').disabled = true;
-      el('fpExpiredMsg').style.display = 'none';
-      el('fpTimerWrap').style.display = '';
-      fpStartTimer(60);
-    }
-    function fpBackToEmail() {
-      if (_fpTimer) { clearInterval(_fpTimer); _fpTimer = null; }
-      el('fpViewEmail').style.display = '';
-      el('fpViewOTP').style.display = 'none';
-      el('fpViewAuth').style.display = 'none';
-    }
-    function fpVerify() {
-      closeFpModal();
-      showToast('Verification pending', 'info', 'Integration Error');
-    }
-    function openAuthView() {
-      el('fpViewEmail').style.display = 'none';
-      el('fpViewOTP').style.display = 'none';
-      el('fpViewAuth').style.display = '';
-      const digits = ['authD0','authD1','authD2','authD3','authD4','authD5'].map(id => el(id));
-      digits.forEach(d => { d.value = ''; d.disabled = false; });
-      el('authVerifyBtn').disabled = true;
-      digits[0].focus();
-    }
-    function authVerify() {
-      closeFpModal();
-      showToast('Authenticator pending', 'info', 'Integration Error');
-    }
-    function _initAuthDigits() {
-      const ids = ['authD0','authD1','authD2','authD3','authD4','authD5'];
-      const digits = ids.map(id => el(id));
-      const update = () => { el('authVerifyBtn').disabled = !digits.every(d => /^\d$/.test(d.value)); };
-      digits.forEach((inp, i) => {
-        inp.addEventListener('input', () => {
-          inp.value = inp.value.replace(/\D/g,'').slice(-1);
-          if (inp.value && i < 5) digits[i+1].focus();
-          update();
-        });
-        inp.addEventListener('keydown', e => {
-          if (e.key === 'Backspace') {
-            if (!inp.value && i > 0) { digits[i-1].focus(); digits[i-1].value = ''; e.preventDefault(); }
-            else if (inp.value) { inp.value = ''; e.preventDefault(); }
-            update();
-          } else if (e.key === 'ArrowLeft' && i > 0) digits[i-1].focus();
-          else if (e.key === 'ArrowRight' && i < 5) digits[i+1].focus();
-        });
-        inp.addEventListener('paste', e => {
-          e.preventDefault();
-          const txt = (e.clipboardData || window.clipboardData).getData('text').replace(/\D/g,'');
-          digits.forEach((d, j) => { d.value = txt[j] || ''; });
-          digits[Math.min(txt.length - 1, 5)].focus();
-          update();
-        });
-        inp.addEventListener('click', () => inp.select());
-      });
-    }
-    _initAuthDigits();
 
     // ── Sign-In Methods ──────────────────────────────────────────────────────
     // Everything Security shows is fetched at once and swapped in one step, and
@@ -10343,16 +10479,6 @@ Kind regards,
         // Keep rows already on screen; only an empty list shows the error.
         if (!list.querySelector('.sim-row')) list.innerHTML = '<div style="font-size:13px;color:var(--muted-fg)">Failed to load sign-in methods.</div>';
       }
-    }
-
-    function _simRelativeTime(dateStr) {
-      if (!dateStr) return null;
-      var diff = Math.floor((Date.now() - new Date(dateStr)) / 1000);
-      if (diff < 60) return 'just now';
-      if (diff < 3600) return 'updated ' + Math.floor(diff / 60) + 'm ago';
-      if (diff < 86400) return 'updated ' + Math.floor(diff / 3600) + 'h ago';
-      var days = Math.floor(diff / 86400);
-      return 'last updated ' + days + ' day' + (days === 1 ? '' : 's') + ' ago';
     }
 
     // "Changed 5 days ago" for the Password row.
@@ -10556,7 +10682,7 @@ Kind regards,
         '<div class="dev-left"><div class="dev-icon">' + _PK_ICON + '</div><div class="dev-info">' +
           '<input class="dev-name" type="text" maxlength="60" spellcheck="false" autocomplete="off" data-lpignore="true" data-1p-ignore="true" aria-label="Passkey name">' +
           '<div class="dev-sub"></div></div></div>' +
-        '<button class="btn-ghost-destructive" style="flex-shrink:0;font-size:12px;height:30px;padding:0 12px">Remove</button>';
+        '<button class="btn-danger-2 sm">Remove</button>';
       const name = row.querySelector('.dev-name');
       name.value = k.friendly_name || 'Passkey';
       const d = new Date(k.created_at);
@@ -10594,10 +10720,13 @@ Kind regards,
       return row;
     }
 
+    // Destructive button loading state (#43): spinner + the label, e.g. "Logging Out".
+    function _btnBusy(btn, label) { if (!btn) return; btn.disabled = true; btn.setAttribute('aria-busy', 'true'); btn.textContent = label; }
+    function _btnIdle(btn, label) { if (!btn) return; btn.disabled = false; btn.removeAttribute('aria-busy'); btn.textContent = label; }
     async function confirmRemovePasskey() {
       if (!_pkRemoving) return;
       const btn = el('pkRemoveBtn');
-      btn.disabled = true; btn.textContent = 'Removing…';
+      _btnBusy(btn, 'Removing');
       try {
         const { error } = await window._sbClient.auth.passkey.delete({ passkeyId: _pkRemoving.id });
         if (error) throw error;
@@ -10607,7 +10736,7 @@ Kind regards,
       } catch (e) {
         showToast("Couldn't Remove Passkey", 'error', e.message || 'Please try again.');
       }
-      btn.disabled = false; btn.textContent = 'Remove';
+      _btnIdle(btn, 'Remove');
     }
 
     async function addPasskey() {
@@ -10687,7 +10816,7 @@ Kind regards,
       const err  = el('createPwdErr');
       const btn  = el('createPwdBtn');
       const showErr = (msg) => { if (err) { err.textContent = msg; err.style.display = ''; } };
-      if (pwd.length < 6) { showErr('Password must be at least 6 characters.'); return; }
+      if (pwd.length < 8) { showErr('Use at least 8 characters for your password.'); return; }
       if (pwd !== conf)   { showErr('Passwords do not match.'); return; }
       if (err) { err.style.display = 'none'; }
       btn.disabled = true; btn.textContent = 'Setting…'; btn.style.opacity = '.7';
@@ -10718,7 +10847,7 @@ Kind regards,
       });
     }
     function _mfaShowView(id) {
-      ['mfaViewSetup','mfaViewVerifying','mfaViewBackup','mfaViewSuccess','mfaViewManage','mfaViewDisable']
+      ['mfaViewSetup','mfaViewVerifying','mfaViewBackup','mfaViewSuccess','mfaViewManage','mfaViewDisable','mfaViewLow','mfaViewRegen']
         .forEach(v => { const e = el(v); if (e) e.style.display = v === id ? '' : 'none'; });
       const head = el(id)?.querySelector('.dialog-head'), page = el('pageMfa');
       if (!page) return;
@@ -10728,7 +10857,7 @@ Kind regards,
     }
     function closeMfaModal() {
       closeSetPage();
-      const db = el('mfaDisableBtn'); if (db) { db.disabled = false; db.textContent = 'Disable'; }
+      _btnIdle(el('mfaDisableBtn'), 'Disable');
     }
     function _mfaSetupError(msg) {
       const e = el('mfaSetupErr'); if (e) { e.textContent = msg; e.style.display = ''; }
@@ -10762,7 +10891,7 @@ Kind regards,
     function _renderBackupCodes(codes) {
       const grid = el('mfaCodesGrid'); if (!grid) return;
       grid.innerHTML = '';
-      codes.forEach(c => { const d = document.createElement('div'); d.className = 'mfa-code'; d.textContent = c; grid.appendChild(d); });
+      codes.forEach(c => { const d = document.createElement('li'); d.textContent = c; grid.appendChild(d); });
     }
 
     async function openMfaSetup() {
@@ -10805,7 +10934,7 @@ Kind regards,
           _mfaBackupCodes = _genBackupCodes();
           await _storeBackupCodes(_mfaBackupCodes);
           _renderBackupCodes(_mfaBackupCodes);
-          _mfaShowView('mfaViewBackup');
+          _bkShowSave();
         } catch(storeErr) {
           // Factor is live, but codes failed to save — warn and continue
           showToast("Backup codes not saved", 'error', 'Two-factor is on, but save backup codes failed. Regenerate later.');
@@ -10821,20 +10950,97 @@ Kind regards,
 
     function mfaShowSuccess() { _mfaShowView('mfaViewSuccess'); }
 
-    function _copyBackupCodes() {
-      navigator.clipboard?.writeText(_mfaBackupCodes.join('\n'));
-      const lbl = el('mfaCopyLabel');
-      if (lbl) { lbl.textContent = 'Copied'; setTimeout(() => lbl.textContent = 'Copy', 1600); }
+    // ── Backup codes screens (#8 design) ──
+    // Save: numbered list, Copy / Download confirm with a drawn check and a
+    // tooltip (the label never changes), and Done unlocks once "I've saved my
+    // backup codes" is ticked. Running low: offered from the Home notice after a
+    // backup-code sign-in. Make new codes: the old ones stop working.
+    function _bkFile(codes, email) {
+      const d = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+      const rows = []; for (let i = 0; i < codes.length; i += 2) rows.push(`  ${String(i + 1).padStart(2)}.  ${codes[i]}      ${String(i + 2).padStart(2)}.  ${codes[i + 1] || ''}`);
+      return ['5pm backup codes', '', `Account   ${email || ''}`, `Made on   ${d}`, '',
+        'If you can’t use your authenticator app, each code signs you in once.', 'Keep this file somewhere safe, like a password manager.', '',
+        ...rows, '', 'Used some? Make new codes in 5pm › Settings › Security.', ''].join('\r\n');
     }
-    function _downloadBackupCodes() {
-      const body = '5pm — Two-Factor Backup Codes\nSaved ' + new Date().toLocaleString() +
-        '\n\nEach code works once. Keep them somewhere safe.\n\n' + _mfaBackupCodes.join('\n') + '\n';
-      const blob = new Blob([body], { type: 'text/plain' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url; a.download = '5pm-backup-codes.txt';
+    function _bkConfirm(btn, text) {
+      const ic = btn.querySelector('.bk-ic'), keep = ic.innerHTML;
+      ic.innerHTML = '<svg class="ok" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
+      btn.querySelector('.bk-tip')?.remove();
+      const tip = document.createElement('span'); tip.className = 'bk-tip'; tip.setAttribute('role', 'status'); tip.textContent = text;
+      btn.appendChild(tip); requestAnimationFrame(() => tip.classList.add('on'));
+      clearTimeout(btn._bkT); btn._bkT = setTimeout(() => { tip.remove(); ic.innerHTML = keep; }, 1600);
+    }
+    function _copyBackupCodes() {
+      navigator.clipboard?.writeText(_mfaBackupCodes.join('\n')).then(() => _bkConfirm(el('bkCopyBtn'), 'Codes copied'), () => {});
+    }
+    async function _downloadBackupCodes() {
+      let email = ''; try { email = (await window._sbClient.auth.getUser()).data?.user?.email || ''; } catch (_) {}
+      const url = URL.createObjectURL(new Blob([_bkFile(_mfaBackupCodes, email)], { type: 'text/plain' }));
+      const a = document.createElement('a'); a.href = url; a.download = '5pm-backup-codes.txt';
       document.body.appendChild(a); a.click(); a.remove();
       setTimeout(() => URL.revokeObjectURL(url), 1000);
+      _bkConfirm(el('bkDownloadBtn'), 'Saved as 5pm-backup-codes.txt');
+    }
+    function _bkShowSave() {
+      el('bkSaved').checked = false; el('bkDoneBtn').disabled = true;
+      _mfaShowView('mfaViewBackup');
+    }
+    let _bkFromRegen = false;
+    async function _bkRegen() {
+      const btn = el('bkRegenBtn'); _btnBusy(btn, 'Making Codes');
+      try {
+        _mfaBackupCodes = _genBackupCodes();
+        await _storeBackupCodes(_mfaBackupCodes);
+        _renderBackupCodes(_mfaBackupCodes);
+        _bkFromRegen = true;
+        try { localStorage.removeItem('wh_backup_left'); } catch (_) {}
+        renderNotifs();
+        _bkShowSave();
+      } catch (e) {
+        showToast("Couldn't Make New Codes", 'error', e.message || 'Please try again.');
+      } finally { _btnIdle(btn, 'Make New Codes'); }
+    }
+    // "N backup codes left" (manage view and the Running low view).
+    async function _bkLeft() {
+      try { const { data, error } = await window._sbClient.rpc('backup_codes_left'); return error ? null : data; } catch (_) { return null; }
+    }
+    function _bkLeftText(n) { return n === 1 ? '1 backup code left' : `${n} backup codes left`; }
+    async function openMfaLow() {
+      _mfaOpenPage();
+      const n = await _bkLeft();
+      if (n != null) el('bkLowTitle').textContent = _bkLeftText(n);
+      _mfaShowView('mfaViewLow');
+    }
+    // After a sign-in with a backup code (login.js sets 5pm_backup_used): keep
+    // the count for the Home notice ("You have N backup codes left").
+    async function _bkAfterBackupSignIn() {
+      let used = null; try { used = localStorage.getItem('5pm_backup_used'); } catch (_) {}
+      if (!used) return;
+      try { localStorage.removeItem('5pm_backup_used'); } catch (_) {}
+      const n = await _bkLeft();
+      if (n == null) return;
+      try { localStorage.setItem('wh_backup_left', String(n)); } catch (_) {}
+      renderNotifs();
+    }
+    function _bkNotice(n) {
+      if (!(n >= 0)) return null;
+      return { id: `backup-left-${n}`, type: n <= 2 ? 'warn' : 'info',
+        text: `You have ${_bkLeftText(n).replace(' left', '')} left.${n <= 2 ? ' Make new ones in Settings › Security.' : ''}`,
+        cta: 'Make new codes', ctaWeekKey: 'mfa:low' };
+    }
+    function _bkInit() {
+      el('bkCopyBtn')?.addEventListener('click', _copyBackupCodes);
+      el('bkDownloadBtn')?.addEventListener('click', _downloadBackupCodes);
+      el('bkSaved')?.addEventListener('change', e => { el('bkDoneBtn').disabled = !e.target.checked; });
+      el('bkDoneBtn')?.addEventListener('click', () => {
+        if (_bkFromRegen) { _bkFromRegen = false; closeMfaModal(); showToast('New Backup Codes Saved', 'success'); } else mfaShowSuccess();
+      });
+      el('bkLowMake')?.addEventListener('click', () => _mfaShowView('mfaViewRegen'));
+      el('bkLowLater')?.addEventListener('click', () => closeMfaModal());
+      el('bkRegenBtn')?.addEventListener('click', _bkRegen);
+      el('bkRegenCancel')?.addEventListener('click', () => { if (_mfaManageFactor) mfaShowManage(); else closeMfaModal(); });
+      el('mfaMakeCodes')?.addEventListener('click', () => _mfaShowView('mfaViewRegen'));
+      setTimeout(_bkAfterBackupSignIn, 1500);
     }
     let _mfaSecretResetTimer = null;
     function _copyMfaSecret() {
@@ -10852,11 +11058,13 @@ Kind regards,
       _mfaManageFactor = factor;
       _mfaOpenPage();
       _mfaShowView('mfaViewManage');
+      el('mfaLeft').textContent = '';
+      _bkLeft().then(n => { if (n != null && el('mfaLeft')) el('mfaLeft').innerHTML = `<b>${_bkLeftText(n)}</b> · each one signs you in once.`; });
     }
     function mfaShowManage() { _mfaShowView('mfaViewManage'); }
     function mfaShowDisable() { _mfaShowView('mfaViewDisable'); }
     async function mfaConfirmDisable() {
-      const btn = el('mfaDisableBtn'); btn.disabled = true; btn.textContent = 'Disabling…';
+      const btn = el('mfaDisableBtn'); _btnBusy(btn, 'Disabling');
       try {
         const fid = _mfaManageFactor?.id;
         if (fid) { const { error } = await window._sbClient.auth.mfa.unenroll({ factorId: fid }); if (error) throw error; }
@@ -10867,7 +11075,7 @@ Kind regards,
         showToast('Two-Factor Disabled', 'success', 'Authenticator app removed from your account.');
         hydrateSignInMethods();
       } catch(e) {
-        btn.disabled = false; btn.textContent = 'Disable';
+        _btnIdle(btn, 'Disable');
         showToast('Could not disable', 'error', e.message || 'Please try again.');
       }
     }
@@ -11252,9 +11460,9 @@ Kind regards,
       Promise.all([work, delay]).finally(() => {
         localStorage.removeItem('wh_auth');
         Object.keys(localStorage)
-          .filter(k => k.startsWith('wh_') && k !== 'wh_theme' && k !== DEV_ID_KEY && k !== IOS_SEEN_KEY)
+          .filter(k => k.startsWith('wh_') && k !== 'wh_theme' && k !== DEV_ID_KEY && k !== IOS_SEEN_KEY && k !== RATE_KEY)
           .forEach(k => localStorage.removeItem(k));
-        window.location.href = 'login.html';
+        window.location.href = 'login.html?reason=elsewhere';
       });
     }
 
@@ -11278,42 +11486,66 @@ Kind regards,
       const list = el('devList');
       if (!list) return;
       const othersWrap = el('devOthersWrap');
+      const page = el('pageDevices');
       // The last list stays up while the fresh one loads, then swaps in whole.
-      if (!list.children.length) list.innerHTML = '<div style="font-size:13px;color:var(--muted-fg)">Loading…</div>';
+      if (!list.children.length) list.innerHTML = '<div class="sl-msg">Loading…</div>';
       try {
         // Revoked entries stay in the map (so a rename survives) but are hidden —
         // they come back when that device signs in again.
         const rows = (await Devices.list()).filter(r => !r.revoked_at);
         const me = _deviceId();
         if (!rows.length) {
-          list.innerHTML = '<div style="font-size:13px;color:var(--muted-fg)">No devices yet.</div>';
+          list.innerHTML = '<div class="sl-msg">No devices yet.</div>';
           if (othersWrap) othersWrap.style.display = 'none';
           return;
         }
         rows.sort((a, b) => (b.device_id === me) - (a.device_id === me)); // current device first
-        list.replaceChildren(...rows.map(r => _devBuildRow(r, r.device_id === me)));
-        if (othersWrap) othersWrap.style.display = rows.some(r => r.device_id !== me) ? '' : 'none';
+        const mine = rows.filter(r => r.device_id === me), others = rows.filter(r => r.device_id !== me);
+        if (page) _setPageHead(page, 'Saved Logins', _devCountLine(rows.length));
+        const frag = [];
+        if (mine.length) frag.push(_slLabel('This device'), _devBuildRow(mine[0], true));
+        if (others.length) {
+          frag.push(_slLabel(`Other devices · ${others.length}`));
+          const grid = document.createElement('div');
+          grid.className = 'sl-grid';
+          grid.append(...others.map(r => _devBuildRow(r, false)));
+          frag.push(grid);
+        }
+        list.replaceChildren(...frag);
+        if (othersWrap) {
+          othersWrap.style.display = others.length ? '' : 'none';
+          if (others.length) _slHoldInit(el('devRevokeOthersBtn'), _devHoldLabel(others.length), devRevokeOthers);
+        }
       } catch (e) {
-        list.innerHTML = '<div style="font-size:13px;color:var(--muted-fg)">Couldn\'t load devices.</div>';
+        list.innerHTML = '<div class="sl-msg">Couldn\'t load devices.</div>';
         if (othersWrap) othersWrap.style.display = 'none';
       }
     }
+    // "You're signed in on 7 devices." / "… on 1 device."
+    function _devCountLine(n) { return `You're signed in on ${n} device${n === 1 ? '' : 's'}.`; }
+    function _devHoldLabel(n) { return n === 1 ? 'Hold to Log Out 1 Device' : `Hold to Log Out ${n} Devices`; }
+    // "5 hrs ago" → "5h ago", "12 mins ago" → "12m ago", "3 days ago" → "3d ago".
+    function _devAgoShort(iso) {
+      const t = _devAgo(iso);
+      return t.replace(/^(\d+) (min|hr|day)s? ago$/, (_, n, u) => n + ({ min: 'm', hr: 'h', day: 'd' })[u] + ' ago');
+    }
+    function _slLabel(text) { const d = document.createElement('div'); d.className = 'sl-label'; d.textContent = text; return d; }
 
+    // This device = a larger hero card; other devices = G1 tall cards in a
+    // 2-column grid (approved 2026-11-14). On a card, the time sits top-right
+    // and turns into Log Out on hover; on touch, Log Out is always there.
     function _devBuildRow(row, isCurrent) {
-      const rowEl = document.createElement('div');
-      rowEl.className = 'dev-row';
-
-      const left = document.createElement('div');
-      left.className = 'dev-left';
+      const card = document.createElement('div');
+      card.className = isCurrent ? 'sl-hero' : 'sl-card';
       const icon = document.createElement('div');
-      icon.className = 'dev-icon';
+      icon.className = 'sl-icon';
       icon.innerHTML = _devIcon(row.kind, row.platform);
       const info = document.createElement('div');
-      info.className = 'dev-info';
+      info.className = 'sl-info';
 
-      // Primary title — editable in place.
+      // The name stays editable in place.
       const nameInput = document.createElement('input');
-      nameInput.className = 'dev-name';
+      nameInput.className = 'dev-name sl-name';
       nameInput.type = 'text';
       nameInput.value = row.name || 'Device';
       nameInput.maxLength = 40;
@@ -11343,60 +11575,104 @@ Kind regards,
         if (e.key === 'Escape') { nameInput.value = last; nameInput.blur(); }
       });
 
-      // Secondary title — the platform's view. Not editable.
       const sub = document.createElement('div');
-      sub.className = 'dev-sub';
-      sub.textContent = row.platform || 'Unknown device';
+      sub.className = 'sl-sub';
+      sub.textContent = (row.platform || 'Unknown device') + (isCurrent ? ' · This device' : '');
+      info.append(nameInput, sub);
 
-      info.appendChild(nameInput);
-      info.appendChild(sub);
-      // Last activity sits under the platform line. Only for other devices:
-      // on the one you are using it is self-evident.
-      if (!isCurrent) {
-        const seen = document.createElement('div');
-        seen.className = 'dev-seen';
-        seen.textContent = _devAgo(row.last_seen_at);
-        if (seen.textContent) info.appendChild(seen);
-      }
-      left.appendChild(icon);
-      left.appendChild(info);
-      rowEl.appendChild(left);
-
-      const actions = document.createElement('div');
-      actions.className = 'dev-actions';
       if (isCurrent) {
-        const chip = document.createElement('span');
-        chip.className = 'dev-chip';
-        chip.textContent = 'This Device';
-        actions.appendChild(chip);
-      } else {
-        const btn = document.createElement('button');
-        btn.className = 'btn-ghost-destructive';
-        btn.style.cssText = 'flex-shrink:0;font-size:12px;height:30px;padding:0 12px';
-        btn.textContent = 'Log Out';
-        btn.addEventListener('click', () => devRevoke(row.device_id, row.name, btn));
-        actions.appendChild(btn);
+        const live = document.createElement('span');
+        live.className = 'sl-live';
+        live.innerHTML = '<i aria-hidden="true"></i>Active now';
+        card.append(icon, info, live);
+        return card;
       }
-      rowEl.appendChild(actions);
-      return rowEl;
+      const ago = _devAgoShort(row.last_seen_at);
+      if (ago) { const t = document.createElement('span'); t.className = 'sl-ago-t'; t.textContent = ' · ' + ago; sub.appendChild(t); }
+      const top = document.createElement('div');
+      top.className = 'sl-top';
+      const corner = document.createElement('div');
+      corner.className = 'sl-corner';
+      const time = document.createElement('span');
+      time.className = 'sl-time';
+      time.textContent = ago;
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'btn-danger-2 sm sl-out';
+      btn.textContent = 'Log Out';
+      btn.setAttribute('aria-label', 'Log out ' + (row.name || 'device'));
+      btn.addEventListener('click', () => devRevoke(row.device_id, row.name, btn));
+      corner.append(time, btn);
+      top.append(icon, corner);
+      card.append(top, info);
+      return card;
+    }
+
+    // Hold to confirm (adapted from uiarc hold-to-confirm, danger tone): the
+    // fill tracks a 1.2 s hold on a linear timeline; letting go early rewinds
+    // it; finishing runs the action. Space / Enter can be held too.
+    function _slHoldInit(btn, label, onConfirm, ms = 1200) {
+      if (!btn) return;
+      btn.dataset.label = label;
+      btn.setAttribute('aria-label', label);
+      const face = t => `<span class="sl-face">${t}</span>`;
+      btn.innerHTML = face(label) + `<span class="sl-fill" aria-hidden="true">${face(label)}</span>`;
+      btn.style.setProperty('--p', '0');
+      if (btn._hold) return;   // listeners once; the label refreshes above
+      let t0 = 0, raf = 0, holding = false, done = false;
+      const fill = () => btn.querySelector('.sl-fill');
+      const step = now => {
+        const p = Math.min(1, (now - t0) / ms);
+        btn.style.setProperty('--p', p.toFixed(4));
+        if (p < 1) { raf = requestAnimationFrame(step); return; }
+        holding = false; done = true;
+        btn.classList.remove('holding');
+        btn._holdDone();
+      };
+      const start = () => {
+        if (holding || done || btn.disabled) return;
+        holding = true; t0 = performance.now();
+        btn.classList.add('holding');
+        fill().style.transition = 'none';
+        raf = requestAnimationFrame(step);
+      };
+      const stop = () => {
+        if (!holding) return;
+        holding = false; cancelAnimationFrame(raf);
+        btn.classList.remove('holding');
+        fill().style.transition = '';   // rewinds on the CSS transition
+        btn.style.setProperty('--p', '0');
+      };
+      btn._holdDone = async () => {
+        try { await onConfirm(); } finally {
+          done = false; fill().style.transition = ''; btn.style.setProperty('--p', '0');
+        }
+      };
+      btn._hold = true;
+      btn.addEventListener('pointerdown', e => { if (e.button === 0) { try { btn.setPointerCapture(e.pointerId); } catch (_) {} start(); } });
+      ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(ev => btn.addEventListener(ev, stop));
+      btn.addEventListener('keydown', e => { if ((e.key === ' ' || e.key === 'Enter') && !e.repeat) { e.preventDefault(); start(); } });
+      btn.addEventListener('keyup', e => { if (e.key === ' ' || e.key === 'Enter') stop(); });
+      btn.addEventListener('blur', stop);
+      btn.addEventListener('contextmenu', e => e.preventDefault());
     }
 
     async function devRevoke(deviceId, name, btn) {
-      if (btn) { btn.disabled = true; btn.textContent = 'Logging Out…'; btn.style.opacity = '.7'; }
+      _btnBusy(btn, 'Logging Out');
       try {
         await Devices.revoke(deviceId);
         showToast('Device Logged Out', 'success',
           (name || 'That device') + ' will sign out and clear its local data.');
         renderDevices();
       } catch (e) {
-        if (btn) { btn.disabled = false; btn.textContent = 'Log Out'; btn.style.opacity = ''; }
+        _btnIdle(btn, 'Log Out');
         showToast("Couldn't Log Out Device", 'error', e.message || 'Please try again.');
       }
     }
 
     async function devRevokeOthers() {
       const btn = el('devRevokeOthersBtn');
-      if (btn) { btn.disabled = true; btn.textContent = 'Logging Out…'; btn.style.opacity = '.7'; }
+      _btnBusy(btn, 'Logging Out');
       try {
         await Devices.revokeOthers();
         showToast('Other Devices Logged Out', 'success', 'Every session except this one has ended.');
@@ -11404,7 +11680,7 @@ Kind regards,
       } catch (e) {
         showToast("Couldn't Log Out Others", 'error', e.message || 'Please try again.');
       } finally {
-        if (btn) { btn.disabled = false; btn.textContent = 'Log Out Others'; btn.style.opacity = ''; }
+        _btnIdle(btn, ''); _slHoldInit(btn, btn.dataset.label || 'Hold to Log Out Other Devices', devRevokeOthers);
       }
     }
 
@@ -11451,7 +11727,7 @@ Kind regards,
         // wh_device_id is kept: it identifies the browser, not the account, so
         // signing back in reuses the same entry (and its rename).
         Object.keys(localStorage)
-          .filter(k => k.startsWith('wh_') && k !== 'wh_theme' && k !== DEV_ID_KEY && k !== IOS_SEEN_KEY)
+          .filter(k => k.startsWith('wh_') && k !== 'wh_theme' && k !== DEV_ID_KEY && k !== IOS_SEEN_KEY && k !== RATE_KEY)
           .forEach(k => localStorage.removeItem(k));
         window.location.href = 'login.html';
       });
@@ -11531,30 +11807,26 @@ Kind regards,
       window.Tour?.afterOnboarding();   // the Product Tour, once per account (lib/pages/tour.js)
     }
 
-    // ── ONBOARDING (one surface, approved 2026-11-13) ─────────────────────────
-    // Welcome → three tap-to-answer questions → optional name → Start using 5pm.
-    // Answers fold into a grouped card; a mini Home card fills in as you answer.
-    // Saves the same settings the old four steps did.
+    // ── ONBOARDING (approved 2026-11-14) ───────────────────────────────────────
+    // Intro → one question per screen → outro. Tapping an answer moves on; the
+    // back chevron returns to the last screen with its answer still checked.
+    // Nothing previews the answers: onboarding only collects what 5pm needs.
+    // Desktop: a dialog. Phones: a bottom sheet only as tall as its content, so
+    // answers and buttons sit where the thumb is. Saves the same settings as before.
     const _OB2_Q = [
-      { key: 'start', q: 'When do you usually start?', short: 'Starts at', tone: '--blue',
-        icon: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>', opts: [[480, '8:00 AM'], [540, '9:00 AM'], [600, '10:00 AM'], [630, '10:30 AM']] },
-      { key: 'hours', q: 'How long is your workday?', short: 'Workday', tone: '--success',
-        icon: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/>', opts: [[480, '8 hours'], [510, '8h 30m'], [540, '9 hours'], [600, '10 hours']] },
-      { key: 'days', q: 'Which days do you work?', short: 'Work days', tone: '--violet',
-        icon: '<rect x="3" y="4" width="18" height="17" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>', opts: [[5, 'Mon – Fri'], [6, 'Mon – Sat']] },
-      { key: 'name', q: 'And what should we call you?', short: 'Name', tone: '--warning', name: true,
-        icon: '<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>' },
+      { key: 'start', q: 'When do you usually start?', sub: '5pm counts your day from here.', other: true,
+        opts: [[480, '8:00 AM'], [540, '9:00 AM'], [600, '10:00 AM'], [630, '10:30 AM']] },
+      { key: 'hours', q: 'How long is your workday?', sub: 'Your daily target.', other: true,
+        opts: [[480, '8 hours'], [510, '8h 30m'], [540, '9 hours'], [600, '10 hours']] },
+      { key: 'days', q: 'Which days do you work?', sub: 'Your week resets every Monday.',
+        opts: [[5, 'Monday to Friday'], [6, 'Monday to Saturday']] },
+      { key: 'name', q: 'What should we call you?', sub: 'Optional.', name: true },
     ];
     let _ob2 = null;
     const _ob2Time = m => { const d = new Date(); d.setHours(Math.floor(m / 60) % 24, m % 60, 0, 0); return short(d); };
     const _ob2Label = (k, v) => k === 'start' ? _ob2Time(v) : k === 'hours' ? durWorked(v * 60).replace(' 00m', '') : k === 'days' ? (v === 5 ? 'Mon – Fri' : 'Mon – Sat') : v;
     function _ob2Svg(d) { return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`; }
-    function _ob2Roll(node, txt) {
-      if (!node || node.dataset.t === txt) return; node.dataset.t = txt;
-      const r = node.querySelector('.ob2-roll');
-      if (!r) { node.innerHTML = `<span class="ob2-roll"></span>`; node.firstChild.textContent = txt; return; }
-      r.classList.add('out'); setTimeout(() => { r.textContent = txt; r.classList.remove('out'); }, 220);
-    }
+    const _OB2_CHECK = '<path d="M20 6 9 17l-5-5"/>';
     function openOnboarding() {
       const c = cfg();
       _ob2 = { at: -1, start: null, hours: null, days: null, name: (c.name || '').trim() || null, finished: false };
@@ -11562,83 +11834,65 @@ Kind regards,
       // The onboarding markup comes after this script in index.html, so its
       // buttons are wired here, when it opens, not at load.
       el('ob2Pri').onclick = _ob2PriClick; el('ob2Sec').onclick = _ob2SecClick;
-      _ob2Draw();
+      _ob2Draw(1);
     }
-    function _ob2Preview() {
-      const S = _ob2, m = el('ob2Main');
-      _ob2Roll(m.querySelector('[data-l]'), S.start !== null ? _ob2Time(S.start) : '—:—');
-      _ob2Roll(m.querySelector('[data-r]'), S.start !== null && S.hours !== null ? _ob2Time(S.start + S.hours) : '—:—');
-      m.querySelector('[data-bar]').style.width = [S.start, S.hours, S.days].filter(v => v !== null).length / 3 * 100 + '%';
-      m.querySelector('[data-chip]').textContent = S.hours === null ? 'Your day, as you answer'
-        : `${_ob2Label('hours', S.hours)} a day` + (S.days ? ` · ${durWorked(S.hours * S.days * 60).replace(' 00m', '')} a week` : '');
-      m.querySelector('[data-who]').textContent = S.name ? `${S.name.split(/\s+/)[0].toUpperCase()}'S DAY` : 'YOUR DAY';
-      m.querySelector('[data-dt]').textContent = S.days ? _ob2Label('days', S.days) : 'Full Day';
-    }
-    function _ob2Group() {
-      const S = _ob2, g = el('ob2Main').querySelector('.ob2-group');
-      const rows = _OB2_Q.filter((q, i) => S[q.key] !== null && i !== S.at);
-      g.classList.toggle('has', rows.length > 0);
-      g.firstElementChild.innerHTML = rows.map(q => `<button type="button" class="ob2-row" data-i="${_OB2_Q.indexOf(q)}"><span class="ob2-gi" style="--ob2-c:var(${q.tone})">${_ob2Svg(q.icon)}</span><span class="ob2-gk">${q.short}</span><span class="ob2-gv"></span>${_ob2Svg('<path d="m9 18 6-6-6-6"/>').replace('<svg', '<svg width="14" height="14" style="color:var(--muted-fg)"')}</button>`).join('');
-      g.querySelectorAll('[data-i]').forEach(r => { const q = _OB2_Q[+r.dataset.i]; r.querySelector('.ob2-gv').textContent = _ob2Label(q.key, S[q.key]);
-        r.onclick = () => { S.at = +r.dataset.i; S.finished = false; _ob2Draw(); }; });
-    }
-    function _ob2Ask() {
-      const S = _ob2, a = el('ob2Main').querySelector('.ob2-ask'), q = _OB2_Q[S.at];
-      a.classList.remove('in');
-      if (!q) { a.innerHTML = ''; return; }
-      if (q.name) {
-        a.innerHTML = `<p class="ob2-qt">${q.q}</p><input class="ob2-name" maxlength="40" autocomplete="given-name" placeholder="Your first name">`;
-        const inp = a.querySelector('input'); inp.value = S.name || '';
-        inp.oninput = () => { S.name = inp.value.trim() || null; _ob2Preview(); };
-        setTimeout(() => inp.focus({ preventScroll: true }), 450);
+    function _ob2Go(at, dir) { _ob2.at = at; _ob2Draw(dir); }
+    function _ob2Draw(dir = 1) {
+      const S = _ob2, m = el('ob2Main'), pri = el('ob2Pri'), sec = el('ob2Sec'), n = _OB2_Q.length, q = _OB2_Q[S.at];
+      const head = S.at < 0 ? '' : `<div class="ob2-top"><button type="button" class="ob2-back" data-back aria-label="Back">${_ob2Svg('<path d="m15 18-6-6 6-6"/>')}</button>`
+        + (q ? `<div class="ob2-dots" aria-label="Question ${S.at + 1} of ${n}">${_OB2_Q.map((_, i) => `<i class="${i === S.at ? 'on' : ''}"></i>`).join('')}</div>` : '')
+        + '<span class="ob2-sp"></span></div>';
+      let body;
+      if (S.at < 0) {
+        body = `<div class="ob2-hero"><img src="/apple-touch-icon.png" alt=""><h2>Welcome to 5pm</h2><p>5pm tracks your work hours and shows when your day is done. Set up your workday to get started.</p></div>`;
+      } else if (!q) {
+        body = `<div class="ob2-hero"><span class="ob2-ok">${_ob2Svg(_OB2_CHECK)}</span><h2 data-done></h2><p>Tap Start when you begin work. You can change any of this in Settings.</p></div>`;
+      } else if (q.name) {
+        body = `<div class="ob2-q"><h2>${q.q}</h2><p>${q.sub}</p></div><input class="ob2-name" maxlength="40" autocomplete="given-name" placeholder="Your first name" aria-label="Your first name">`;
       } else {
-        a.innerHTML = `<p class="ob2-qt">${q.q}</p><div class="ob2-chips">${q.opts.map(([v, l]) => `<button type="button" class="ob2-c${S[q.key] === v ? ' on' : ''}" data-v="${v}">${l}</button>`).join('')}<button type="button" class="ob2-c other" data-other>Other…</button></div><div data-otherbox></div>`;
-        a.querySelectorAll('[data-v]').forEach(c => c.onclick = () => _ob2Pick(q.key, +c.dataset.v, a, c));
-        a.querySelector('[data-other]').onclick = () => _ob2Other(q, a);
+        body = `<div class="ob2-q"><h2>${q.q}</h2><p>${q.sub}</p></div><div class="ob2-opts" role="radiogroup" aria-label="${q.q}">`
+          + q.opts.map(([v, l]) => `<button type="button" class="ob2-opt${S[q.key] === v ? ' on' : ''}" role="radio" aria-checked="${S[q.key] === v}" data-v="${v}"><span>${l}</span>${_ob2Svg(_OB2_CHECK)}</button>`).join('')
+          + (q.other ? `<button type="button" class="ob2-opt other${S[q.key] !== null && !q.opts.some(([v]) => v === S[q.key]) ? ' on' : ''}" data-other><span>Other…</span>${_ob2Svg(_OB2_CHECK)}</button><div data-otherbox></div>` : '')
+          + '</div>';
       }
-      requestAnimationFrame(() => requestAnimationFrame(() => a.classList.add('in')));
+      m.innerHTML = head + `<div class="ob2-pane" style="--dir:${dir}">${body}</div>`;
+      m.querySelector('[data-back]')?.addEventListener('click', () => _ob2Go(S.at - 1, -1));
+      const done = m.querySelector('[data-done]');
+      if (done) done.textContent = `You're all set${S.name ? ', ' + S.name.split(/\s+/)[0] : ''}.`;
+      if (q?.name) {
+        const inp = m.querySelector('input'); inp.value = S.name || '';
+        inp.oninput = () => { S.name = inp.value.trim() || null; };
+        inp.onkeydown = e => { if (e.key === 'Enter') _ob2PriClick(); };
+        setTimeout(() => inp.focus({ preventScroll: true }), 300);
+      } else if (q) {
+        m.querySelectorAll('[data-v]').forEach(c => c.onclick = () => _ob2Pick(q.key, +c.dataset.v, c));
+        m.querySelector('[data-other]')?.addEventListener('click', () => _ob2Other(q));
+      }
+      // One button at most: Set up my day · (none while tapping answers) · Continue + Skip · Start using 5pm.
+      pri.hidden = !!q && !q.name; sec.hidden = !q?.name;
+      pri.textContent = S.at < 0 ? 'Set up my day' : q ? 'Continue' : 'Start using 5pm';
+      sec.textContent = 'Skip';
     }
-    function _ob2Pick(key, v, a, chip) {
+    function _ob2Pick(key, v, chip) {
       const S = _ob2; S[key] = v;
-      a.querySelectorAll('.ob2-c').forEach(x => x.classList.toggle('on', x === chip));
-      _ob2Preview();
-      setTimeout(() => { const n = _OB2_Q.findIndex(q => S[q.key] === null && !q.name); S.at = n === -1 ? 3 : n; _ob2Draw(); }, chip ? 360 : 0);
+      el('ob2Main').querySelectorAll('.ob2-opt').forEach(x => { const on = x === chip; x.classList.toggle('on', on); x.setAttribute('aria-checked', on); });
+      setTimeout(() => _ob2Go(S.at + 1, 1), chip ? 280 : 0);
     }
     // "Other…": the one-minute wheel for a start time; a ± stepper for the day's length.
-    function _ob2Other(q, a) {
-      const box = a.querySelector('[data-otherbox]'), S = _ob2;
-      a.querySelectorAll('.ob2-c').forEach(x => x.classList.toggle('on', x.hasAttribute('data-other')));
+    function _ob2Other(q) {
+      const m = el('ob2Main'), box = m.querySelector('[data-otherbox]'), S = _ob2;
+      m.querySelectorAll('.ob2-opt').forEach(x => x.classList.toggle('on', x.hasAttribute('data-other')));
       if (q.key === 'start') {
-        box.innerHTML = '<div class="am-wheel"></div><div class="ob2-step"><button type="button" class="btn btn-primary" style="width:auto;padding:0 18px;font-size:14px" data-ok>Use this time</button></div>';
-        let v = S.start ?? 540; _miniWheel(box.querySelector('.am-wheel'), v, m => { v = m; });
-        box.querySelector('[data-ok]').onclick = () => _ob2Pick('start', v, a, null);
+        box.innerHTML = '<div class="am-wheel"></div><button type="button" class="btn btn-primary ob2-b" data-ok>Use this time</button>';
+        let v = S.start ?? 540; _miniWheel(box.querySelector('.am-wheel'), v, mm => { v = mm; });
+        box.querySelector('[data-ok]').onclick = () => _ob2Pick('start', v, null);
       } else if (q.key === 'hours') {
         let v = S.hours ?? 540;
-        box.innerHTML = '<div class="ob2-step"><button type="button" data-d="-15">−</button><b></b><button type="button" data-d="15">+</button></div><div class="ob2-step"><button type="button" class="btn btn-primary" style="width:auto;padding:0 18px;font-size:14px" data-ok>Use this</button></div>';
+        box.innerHTML = '<div class="ob2-step"><button type="button" data-d="-15" aria-label="15 minutes less">−</button><b></b><button type="button" data-d="15" aria-label="15 minutes more">+</button></div><button type="button" class="btn btn-primary ob2-b" data-ok>Use this</button>';
         const out = box.querySelector('b'); const paint = () => out.textContent = _ob2Label('hours', v); paint();
         box.querySelectorAll('[data-d]').forEach(b => b.onclick = () => { v = Math.min(14 * 60, Math.max(60, v + +b.dataset.d)); paint(); });
-        box.querySelector('[data-ok]').onclick = () => _ob2Pick('hours', v, a, null);
+        box.querySelector('[data-ok]').onclick = () => _ob2Pick('hours', v, null);
       }
-    }
-    function _ob2Buttons() {
-      const S = _ob2, pri = el('ob2Pri'), sec = el('ob2Sec');
-      if (S.at === -1) { pri.hidden = false; pri.textContent = 'Set up my day'; sec.hidden = true; return; }
-      const last = S.at === 3 && !S.finished;
-      pri.hidden = !last; sec.hidden = !last;
-      pri.textContent = 'Start using 5pm'; sec.textContent = 'Skip for now';
-    }
-    function _ob2Draw() {
-      const S = _ob2, m = el('ob2Main');
-      if (S.at === -1) {
-        m.innerHTML = `<div class="ob2-welcome"><img src="/apple-touch-icon.png" alt=""><h2>Leave on time,<br>every time.</h2><p>Three quick questions and 5pm will know when you can leave.</p></div>`;
-        _ob2Buttons(); return;
-      }
-      if (!m.querySelector('.ob2-group')) m.innerHTML = `<div class="ob2-hd"><img src="/apple-touch-icon.png" alt=""><div><p class="ob2-tt">Let's set up your day</p><p class="ob2-st">Your Home card, filling in as you answer</p></div></div>
-        <div class="ob2-pv"><div class="ob2-pvtop"><span class="ob2-who" data-who>YOUR DAY</span><span class="ob2-pill" data-dt>Full Day</span></div>
-          <div class="ob2-kp"><div><div class="ob2-K" data-l></div><div class="ob2-cap">Starts</div></div><div style="text-align:right"><div class="ob2-K" data-r></div><div class="ob2-cap">You can leave</div></div></div>
-          <div class="ob2-bar"><i data-bar></i></div><div class="ob2-chip"><span data-chip></span></div></div>
-        <div class="ob2-body"><div class="ob2-group"><div></div></div><div class="ob2-ask"></div></div>`;
-      _ob2Preview(); _ob2Group(); _ob2Ask(); _ob2Buttons();
     }
     function _ob2Save() {
       const S = _ob2, c = cfg();
@@ -11648,11 +11902,11 @@ Kind regards,
         dailyH: hours / 60, weeklyH: hours * days / 60, workDays: days, weeklyOn: c.weeklyOn ?? false });
     }
     function _ob2PriClick() {
-      if (!_ob2) return;
-      if (_ob2.at === -1) { _ob2.at = 0; _ob2Draw(); return; }
-      if (_ob2.at === 3) { _ob2Save(); _ob2.finished = true; obFinish(); }
+      const S = _ob2; if (!S) return;
+      if (S.at < _OB2_Q.length) { _ob2Go(S.at + 1, 1); return; }          // intro, or Continue on the name
+      _ob2Save(); S.finished = true; obFinish();                           // outro: Start using 5pm
     }
-    function _ob2SecClick() { if (!_ob2) return; _ob2.name = null; _ob2Save(); _ob2.finished = true; obFinish(); }
+    function _ob2SecClick() { const S = _ob2; if (!S) return; S.name = null; _ob2Go(S.at + 1, 1); }   // Skip the name
 
     // ── INIT ───────────────────────────────────────────
     (function init() {
@@ -11757,15 +12011,20 @@ Kind regards,
       // Recovery prompts. Auto-stop recovery runs even when loginDate is set
       // (an auto-stopped session restores loginDate for display). Forgot-to-logout
       // only applies when there's no active/ended session today.
-      setTimeout(() => { checkAutoStopRecovery(); }, 800);
+      setTimeout(() => _queueModal(checkAutoStopRecovery), 800);
 
       // Always pull from Supabase on launch — cross-device accuracy requires
       // fresh data regardless of when the last pull happened.
       _syncGlance(_refreshFromCloud(true, true));
 
       // Pull settings + wire up realtime — always, regardless of pull cooldown.
-      SbSync.pullSettings().then(remoteCfg => {
-        if (remoteCfg && typeof remoteCfg === 'object') {
+      const _settingsPull = SbSync.pullSettings().then(remoteCfg => {
+        // This device has a settings change the cloud never got (the app closed
+        // before it went up): send it, don't overwrite it with the older copy.
+        if (_cfgUnsent() && Store.getCfg()) {
+          _dirtyCfg = true;
+          _flushSync({ silent: true });
+        } else if (remoteCfg && typeof remoteCfg === 'object') {
           _applyingRemote = true;
           try {
             Store.setCfg(remoteCfg);
@@ -11777,7 +12036,12 @@ Kind regards,
           } finally { _applyingRemote = false; }
         }
         initRealtimeSync();
+        return remoteCfg;
       });
+
+      // Store rating, try 2: the app opened again after a first try that didn't end
+      // in a rating. A short wait so it never lands on top of the app loading.
+      setTimeout(() => _rateAsk('open'), 6000);
 
       // Hydrate the profile card and sign-in methods — auth data first, then cfg overlay when pullSettings resolves
       hydrateProfileCard();
@@ -11791,17 +12055,23 @@ Kind regards,
         switchTab(savedTab);
       }
 
-      // Show onboarding on first launch
+      // Show onboarding on first launch. On a device that has never opened 5pm
+      // (a new browser, a private window) there's no local copy yet, so wait for
+      // the account's settings to arrive first: an account that already has
+      // settings is not new and never sees onboarding again.
       if (!localStorage.getItem(OB_DONE_KEY) && !Store.getCfg()) {
-        setTimeout(openOnboarding, 300);
+        _settingsPull.then(remoteCfg => {
+          if (remoteCfg && typeof remoteCfg === 'object') {
+            try { localStorage.setItem(OB_DONE_KEY, '1'); } catch {}
+            return;
+          }
+          if (!localStorage.getItem(OB_DONE_KEY) && !Store.getCfg()) setTimeout(openOnboarding, 300);
+        });
       }
 
       // Show week plan modal if needed (only after onboarding is complete)
-      if (localStorage.getItem(OB_DONE_KEY) && shouldShowWeekPlan()) setTimeout(() => {
-        // Don't open Week Plan if a higher-priority recovery modal is already visible
-        const recoveryOpen = el('autoStopRecoveryOverlay')?.classList.contains('open');
-        if (!recoveryOpen) openWeekPlanModal();
-      }, 1200);
+      // (Queued: if the Auto-Stopped modal is up, the plan opens after it closes.)
+      if (localStorage.getItem(OB_DONE_KEY) && shouldShowWeekPlan()) setTimeout(() => _queueModal(openWeekPlanModal), 1200);
 
       // ── Background scroll lock: the one place it happens ──
       // Phones and tablets: while any modal, bottom sheet or panel is open, the
@@ -12311,6 +12581,9 @@ Kind regards,
         if (from && into) { while (from.firstChild) into.appendChild(from.firstChild); }
         desktopSec.remove();
       }
+      // Payroll (#41): its own group on General, under the targets.
+      const payroll = sectionByName('Payroll');
+      if (payroll) panels.General.appendChild(payroll);
 
       if (prefs) {
         const h = prefs.querySelector('.settings-section-header');

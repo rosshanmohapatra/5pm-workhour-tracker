@@ -519,7 +519,11 @@ async function sendResetCode(b) {
   if (!email || !/.+@.+\..+/.test(email)) { inp?.setAttribute('aria-invalid', 'true'); setMsg('rem', 'Enter your email.'); inp?.focus(); return; }
   S.email = email;
   if (b) setBtn(b, undefined, true);
-  const { error } = await _sb.auth.resetPasswordForEmail(email);
+  // The email also carries a link ("Reset your password with a link instead").
+  // Send it to the public app, never Supabase's Site URL (a protected Vercel
+  // alias). The app opens on Choose a new password for a recovery link.
+  const resetTo = (window.__TAURI__ ? 'https://whtracker.vercel.app' : location.origin) + '/index.html';
+  const { error } = await _sb.auth.resetPasswordForEmail(email, { redirectTo: resetTo });
   if (b) setBtn(b, undefined, false);
   if (error) {
     if (_isOffline(error)) return alert('offline');

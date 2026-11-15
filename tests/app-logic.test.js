@@ -982,7 +982,7 @@ test('Starting with a time already past auto-stop does not crash', () => {
   assert.match(extract('function _startSession('), /render\(\);\n(\s*\/\/.*\n)*\s*if \(!loginDate\) return;\n\s*if \(ticker\) clearInterval\(ticker\);/);
 });
 
-test('Weekend card: week total chip, tiny bars, note box; View Stats keeps its button', () => {
+test('Weekend card: week total chip, tiny bars, note box; the week card opens the report', () => {
   const chip = load(extract('function wkSigned(') + '\nconst _wsGap = secs => wkSigned(secs).slice(1);\n' + extract('function _minsGap(', '}') + '\n' + extract('function _wkndWeekChip('), { Math, p2: n => String(n).padStart(2, '0') }, '_wkndWeekChip');
   const H = 3600, M = 60;
   assert.deepEqual({ ...chip(43 * H + 47 * M, 45 * H) }, { text: '1h 13mins short', tone: '' });
@@ -995,7 +995,7 @@ test('Weekend card: week total chip, tiny bars, note box; View Stats keeps its b
   assert.match(SRC, /if \(_isWeekendType\) \{\n\s*if \(_infoCard\) _infoCard\.style\.display = 'none';/);
   const HTML = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
   assert.match(HTML, /<div id="wkndSum" style="display:none"><\/div>/);
-  assert.match(HTML, /data-on-click="ha2992aba2f"/);                      // View Stats → openWeekReport(), unchanged
+  assert.match(HTML, /data-on-click="ha2e8e1871e"/);                      // the week report opens from the week card (user, 2026-11-15)
 });
 
 test('Weekend card: no icons on bars, chart container with target line, one variable chip row', () => {
@@ -1134,17 +1134,19 @@ test('Note editor: Cancel and Save sit inside the note box, on their own row (#4
   assert.doesNotMatch(HTML, /\.ws-nb \{/);
 });
 
-test('Weekend card is flat, View Stats sits below the Home card (#50)', () => {
+test('Weekend card is flat; no second View Stats on Home (#50)', () => {
   const HTML = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
   assert.match(HTML, /\.ws-card \{ margin-bottom: 4px; text-align: left; \}/);       // no inner card surface
   assert.doesNotMatch(HTML, /\.ws-card \{[^}]*(background|border):/);
-  // The button lives after the Home card, shown only while the weekend summary is on.
-  const after = HTML.slice(HTML.indexOf('<!-- /homeCard -->'));
-  assert.match(after.slice(0, 600), /<div id="wkndStatsOut">[\s\S]*data-on-click="ha2992aba2f"[\s\S]*View Stats/);
-  const inside = HTML.slice(HTML.indexOf('id="wkndStatsSection"'), HTML.indexOf('<!-- /homeCard -->'));
-  assert.doesNotMatch(inside, /View Stats/);
-  assert.match(HTML, /#homeMain:has\(#rcBody\.weekend-mode #weekendView\.ws-on\) #wkndStatsOut \{ display: block; \}/);
-  assert.match(SRC, /el\('weekendView'\)\?\.classList\.toggle\('ws-on', _isWeekendType\)/);
+  // The week card's own report button is the only one (user, 2026-11-15).
+  assert.doesNotMatch(HTML, /wkndStatsOut/);
+  assert.match(HTML, /data-on-click="ha2e8e1871e"/);
+});
+
+test('Action Center tabs show titles only; Add hours stays a button on a hovered row', () => {
+  assert.doesNotMatch(SRC, /'This Month'\}<em>/);
+  const HTML = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
+  assert.match(HTML, /\.wk-row:hover \.wk-add \{ background: var\(--card\); box-shadow: inset 0 0 0 1px var\(--border\); \}/);
 });
 
 test('Weekend chart: day letters inside the bars, no letter row, 112px plot (#48)', () => {
@@ -1347,12 +1349,12 @@ test('Action Center: rows are single short days; weekly mode lists the short day
 });
 test('Action Center: card copy, read filter, clear confirm, empty state', () => {
   const r = extract('function _renderPenaltyCard(');
-  assert.match(r, /Action Center/); assert.match(r, /Mark all as read/); assert.match(r, /Show read penalties/); assert.match(r, /Clear all penalties/);
+  assert.match(r, /Action Center/); assert.match(r, /Mark All as Read/); assert.match(r, /Show Read Items/); assert.doesNotMatch(r, /ac-markall/); assert.match(r, /Clear all penalties/);
   assert.match(r, /This Week' : 'This Month'/); assert.match(r, /Salary cycle · \$\{data\.cycle\.sub\}/);
   assert.match(r, /Yay, nothing to resolve/); assert.match(r, /All caught up/);
   assert.match(r, /Clear all \$\{rows\.length\}/);
   const m = extract('function _acOpenRowMenu(');
-  assert.match(m, /Draft email to manager/); assert.match(m, /Fix my hours/); assert.match(m, /Mark as unread' : 'Mark as read/);
+  assert.match(m, /Draft Email/); assert.match(m, /Update Hours/); assert.match(m, /Mark as Unread' : 'Mark as Read/);
   assert.match(extract('function _acMarkAllRead('), /label: 'Undo'/);
   const HTML = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
   assert.doesNotMatch(HTML, /Your Penalties/);
@@ -1409,7 +1411,7 @@ test('Penalty Reminders: gates, then the first matching rung of the ladder', () 
   assert.match(HTML, /<div class="settings-section-header">Payroll<\/div>/);
   assert.match(HTML, /Pick the first and last day your company counts for one month's pay\./);
 });
-test('Action Center: marking as read keeps the row in place, muted and labelled Read', () => {
+test('Action Center: read rows show only while Show Read Items is on (muted, labelled Read)', () => {
   const m = extract('function _acOpenRowMenu(');
   assert.doesNotMatch(m, /_dismissPenaltyRow/);
   assert.match(m, /_acKeepRead\.add\(key\)/);
@@ -1417,7 +1419,7 @@ test('Action Center: marking as read keeps the row in place, muted and labelled 
   assert.doesNotMatch(all, /_dismissPenaltyRow/);
   assert.match(all, /_acKeepRead\.add\(r\.key\)/);
   assert.match(extract('function _acRowHtml('), /\$\{read \? ' · Read' : ''\}/);
-  assert.match(extract('function _renderPenaltyCard('), /!_discardedPenalties\.has\(r\.key\) \|\| _acKeepRead\.has\(r\.key\)/);
+  assert.match(extract('function _renderPenaltyCard('), /const shown = _acShowRead \? rows : un;/);
 });
 
 // ── Geist headings (#52) ───────────────────────────────────────────────────
@@ -1508,4 +1510,47 @@ test('Reset email link opens the public app, not the Site URL', () => {
   // Without redirectTo the link goes to Supabase's Site URL, a Vercel alias behind a login wall.
   assert.match(LOGIN, /resetPasswordForEmail\(email, \{ redirectTo: resetTo \}\)/);
   assert.match(LOGIN, /const resetTo = \(window\.__TAURI__ \? 'https:\/\/whtracker\.vercel\.app' : location\.origin\) \+ '\/index\.html'/);
+});
+
+test('Sign-in text buttons keep their icon at 16px', () => {
+  // The quiet "Sign in with a passkey" button showed a giant icon and wrapped text.
+  const LH = fs.readFileSync(path.join(WEB, 'login.html'), 'utf8');
+  assert.match(LH, /\.textButton svg \{ width: 16px; height: 16px; flex: none; \}/);
+  assert.match(LH, /\.textButton \{ white-space: nowrap; \}/);
+});
+
+test('Ended-day card: the + / pencil button fills on hover', () => {
+  const HTML = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
+  assert.match(HTML, /\.ed-card \.ed-edit:hover, \.ed-card \.ed-edit:active, \.dark \.ed-card \.ed-edit:hover, \.dark \.ed-card \.ed-edit:active \{ background: var\(--muted\); \}/);
+});
+
+test('Update Entry panel: close button, note field and time picker', () => {
+  const HTML = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
+  const H = fs.readFileSync(path.join(WEB, 'lib', 'pages', 'index-handlers.js'), 'utf8');
+  // Close: panel colour at rest, one outline in every state, lighter fill on hover.
+  assert.match(HTML, /#dayEditOverlay \.sheet-close \{ background: var\(--card\); box-shadow: inset 0 0 0 1px var\(--border\); \}/);
+  assert.match(HTML, /#dayEditOverlay \.sheet-close:hover \{ background: var\(--muted\); \}/);
+  // Note: reads as a field; focus outline is a lighter grey, not white.
+  assert.match(HTML, /#dayEditOverlay \.de-note-wrap textarea \{ background: color-mix\(in srgb, var\(--foreground\) 7%, var\(--card\)\); box-shadow: inset 0 0 0 1px var\(--input\); caret-color: var\(--foreground\); \}/);
+  // Picker titles match the rows, and the picker is measured so it stays on screen.
+  assert.match(H, /openTpModal\('deStart',event,'Started'\)/);
+  assert.match(H, /openTpModal\('deEnd',event,'Left at'\)/);
+  assert.doesNotMatch(H, /openTpModal\('de(Start|End)',event,'Log(in|out)'\)/);
+  assert.match(SRC, /mW = Math\.max\(216, Math\.ceil\(_box\.width\)\)/);
+  assert.match(SRC, /if \(!_isLoginInput && left \+ mW > window\.innerWidth - pad\) left = refRect\.right - mW;/);
+});
+
+test('Batch 2026-11-15: privacy contact, logo, Action Center menu, toggle rows, notification cards', () => {
+  const PRIV = fs.readFileSync(path.join(WEB, 'privacy.html'), 'utf8'), ABOUT = fs.readFileSync(path.join(WEB, 'about.html'), 'utf8');
+  const HTML = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
+  assert.doesNotMatch(PRIV + ABOUT, /roshankanhu@gmail\.com/);                      // personal email gone
+  assert.match(PRIV, /mailto:5pm\.app\.noreply@gmail\.com/);
+  assert.match(PRIV, /<a class="back-btn" href="\/index\.html">Go Back to App<\/a>/);
+  assert.match(HTML, /<img id="navLogo" src="\/icons\/brand-light\.svg" alt="5pm" height="32" style="display:block;border-radius:7px">/);  // no stroke
+  assert.match(HTML, /\.ac-more \{[^}]*background: transparent; box-shadow: inset 0 0 0 1px var\(--border\);/);
+  assert.match(HTML, /<label class="pay-switch">/);                                   // whole row toggles
+  assert.match(HTML, /#viewSettings \[data-on-click\]:has\(> \.toggle\), #viewSettings \.pay-switch \{ padding: 10px 12px; margin: -10px -12px;/);
+  assert.match(HTML, /#notifList \.notif-item \{ border: 1px solid var\(--border\); border-radius: 12px; \}/);
+  assert.doesNotMatch(HTML, /\.notif-item \+ \.notif-item \{ border-top/);
+  assert.match(HTML, /cursor: pointer; opacity: 0;/);                                 // × hidden until hover
 });

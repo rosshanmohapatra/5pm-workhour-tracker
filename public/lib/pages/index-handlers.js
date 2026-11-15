@@ -234,10 +234,10 @@ window.__H = Object.assign(window.__H || {}, {
   h526061ddf1: function (event) { openPrivacyPolicy() },
   // onclick: openSupportModal()
   ha851ef3e6b: function (event) { openSupportModal() },
-  // onclick: openTpModal('deEnd',event,'Logout')
-  hf33bddd233: function (event) { openTpModal('deEnd',event,'Logout') },
-  // onclick: openTpModal('deStart',event,'Login')
-  h793544eada: function (event) { openTpModal('deStart',event,'Login') },
+  // onclick: openTpModal('deEnd',event,'Left at')
+  hf33bddd233: function (event) { openTpModal('deEnd',event,'Left at') },
+  // onclick: openTpModal('deStart',event,'Started')
+  h793544eada: function (event) { openTpModal('deStart',event,'Started') },
   // onclick: openTpModal('inpShiftEnd',event)
   h630bcad8de: function (event) { openTpModal('inpShiftEnd',event) },
   // onclick: openTpModal('inpShiftStart',event)
@@ -246,8 +246,6 @@ window.__H = Object.assign(window.__H || {}, {
   h835997ffb5: function (event) { openTpModal('tc-r7m2',event,'Started at',calculate) },
   // onclick: openWeekPicker(this)
   h9f54862d09: function (event) { openWeekPicker(this) },
-  // onclick: openWeekReport()
-  ha2992aba2f: function (event) { openWeekReport() },
   // onclick: openWeekReport(analyticsWeekOffset)
   ha2e8e1871e: function (event) { openWeekReport(analyticsWeekOffset) },
   // onclick: overrideOutsideShift()

@@ -424,6 +424,10 @@
     }
     .toggle:active, [data-on-click]:active > .toggle { --tw: 20px; --th: 12px; --ty: 2px; }
     .toggle input:focus-visible + .toggle-track { box-shadow: 0 0 0 2px var(--card), 0 0 0 3px #6B97FF; }
+    /* Settings toggle rows: the whole row is clickable and shows it on hover (user, 2026-11-15). */
+    #viewSettings [data-on-click]:has(> .toggle), #viewSettings .pay-switch { padding: 10px 12px; margin: -10px -12px; border-radius: 12px; cursor: pointer; transition: background .15s; }
+    @media (hover: hover) and (pointer: fine) { #viewSettings [data-on-click]:has(> .toggle):hover, #viewSettings .pay-switch:hover { background: var(--muted); } }
+    @media (hover: hover) and (pointer: fine) { #viewSettings .pay-switch:hover .toggle-track { filter: brightness(1.06); } }
     .toggle input:disabled + .toggle-track { opacity: .5; cursor: default; }
     @media (prefers-reduced-motion: reduce) { .toggle-track::before { transition: none; } }
 
@@ -740,7 +744,10 @@
     @media (prefers-reduced-motion: reduce) {
       .notif-item { transition: opacity .24s ease, background .12s; }
     }
-    .notif-item + .notif-item { border-top: 1px solid var(--border); }
+    /* Notifications as a list of cards (user, 2026-11-15): a hairline card at rest, a lighter fill on hover, the × only on hover. */
+    #notifList:has(.notif-item) { display: flex; flex-direction: column; gap: 8px; padding: 8px; }
+    #notifList .notif-item { border: 1px solid var(--border); border-radius: 12px; }
+    @media (hover: hover) and (pointer: fine) { #notifList .notif-item:hover { background: var(--muted); } }
     .notif-icon { width: 28px; height: 28px; border-radius: var(--radius-md); flex-shrink: 0;
       display: flex; align-items: center; justify-content: center; }
     .notif-icon.warn { background: var(--warning-bg); color: var(--warning); }
@@ -752,11 +759,11 @@
     .notif-dismiss { display: none; }
     @media (hover: hover) and (pointer: fine) {
       .notif-dismiss { display: grid; place-items: center; flex-shrink: 0; align-self: center; width: 24px; height: 24px; padding: 0;
-        border: none; border-radius: 50%; background: transparent; color: var(--muted-fg); cursor: pointer; opacity: .55;
+        border: none; border-radius: 50%; background: transparent; color: var(--muted-fg); cursor: pointer; opacity: 0;
         transition: opacity .14s, background .14s, color .14s; }
       .notif-dismiss svg { width: 12px; height: 12px; }
       .notif-item:hover .notif-dismiss, .notif-dismiss:focus-visible { opacity: 1; }
-      .notif-dismiss:hover { background: var(--muted); color: var(--foreground); }
+      .notif-dismiss:hover { background: var(--border); color: var(--foreground); }
     }
     .notif-text { font-size: 13px; color: var(--foreground); line-height: 1.45; }
     .notif-actions { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
@@ -1292,6 +1299,8 @@
     .ed-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
     .ed-edit { width: 34px; height: 34px; display: inline-flex; align-items: center; justify-content: center; border-radius: 10px; }
     .ed-edit svg { width: 16px; height: 16px; }
+    /* Hover fills the button too (the shared icon-button hover only rings it, which read as "nothing happened" on this card). */
+    .ed-card .ed-edit:hover, .ed-card .ed-edit:active, .dark .ed-card .ed-edit:hover, .dark .ed-card .ed-edit:active { background: var(--muted); }
     .ed-total { font-size: 36px; font-weight: 600; letter-spacing: -.03em; line-height: 1.05; margin-top: 6px; font-variant-numeric: tabular-nums; color: var(--foreground); }
     .ed-title { font-size: 24px; font-weight: 600; letter-spacing: -.02em; margin-top: 6px; color: var(--foreground); }
     .ed-sub { margin: 6px 0 0; font-size: 14px; line-height: 1.45; color: var(--muted-fg); }
@@ -1376,9 +1385,6 @@
     .ws-ta::placeholder { color: var(--text-muted); }
     .ws-acts { display: flex; justify-content: flex-end; gap: 6px; padding: 6px 8px 8px; }
     .ws-acts button { height: 30px; padding: 0 12px; border-radius: 9px; font-size: 12px; font-weight: 600; width: auto; }
-    #wkndStatsOut { display: none; }   /* #homeMain's gap spaces it from the card */
-    #homeMain:has(#rcBody.weekend-mode #weekendView.ws-on) #wkndStatsOut { display: block; }
-    .ws-stats { width: 100%; height: 42px; border-radius: 12px; font-size: 13px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 6px; }
     @media (max-width: 640px) { .ws-total { font-size: 28px; } }
     @media (prefers-reduced-motion: reduce) { .ws-bar i { transition: none; } }
     .rc-desc-chip.warn { color: var(--warning); }
@@ -1592,6 +1598,8 @@
     .wk-chip.is-short { --c: var(--warning); }
     .wk-add { height: 30px; padding: 0 12px; font-size: 12px; gap: 5px; }
     .wk-add svg { width: 14px; height: 14px; }
+    /* A hovered row turns grey (var(--muted)), the same as this button: lift the button to the card colour with a hairline so it still reads as a button. */
+    @media (hover: hover) and (pointer: fine) { .wk-row:hover .wk-add { background: var(--card); box-shadow: inset 0 0 0 1px var(--border); } .wk-row:hover .wk-add:hover { background: var(--btn-secondary-hover); } }
     /* Small phones: shorter today text, chip under the hours. */
     @container wkcard (max-width: 360px) {
       .wk-rows { --wk-pad-x: 12px; --wk-gap: 10px; }
@@ -2264,9 +2272,8 @@
     .ac-markall { height: 30px; padding: 0 12px; font-size: 12px; }
     .ac-markall:disabled { opacity: .45; cursor: default; }
     .ac-more-wrap { position: relative; }
-    .ac-more { width: 30px; height: 30px; border: 0; border-radius: 8px; display: grid; place-items: center; background: var(--btn-secondary-bg);
-      color: var(--muted-fg); cursor: pointer; transition: background .12s, color .12s; }
-    .ac-more:hover, .ac-more[aria-expanded="true"] { background: var(--btn-secondary-hover); color: var(--foreground); }
+    .ac-more { width: 30px; height: 30px; border: 0; border-radius: 8px; display: grid; place-items: center; background: transparent; box-shadow: inset 0 0 0 1px var(--border); color: var(--muted-fg); cursor: pointer; transition: background .15s, color .15s; }
+    .ac-more:hover, .ac-more[aria-expanded="true"] { background: var(--muted); color: var(--foreground); }
     .ac-more svg { width: 16px; height: 16px; }
     .ac-menu { position: absolute; right: 0; top: calc(100% + 6px); z-index: 30; min-width: 220px; padding: 5px; border: 1px solid var(--border);
       border-radius: 12px; background: var(--surface-raised); box-shadow: 0 10px 30px rgba(0,0,0,.22); transform-origin: top right;
@@ -2565,6 +2572,9 @@
     .de-note-wrap textarea::placeholder, #futureDayReason::placeholder { color: var(--muted-fg); opacity: .7; }
     .de-note-wrap textarea:focus, #futureDayReason:focus { box-shadow: inset 0 0 0 2.5px rgba(9,9,11,.10); }
     .dark .de-note-wrap textarea:focus, .dark #futureDayReason:focus { box-shadow: inset 0 0 0 2.5px rgba(250,250,250,.10); }
+    /* Update Entry note: a lighter fill and a visible outline so it reads as a field; focus lifts the outline to a lighter grey (not white); the caret blinks in the text colour. */
+    #dayEditOverlay .de-note-wrap textarea { background: color-mix(in srgb, var(--foreground) 7%, var(--card)); box-shadow: inset 0 0 0 1px var(--input); caret-color: var(--foreground); }
+    #dayEditOverlay .de-note-wrap textarea:focus, .dark #dayEditOverlay .de-note-wrap textarea:focus { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--input) 55%, var(--foreground)); }
     /* Future plan CTA — slides in when a chip is selected */
     .future-plan-cta { overflow: hidden; max-height: 0; opacity: 0;
       transition: max-height .25s ease, opacity .2s ease; pointer-events: none; }
@@ -3986,6 +3996,9 @@
       transition: background .15s, color .15s; z-index: 2; }
     body.rail-on #dayEditOverlay .sheet-close:hover { background: var(--btn-secondary-hover); color: var(--foreground); }
     body.rail-on #dayEditOverlay .sheet-close svg { width: 15px; height: 15px; }
+    /* Close: the panel's own colour at rest, one outline in every state, a lighter fill on hover. */
+    body.rail-on #dayEditOverlay .sheet-close { background: var(--card); box-shadow: inset 0 0 0 1px var(--border); }
+    body.rail-on #dayEditOverlay .sheet-close:hover { background: var(--muted); }
     body.rail-on #dayEditDeleteBtn { right: 48px !important; }
     .notif-head-actions { display: flex; align-items: center; gap: 8px; }
     body.rail-on .notif-panel .sheet-close { display: grid; place-items: center; flex-shrink: 0;
@@ -4043,7 +4056,7 @@
 
   <!-- Fixed brand logo — page top-left corner (desktop/tablet only) -->
   <a href="/" class="page-brand" title="5pm">
-    <img id="navLogo" src="/icons/brand-light.svg" alt="5pm" height="32" style="display:block;border-radius:7px;border:1px solid var(--border)">
+    <img id="navLogo" src="/icons/brand-light.svg" alt="5pm" height="32" style="display:block;border-radius:7px">
   </a>
 
 
@@ -4384,13 +4397,6 @@
 
       </div><!-- /homeCard -->
 
-      <!-- Weekend: View Stats sits below the Home card (#50, flat weekend card). -->
-      <div id="wkndStatsOut">
-        <button type="button" class="btn-secondary ws-stats" data-on-click="ha2992aba2f">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
-          View Stats
-        </button>
-      </div>
 
       <!-- Ongoing session banner — sits right below the home card, outside its
            chrome, so it always reads as "the card's own status" rather than being
@@ -4622,16 +4628,16 @@
               </div>
               <span class="sc-val"><span id="scValue">1st – last day</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></span>
             </div>
-            <div class="pay-switch">
-              <div>
-                <div class="form-label" id="penRemindLabel">Penalty Reminders</div>
-                <div class="form-sub">A nudge in the cycle's last week, at a calm moment.</div>
-              </div>
-              <label class="toggle">
+            <label class="pay-switch">
+              <span>
+                <span class="form-label" id="penRemindLabel" style="display:block">Penalty Reminders</span>
+                <span class="form-sub" style="display:block">A nudge in the cycle's last week, at a calm moment.</span>
+              </span>
+              <span class="toggle">
                 <input type="checkbox" id="inpPenRemind" checked aria-labelledby="penRemindLabel">
                 <span class="toggle-track"></span>
-              </label>
-            </div>
+              </span>
+            </label>
             <div class="set-note sc-foot" id="scFoot"></div>
           </div>
         </div><!-- /Payroll section -->

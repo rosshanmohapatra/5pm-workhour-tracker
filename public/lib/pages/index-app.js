@@ -1594,14 +1594,20 @@
         : (event?.target?.closest('button,.rc-io-box,[data-tpid]') || event?.target || el(targetInputId));
       const refRect = refEl?.getBoundingClientRect();
       if (refRect) {
-        const GAP = 12, mW = 216, mH = 200, pad = 8;
+        // Measure the real picker (open but hidden) so it can never run off the screen.
+        modal.style.visibility = 'hidden'; modal.classList.add('open');
+        const _box = modal.getBoundingClientRect();
+        modal.classList.remove('open'); modal.style.visibility = '';
+        const GAP = 12, mW = Math.max(216, Math.ceil(_box.width)), mH = Math.max(200, Math.ceil(_box.height)), pad = 8;
         // Login input: prefer above; everything else: prefer below
         let top = _isLoginInput
           ? refRect.top - mH - GAP
           : refRect.bottom + GAP;
         // Login field: a dropdown from the field's own left edge, not centred on
         // the whole row (which put it in the middle of the card).
+        // Near the right edge (the Update Entry panel), line the picker's right edge up with the button.
         let left = _isLoginInput ? refRect.left : refRect.left + refRect.width / 2 - mW / 2;
+        if (!_isLoginInput && left + mW > window.innerWidth - pad) left = refRect.right - mW;
         if (top < pad) top = refRect.bottom + GAP;          // fallback below if above clips
         if (top + mH > window.innerHeight - pad) top = Math.max(pad, refRect.top - mH - GAP);
         if (left + mW > window.innerWidth - pad) left = window.innerWidth - mW - pad;
@@ -6584,15 +6590,16 @@
         : `Salary cycle · ${data.cycle.sub}`;
       const top = el('acTop');
       top.innerHTML = `<div class="ac-head"><span class="ac-title">Action Center</span>
-          <div class="ac-acts"><button type="button" class="btn-secondary ac-markall" id="acMarkAll"${un.length ? '' : ' disabled'}>Mark all as read</button>
+          <div class="ac-acts">
             <div class="ac-more-wrap"><button type="button" class="ac-more" id="acMore" aria-haspopup="menu" aria-expanded="false" aria-label="More">${_AC_SVG(_AC_I.more)}</button>
               <div class="ac-menu" id="acMoreMenu" role="menu" aria-label="Action Center options">
-                <button type="button" class="ac-mi" role="menuitemcheckbox" aria-checked="${_acShowRead}" data-ac="showread"><span>Show read penalties</span>${_AC_SVG(_AC_I.check)}</button>
+                <button type="button" class="ac-mi" role="menuitem" id="acMarkAll" data-ac="markall"${un.length ? '' : ' disabled'}><span>Mark All as Read</span>${_AC_SVG(_AC_I.read)}</button>
+                <button type="button" class="ac-mi" role="menuitemcheckbox" aria-checked="${_acShowRead}" data-ac="showread"><span>Show Read Items</span>${_AC_SVG(_AC_I.check)}</button>
                 <div class="ac-sep" role="separator"></div>
                 <button type="button" class="ac-mi danger" role="menuitem" data-ac="clear"${rows.length ? '' : ' disabled'}><span>Clear all penalties</span>${_AC_SVG(_AC_I.trash)}</button>
               </div></div></div></div>
         <div class="ac-seg" role="tablist" aria-label="Period"><span class="ac-gl" aria-hidden="true"></span>
-          ${['week', 'month'].map(t => `<button type="button" role="tab" aria-selected="${t === _acTab}" data-t="${t}">${t === 'week' ? 'This Week' : 'This Month'}<em>${unread(t).length}</em></button>`).join('')}</div>
+          ${['week', 'month'].map(t => `<button type="button" role="tab" aria-selected="${t === _acTab}" data-t="${t}">${t === 'week' ? 'This Week' : 'This Month'}</button>`).join('')}</div>
         <p class="ac-cap">${cap}</p>`;
       // Body: inline confirm › empty › all caught up › rows (+ read ones when on).
       if (_acConfirm && rows.length) {
@@ -6606,12 +6613,9 @@
           <h3>Yay, nothing to resolve</h3><p>Your hours add up and there's no email to send. Anything that needs fixing lands here.</p></div>`;
       } else {
         // Unread rows, plus the ones read during this visit (still in place).
-        const shown = rows.filter(r => !_discardedPenalties.has(r.key) || _acKeepRead.has(r.key));
-        let html = shown.length ? _acListHtml(shown, false)
-          : `<div class="ac-caught"><span class="ac-caught-i">${_AC_SVG(_AC_I.check)}</span><div><b>All caught up</b><span>Read penalties are under the ⋯ menu.</span></div></div>`;
-        const older = rd.filter(r => !_acKeepRead.has(r.key));
-        if (_acShowRead && older.length) html += `<div class="ac-mo ac-read-l">Read</div>` + _acListHtml(older, true);
-        list.innerHTML = html;
+        const shown = _acShowRead ? rows : un;
+        list.innerHTML = shown.length ? _acListHtml(shown, false)
+          : `<div class="ac-caught"><span class="ac-caught-i">${_AC_SVG(_AC_I.check)}</span><div><b>All caught up</b><span>Turn on Show Read Items in the ⋯ menu to see read ones.</span></div></div>`;
       }
       _acLoaded = true;
       _acBind(card, rows, un);
@@ -6633,7 +6637,7 @@
       });
       menu.querySelector('[data-ac="showread"]').addEventListener('click', () => { _acShowRead = !_acShowRead; _acSave(); _renderPenaltyCard(); });
       menu.querySelector('[data-ac="clear"]').addEventListener('click', () => { _acConfirm = true; _renderPenaltyCard(); el('penaltiesList').querySelector('[data-ac="cf-no"]')?.focus(); });
-      el('acMarkAll').addEventListener('click', () => _acMarkAllRead(un));
+      el('acMarkAll').addEventListener('click', () => { setMenu(false); _acMarkAllRead(un); });
       const list = el('penaltiesList');
       list.querySelector('[data-ac="cf-no"]')?.addEventListener('click', () => { _acConfirm = false; _renderPenaltyCard(); });
       list.querySelector('[data-ac="cf-yes"]')?.addEventListener('click', () => {
@@ -6657,9 +6661,9 @@
       const key = row.dataset.penaltyKey, read = _discardedPenalties.has(key);
       const m = document.createElement('div');
       m.className = 'ac-rmenu ac-menu open'; m.setAttribute('role', 'menu');
-      m.innerHTML = `<button type="button" class="ac-mi" role="menuitem" data-r="email">${_AC_SVG(_AC_I.mail)}<span>Draft email to manager</span></button>
-        <button type="button" class="ac-mi" role="menuitem" data-r="fix">${_AC_SVG(_AC_I.edit)}<span>Fix my hours</span></button>
-        <button type="button" class="ac-mi" role="menuitem" data-r="read">${_AC_SVG(read ? _AC_I.unread : _AC_I.read)}<span>${read ? 'Mark as unread' : 'Mark as read'}</span></button>`;
+      m.innerHTML = `<button type="button" class="ac-mi" role="menuitem" data-r="email">${_AC_SVG(_AC_I.mail)}<span>Draft Email</span></button>
+        <button type="button" class="ac-mi" role="menuitem" data-r="fix">${_AC_SVG(_AC_I.edit)}<span>Update Hours</span></button>
+        <button type="button" class="ac-mi" role="menuitem" data-r="read">${_AC_SVG(read ? _AC_I.unread : _AC_I.read)}<span>${read ? 'Mark as Unread' : 'Mark as Read'}</span></button>`;
       row.classList.add('menu-on');
       row.appendChild(m);
       m.querySelector('.ac-mi')?.focus();

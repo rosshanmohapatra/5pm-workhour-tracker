@@ -7,6 +7,24 @@
 // bug fixes as "Fixed <problem>". No em dashes.
 window.WHATS_NEW = [
   {
+    version: '1.2.33',
+    improvements: [
+      { icon: 'calendar', title: 'Week in one list',     line: 'Scroll through every day, weekends too, or jump to any date from the calendar.' },
+      { icon: 'bell',     title: 'Notification center',  line: "Open a notification to read it, and see at a glance what's still unread." },
+      { icon: 'clock',    title: 'A 9 to 5 welcome',     line: 'A small clock runs from 9 to 5 while 5pm opens.' },
+      { icon: 'calendar', title: 'Simpler Salary Cycle', line: 'Pick the start of the month, the 5th, the 7th or any date, right under Shift Hours.' },
+      { icon: 'sparkle',  title: 'Contribute',           line: 'Choose an amount and pay with any UPI app.' },
+      { icon: 'palette',  title: 'Settings tabs',        line: 'Tabs in Settings glide between sections.' },
+    ],
+    fixes: [
+      "Fixed the passkey button showing an oversized icon.",
+      "Fixed the Weekend chart letting go of the day you tapped on phones.",
+      "Fixed the Add hours button fading when you point at a day.",
+      "Fixed View Stats appearing twice on Home.",
+      "Fixed the time picker in Update Entry opening off screen.",
+    ],
+  },
+  {
     version: '1.2.32',
     improvements: [
       { icon: 'shield',   title: 'New sign-in page',   line: 'Sign in with Google, GitHub or a passkey, and reset your password with a 6-digit code.' },

@@ -30,6 +30,10 @@
     strong { color:var(--fg); font-weight:600; }
     a { color:var(--fg); }
     footer { max-width:680px; margin:20px auto 0; text-align:center; font-size:13px; color:var(--muted-fg); }
+    /* Secondary button (uiarc): card surface, hairline border, lighter fill on hover. */
+    footer .back-btn { display:inline-flex; align-items:center; justify-content:center; min-height:40px; padding:0 18px; border-radius:12px; background:var(--card); border:1px solid var(--border); color:var(--fg); font-size:14px; font-weight:500; text-decoration:none; transition:background .15s; }
+    footer .back-btn:hover { background:var(--chip); }
+    footer .back-btn:focus-visible { outline:2px solid var(--fg); outline-offset:2px; }
     @media (max-width:560px) { main { padding:28px 20px; } }
   </style>
 </head>
@@ -87,9 +91,9 @@
     <p>If this policy changes, we'll update this page and the date at the top.</p>
 
     <h2>Contact</h2>
-    <p>Questions or requests about your data: <a href="mailto:roshankanhu@gmail.com">roshankanhu@gmail.com</a>.</p>
+    <p>Questions or requests about your data: <a href="mailto:5pm.app.noreply@gmail.com">5pm.app.noreply@gmail.com</a>.</p>
   </main>
-  <footer><a href="/">Open 5pm</a></footer>
+  <footer><a class="back-btn" href="/index.html">Go Back to App</a></footer>
   <script src="/lib/pages/privacy-2.js"></script>
 </body>
 </html>

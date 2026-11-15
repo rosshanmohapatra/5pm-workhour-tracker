@@ -519,26 +519,31 @@ test('Notifications panel has a close button on desktop', () => {
 
 
 
-test('Each notification has its own dismiss button that never opens the card', () => {
+test('Notification center (#59): All | Unread, read state, rows that open, Clear Read, Mark All as Read', () => {
   const render = extract('function renderNotifs(');
-  assert.match(render, /<button type="button" class="notif-dismiss" data-dismiss="\$\{safeId\}" aria-label="Dismiss notification">/);
-  // Capture phase + stopPropagation: the card's own click handler must not run.
-  assert.match(SRC, /const x = e\.target\.closest\('\.notif-dismiss, \[data-tap-dismiss\]'\); if \(!x\) return;\n\s*e\.stopPropagation\(\);\n\s*_dismissNotifItem\(x\.closest\('\.notif-item'\), x\.dataset\.dismiss \|\| x\.dataset\.tapDismiss, 1\);\n\s*\}, true\);/);
+  // Every row has a title, a preview, a time; opening shows the CTA + Mark as Read/Unread + Dismiss.
+  assert.match(render, /const title = n\.title \|\| n\.text, pv = n\.pv \|\| '', more = n\.more \|\| pv;/);
+  assert.match(render, /\$\{isRead \? dot \+ 'Mark as Unread' : check \+ 'Mark as Read'\}/);
+  assert.match(render, /data-nc="dismiss">\$\{x\}Dismiss/);
+  assert.match(render, /const hasBadge = un > 0;/, 'the bell dot means unread');
+  assert.match(render, /el\('ncFoot'\)\.hidden = !un;/, 'Mark All as Read only while something is unread');
+  assert.match(render, /clr\.classList\.toggle\('nc-gone', !rd\)/, 'Clear Read only when something is read');
+  assert.match(render, /Nothing unread/); assert.match(render, /All clear/);
+  const init = extract('function _ncInit(');
+  assert.match(init, /if \(_ncOpen === id && !isRead && _ncView === 'all'\) _ncSetRead\(\[id\], true\);/, 'opening reads it');
+  assert.match(init, /ids\.forEach\(addDismissed\)/, 'Clear Read dismisses the read ones');
+  assert.match(extract('function _ncSetRead('), /notifRead: pruneDismissed\(\[\.\.\.s\]\)\.slice\(-80\)/, 'read state syncs in cfg');
+  // Each notification type carries a title.
+  const build = extract('function buildNotifs(');
+  assert.match(build, /title: `Resolve \$\{n\} \$\{n === 1 \? 'Penalty' : 'Penalties'\}`/);
+  assert.match(build, /title: 'You Can Leave Early Today'/);
+  assert.match(extract('function _bkNotice('), /cta: 'Make New Codes'/);
   const HTML = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
-  assert.match(HTML, /@media \(hover: hover\) and \(pointer: fine\) \{\n\s*\.notif-dismiss \{ display: grid;/);
-});
-
-test('A notification with nowhere to go dismisses on tap and says so', () => {
-  const render = extract('function renderNotifs(');
-  // No CTA: the card is a button that dismisses, with a hint for touch.
-  assert.match(render, /: ` data-tap-dismiss="\$\{safeId\}" role="button" tabindex="0"/);
-  assert.match(render, /const hint = n\.cta \? '' : `<div class="notif-hint">Tap to dismiss<\/div>`;/);
-  assert.match(render, /\$\{n\.cta \? 'notif-tappable' : 'notif-info-only'\}/);
-  // Keyboard: Enter / Space dismiss it too.
-  assert.match(SRC, /const x = e\.target\.closest\('\[data-tap-dismiss\]'\); if \(!x \|\| e\.target !== x\) return;/);
-  const HTML = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
-  assert.match(HTML, /\.notif-info-only \{ cursor: pointer; \}/);
-  assert.match(HTML, /@media \(hover: hover\) and \(pointer: fine\) \{ \.notif-hint \{ display: none; \} \}/);
+  assert.match(HTML, /<span class="nc-title">Notifications<\/span>/);
+  assert.match(HTML, /<button type="button" class="nc-fill" id="notifClearRead">Clear Read<\/button>/);
+  assert.match(HTML, /<button type="button" class="btn btn-cancel" id="notifMarkAll">Mark All as Read<\/button>/);
+  assert.doesNotMatch(HTML, /id="notifClearAll"/);
+  assert.match(HTML, /\.nc-foot \.btn \{ flex: 1; height: 40px; \}/, 'same size as Update Entry Save');
 });
 
 test('Card dismissals reach the notification; a notification dismiss never clears the card', () => {
@@ -982,7 +987,7 @@ test('Starting with a time already past auto-stop does not crash', () => {
   assert.match(extract('function _startSession('), /render\(\);\n(\s*\/\/.*\n)*\s*if \(!loginDate\) return;\n\s*if \(ticker\) clearInterval\(ticker\);/);
 });
 
-test('Weekend card: week total chip, tiny bars, note box; View Stats keeps its button', () => {
+test('Weekend card: week total chip, tiny bars, note box; the week card opens the report', () => {
   const chip = load(extract('function wkSigned(') + '\nconst _wsGap = secs => wkSigned(secs).slice(1);\n' + extract('function _minsGap(', '}') + '\n' + extract('function _wkndWeekChip('), { Math, p2: n => String(n).padStart(2, '0') }, '_wkndWeekChip');
   const H = 3600, M = 60;
   assert.deepEqual({ ...chip(43 * H + 47 * M, 45 * H) }, { text: '1h 13mins short', tone: '' });
@@ -995,7 +1000,7 @@ test('Weekend card: week total chip, tiny bars, note box; View Stats keeps its b
   assert.match(SRC, /if \(_isWeekendType\) \{\n\s*if \(_infoCard\) _infoCard\.style\.display = 'none';/);
   const HTML = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
   assert.match(HTML, /<div id="wkndSum" style="display:none"><\/div>/);
-  assert.match(HTML, /data-on-click="ha2992aba2f"/);                      // View Stats → openWeekReport(), unchanged
+  assert.match(HTML, /data-on-click="ha2e8e1871e"/);                      // the week report opens from the week card (user, 2026-11-15)
 });
 
 test('Weekend card: no icons on bars, chart container with target line, one variable chip row', () => {
@@ -1134,17 +1139,19 @@ test('Note editor: Cancel and Save sit inside the note box, on their own row (#4
   assert.doesNotMatch(HTML, /\.ws-nb \{/);
 });
 
-test('Weekend card is flat, View Stats sits below the Home card (#50)', () => {
+test('Weekend card is flat; no second View Stats on Home (#50)', () => {
   const HTML = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
   assert.match(HTML, /\.ws-card \{ margin-bottom: 4px; text-align: left; \}/);       // no inner card surface
   assert.doesNotMatch(HTML, /\.ws-card \{[^}]*(background|border):/);
-  // The button lives after the Home card, shown only while the weekend summary is on.
-  const after = HTML.slice(HTML.indexOf('<!-- /homeCard -->'));
-  assert.match(after.slice(0, 600), /<div id="wkndStatsOut">[\s\S]*data-on-click="ha2992aba2f"[\s\S]*View Stats/);
-  const inside = HTML.slice(HTML.indexOf('id="wkndStatsSection"'), HTML.indexOf('<!-- /homeCard -->'));
-  assert.doesNotMatch(inside, /View Stats/);
-  assert.match(HTML, /#homeMain:has\(#rcBody\.weekend-mode #weekendView\.ws-on\) #wkndStatsOut \{ display: block; \}/);
-  assert.match(SRC, /el\('weekendView'\)\?\.classList\.toggle\('ws-on', _isWeekendType\)/);
+  // The week card's own report button is the only one (user, 2026-11-15).
+  assert.doesNotMatch(HTML, /wkndStatsOut/);
+  assert.match(HTML, /data-on-click="ha2e8e1871e"/);
+});
+
+test('Action Center tabs show titles only; Add hours stays a button on a hovered row', () => {
+  assert.doesNotMatch(SRC, /'This Month'\}<em>/);
+  const HTML = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
+  assert.match(HTML, /\.wk-row:hover \.wk-add \{ background: var\(--card\); box-shadow: inset 0 0 0 1px var\(--border\); \}/);
 });
 
 test('Weekend chart: day letters inside the bars, no letter row, 112px plot (#48)', () => {
@@ -1347,38 +1354,47 @@ test('Action Center: rows are single short days; weekly mode lists the short day
 });
 test('Action Center: card copy, read filter, clear confirm, empty state', () => {
   const r = extract('function _renderPenaltyCard(');
-  assert.match(r, /Action Center/); assert.match(r, /Mark all as read/); assert.match(r, /Show read penalties/); assert.match(r, /Clear all penalties/);
+  assert.match(r, /Action Center/); assert.match(r, /Mark All as Read/); assert.match(r, /Show Read Items/); assert.doesNotMatch(r, /ac-markall/); assert.match(r, /Clear all penalties/);
   assert.match(r, /This Week' : 'This Month'/); assert.match(r, /Salary cycle · \$\{data\.cycle\.sub\}/);
   assert.match(r, /Yay, nothing to resolve/); assert.match(r, /All caught up/);
   assert.match(r, /Clear all \$\{rows\.length\}/);
   const m = extract('function _acOpenRowMenu(');
-  assert.match(m, /Draft email to manager/); assert.match(m, /Fix my hours/); assert.match(m, /Mark as unread' : 'Mark as read/);
+  assert.match(m, /Draft Email/); assert.match(m, /Update Hours/); assert.match(m, /Mark as Unread' : 'Mark as Read/);
   assert.match(extract('function _acMarkAllRead('), /label: 'Undo'/);
   const HTML = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
   assert.doesNotMatch(HTML, /Your Penalties/);
 });
 
-// ── Salary Cycle + Penalty Reminders (#41) ─────────────────────────────────
+// ── Salary Cycle + Penalty Reminders (#41, picker #58) ────────────────────
 function paySandbox() {
   const code = [extract('const _SX_MON = [', '];'), extract('const _sxMd = ', ';'), extract('function _statsPeriod('), extract('const _ord = ', ';'),
-    extract('function _cycleValue(', '; }'), extract('function _cycleRepeats('), extract('function _cycleSuggestTo(', '; }'), extract('const _scDays = ', ';'),
-    extract('function _scProblem('), extract('function _payrollNudge(')].join('\n');
-  return load(code + '\nthis.o = { _statsPeriod, _cycleValue, _cycleRepeats, _cycleSuggestTo, _scProblem, _payrollNudge };',
+    extract('const _SC_PRESETS = ', ';'), extract('const _SC_CUSTOM_LEN = ', ';'), extract('function _scPresetRange('), extract('function _scCustomRange(', '; }'),
+    extract('function _scPresetOf(', '; }'), extract('function _cycleValue('), extract('const _scDays = ', ';'), extract('function _payrollNudge(')].join('\n');
+  return load(code + '\nthis.o = { _statsPeriod, _scPresetRange, _scCustomRange, _scPresetOf, _cycleValue, _scDays, _payrollNudge };',
     { Math, Date, FULL_DAYS_EN: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'] }, 'o');
 }
-test('Salary Cycle: start and end days, the suggested To, the row value and summary', () => {
-  const f = paySandbox(), now = new Date(2026, 10, 13);
+test('Salary Cycle: presets, a 30-day custom cycle, the row value', () => {
+  const f = paySandbox(), now = new Date(2026, 10, 13), md = d => `${d.getMonth() + 1}/${d.getDate()}`;
+  // Month-based cycles (presets and older saved ranges) keep working.
   assert.equal(f._statsPeriod('cycle', now, 26, 25).sub, 'Oct 26 – Nov 25');
-  assert.equal(f._statsPeriod('cycle', now, 26, 24).sub, 'Oct 26 – Nov 24', 'a custom last day');
-  assert.equal(f._statsPeriod('cycle', new Date(2027, 0, 30), 1, 31).sub, 'Jan 1 – Jan 31');
   assert.equal(f._statsPeriod('cycle', new Date(2027, 1, 10), 1, 31).sub, 'Feb 1 – Feb 28', 'clamped to the month');
-  assert.equal(f._statsPeriod('cycle', new Date(2027, 1, 10), 28, 27).sub, 'Jan 28 – Feb 27');
-  const to = f._cycleSuggestTo(new Date(2026, 9, 26)); assert.equal(`${to.getMonth()}-${to.getDate()}`, '10-25', 'Oct 26 → Nov 25');
-  assert.equal(f._cycleValue(26, 25), '26th – 25th'); assert.equal(f._cycleValue(1, 31), '1st – last day'); assert.equal(f._cycleValue(22, 21), '22nd – 21st');
-  assert.equal(f._cycleRepeats(26, 25), 'Repeats every month, the 26th to the 25th of the next month.');
-  assert.equal(f._scProblem(new Date(2026, 9, 26), new Date(2026, 10, 25)), null);
-  assert.match(f._scProblem(new Date(2026, 9, 30), new Date(2026, 10, 29)), /1st to the 28th/);
-  assert.match(f._scProblem(new Date(2026, 9, 26), new Date(2026, 10, 5)), /28 to 31 days/);
+  // Presets: the cycle that contains today.
+  let r = f._scPresetRange(1, now); assert.equal(`${md(r.from)}-${md(r.to)}`, '11/1-11/30', 'Start of the Month');
+  r = f._scPresetRange(5, now); assert.equal(`${md(r.from)}-${md(r.to)}`, '11/5-12/4', '5th Day');
+  r = f._scPresetRange(7, new Date(2026, 10, 3)); assert.equal(`${md(r.from)}-${md(r.to)}`, '10/7-11/6', '7th Day, before the 7th');
+  // Custom: the picked date + 30 days, the picked date is day 1.
+  r = f._scCustomRange(new Date(2026, 10, 12)); assert.equal(`${md(r.from)}-${md(r.to)}`, '11/12-12/11'); assert.equal(f._scDays(r.from, r.to), 30);
+  assert.equal(f._statsPeriod('cycle', new Date(2026, 10, 20), 12, null, 30).sub, 'Nov 12 – Dec 11');
+  assert.equal(f._statsPeriod('cycle', new Date(2026, 10, 5), 12, null, 30).sub, 'Oct 12 – Nov 10', 'before the start day: last month\'s cycle');
+  assert.equal(f._statsPeriod('cycle', new Date(2026, 1, 28), 31, null, 30).sub, 'Feb 28 – Mar 29', 'a 31st start clamps in short months');
+  // Which preset is saved, and the row value.
+  assert.equal(f._scPresetOf(1, 31, 0), 1); assert.equal(f._scPresetOf(5, 4, 0), 5); assert.equal(f._scPresetOf(7, 6, 0), 7);
+  assert.equal(f._scPresetOf(26, 25, 0), 0, 'an older range shows as Custom'); assert.equal(f._scPresetOf(5, null, 30), 0, 'custom');
+  assert.equal(f._cycleValue(1, 31, 0), 'Start of the Month'); assert.equal(f._cycleValue(5, 4, 0), '5th Day');
+  assert.equal(f._cycleValue(12, null, 30, new Date(2026, 10, 12)), 'Custom · Nov 12');
+  const HTML = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
+  assert.match(HTML, /Used for notifying you about penalties &amp; emails\./);
+  assert.doesNotMatch(HTML, /id="scFieldFrom"/, 'From / To fields replaced by presets');
 });
 test('Penalty Reminders: gates, then the first matching rung of the ladder', () => {
   const f = paySandbox();
@@ -1406,10 +1422,12 @@ test('Penalty Reminders: gates, then the first matching rung of the ladder', () 
   assert.match(extract('function _payrollSchedule('), /_payrollCheck\('target'\)/);
   assert.match(extract('function buildNotifs('), /cta: 'Review', ctaWeekKey: ''/);
   const HTML = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
-  assert.match(HTML, /<div class="settings-section-header">Payroll<\/div>/);
-  assert.match(HTML, /Pick the first and last day your company counts for one month's pay\./);
+  assert.match(SRC, /shift\.after\(el\('scRow'\), payroll\.querySelector\('\.pay-switch'\)\); payroll\.remove\(\);/, 'Salary Cycle + Penalty Reminders right under Shift Hours, no Payroll title');
+  assert.match(HTML, /<button type="button" class="info-tip" id="scInfo" aria-label="About the salary cycle" aria-describedby="scTip">/);
+  assert.match(SRC, /if \(el\('scTip'\)\) el\('scTip'\)\.textContent = `This cycle runs/);
+  assert.match(HTML, /id="scRail"/, 'the Salary Cycle picker has its presets rail');
 });
-test('Action Center: marking as read keeps the row in place, muted and labelled Read', () => {
+test('Action Center: read rows show only while Show Read Items is on (muted, labelled Read)', () => {
   const m = extract('function _acOpenRowMenu(');
   assert.doesNotMatch(m, /_dismissPenaltyRow/);
   assert.match(m, /_acKeepRead\.add\(key\)/);
@@ -1417,7 +1435,7 @@ test('Action Center: marking as read keeps the row in place, muted and labelled 
   assert.doesNotMatch(all, /_dismissPenaltyRow/);
   assert.match(all, /_acKeepRead\.add\(r\.key\)/);
   assert.match(extract('function _acRowHtml('), /\$\{read \? ' · Read' : ''\}/);
-  assert.match(extract('function _renderPenaltyCard('), /!_discardedPenalties\.has\(r\.key\) \|\| _acKeepRead\.has\(r\.key\)/);
+  assert.match(extract('function _renderPenaltyCard('), /const shown = _acShowRead \? rows : un;/);
 });
 
 // ── Geist headings (#52) ───────────────────────────────────────────────────
@@ -1435,7 +1453,7 @@ test('Geist: titles and big numbers use the display font, body text stays on --f
 test('Login: screens, copy and the signed-in page', () => {
   const LHTML = fs.readFileSync(path.join(WEB, 'login.html'), 'utf8');
   for (const id of ['signin', 'twostep', 'backup', 'lost', 'done', 'signup', 'confirm', 'reset', 'other', 'code', 'newpw', 'noAccount'])
-    assert.match(LOGIN, new RegExp(`\n  ${id}: \{ h: `), id);
+    assert.match(LOGIN, new RegExp(`\\n  ${id}: \\{ h: `), id);
   assert.match(LOGIN, /done: \{ h: \(\) => big\.ok \+ heading\('You’re in', 'Letting you in\.\.\.'\) \}/);   // user, 2026-11-15
   assert.match(LOGIN, /'That email and password don’t match\.'/);                  // one message, never says which emails exist
   assert.match(LOGIN, /resetPasswordForEmail\(email, \{ redirectTo: resetTo \}\)/);  // code first; the link goes to the public app
@@ -1508,4 +1526,117 @@ test('Reset email link opens the public app, not the Site URL', () => {
   // Without redirectTo the link goes to Supabase's Site URL, a Vercel alias behind a login wall.
   assert.match(LOGIN, /resetPasswordForEmail\(email, \{ redirectTo: resetTo \}\)/);
   assert.match(LOGIN, /const resetTo = \(window\.__TAURI__ \? 'https:\/\/whtracker\.vercel\.app' : location\.origin\) \+ '\/index\.html'/);
+});
+
+test('Sign-in text buttons keep their icon at 16px', () => {
+  // The quiet "Sign in with a passkey" button showed a giant icon and wrapped text.
+  const LH = fs.readFileSync(path.join(WEB, 'login.html'), 'utf8');
+  assert.match(LH, /\.textButton svg \{ width: 16px; height: 16px; flex: none; \}/);
+  assert.match(LH, /\.textButton \{ white-space: nowrap; \}/);
+});
+
+test('Ended-day card: the + / pencil button fills on hover', () => {
+  const HTML = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
+  assert.match(HTML, /\.ed-card \.ed-edit:hover, \.ed-card \.ed-edit:active, \.dark \.ed-card \.ed-edit:hover, \.dark \.ed-card \.ed-edit:active \{ background: var\(--muted\); \}/);
+});
+
+test('Update Entry panel: close button, note field and time picker', () => {
+  const HTML = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
+  const H = fs.readFileSync(path.join(WEB, 'lib', 'pages', 'index-handlers.js'), 'utf8');
+  // Close: panel colour at rest, one outline in every state, lighter fill on hover.
+  assert.match(HTML, /#dayEditOverlay \.sheet-close \{ background: var\(--card\); box-shadow: inset 0 0 0 1px var\(--border\); \}/);
+  assert.match(HTML, /#dayEditOverlay \.sheet-close:hover \{ background: var\(--muted\); \}/);
+  // Note: reads as a field; focus outline is a lighter grey, not white.
+  assert.match(HTML, /#dayEditOverlay \.de-note-wrap textarea \{ background: color-mix\(in srgb, var\(--foreground\) 7%, var\(--card\)\); box-shadow: inset 0 0 0 1px var\(--input\); caret-color: var\(--foreground\); \}/);
+  // Picker titles match the rows, and the picker is measured so it stays on screen.
+  assert.match(H, /openTpModal\('deStart',event,'Started'\)/);
+  assert.match(H, /openTpModal\('deEnd',event,'Left at'\)/);
+  assert.doesNotMatch(H, /openTpModal\('de(Start|End)',event,'Log(in|out)'\)/);
+  assert.match(SRC, /mW = Math\.max\(216, Math\.ceil\(_box\.width\)\)/);
+  assert.match(SRC, /if \(!_isLoginInput && left \+ mW > window\.innerWidth - pad\) left = refRect\.right - mW;/);
+});
+
+test('Batch 2026-11-15: privacy contact, logo, Action Center menu, toggle rows, notification cards', () => {
+  const PRIV = fs.readFileSync(path.join(WEB, 'privacy.html'), 'utf8'), ABOUT = fs.readFileSync(path.join(WEB, 'about.html'), 'utf8');
+  const HTML = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
+  assert.doesNotMatch(PRIV + ABOUT, /roshankanhu@gmail\.com/);                      // personal email gone
+  assert.match(PRIV, /mailto:5pm\.app\.noreply@gmail\.com/);
+  assert.match(PRIV, /<a class="back-btn" href="\/index\.html">Go Back to App<\/a>/);
+  assert.match(HTML, /<img id="navLogo" src="\/icons\/brand-light\.svg" alt="5pm" height="32" style="display:block;border-radius:7px">/);  // no stroke
+  assert.match(HTML, /\.ac-more \{[^}]*background: transparent; box-shadow: inset 0 0 0 1px var\(--border\);/);
+  assert.match(HTML, /<label class="pay-switch">/);                                   // whole row toggles
+  assert.match(HTML, /#viewSettings :not\(\.tile-list\) > \[data-on-click\]:has\(> \.toggle\) \{ padding: 10px 12px; margin: -10px -12px;/);   // loose rows only; tile-list rows keep their padding
+  assert.doesNotMatch(HTML, /\.notif-item \+ \.notif-item \{ border-top/);
+});
+
+test('Settings tabs (#56): a rail with one gliding pill, panels rise in', () => {
+  const HTML = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
+  assert.match(HTML, /body\.shell-new \.set-tabs \{[^}]*border-radius: 14px;[^}]*background: var\(--surface-raised\); box-shadow: inset 0 0 0 1px var\(--border\);/);
+  assert.match(HTML, /\.set-tab-ind \{ position: absolute; z-index: 0; top: 4px; bottom: 4px; left: 0; background: var\(--card\);/);
+  assert.doesNotMatch(HTML, /\.set-tab-ind \{[^}]*height: 2px/, 'the underline is gone');
+  assert.match(HTML, /@keyframes set-rise \{ from \{ opacity: 0; transform: translateY\(6px\); filter: blur\(3px\); \}/);
+  assert.match(extract('function moveIndicator('), /ind\.style\.left = t\.offsetLeft \+ 'px';/);
+});
+
+test('Contribute (#57): UPI links are exact (payments), presets, two views', () => {
+  const code = [extract('const _UPI_ID = ', ';'), extract('function _upiQuery(', '; }'), extract('function upiLink(', '; }'), extract('const _UPI_APPS = ', ';'), extract('function _upiAppLink(')].join('\n');
+  const f = load(code + '\nthis.o = { upiLink, _upiAppLink };', {}, 'o');
+  assert.equal(f.upiLink(499), 'upi://pay?pa=roshan.394@superyes&pn=Roshan%20Mohapatra&am=499.00&cu=INR');
+  assert.equal(f.upiLink(1234.5), 'upi://pay?pa=roshan.394@superyes&pn=Roshan%20Mohapatra&am=1234.50&cu=INR', 'two decimals');
+  assert.doesNotMatch(f.upiLink(10), /%40/, 'the @ in the UPI ID stays plain');
+  assert.equal(f._upiAppLink(199, 'gpay', 'android'), 'intent://pay?pa=roshan.394@superyes&pn=Roshan%20Mohapatra&am=199.00&cu=INR#Intent;scheme=upi;package=com.google.android.apps.nbu.paisa.user;end');
+  assert.equal(f._upiAppLink(199, 'phonepe', 'ios'), 'phonepe://pay?pa=roshan.394@superyes&pn=Roshan%20Mohapatra&am=199.00&cu=INR');
+  assert.equal(f._upiAppLink(199, 'paytm', 'ios'), 'paytmmp://pay?pa=roshan.394@superyes&pn=Roshan%20Mohapatra&am=199.00&cu=INR');
+  assert.equal(f._upiAppLink(199, 'other', 'android'), f.upiLink(199), 'Other = the plain link (device default)');
+  assert.match(SRC, /const _CT_MIN = 10, _CT_MAX = 100000, _CT_PRESETS = \[199, 499, 999\];/);
+  assert.match(extract('function _ctQr('), /correctLevel: QRCode\.CorrectLevel\.H/, 'high error correction under the icon');
+  const HTML = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
+  assert.match(HTML, /<div class="dialog-desc">Designer &amp; Developer<\/div>/);
+  assert.match(HTML, /<button type="button" class="btn btn-primary" id="ctDonate">Donate<\/button>/);
+  assert.match(HTML, /Open your UPI app and scan to pay Roshan Mohapatra/);
+  assert.match(HTML, />Google Pay<\/a><a role="menuitem" data-app="phonepe" href="#">PhonePe<\/a><a role="menuitem" data-app="paytm" href="#">Paytm<\/a>/);
+});
+
+test('Week card feed (#55): every day in one feed, a calendar, Today, overlay scrollbar', () => {
+  const r = extract('function renderHistory(');
+  assert.match(r, /for \(let off = _wfFrom; off <= _wfTo; off\+\+\)/, 'five weeks back to next week');
+  assert.match(r, /if \(!work\.has\(day\.key\)\) \{ rowsHtml \+= _wkRowHTML\(day, _wfWeekendModel\(log\), isToday, true\); continue; \}/, 'weekends get rows');
+  assert.match(SRC, /let _wfFrom = -5, _wfTo = 1,/);
+  assert.match(extract('function _wfWeekendModel('), /line: 'All extra', tone: 'success'/);
+  assert.match(extract('function _wfSync('), /analyticsWeekOffset = off;/, 'footer, Stats and the header follow the middle week');
+  const dot = extract('function _wfDot(');
+  assert.match(dot, /if \(ov === 'holiday'\) return 'orchid'; if \(ov === 'leave'\) return 'blue'; if \(ov === 'halfday'\) return 'teal';/);
+  assert.match(dot, /!isWeekendKey\(k\)/, 'weekends never get a missed dot');
+  assert.match(extract('function _overlayScrollbar('), /idle = setTimeout\(\(\) => \{ if \(!drag\) track\.classList\.remove\('on'\); \}, 900\)/);
+  const HTML = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
+  assert.doesNotMatch(HTML, /id="wkPrevBtn"|id="wkNextBtn"/, 'header arrows removed');
+  assert.match(HTML, /<button type="button" class="wf-today" id="wfToday" hidden>Today<\/button>/);
+  assert.match(HTML, /\.wf-wh \{ position: sticky; top: 0;/);
+  assert.match(HTML, /\.wfc-d\.today \{ background: var\(--muted\); \}/, 'today in its hover fill, never a ring');
+});
+
+test('Page loader (#60): a clock from 9 to 5, It is 5pm when ready, never stalls, never holds the app', () => {
+  const AL = fs.readFileSync(path.join(WEB, 'lib', 'pages', 'app-loader.js'), 'utf8');
+  assert.doesNotMatch(AL, /title\('Clocking In'\)|title\('Almost 5'\)/, 'no text while loading'); assert.match(AL, /title\('It\u2019s 5pm'\)/);
+  assert.match(AL, /target = Math\.min\(479\.4, target \+ \(479\.5 - target\) \* ease\(0\.012\)\)/, 'creeps toward 4:59, only 5 when ready');
+  assert.match(AL, /setTimeout\(function \(\) \{ if \(!finished\) \{ m = 480; draw\(\); finish\(\); \} \}, 900\)/, 'lands even if frames are slow');
+  assert.match(AL, /var ids = \['navLogo', 'mobLogo'\];/, 'rail logo on desktop, top bar on phones');
+  assert.match(AL, /setTimeout\(function \(\) \{ L\.classList\.add\('slow'\); \}, 6000\)/);
+  assert.match(fs.readFileSync(path.join(WEB, 'lib', 'pages', 'index-auth-gate.js'), 'utf8'), /if \(window\.__appLoader\) \{ window\.__appLoader\.done\(\); return; \}/);
+  assert.match(SRC, /window\.__appLoader\?\.step\(420\);/);
+  const HTML = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
+  assert.match(HTML, /<div id="appLoaderHint">Taking longer than usual\. <button data-on-click="h248485a70e">Reload<\/button><\/div>/);
+  assert.match(HTML, /<script src="\/lib\/pages\/app-loader\.js"><\/script>/);
+  assert.match(HTML, /display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;/, 'title 10px under the icon');
+});
+
+test('Charts on touch: a tapped day stays until the same bar or outside is tapped', () => {
+  const w = extract('function _renderWkndSummary(');
+  assert.match(w, /if \(i === picked\) \{ picked = -1; rest\(\); \} else \{ picked = i; show\(i\); \}/);
+  assert.doesNotMatch(w, /addEventListener\('touchend', \(\) => setTimeout\(rest, 600\)\)/, 'no more snapping back after a second');
+  assert.match(SRC, /if \(i === sxPicked\) \{ sxPicked = -1; rest\(\); \} else sxPicked = i;/);
+  assert.doesNotMatch(SRC, /touchT = setTimeout\(rest, 1500\)/);
+  assert.match(extract('function _chartTapAway('), /if \(e\.pointerType !== 'mouse' && !chart\.contains\(e\.target\)\) cb\(\);/);
+  const HTML = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
+  assert.match(HTML, /\.wf-feed \{ position: relative; height: min\(460px, 62vh\); padding-top: 0;/, 'sticky week titles sit flush under the header');
 });

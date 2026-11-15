@@ -1,4 +1,4 @@
-    const APP_VERSION = '1.2.32';
+    const APP_VERSION = '1.2.33';
     localStorage.setItem('wh_ver', APP_VERSION);
 
     // ── HELPERS ─────────────────────────────────────────
@@ -923,7 +923,12 @@
           const text = penVisible.length > 1 ? `${penVisible.length} Penalties Found`
             : one.type === 'weekly' ? `Weekly Penalty Found: ${one.rangeStr}`
             : `1 Penalty Found on ${dayStr(one)}`;
-          notifs.push({ id, type: 'warn', text, cta: 'Review', ctaWeekKey: '' });
+          const n = penVisible.length, md = d => `${MONTHS[d.getMonth()].slice(0, 3)} ${d.getDate()}`, dd = d => `${FULL_DAYS_EN[d.getDay()].slice(0, 3)}, ${md(d)}`;
+          const latest = penVisible.reduce((a, p) => p.key > a.key ? p : a, penVisible[0]);
+          const pv = one.type === 'weekly' && n === 1 ? `The week of ${one.rangeStr} came up short.`
+            : n === 1 ? `${dd(one.date)} was short.` : n === 2 ? `${dd(penVisible[0].date)} and ${dd(penVisible[1].date)} were short.` : `${n} short days to resolve.`;
+          notifs.push({ id, type: 'warn', text, title: `Resolve ${n} ${n === 1 ? 'Penalty' : 'Penalties'}`, pv,
+            more: `${pv} Fix your hours or draft an email to your manager.`, time: md(latest.date), cta: 'Review', ctaWeekKey: '' });
           _notifPenKeys.set(id, keys);
         }
       }
@@ -931,10 +936,12 @@
       // Penalty Reminders (#41): the latest reminder of this cycle waits here
       // until it's dismissed or nothing is left to resolve.
       if (c.penaltyReminders !== false && penVisible.length) {
-        const sent = c.payrollNudges || {}, cyc = _statsPeriod('cycle', nowTz(), _salaryCycleStart(c), _salaryCycleEnd(c));
+        const sent = c.payrollNudges || {}, cyc = _statsPeriod('cycle', nowTz(), _salaryCycleStart(c), _salaryCycleEnd(c), _salaryCycleLen(c));
         const day = Object.keys(sent).sort().reverse().find(k => k >= dateKey(cyc.from) && k <= tk);
         const id = day && `payroll-${day}`;
-        if (day && !dismissed.includes(id)) notifs.push({ id, type: 'warn', text: `${sent[day].title}: ${sent[day].body}`, cta: 'Review', ctaWeekKey: '' });
+        if (day && !dismissed.includes(id)) { const dd = new Date(day + 'T00:00');
+          notifs.push({ id, type: 'warn', text: `${sent[day].title}: ${sent[day].body}`, title: sent[day].title, pv: sent[day].body,
+            time: day === tk ? 'Today' : `${MONTHS[dd.getMonth()].slice(0, 3)} ${dd.getDate()}`, cta: 'Review', ctaWeekKey: '' }); }
       }
 
       // Backup codes left, after a sign-in with a backup code (#8).
@@ -950,32 +957,51 @@
         const text = p.type === 'weekly'
           ? `Weekly Penalty Found: ${p.rangeStr} · Sample`
           : `1 Penalty Found on ${FULL_DAYS_EN[p.date.getDay()]} ${p.date.getDate()} ${MONTHS[p.date.getMonth()]} · Sample`;
-        notifs.push({ id, type: 'warn', text, cta: 'Check', ctaWeekKey: 'pen:' + p.key });
+        notifs.push({ id, type: 'warn', text, title: 'Resolve 1 Penalty · Sample', pv: text.replace(' · Sample', '') + '.', time: `${MONTHS[p.date.getMonth()].slice(0, 3)} ${p.date.getDate()}`, cta: 'Check', ctaWeekKey: 'pen:' + p.key });
       }
 
       if (c.weeklyOn && diff < -300) {
         const id = `surplus-${tk}`;
         if (!dismissed.includes(id)) {
-          notifs.push({ id, type: 'ok', text: 'You can leave early today.', surplus: dur(Math.abs(diff)) });
+          notifs.push({ id, type: 'ok', text: 'You can leave early today.', title: 'You Can Leave Early Today', pv: `You're ${dur(Math.abs(diff))} ahead this week.`,
+            more: `Your week is ahead of target, so today needs ${dur(Math.abs(diff))} less.`, time: 'Today', surplus: dur(Math.abs(diff)) });
         }
       }
 
       if (dow === 4 && c.weeklyOn) {
         const id = `thu-${tk}`;
         if (!dismissed.includes(id)) {
-          if (diff <= 0) notifs.push({ id, type: 'ok', text: "You're on track — you can leave early tomorrow." });
-          else if (diff > 300) notifs.push({ id, type: 'info', text: "Stick it out today! Finish strong so you can leave early tomorrow." });
+          if (diff <= 0) notifs.push({ id, type: 'ok', text: "You're on track — you can leave early tomorrow.", title: 'Leave Early Tomorrow', pv: "You're on track this week.", time: 'Today' });
+          else if (diff > 300) notifs.push({ id, type: 'info', text: "Stick it out today! Finish strong so you can leave early tomorrow.", title: 'Finish Strong Today', pv: 'A full day today means you can leave early tomorrow.', time: 'Today' });
         }
       }
 
       return notifs;
     }
 
+    // ── Notification center (#59, approved 2026-11-15; adapted from uiarc notification-center) ──
+    // All | Unread, a read state per notification (synced in cfg like dismissals),
+    // rows that open in place (opening one reads it, like Mail), Clear Read at the
+    // top, Mark All as Read at the bottom. Touch still swipes a row away.
+    let _ncView = 'all', _ncOpen = null;
+    function _ncRead() { return new Set(cfg().notifRead ?? []); }
+    function _ncSetRead(ids, on) {
+      const s = _ncRead(); ids.forEach(id => on ? s.add(id) : s.delete(id));
+      saveCfg({ ...cfg(), notifRead: pruneDismissed([...s]).slice(-80) });
+    }
+    // Rows close their own height on the way out, so the list shrinks with them.
+    function _ncCollapse(ids, then) {
+      const rows = ids.map(id => el('ni-' + id)).filter(Boolean);
+      if (!rows.length) return then();
+      rows.forEach((r, i) => setTimeout(() => { r.style.height = r.offsetHeight + 'px'; void r.offsetHeight; r.classList.add('nc-out'); }, Math.min(i * 40, 200)));
+      setTimeout(then, 340 + Math.min(rows.length * 40, 200));
+    }
     function renderNotifs() {
-      const notifs = buildNotifs();
+      const notifs = buildNotifs(), read = _ncRead();
       const list = el('notifList');
-      // P1 badge: animate in/out using spring slide instead of display toggle
-      const hasBadge = notifs.length > 0;
+      const un = notifs.filter(n => !read.has(n.id)).length, rd = notifs.length - un;
+      // The bell's dot means something is unread.
+      const hasBadge = un > 0;
       const _setBadge = (id) => {
         const b = el(id); if (!b) return;
         const wasShown = b.classList.contains('badge-show');
@@ -992,35 +1018,93 @@
       _setBadge('mobNotifBadge');
       el('notifBtn').classList.toggle('has-notifs', hasBadge);
       el('mobNotifBtn')?.classList.toggle('has-notifs', hasBadge);
+      el('notifBtn').setAttribute('aria-label', `Notifications${un ? `, ${un} unread` : ''}`);
 
-      if (!notifs.length) { list.innerHTML = `<div class="notif-empty">No notifications right now.</div>`; return; }
+      // Toolbar + footer.
+      if (el('ncUnN')) el('ncUnN').textContent = un || '';
+      document.querySelectorAll('#ncView [data-view]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.view === _ncView)));
+      requestAnimationFrame(_ncPill);
+      const clr = el('notifClearRead'); if (clr) { clr.classList.toggle('nc-gone', !rd); clr.tabIndex = rd ? 0 : -1; clr.setAttribute('aria-hidden', String(!rd)); }
+      if (el('ncFoot')) el('ncFoot').hidden = !un;
 
-      const warnSvg = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M12 5.5C12.5523 5.5 13 5.94772 13 6.5L13 13.5C13 14.0523 12.5523 14.5 12 14.5C11.4477 14.5 11 14.0523 11 13.5L11 6.5C11 5.94772 11.4477 5.5 12 5.5Z" fill="currentColor"/><path d="M12 18.5C12.8284 18.5 13.5 17.8284 13.5 17C13.5 16.1716 12.8284 15.5 12 15.5C11.1716 15.5 10.5 16.1716 10.5 17C10.5 17.8284 11.1716 18.5 12 18.5Z" fill="currentColor"/><path fill-rule="evenodd" clip-rule="evenodd" d="M1 12C1 5.92487 5.92487 1 12 1C18.0751 1 23 5.92487 23 12C23 18.0751 18.0751 23 12 23C5.92487 23 1 18.0751 1 12ZM12 3C7.02944 3 3 7.02944 3 12C3 16.9706 7.02944 21 12 21C16.9706 21 21 16.9706 21 12C21 7.02944 16.9706 3 12 3Z" fill="currentColor"/></svg>`;
-      const okSvg   = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path fill-rule="evenodd" clip-rule="evenodd" d="M21.2285 6.60358C21.619 6.9941 21.619 7.62726 21.2285 8.01779L10.2557 18.9906C9.86764 19.3786 9.23938 19.3815 8.84786 18.997L2.66233 12.9219C2.2683 12.5349 2.2626 11.9017 2.64959 11.5077L3.3503 10.7943C3.73729 10.4002 4.37043 10.3945 4.76445 10.7815L9.53589 15.4678L19.1072 5.89647C19.4977 5.50595 20.1309 5.50595 20.5214 5.89647L21.2285 6.60358Z" fill="currentColor"/></svg>`;
-      const infoSvg = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M12 18.5C12.5523 18.5 13 18.0523 13 17.5L13 10.5C13 9.94772 12.5523 9.5 12 9.5C11.4477 9.5 11 9.94772 11 10.5L11 17.5C11 18.0523 11.4477 18.5 12 18.5Z" fill="currentColor"/><path d="M12 8.5C12.8284 8.5 13.5 7.82843 13.5 7C13.5 6.17157 12.8284 5.5 12 5.5C11.1716 5.5 10.5 6.17157 10.5 7C10.5 7.82843 11.1716 8.5 12 8.5Z" fill="currentColor"/><path fill-rule="evenodd" clip-rule="evenodd" d="M1 12C1 18.0751 5.92487 23 12 23C18.0751 23 23 18.0751 23 12C23 5.92487 18.0751 1 12 1C5.92487 1 1 5.92487 1 12ZM12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12C21 16.9706 16.9706 21 12 21Z" fill="currentColor"/></svg>`;
+      const shown = _ncView === 'unread' ? notifs.filter(n => !read.has(n.id)) : notifs;
+      if (!shown.length) {
+        list.innerHTML = _ncView === 'unread' && notifs.length
+          ? `<div class="nc-empty"><strong>Nothing unread</strong><p>You've seen every notification.</p><button type="button" class="nc-link" data-nc="all">Show All</button></div>`
+          : `<div class="nc-empty"><strong>All clear</strong><p>New notifications will show up here.</p></div>`;
+        return;
+      }
 
-      list.innerHTML = notifs.map(n => {
+      const warnSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>`;
+      const okSvg   = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>`;
+      const infoSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>`;
+      const check = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>`;
+      const dot   = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="1"/></svg>`;
+      const x     = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>`;
+
+      list.innerHTML = shown.map(n => {
         const icon = n.type === 'warn' ? warnSvg : n.type === 'ok' ? okSvg : infoSvg;
-        // n.id and n.ctaWeekKey are internal keys (no user input), but escape defensively
-        const safeId  = _escHtml(n.id || '');
-        const safeCta = _escHtml(n.ctaWeekKey || '');
-        // Surplus is information, not an action, so it stays inline. The CTA is
-        // gone: the card itself carries the tap target now.
-        const actions = n.surplus
-          ? `<div class="notif-actions"><span class="notif-surplus">${_escHtml(n.surplus)} saved</span></div>`
-          : '';
-        // A card with nowhere to go is still tappable: the tap dismisses it,
-        // and it says so (hover shows the ×, touch shows "Tap to dismiss").
-        const tap = n.cta
-          ? ` data-on-click="h837093f811" data-click-a0="${safeId}" data-click-a1="${safeCta}" role="button" tabindex="0"`
-          : ` data-tap-dismiss="${safeId}" role="button" tabindex="0" aria-label="${_escHtml(n.text)} Tap to dismiss." title="Tap to dismiss"`;
-        const hint = n.cta ? '' : `<div class="notif-hint">Tap to dismiss</div>`;
-        return `<div class="notif-item ${n.cta ? 'notif-tappable' : 'notif-info-only'}" id="ni-${safeId}"${tap}>
+        const safeId = _escHtml(n.id || ''), isRead = read.has(n.id), open = _ncOpen === n.id;
+        const title = n.title || n.text, pv = n.pv || '', more = n.more || pv;
+        const cta = n.cta ? `<button type="button" class="nc-pri" data-on-click="h837093f811" data-click-a0="${safeId}" data-click-a1="${_escHtml(n.ctaWeekKey || '')}">${_escHtml(n.cta)}</button>` : '';
+        const surplus = n.surplus ? `<span class="notif-surplus">${_escHtml(n.surplus)} saved</span>` : '';
+        return `<div class="notif-item nc-row${isRead ? ' read' : ''}${open ? ' open' : ''}" id="ni-${safeId}" data-id="${safeId}" role="listitem">
           <div class="notif-icon ${n.type}">${icon}</div>
-          <div class="notif-body"><div class="notif-text">${_escHtml(n.text)}</div>${actions}${hint}</div>
-          <button type="button" class="notif-dismiss" data-dismiss="${safeId}" aria-label="Dismiss notification"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
+          <button type="button" class="nc-tog" aria-expanded="${open}" aria-label="${_escHtml(title)}${isRead ? '' : ', unread'}. ${open ? 'Hide details' : 'Show details'}">
+            <span class="nc-t"><strong>${_escHtml(title)}</strong><span class="nc-dot" aria-hidden="true"></span></span>
+            <span class="nc-pv">${_escHtml(open ? more : pv)}</span>
+          </button>
+          <time class="nc-time">${_escHtml(n.time || '')}</time>
+          <div class="nc-det"><div><div class="nc-acts">${surplus}${cta}
+            <button type="button" data-nc="read">${isRead ? dot + 'Mark as Unread' : check + 'Mark as Read'}</button>
+            <button type="button" data-nc="dismiss">${x}Dismiss</button></div></div></div>
         </div>`;
       }).join('');
+    }
+    // All | Unread: one fill glides between the two.
+    function _ncPill() {
+      const on = document.querySelector(`#ncView [data-view="${_ncView}"]`), pill = el('ncPill');
+      if (!on || !pill || !on.offsetWidth) return;
+      pill.style.width = on.offsetWidth + 'px'; pill.style.transform = `translateX(${on.offsetLeft}px)`;
+    }
+    function _ncInit() {
+      const list = el('notifList'); if (!list || list.dataset.ncInit) return;
+      list.dataset.ncInit = '1';
+      list.setAttribute('role', 'list');
+      list.addEventListener('click', e => {
+        if (e.target.closest('[data-nc="all"]')) { _ncView = 'all'; renderNotifs(); return; }
+        const row = e.target.closest('.nc-row'); if (!row) return;
+        const id = row.dataset.id, isRead = _ncRead().has(id);
+        const a = e.target.closest('[data-nc]');
+        if (a?.dataset.nc === 'read') {
+          if (!isRead && _ncView === 'unread') { _ncOpen = null; _ncSetRead([id], true); _ncCollapse([id], renderNotifs); return; }
+          _ncSetRead([id], !isRead); renderNotifs(); return;
+        }
+        if (a?.dataset.nc === 'dismiss') { if (_ncOpen === id) _ncOpen = null; _ncCollapse([id], () => { addDismissed(id); renderNotifs(); }); return; }
+        if (e.target.closest('.nc-pri')) { if (!isRead) _ncSetRead([id], true); return; }   // the CTA's own handler opens it
+        if (e.target.closest('.nc-tog')) {
+          // Opening a notification reads it (in All). Closing keeps its state.
+          _ncOpen = _ncOpen === id ? null : id;
+          if (_ncOpen === id && !isRead && _ncView === 'all') _ncSetRead([id], true);
+          renderNotifs();
+          requestAnimationFrame(() => el('ni-' + id)?.querySelector('.nc-tog')?.focus({ focusVisible: false, preventScroll: true }));
+        }
+      });
+      el('ncView')?.addEventListener('click', e => {
+        const b = e.target.closest('[data-view]'); if (!b || b.dataset.view === _ncView) return;
+        _ncView = b.dataset.view; _ncOpen = null; renderNotifs();
+      });
+      el('notifMarkAll')?.addEventListener('click', () => {
+        const read = _ncRead(), ids = buildNotifs().map(n => n.id).filter(id => !read.has(id));
+        _ncOpen = null; _ncSetRead(ids, true);
+        if (_ncView === 'unread') _ncCollapse(ids, renderNotifs); else renderNotifs();
+      });
+      el('notifClearRead')?.addEventListener('click', () => {
+        const read = _ncRead(), ids = buildNotifs().map(n => n.id).filter(id => read.has(id));
+        if (!ids.length) return;
+        _ncOpen = null;
+        _ncCollapse(ids, () => { ids.forEach(addDismissed); renderNotifs(); });
+      });
     }
 
     // Shared exit animation, used by the swipe and by Clear All so every
@@ -1131,20 +1215,7 @@
     }
     document.addEventListener('keydown', e => { if (e.key === 'Escape') closeNotifPanel(); });
     el('notifCloseBtn')?.addEventListener('click', closeNotifPanel);
-    // One notification at a time with a mouse (touch has the swipe): the × on each
-    // card. Capture phase, because a tappable card has its own click handler on
-    // the card (csp-handlers.js) that would otherwise run first and open it.
-    el('notifList')?.addEventListener('click', e => {
-      const x = e.target.closest('.notif-dismiss, [data-tap-dismiss]'); if (!x) return;
-      e.stopPropagation();
-      _dismissNotifItem(x.closest('.notif-item'), x.dataset.dismiss || x.dataset.tapDismiss, 1);
-    }, true);
-    el('notifList')?.addEventListener('keydown', e => {
-      if (e.key !== 'Enter' && e.key !== ' ') return;
-      const x = e.target.closest('[data-tap-dismiss]'); if (!x || e.target !== x) return;
-      e.preventDefault();
-      _dismissNotifItem(x, x.dataset.tapDismiss, 1);
-    });
+    _ncInit();
 
     // ── TARGET HTML ────────────────────────────────────
     // Derive a human-readable login time from a stored day log (works even when
@@ -1594,14 +1665,20 @@
         : (event?.target?.closest('button,.rc-io-box,[data-tpid]') || event?.target || el(targetInputId));
       const refRect = refEl?.getBoundingClientRect();
       if (refRect) {
-        const GAP = 12, mW = 216, mH = 200, pad = 8;
+        // Measure the real picker (open but hidden) so it can never run off the screen.
+        modal.style.visibility = 'hidden'; modal.classList.add('open');
+        const _box = modal.getBoundingClientRect();
+        modal.classList.remove('open'); modal.style.visibility = '';
+        const GAP = 12, mW = Math.max(216, Math.ceil(_box.width)), mH = Math.max(200, Math.ceil(_box.height)), pad = 8;
         // Login input: prefer above; everything else: prefer below
         let top = _isLoginInput
           ? refRect.top - mH - GAP
           : refRect.bottom + GAP;
         // Login field: a dropdown from the field's own left edge, not centred on
         // the whole row (which put it in the middle of the card).
+        // Near the right edge (the Update Entry panel), line the picker's right edge up with the button.
         let left = _isLoginInput ? refRect.left : refRect.left + refRect.width / 2 - mW / 2;
+        if (!_isLoginInput && left + mW > window.innerWidth - pad) left = refRect.right - mW;
         if (top < pad) top = refRect.bottom + GAP;          // fallback below if above clips
         if (top + mH > window.innerHeight - pad) top = Math.max(pad, refRect.top - mH - GAP);
         if (left + mW > window.innerWidth - pad) left = window.innerWidth - mW - pad;
@@ -2860,6 +2937,13 @@
       if (diff <= 300) return { text: 'On target', tone: 'ok' };
       return { text: `${_wsGap(_minsGap(totalSecs, targetSecs))} over`, tone: 'ok' };
     }
+    // A finger landing anywhere outside a chart puts it back to its resting view.
+    // One listener per chart; it removes itself once the chart is replaced.
+    function _chartTapAway(chart, cb) {
+      const h = e => { if (!chart.isConnected) { document.removeEventListener('pointerdown', h, true); return; }
+        if (e.pointerType !== 'mouse' && !chart.contains(e.target)) cb(); };
+      document.addEventListener('pointerdown', h, true);
+    }
     function _renderWkndSummary(noteKey, ti, when) {
       const box = el('wkndSum'); if (!box) return;
       const wk = week(daySelectorWeekOffset), rows = _wkndDayData(wk);
@@ -2956,11 +3040,19 @@
       barsEl.addEventListener('mouseleave', () => { if (!barsEl.contains(document.activeElement)) rest(); });
       barsEl.addEventListener('focusout', e => { if (!barsEl.contains(e.relatedTarget)) rest(); });
       // Touch: a sideways drag scrubs; lifting the finger puts the week back.
-      barsEl.addEventListener('touchmove', e => {
-        const r = barsEl.getBoundingClientRect(), x = e.touches[0].clientX - r.left;
-        show(Math.max(0, Math.min(rows.length - 1, Math.floor(x / r.width * rows.length))));
-      }, { passive: true });
-      barsEl.addEventListener('touchend', () => setTimeout(rest, 600));
+      // Touch: a tap (or a sideways drag) picks a day and it STAYS picked. Tap the
+      // same bar again, or anywhere outside the chart, to put the week back.
+      let picked = -1, moved = false;
+      const touchAt = x => { const r = barsEl.getBoundingClientRect(); return Math.max(0, Math.min(rows.length - 1, Math.floor((x - r.left) / r.width * rows.length))); };
+      barsEl.addEventListener('touchstart', () => { moved = false; }, { passive: true });
+      barsEl.addEventListener('touchmove', e => { moved = true; picked = touchAt(e.touches[0].clientX); show(picked); }, { passive: true });
+      barsEl.addEventListener('touchend', e => {
+        if (moved) return;
+        const i = touchAt(e.changedTouches[0].clientX);
+        if (i === picked) { picked = -1; rest(); } else { picked = i; show(i); }
+        e.preventDefault();   // no emulated mouse events after the tap
+      });
+      _chartTapAway(barsEl, () => { if (picked >= 0) { picked = -1; rest(); } });
       requestAnimationFrame(() => requestAnimationFrame(() => barsEl.classList.add('grown')));
       // Note: tap the box to write; Save keeps it, Cancel leaves it as it was.
       const nb = box.querySelector('[data-ws="note"]');
@@ -2987,7 +3079,9 @@
     const _SX_DAY = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
     const _sxMd = d => `${_SX_MON[d.getMonth()]} ${d.getDate()}`;
     // The salary cycle's first day of the month (1–28). Day 1 = calendar month.
-    function _salaryCycleStart(c) { const s = +(c || cfg()).salaryCycleStart; return s >= 1 && s <= 28 ? Math.floor(s) : 1; }
+    function _salaryCycleStart(c) { const s = +(c || cfg()).salaryCycleStart, max = _salaryCycleLen(c) ? 31 : 28; return s >= 1 && s <= max ? Math.floor(s) : 1; }
+    // A custom cycle's length in days (#58: a picked date + 30 days), or 0 for a month-based cycle.
+    function _salaryCycleLen(c) { const n = +(c || cfg()).salaryCycleLen; return n >= 7 && n <= 62 ? Math.floor(n) : 0; }
     // The cycle's last day of the month (1–31). Default: the day before the start
     // (the last day of the month when the cycle starts on the 1st).
     function _salaryCycleEnd(c) {
@@ -2995,11 +3089,19 @@
       return e >= 1 && e <= 31 ? Math.floor(e) : (s === 1 ? 31 : s - 1);
     }
     // The Month tab's three periods around `now`: { from, to, name, sub }.
-    function _statsPeriod(kind, now, startDay, endDay) {
+    function _statsPeriod(kind, now, startDay, endDay, len) {
       const y = now.getFullYear(), m = now.getMonth(), d0 = new Date(y, m, now.getDate());
       let from, to, name;
       if (kind === 'last30') { from = new Date(y, m, now.getDate() - 29); to = d0; name = 'Last 30 Days'; }
       else if (kind === 'month') { from = new Date(y, m, 1); to = new Date(y, m + 1, 0); name = 'This Month'; }
+      else if (len > 0) {
+        // Custom (#58): starts on startDay each month (clamped to short months) and runs `len` days.
+        const at = (yy, mm) => new Date(yy, mm, Math.min(startDay, new Date(yy, mm + 1, 0).getDate()));
+        from = at(y, m); if (from > d0) from = at(y, m - 1);
+        to = new Date(from.getFullYear(), from.getMonth(), from.getDate() + len - 1);
+        if (to < d0) { from = new Date(to.getFullYear(), to.getMonth(), to.getDate() + 1); to = new Date(from.getFullYear(), from.getMonth(), from.getDate() + len - 1); }
+        name = 'Salary Cycle';
+      }
       else {
         const s = startDay >= 1 && startDay <= 28 ? startDay : 1;
         from = now.getDate() >= s ? new Date(y, m, s) : new Date(y, m - 1, s);
@@ -3059,86 +3161,103 @@
       if (Math.abs(d) <= 300) return { text: 'On target', tone: 'ok' };
       return d < 0 ? { text: `${_wsGap(_minsGap(tgt, secs))} short`, tone: '' } : { text: `${_wsGap(_minsGap(secs, tgt))} over`, tone: 'warn' };
     }
-    // ── PAYROLL (#41, approved 2026-11-14) ──────────────────────────────────
-    // Settings › General › Payroll: the Salary Cycle (a range picked on a
-    // calendar, adapted from uiarc date-range-picker) and Penalty Reminders.
+    // ── PAYROLL (#41, approved 2026-11-14; picker redesigned as #58, 2026-11-15) ──
+    // Settings › General › Payroll: the Salary Cycle (uiarc date-range-picker
+    // with presets) and Penalty Reminders.
     const _ord = n => n + (n % 10 === 1 && n % 100 !== 11 ? 'st' : n % 10 === 2 && n % 100 !== 12 ? 'nd' : n % 10 === 3 && n % 100 !== 13 ? 'rd' : 'th');
-    // "26th – 25th", "1st – last day".
-    function _cycleValue(s, e) { return s === 1 && e >= 28 ? '1st – last day' : `${_ord(s)} – ${_ord(e)}`; }
-    function _cycleRepeats(s, e) {
-      return s === 1 && e >= 28 ? 'Repeats every month, the 1st to the last day.'
-        : `Repeats every month, the ${_ord(s)} to the ${_ord(e)} of ${s === 1 ? 'the month' : 'the next month'}.`;
+    // Presets: the day of the month a cycle starts on. Custom = any picked date
+    // + 30 days (the picked date is day 1).
+    const _SC_PRESETS = [[1, 'Start of the Month'], [5, '5th Day'], [7, '7th Day']];
+    const _SC_CUSTOM_LEN = 30;
+    // The cycle that contains `now` for a preset start day: the 1st runs to the
+    // month's end, any other day to the day before it next month.
+    function _scPresetRange(day, now) {
+      const y = now.getFullYear(), m = now.getMonth();
+      const from = now.getDate() >= day ? new Date(y, m, day) : new Date(y, m - 1, day);
+      const to = day === 1 ? new Date(from.getFullYear(), from.getMonth() + 1, 0) : new Date(from.getFullYear(), from.getMonth() + 1, day - 1);
+      return { from, to };
     }
-    // A cycle that starts on `from`: the To it suggests is the day before the
-    // same date next month (editable).
-    function _cycleSuggestTo(from) { return new Date(from.getFullYear(), from.getMonth() + 1, from.getDate() - 1); }
+    // A custom cycle: `len` days from the picked date.
+    function _scCustomRange(from, len = _SC_CUSTOM_LEN) { return { from, to: new Date(from.getFullYear(), from.getMonth(), from.getDate() + len - 1) }; }
+    // Which preset a saved cycle is (its start day), or 0 for Custom.
+    function _scPresetOf(start, end, len) { return !len && _SC_PRESETS.some(([d]) => d === start) && end === (start === 1 ? 31 : start - 1) ? start : 0; }
+    // The row value: the preset's name, or "Custom · Nov 12".
+    function _cycleValue(start, end, len, from) {
+      const p = _scPresetOf(start, end, len);
+      if (p) return _SC_PRESETS.find(([d]) => d === p)[1];
+      return from ? `Custom · ${_SX_MON[from.getMonth()]} ${from.getDate()}` : `${_ord(start)} – ${_ord(end)}`;
+    }
     const _scDays = (a, b) => Math.round((new Date(b.getFullYear(), b.getMonth(), b.getDate()) - new Date(a.getFullYear(), a.getMonth(), a.getDate())) / 864e5) + 1;
     function _scLabel(d) { return `${_SX_MON[d.getMonth()]} ${d.getDate()}`; }
+    const _cycleNow = (c, now = nowTz()) => _statsPeriod('cycle', now, _salaryCycleStart(c), _salaryCycleEnd(c), _salaryCycleLen(c));
 
     function renderPayrollRow() {
-      const c = cfg(), s = _salaryCycleStart(c), e = _salaryCycleEnd(c);
-      if (el('scValue')) el('scValue').textContent = _cycleValue(s, e);
-      const p = _statsPeriod('cycle', nowTz(), s, e);
-      if (el('scFoot')) el('scFoot').textContent = `This cycle runs ${_scLabel(p.from)} to ${_scLabel(p.to)}. The Action Center's This Month follows it, and 5pm reminds you to resolve penalties before it closes.`;
+      const c = cfg(), p = _cycleNow(c);
+      if (el('scValue')) el('scValue').textContent = _cycleValue(_salaryCycleStart(c), _salaryCycleEnd(c), _salaryCycleLen(c), p.from);
+      if (el('scTip')) el('scTip').textContent = `This cycle runs ${_scLabel(p.from)} to ${_scLabel(p.to)}. The Action Center's This Month follows it, and 5pm reminds you to resolve penalties before it closes.`;
       if (el('inpPenRemind')) el('inpPenRemind').checked = c.penaltyReminders !== false;
     }
 
-    // ── Salary Cycle picker ──
-    let _sc = null;   // { from, to, active: 'from' | 'to', view: first month shown }
+    // ── Salary Cycle picker (#58) ──
+    // Desktop: a panel that grows out of the row. Phones: a bottom sheet with
+    // the presets as chips and one month at a time.
+    let _sc = null;   // { from, to, preset (start day, or 0 = Custom), view }
     function openSalaryCycle() {
-      const c = cfg(), p = _statsPeriod('cycle', nowTz(), _salaryCycleStart(c), _salaryCycleEnd(c));
-      _sc = { from: p.from, to: p.to, active: 'from', view: new Date(p.from.getFullYear(), p.from.getMonth(), 1) };
+      const c = cfg(), p = _cycleNow(c);
+      _sc = { from: p.from, to: p.to, preset: _scPresetOf(_salaryCycleStart(c), _salaryCycleEnd(c), _salaryCycleLen(c)), view: new Date(p.from.getFullYear(), p.from.getMonth(), 1) };
       _scRender();
-      el('salaryOverlay').classList.add('open');
-      requestAnimationFrame(() => el('scFieldFrom')?.focus());
+      const ov = el('salaryOverlay'), dlg = ov.querySelector('.dialog'), row = el('scRow');
+      // Desktop: anchored under the row, right-aligned to it; above it when there's no room below.
+      const pop = window.innerWidth > 640 && row;
+      ov.classList.toggle('sc-pop', !!pop);
+      if (pop) {
+        const r = row.getBoundingClientRect(), w = Math.min(720, window.innerWidth - 24);
+        dlg.style.width = w + 'px';
+        dlg.style.left = Math.max(12, Math.min(r.right - w, window.innerWidth - w - 12)) + 'px';
+        const h = dlg.offsetHeight || 420, below = window.innerHeight - r.bottom - 12;
+        dlg.style.top = (below >= h + 8 ? r.bottom + 8 : Math.max(12, r.top - h - 8)) + 'px';
+      } else { dlg.style.width = dlg.style.left = dlg.style.top = ''; }
+      ov.classList.add('open');
+      row?.setAttribute('aria-expanded', 'true');
+      requestAnimationFrame(() => el('scRail')?.querySelector('[aria-pressed="true"]')?.focus({ focusVisible: false }));
     }
-    function closeSalaryCycle() { el('salaryOverlay')?.classList.remove('open'); _sc = null; }
-    function _scPick(d) {
-      if (_sc.active === 'from' || d <= _sc.from) { _sc.from = d; _sc.to = _cycleSuggestTo(d); _sc.active = 'to'; }
-      else { _sc.to = d; _sc.active = 'from'; }
+    function closeSalaryCycle() { el('salaryOverlay')?.classList.remove('open'); el('scRow')?.setAttribute('aria-expanded', 'false'); _sc = null; }
+    function _scSetPreset(day) {
+      if (day) { const r = _scPresetRange(day, nowTz()); _sc.from = r.from; _sc.to = r.to; }
+      else { _sc.to = _scCustomRange(_sc.from).to; }
+      _sc.preset = day; _sc.view = new Date(_sc.from.getFullYear(), _sc.from.getMonth(), 1);
       _scRender();
     }
-    // Problems that keep Save off: null when the range is fine.
-    function _scProblem(from, to) {
-      if (!from || !to || to <= from) return 'Pick a last day after the first day.';
-      if (from.getDate() > 28) return 'Pick a first day from the 1st to the 28th, so every month has it.';
-      const n = _scDays(from, to);
-      if (n < 28 || n > 31) return 'A cycle runs about a month: 28 to 31 days.';
-      return null;
-    }
+    // Tapping a date always makes a Custom cycle: that date + 30 days.
+    function _scPick(d) { const r = _scCustomRange(d); _sc.from = r.from; _sc.to = r.to; _sc.preset = 0; _scRender(); }
     function _scRender() {
       if (!_sc) return;
-      const box = el('scCal'), tk = todayKey(), WD = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'];
+      el('scRail').innerHTML = _SC_PRESETS.map(([d, n]) => `<button type="button" class="sc-preset" data-preset="${d}" aria-pressed="${_sc.preset === d}">${n}</button>`).join('')
+        + `<button type="button" class="sc-preset" data-preset="0" aria-pressed="${!_sc.preset}">Custom</button>`;
+      const box = el('scCal'), tk = todayKey(), WD = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
       const month = off => {
         const m0 = new Date(_sc.view.getFullYear(), _sc.view.getMonth() + off, 1), y = m0.getFullYear(), m = m0.getMonth();
         const lead = (m0.getDay() + 6) % 7, len = new Date(y, m + 1, 0).getDate();
         let cells = '';
         for (let i = 0; i < lead; i++) cells += '<span class="sc-c sc-pad"></span>';
         for (let d = 1; d <= len; d++) {
-          const dt = new Date(y, m, d), k = dateKey(dt);
-          const isS = +dt === +_sc.from, isE = +dt === +_sc.to, inR = dt > _sc.from && dt < _sc.to;
-          const cls = ['sc-c', isS && 'start', isE && 'end', inR && 'in', k === tk && 'today'].filter(Boolean).join(' ');
-          cells += `<button type="button" class="${cls}" data-d="${k}" aria-label="${dt.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}"${isS || isE ? ' aria-pressed="true"' : ''}>${d}</button>`;
+          const dt = new Date(y, m, d), k = dateKey(dt), col = (lead + d - 1) % 7;
+          const isS = +dt === +_sc.from, isE = +dt === +_sc.to, inR = dt >= _sc.from && dt <= _sc.to;
+          // The range is one soft pill per week row: it rounds at each row's ends and the month's ends.
+          const cls = ['sc-c', inR && 'in', isS && 'start', isE && 'end', inR && (col === 0 || d === 1) && 'rs', inR && (col === 6 || d === len) && 're', k === tk && 'today'].filter(Boolean).join(' ');
+          cells += `<button type="button" class="${cls}" data-d="${k}" aria-label="${dt.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}"${isS || isE ? ' aria-pressed="true"' : ''}><span>${d}</span></button>`;
         }
         return `<div class="sc-month"><div class="sc-mt">${m0.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</div>
           <div class="sc-grid">${WD.map(w => `<span class="sc-wd">${w}</span>`).join('')}${cells}</div></div>`;
       };
       const nav = d => `<button type="button" class="sc-nav ${d}" data-nav="${d === 'prev' ? -1 : 1}" aria-label="${d === 'prev' ? 'Previous month' : 'Next month'}">${_WKND_SVG(d === 'prev' ? '<path d="m15 18-6-6 6-6"/>' : '<path d="m9 18 6-6-6-6"/>')}</button>`;
       box.innerHTML = nav('prev') + nav('next') + `<div class="sc-months">${month(0)}${month(1)}</div>`;
-      el('scFromV').textContent = _scLabel(_sc.from);
-      el('scToV').textContent = _scLabel(_sc.to);
-      el('scFieldFrom').classList.toggle('on', _sc.active === 'from');
-      el('scFieldTo').classList.toggle('on', _sc.active === 'to');
-      const prob = _scProblem(_sc.from, _sc.to);
-      const s = _sc.from.getDate(), e = _sc.to.getDate();
       el('scSumMain').textContent = `${_scLabel(_sc.from)} – ${_scLabel(_sc.to)} · ${_scDays(_sc.from, _sc.to)} days`;
-      el('scSumSub').textContent = prob || _cycleRepeats(s, e);
-      el('scSum').classList.toggle('bad', !!prob);
-      el('scSave').disabled = !!prob;
     }
     function _scSave() {
-      if (!_sc || _scProblem(_sc.from, _sc.to)) return;
-      saveCfg({ ...cfg(), salaryCycleStart: _sc.from.getDate(), salaryCycleEnd: _sc.to.getDate() });
+      if (!_sc) return;
+      const d = _sc.preset;
+      saveCfg({ ...cfg(), salaryCycleStart: d || _sc.from.getDate(), salaryCycleEnd: d ? (d === 1 ? 31 : d - 1) : null, salaryCycleLen: d ? null : _SC_CUSTOM_LEN });
       closeSalaryCycle();
       renderPayrollRow(); renderPenalties();
       showToast('Salary Cycle Saved', 'success');
@@ -3147,20 +3266,22 @@
       const ov = el('salaryOverlay'); if (!ov) return;
       el('scRow')?.addEventListener('click', openSalaryCycle);
       el('scRow')?.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openSalaryCycle(); } });
+      el('scRail').addEventListener('click', e => { const b = e.target.closest('[data-preset]'); if (b) _scSetPreset(+b.dataset.preset); });
       el('scCal').addEventListener('click', e => {
         const n = e.target.closest('[data-nav]');
         if (n) { _sc.view = new Date(_sc.view.getFullYear(), _sc.view.getMonth() + +n.dataset.nav, 1); _scRender(); return; }
         const b = e.target.closest('[data-d]'); if (b) _scPick(new Date(b.dataset.d + 'T00:00'));
       });
-      el('scFieldFrom').addEventListener('click', () => { _sc.active = 'from'; _sc.view = new Date(_sc.from.getFullYear(), _sc.from.getMonth(), 1); _scRender(); });
-      el('scFieldTo').addEventListener('click', () => { _sc.active = 'to'; _scRender(); });
       el('scSave').addEventListener('click', _scSave);
       el('scCancel').addEventListener('click', closeSalaryCycle);
-      el('scClose').addEventListener('click', closeSalaryCycle);
       ov.addEventListener('click', e => { if (e.target === ov) closeSalaryCycle(); });
-      document.addEventListener('keydown', e => { if (e.key === 'Escape' && ov.classList.contains('open')) closeSalaryCycle(); });
-      window.Sheet?.attach(ov.querySelector('.dialog'), { close: closeSalaryCycle, isOpen: () => ov.classList.contains('open') });
+      document.addEventListener('keydown', e => { if (e.key === 'Escape' && ov.classList.contains('open')) { closeSalaryCycle(); el('scRow')?.focus(); } });
+      window.Sheet?.attach(ov.querySelector('.dialog'), { close: closeSalaryCycle, isOpen: () => ov.classList.contains('open') && !ov.classList.contains('sc-pop') });
       el('inpPenRemind')?.addEventListener('change', e => { saveCfg({ ...cfg(), penaltyReminders: e.target.checked }); renderNotifs(); });
+      // The info button sits inside the row's <label>: a tap opens its tooltip, never flips the switch.
+      const info = el('scInfo');
+      info?.addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); info.parentElement.classList.toggle('open'); });
+      document.addEventListener('pointerdown', e => { if (!e.target.closest('.info-wrap')) info?.parentElement.classList.remove('open'); }, true);
       renderPayrollRow();
     }
 
@@ -3191,7 +3312,7 @@
     function _payrollCheck(ev, offKey) {
       try {
         const c = cfg(), tk = todayKey(), today = new Date(tk + 'T12:00');
-        const p = _statsPeriod('cycle', nowTz(), _salaryCycleStart(c), _salaryCycleEnd(c));
+        const p = _statsPeriod('cycle', nowTz(), _salaryCycleStart(c), _salaryCycleEnd(c), _salaryCycleLen(c));
         const fromK = dateKey(p.from), toK = dateKey(p.to);
         const open = _penaltyData.filter(r => !r.sample && !_discardedPenalties.has(r.key) && r.key >= fromK && r.key <= toK).length;
         // The next work day after today (Friday → Monday).
@@ -3220,7 +3341,7 @@
 
     function _statsDates() {
       if (_sxRange === 'week') return week(_sxWeek).map(d => d.date);
-      const p = _statsPeriod(_sxPer, nowTz(), _salaryCycleStart(), _salaryCycleEnd()), out = [], tk = todayKey();
+      const p = _statsPeriod(_sxPer, nowTz(), _salaryCycleStart(), _salaryCycleEnd(), _salaryCycleLen()), out = [], tk = todayKey();
       for (const d = new Date(p.from); d <= p.to; d.setDate(d.getDate() + 1)) {
         const k = dateKey(d); if (k > tk) break;
         if (!isWeekendKey(k)) out.push(new Date(d));
@@ -3233,7 +3354,7 @@
     function renderStats() {
       const box = el('sxCard'); if (!box) return;
       const dates = _statsDates(), rows = _statsRows(dates), sum = _statsSummary(rows);
-      const wk = _sxRange === 'week', cs = _salaryCycleStart(), ce = _salaryCycleEnd();
+      const wk = _sxRange === 'week', cs = _salaryCycleStart(), ce = _salaryCycleEnd(), cl = _salaryCycleLen();
       const hm = v => { const m = Math.floor(v / 60); return `${Math.floor(m / 60)}h ${p2(m % 60)}m`; };
       const top = Math.max(sum ? sum.max : 0, cfg().dailyH * 3600) * 1.12;
       const pct = v => Math.max(0, Math.min(100, v / top * 100));
@@ -3248,8 +3369,8 @@
           <button type="button" class="sx-nav" data-sx="next" aria-label="Next week"${_sxWeek >= 0 ? ' aria-disabled="true"' : ''}>${svg(_SX_I.r)}</button>
           <span class="sx-pr">${_sxMd(dates[0])} – ${dates[dates.length - 1].getMonth() === dates[0].getMonth() ? dates[dates.length - 1].getDate() : _sxMd(dates[dates.length - 1])}</span>`;
       } else {
-        const now = nowTz(), cur = _statsPeriod(_sxPer, now, cs, ce);
-        const items = ['cycle', 'last30', 'month'].map(k => { const p = _statsPeriod(k, now, cs, ce);
+        const now = nowTz(), cur = _statsPeriod(_sxPer, now, cs, ce, cl);
+        const items = ['cycle', 'last30', 'month'].map(k => { const p = _statsPeriod(k, now, cs, ce, cl);
           return `<button type="button" class="sx-mi" role="menuitemradio" aria-checked="${k === _sxPer}" data-p="${k}"><span><b>${p.name}</b><span>${_sxMd(p.from)} to ${_sxMd(p.to)}</span></span>${k === _sxPer ? svg(_SX_I.check) : '<i></i>'}</button>`; }).join('');
         per = `<div class="sx-pm"><button type="button" class="sx-pb" data-sx="menu" aria-haspopup="menu" aria-expanded="${_sxMenu}" data-state="${_sxMenu ? 'open' : 'closed'}"><span>${cur.name}</span>${svg(_SX_I.down)}</button>
           <div class="sx-menu${_sxMenu ? ' open' : ''}" role="menu" aria-label="Period">${items}</div></div>
@@ -3328,7 +3449,10 @@
       let touchT = 0;
       barsEl.addEventListener('pointermove', e => { clearTimeout(touchT); show(at(e.clientX)); });
       barsEl.addEventListener('pointerdown', e => { clearTimeout(touchT); show(at(e.clientX)); });
-      barsEl.addEventListener('pointerup', e => { if (e.pointerType !== 'mouse') touchT = setTimeout(rest, 1500); });
+      // Touch: the tapped day stays until the same bar is tapped again or the finger lands outside the chart.
+      let sxPicked = -1;
+      barsEl.addEventListener('pointerup', e => { if (e.pointerType === 'mouse') return; const i = at(e.clientX); if (i === sxPicked) { sxPicked = -1; rest(); } else sxPicked = i; });
+      _chartTapAway(barsEl, () => { if (sxPicked >= 0) { sxPicked = -1; rest(); } });
       barsEl.addEventListener('pointerleave', e => { if (e.pointerType === 'mouse' && !barsEl.contains(document.activeElement)) rest(); });
       barsEl.addEventListener('focusin', e => { const b = e.target.closest('.ws-bar'); if (b) show(+b.dataset.i); });
       barsEl.addEventListener('focusout', e => { if (!barsEl.contains(e.relatedTarget)) rest(); });
@@ -5044,7 +5168,7 @@
       return { kind: 'empty', today: isToday };
     }
 
-    function _wkRowHTML(day, m, isToday) {
+    function _wkRowHTML(day, m, isToday, weekend) {
       const d = day.date;
       const tile = `<span class="wk-tile" aria-hidden="true"><span class="wk-tile-n">${day.name.slice(0, 3)}</span><span class="wk-tile-d">${d.getDate()}</span></span>`;
       let mid = '';
@@ -5061,12 +5185,12 @@
       // ± chip only for finished days (a running or paused day has nothing to settle yet).
       const showDiff = m.diffSecs != null && Math.abs(m.diffSecs) >= 60;
       const chip = showDiff
-        ? `<span class="wk-chip ${m.diffSecs > 0 ? 'is-over' : 'is-short'}" aria-label="${wkSpoken(m.diffSecs)}">${wkSigned(m.diffSecs)}</span>`
+        ? `<span class="wk-chip ${m.extra ? 'is-extra' : m.diffSecs > 0 ? 'is-over' : 'is-short'}" aria-label="${m.extra ? durWorked(m.diffSecs) + ' extra' : wkSpoken(m.diffSecs)}">${wkSigned(m.diffSecs)}</span>`
         : '';
       const end = m.kind === 'missing'
         ? `<button type="button" class="btn-secondary wk-add">${wkSvg('plus')}Add hours</button>`
         : (m.hrsSecs ? `<span class="wk-hrs${m.kind === 'running' ? ' is-live' : ''}">${durWorked(m.hrsSecs)}</span>` : '<span class="wk-hrs is-none">–</span>');
-      const cls = ['wk-row', isToday ? 'today' : '', m.future ? 'is-future' : '', m.kind === 'missing' ? 'is-missing' : ''].filter(Boolean).join(' ');
+      const cls = ['wk-row', isToday ? 'today' : '', m.future ? 'is-future' : '', m.kind === 'missing' ? 'is-missing' : '', weekend ? 'is-weekend' : ''].filter(Boolean).join(' ');
       return `<div class="${cls}" role="button" tabindex="0" data-day-key="${day.key}"${isToday ? ' aria-current="date"' : ''}>`
            + `${tile}<span class="wk-mid">${mid}</span><span class="wk-end">${chip}${end}</span></div>`;
     }
@@ -5147,39 +5271,187 @@
       _renderWkFooter(worked);
     }
 
-    function renderHistory() {
-      const c = cfg(), wk = week(analyticsWeekOffset), tk = todayKey();
-      const rows = el('wkRows');
-      if (!rows) return;
-      // The card's title lives here, not only in renderAnalytics(): on Home the
-      // Dashboard tab no longer exists, and the HTML placeholder showed instead.
-      el('wkNavLabel').textContent = analyticsWeekOffset === 0 ? 'This Week' : weekRangeLabel(analyticsWeekOffset);
-      el('wkNextBtn').disabled = analyticsWeekOffset >= 0;
-      const dailySecs = c.dailyH * 3600;
-      const live = !!loginDate;
-      const liveSecs = live ? _sessionAccSecs + Math.max(0, Math.floor((new Date() - loginDate) / 1000)) : 0;
-      const days = wk.map(day => {
-        const log = dayLog(day.key);
-        const isToday = day.key === tk && analyticsWeekOffset === 0;
-        const isPast = !isToday && day.key < tk;
-        const isFuture = !isToday && day.key > tk;
-        const m = wkDayModel(log, { isToday, isPast, isFuture, live: isToday && live, liveSecs, dailySecs });
-        const lt = (log?.loginTime || '').split(':').map(Number);
-        const loginMin = lt.length >= 2 && !isNaN(lt[0]) ? lt[0] * 60 + (lt[1] || 0) : null;
-        return { day, log, m, isToday, loginMin };
-      });
-      rows.innerHTML = days.map(x => _wkRowHTML(x.day, x.m, x.isToday)).join('');
-      rows.querySelectorAll('.wk-row').forEach(r => {
-        const open = () => openDayEditModal(r.dataset.dayKey);
-        r.addEventListener('click', open);
-        r.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); } });
-      });
-      _wkCtx = { days, dailySecs, weekTarget: c.weeklyOn ? adjustedWeeklyTarget(wk) : dailySecs * wk.length, offset: analyticsWeekOffset };
-      _renderWkFooter(liveSecs);
+    // ── WEEK CARD FEED (#55, approved 2026-11-15) ───────────────────────────
+    // One scrolling feed of every day (weekends too), five weeks back to the end
+    // of next week, with sticky week titles. Today opens in the middle. The
+    // header names the week in the middle of the feed and opens a calendar
+    // (adapted from uiarc date-picker + calendar); the footer follows that week.
+    let _wfFrom = -5, _wfTo = 1, _wfData = {}, _wfOff = 0, _wfRendered = '', _wfSb = null;
+    const _WF_DAY = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const _wfMd = d => `${MONTHS[d.getMonth()].slice(0, 3)} ${d.getDate()}`;
+    // Monday of the week `off` weeks from this one, and its 7 days.
+    function _wfMonday(off) { const m = week(off)[0].date; return new Date(m.getFullYear(), m.getMonth(), m.getDate()); }
+    function _wfDays(off) { const m = _wfMonday(off); return [0, 1, 2, 3, 4, 5, 6].map(i => { const d = new Date(m.getFullYear(), m.getMonth(), m.getDate() + i); return { key: dateKey(d), name: _WF_DAY[d.getDay()], date: d }; }); }
+    // Which week (offset from this one) a date falls in.
+    function _wfOffsetOf(d) { const m0 = _wfMonday(0), x = new Date(d.getFullYear(), d.getMonth(), d.getDate()); x.setDate(x.getDate() - ((x.getDay() + 6) % 7)); return Math.round((x - m0) / (7 * 864e5)); }
+    // "This Week" / "Last Week" / "Next Week", or the range for other weeks.
+    function _wfTitle(off) { return off === 0 ? 'This Week' : off === -1 ? 'Last Week' : off === 1 ? 'Next Week' : null; }
+    function _wfRange(off) {
+      const a = _wfMonday(off), b = new Date(a.getFullYear(), a.getMonth(), a.getDate() + 6);
+      return a.getMonth() === b.getMonth() ? `${_wfMd(a)} – ${b.getDate()}` : `${_wfMd(a)} – ${_wfMd(b)}`;
+    }
+    // A weekend day: a quiet "Weekend" row, or "All extra" with a green chip when worked.
+    function _wfWeekendModel(log) {
+      const worked = log?.hoursWorked != null ? Math.round(log.hoursWorked * 3600) : 0;
+      return worked > 0 ? { kind: 'weekend', icon: 'weekend', label: 'Weekend', line: 'All extra', tone: 'success', hrsSecs: worked, diffSecs: worked, extra: true }
+        : { kind: 'weekend', icon: 'weekend', label: 'Weekend', line: 'Day off', tone: '' };
+    }
 
+    function renderHistory() {
+      const c = cfg(), tk = todayKey(), rows = el('wkRows');
+      if (!rows) return;
+      const dailySecs = c.dailyH * 3600, live = !!loginDate;
+      const liveSecs = live ? _sessionAccSecs + Math.max(0, Math.floor((new Date() - loginDate) / 1000)) : 0;
+      _wfData = {};
+      let html = '';
+      for (let off = _wfFrom; off <= _wfTo; off++) {
+        const work = new Set(week(off).map(d => d.key)), days = [];
+        let rowsHtml = '';
+        for (const day of _wfDays(off)) {
+          const log = dayLog(day.key), isToday = day.key === tk, isPast = !isToday && day.key < tk, isFuture = !isToday && day.key > tk;
+          if (!work.has(day.key)) { rowsHtml += _wkRowHTML(day, _wfWeekendModel(log), isToday, true); continue; }
+          const m = wkDayModel(log, { isToday, isPast, isFuture, live: isToday && live, liveSecs, dailySecs });
+          const lt = (log?.loginTime || '').split(':').map(Number);
+          const loginMin = lt.length >= 2 && !isNaN(lt[0]) ? lt[0] * 60 + (lt[1] || 0) : null;
+          days.push({ day, log, m, isToday, loginMin });
+          rowsHtml += _wkRowHTML(day, m, isToday);
+        }
+        _wfData[off] = { days, dailySecs, weekTarget: c.weeklyOn ? adjustedWeeklyTarget(week(off)) : dailySecs * days.length, offset: off };
+        const t = _wfTitle(off), r = _wfRange(off);
+        html += `<section class="wf-week" data-off="${off}" aria-label="${t || r}"><div class="wf-wh"><span class="wf-wt">${t || r}</span>${t ? `<span class="wf-wr">${r}</span>` : ''}</div>${rowsHtml}</section>`;
+      }
+      // Keep the reader's place when the data changes; open on today the first time.
+      const first = !_wfRendered, keep = rows.scrollTop;
+      rows.innerHTML = html;
+      _wfRendered = `${_wfFrom}:${_wfTo}`;
+      if (first) requestAnimationFrame(() => { _wfCentre(tk, false); document.fonts?.ready.then(() => _wfCentre(tk, false)); });
+      else rows.scrollTop = keep;
+      _wfOff = null; _wfSync(liveSecs);
       renderNotifs();
-      // Refresh day-selector dots when history changes
-      if (analyticsWeekOffset === 0) renderDaySelector();
+      renderDaySelector();   // the day selector's dots follow the history
+    }
+    // Footer, header and Today button follow the week in the middle of the feed.
+    function _wfSync(liveSecs) {
+      const rows = el('wkRows'); if (!rows) return;
+      const mid = rows.scrollTop + rows.clientHeight / 2;
+      let off = 0;
+      for (const s of rows.querySelectorAll('.wf-week')) { if (s.offsetTop <= mid) off = +s.dataset.off; else break; }
+      if (off !== _wfOff) {
+        _wfOff = off; analyticsWeekOffset = off;   // Stats and the report follow it too
+        el('wkNavLabel').textContent = _wfTitle(off) || _wfRange(off);
+        _wkCtx = _wfData[off] || null;
+        _renderWkFooter(liveSecs ?? (loginDate ? _sessionAccSecs + Math.max(0, Math.floor((new Date() - loginDate) / 1000)) : 0));
+      }
+      // "Today" shows only when today's row is out of view.
+      const t = rows.querySelector('.wk-row.today'), btn = el('wfToday');
+      if (btn) { const away = !t || t.offsetTop + t.offsetHeight < rows.scrollTop + 40 || t.offsetTop > rows.scrollTop + rows.clientHeight; btn.hidden = !away; }
+      _wfSb?.update();
+    }
+    // Glide a day's row to the middle; a picked day shows its hover look for a second.
+    function _wfCentre(key, smooth = true, mark = false) {
+      const rows = el('wkRows'), r = rows?.querySelector(`.wk-row[data-day-key="${key}"]`); if (!r) return;
+      const top = r.offsetTop - (rows.clientHeight - r.offsetHeight) / 2;
+      rows.scrollTo({ top: Math.max(0, top), behavior: smooth && !matchMedia('(prefers-reduced-motion: reduce)').matches ? 'smooth' : 'instant' });
+      if (mark) { r.classList.add('hl'); setTimeout(() => r.classList.remove('hl'), 1000); }
+    }
+    function _wfGoTo(d, mark = true) {
+      const off = _wfOffsetOf(d);
+      if (off < _wfFrom || off > _wfTo) { _wfFrom = Math.min(_wfFrom, off); _wfTo = Math.max(_wfTo, off); renderHistory(); }
+      requestAnimationFrame(() => _wfCentre(dateKey(d), true, mark));
+    }
+
+    // ── Overlay scrollbar (Fluent): a 2px thumb while scrolling that fades after
+    // 0.9 s; on hover or drag it widens to 6px on a faint track. Draggable; a
+    // click on the track jumps there. The native bar is hidden.
+    function _overlayScrollbar(scroller, host) {
+      const track = document.createElement('div'); track.className = 'osb'; track.setAttribute('aria-hidden', 'true');
+      const thumb = document.createElement('div'); thumb.className = 'osb-thumb'; track.appendChild(thumb); host.appendChild(track);
+      let idle = null, size = 0, drag = null;
+      const geo = () => { const ch = scroller.clientHeight, sh = scroller.scrollHeight; return { ch, sh, max: Math.max(1, sh - ch) }; };
+      function update() {
+        const { ch, sh, max } = geo();
+        track.hidden = sh <= ch + 1;
+        size = Math.max(24, ch * ch / sh);
+        thumb.style.height = size + 'px';
+        thumb.style.transform = `translateY(${(scroller.scrollTop / max) * (ch - size)}px)`;
+      }
+      function wake() { track.classList.add('on'); clearTimeout(idle); idle = setTimeout(() => { if (!drag) track.classList.remove('on'); }, 900); }
+      scroller.addEventListener('scroll', () => { update(); wake(); }, { passive: true });
+      thumb.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); drag = { y: e.clientY, top: scroller.scrollTop }; thumb.setPointerCapture(e.pointerId); track.classList.add('drag'); });
+      thumb.addEventListener('pointermove', e => { if (!drag) return; const { ch, max } = geo(); scroller.scrollTop = drag.top + (e.clientY - drag.y) * max / Math.max(1, ch - size); });
+      const end = () => { if (!drag) return; drag = null; track.classList.remove('drag'); wake(); };
+      thumb.addEventListener('pointerup', end); thumb.addEventListener('pointercancel', end);
+      track.addEventListener('pointerdown', e => { if (e.target !== track) return; const { ch, max } = geo(), y = e.clientY - track.getBoundingClientRect().top;
+        scroller.scrollTo({ top: (y - size / 2) / Math.max(1, ch - size) * max, behavior: 'smooth' }); });
+      new ResizeObserver(update).observe(scroller);
+      update();
+      return { update };
+    }
+
+    // ── The week card's calendar (adapted from uiarc date-picker + calendar) ──
+    // Mon-first; a dot only on days that need a look (missed = red, half day,
+    // leave, holiday in their colours); today in its hover fill, never a ring;
+    // footer: the picked day + Today. Picking a day closes it and glides there.
+    let _wfCal = null;   // { month: Date (1st), sel: Date }
+    function _wfDot(k, tk, firstKey) {
+      const log = dayLog(k), ov = log?.override;
+      if (ov === 'holiday') return 'orchid'; if (ov === 'leave') return 'blue'; if (ov === 'halfday') return 'teal';
+      if (k < tk && firstKey && k >= firstKey && !isWeekendKey(k) && !(log?.hoursWorked > 0)) return 'destructive';
+      return '';
+    }
+    function _wfCalRender() {
+      const box = el('wfCal'); if (!box || !_wfCal) return;
+      const tk = todayKey(), m0 = _wfCal.month, y = m0.getFullYear(), m = m0.getMonth();
+      const firstKey = Object.entries(Store.allDays()).filter(([, l]) => l?.hoursWorked > 0).map(([k]) => k).sort()[0];
+      const start = new Date(y, m, 1 - ((m0.getDay() + 6) % 7)), selK = dateKey(_wfCal.sel);
+      let cells = '';
+      for (let i = 0; i < 42; i++) {
+        const d = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i), k = dateKey(d), out = d.getMonth() !== m;
+        const dot = out ? '' : _wfDot(k, tk, firstKey);
+        cells += `<button type="button" class="wfc-d${out ? ' out' : ''}${k === tk ? ' today' : ''}${k === selK ? ' sel' : ''}" data-k="${k}" tabindex="${k === selK ? 0 : -1}"`
+          + ` aria-label="${d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}"${k === selK ? ' aria-selected="true"' : ''}>${d.getDate()}${dot ? `<i style="--k:var(--${dot})"></i>` : ''}</button>`;
+      }
+      const chev = p => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${p}"/></svg>`;
+      box.innerHTML = `<div class="wfc-head"><button type="button" class="wfc-nav" data-mo="-1" aria-label="Previous month">${chev('m15 18-6-6 6-6')}</button>`
+        + `<span class="wfc-mt">${MONTHS[m]} ${y}</span><button type="button" class="wfc-nav" data-mo="1" aria-label="Next month">${chev('m9 18 6-6-6-6')}</button></div>`
+        + `<div class="wfc-wd">${['M', 'T', 'W', 'T', 'F', 'S', 'S'].map(w => `<span>${w}</span>`).join('')}</div><div class="wfc-grid" role="grid">${cells}</div>`
+        + `<div class="wfc-foot"><span class="wfc-date">${_WF_DAY[_wfCal.sel.getDay()]}, ${_wfMd(_wfCal.sel)}</span><button type="button" class="wfc-today" data-today="1">Today</button></div>`;
+    }
+    function _wfCalOpen() {
+      const rows = el('wkRows'), r = rows?.querySelector(`.wf-week[data-off="${_wfOff ?? 0}"] .wk-row`);
+      const sel = _wfOff === 0 || _wfOff == null ? new Date(todayKey() + 'T00:00') : new Date(r?.dataset.dayKey + 'T00:00');
+      _wfCal = { month: new Date(sel.getFullYear(), sel.getMonth(), 1), sel };
+      _wfCalRender();
+      el('wfCal').hidden = false; el('wkNavLabelBtn').setAttribute('aria-expanded', 'true');
+      requestAnimationFrame(() => el('wfCal').querySelector('.wfc-d.sel')?.focus({ focusVisible: false }));
+    }
+    function _wfCalClose(focus) { if (!el('wfCal') || el('wfCal').hidden) return; el('wfCal').hidden = true; _wfCal = null; el('wkNavLabelBtn').setAttribute('aria-expanded', 'false'); if (focus) el('wkNavLabelBtn').focus(); }
+    function _wfCalPick(d) { _wfCalClose(); _wfGoTo(d); }
+    function _wfInit() {
+      const rows = el('wkRows'), btn = el('wkNavLabelBtn'), cal = el('wfCal'); if (!rows || !btn || !cal) return;
+      _wfSb = _overlayScrollbar(rows, el('wfWrap'));
+      let raf = 0;
+      rows.addEventListener('scroll', () => { if (!raf) raf = requestAnimationFrame(() => { raf = 0; _wfSync(); }); }, { passive: true });
+      // Rows open the day (Update Entry), as before.
+      rows.addEventListener('click', e => { const r = e.target.closest('.wk-row'); if (r) openDayEditModal(r.dataset.dayKey); });
+      rows.addEventListener('keydown', e => { const r = e.target.closest('.wk-row'); if (r && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); openDayEditModal(r.dataset.dayKey); } });
+      btn.addEventListener('click', e => { e.stopPropagation(); cal.hidden ? _wfCalOpen() : _wfCalClose(); });
+      el('wfToday')?.addEventListener('click', () => _wfCentre(todayKey(), true, true));
+      cal.addEventListener('click', e => {
+        e.stopPropagation();
+        const nav = e.target.closest('[data-mo]');
+        if (nav) { _wfCal.month = new Date(_wfCal.month.getFullYear(), _wfCal.month.getMonth() + +nav.dataset.mo, 1); _wfCalRender(); return; }
+        if (e.target.closest('[data-today]')) { _wfCalPick(new Date(todayKey() + 'T00:00')); return; }
+        const d = e.target.closest('[data-k]'); if (d) _wfCalPick(new Date(d.dataset.k + 'T00:00'));
+      });
+      cal.addEventListener('keydown', e => {
+        if (!_wfCal) return;
+        const step = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -7, ArrowDown: 7 }[e.key];
+        if (step) { e.preventDefault(); const s = _wfCal.sel; _wfCal.sel = new Date(s.getFullYear(), s.getMonth(), s.getDate() + step); _wfCal.month = new Date(_wfCal.sel.getFullYear(), _wfCal.sel.getMonth(), 1); _wfCalRender(); cal.querySelector('.wfc-d.sel')?.focus(); return; }
+        if (e.key === 'Enter' && e.target.closest('.wfc-d')) { e.preventDefault(); _wfCalPick(new Date(e.target.dataset.k + 'T00:00')); return; }
+        if (e.key === 'Escape') { e.stopPropagation(); _wfCalClose(true); }
+      });
+      document.addEventListener('click', e => { if (!e.target.closest('#wfCal, #wkNavLabelBtn')) _wfCalClose(); });
     }
 
 
@@ -6113,7 +6385,7 @@
                 tzName: cfg().tzName || '',
                 qsShortcut: _qsShortcut,
                 // Payroll (#41) has its own handlers: carry it through.
-                salaryCycleStart: cfg().salaryCycleStart, salaryCycleEnd: cfg().salaryCycleEnd,
+                salaryCycleStart: cfg().salaryCycleStart, salaryCycleEnd: cfg().salaryCycleEnd, salaryCycleLen: cfg().salaryCycleLen,
                 penaltyReminders: cfg().penaltyReminders, payrollNudges: cfg().payrollNudges });
       // If session is running, refresh button state to reflect break-time change
       if (loginDate) setCalcBtnState('running');
@@ -6249,8 +6521,6 @@
 
     // ── ANALYTICS ──────────────────────────────────────
     function renderAnalytics() {
-      el('wkNavLabel').textContent = analyticsWeekOffset === 0 ? 'This Week' : weekRangeLabel(analyticsWeekOffset);
-      el('wkNextBtn').disabled = analyticsWeekOffset >= 0;
       renderHistory();
       renderPenalties();
     }
@@ -6532,7 +6802,7 @@
     function _acCollect() {
       const c = cfg(), tk = todayKey(), now = nowTz();
       const wkDates = week(0).map(d => d.date);
-      const p = _statsPeriod('cycle', now, _salaryCycleStart(c), _salaryCycleEnd(c)), mDates = [];
+      const p = _statsPeriod('cycle', now, _salaryCycleStart(c), _salaryCycleEnd(c), _salaryCycleLen(c)), mDates = [];
       for (const d = new Date(p.from); d <= p.to; d.setDate(d.getDate() + 1)) { const k = dateKey(d); if (k >= tk) break; if (!isWeekendKey(k)) mDates.push(new Date(d)); }
       const wt = days => adjustedWeeklyTarget(days);
       const samples = _samplePenalties().filter(s => s.type === 'daily').map(s => ({ ...s, worked: Math.round((s.log.hoursWorked || 0) * 3600), tgt: s.log.override === 'halfday' ? c.dailyH * 1800 : c.dailyH * 3600, half: s.log.override === 'halfday' }));
@@ -6584,15 +6854,16 @@
         : `Salary cycle · ${data.cycle.sub}`;
       const top = el('acTop');
       top.innerHTML = `<div class="ac-head"><span class="ac-title">Action Center</span>
-          <div class="ac-acts"><button type="button" class="btn-secondary ac-markall" id="acMarkAll"${un.length ? '' : ' disabled'}>Mark all as read</button>
+          <div class="ac-acts">
             <div class="ac-more-wrap"><button type="button" class="ac-more" id="acMore" aria-haspopup="menu" aria-expanded="false" aria-label="More">${_AC_SVG(_AC_I.more)}</button>
               <div class="ac-menu" id="acMoreMenu" role="menu" aria-label="Action Center options">
-                <button type="button" class="ac-mi" role="menuitemcheckbox" aria-checked="${_acShowRead}" data-ac="showread"><span>Show read penalties</span>${_AC_SVG(_AC_I.check)}</button>
+                <button type="button" class="ac-mi" role="menuitem" id="acMarkAll" data-ac="markall"${un.length ? '' : ' disabled'}><span>Mark All as Read</span>${_AC_SVG(_AC_I.read)}</button>
+                <button type="button" class="ac-mi" role="menuitemcheckbox" aria-checked="${_acShowRead}" data-ac="showread"><span>Show Read Items</span>${_AC_SVG(_AC_I.check)}</button>
                 <div class="ac-sep" role="separator"></div>
                 <button type="button" class="ac-mi danger" role="menuitem" data-ac="clear"${rows.length ? '' : ' disabled'}><span>Clear all penalties</span>${_AC_SVG(_AC_I.trash)}</button>
               </div></div></div></div>
         <div class="ac-seg" role="tablist" aria-label="Period"><span class="ac-gl" aria-hidden="true"></span>
-          ${['week', 'month'].map(t => `<button type="button" role="tab" aria-selected="${t === _acTab}" data-t="${t}">${t === 'week' ? 'This Week' : 'This Month'}<em>${unread(t).length}</em></button>`).join('')}</div>
+          ${['week', 'month'].map(t => `<button type="button" role="tab" aria-selected="${t === _acTab}" data-t="${t}">${t === 'week' ? 'This Week' : 'This Month'}</button>`).join('')}</div>
         <p class="ac-cap">${cap}</p>`;
       // Body: inline confirm › empty › all caught up › rows (+ read ones when on).
       if (_acConfirm && rows.length) {
@@ -6606,12 +6877,9 @@
           <h3>Yay, nothing to resolve</h3><p>Your hours add up and there's no email to send. Anything that needs fixing lands here.</p></div>`;
       } else {
         // Unread rows, plus the ones read during this visit (still in place).
-        const shown = rows.filter(r => !_discardedPenalties.has(r.key) || _acKeepRead.has(r.key));
-        let html = shown.length ? _acListHtml(shown, false)
-          : `<div class="ac-caught"><span class="ac-caught-i">${_AC_SVG(_AC_I.check)}</span><div><b>All caught up</b><span>Read penalties are under the ⋯ menu.</span></div></div>`;
-        const older = rd.filter(r => !_acKeepRead.has(r.key));
-        if (_acShowRead && older.length) html += `<div class="ac-mo ac-read-l">Read</div>` + _acListHtml(older, true);
-        list.innerHTML = html;
+        const shown = _acShowRead ? rows : un;
+        list.innerHTML = shown.length ? _acListHtml(shown, false)
+          : `<div class="ac-caught"><span class="ac-caught-i">${_AC_SVG(_AC_I.check)}</span><div><b>All caught up</b><span>Turn on Show Read Items in the ⋯ menu to see read ones.</span></div></div>`;
       }
       _acLoaded = true;
       _acBind(card, rows, un);
@@ -6633,7 +6901,7 @@
       });
       menu.querySelector('[data-ac="showread"]').addEventListener('click', () => { _acShowRead = !_acShowRead; _acSave(); _renderPenaltyCard(); });
       menu.querySelector('[data-ac="clear"]').addEventListener('click', () => { _acConfirm = true; _renderPenaltyCard(); el('penaltiesList').querySelector('[data-ac="cf-no"]')?.focus(); });
-      el('acMarkAll').addEventListener('click', () => _acMarkAllRead(un));
+      el('acMarkAll').addEventListener('click', () => { setMenu(false); _acMarkAllRead(un); });
       const list = el('penaltiesList');
       list.querySelector('[data-ac="cf-no"]')?.addEventListener('click', () => { _acConfirm = false; _renderPenaltyCard(); });
       list.querySelector('[data-ac="cf-yes"]')?.addEventListener('click', () => {
@@ -6657,9 +6925,9 @@
       const key = row.dataset.penaltyKey, read = _discardedPenalties.has(key);
       const m = document.createElement('div');
       m.className = 'ac-rmenu ac-menu open'; m.setAttribute('role', 'menu');
-      m.innerHTML = `<button type="button" class="ac-mi" role="menuitem" data-r="email">${_AC_SVG(_AC_I.mail)}<span>Draft email to manager</span></button>
-        <button type="button" class="ac-mi" role="menuitem" data-r="fix">${_AC_SVG(_AC_I.edit)}<span>Fix my hours</span></button>
-        <button type="button" class="ac-mi" role="menuitem" data-r="read">${_AC_SVG(read ? _AC_I.unread : _AC_I.read)}<span>${read ? 'Mark as unread' : 'Mark as read'}</span></button>`;
+      m.innerHTML = `<button type="button" class="ac-mi" role="menuitem" data-r="email">${_AC_SVG(_AC_I.mail)}<span>Draft Email</span></button>
+        <button type="button" class="ac-mi" role="menuitem" data-r="fix">${_AC_SVG(_AC_I.edit)}<span>Update Hours</span></button>
+        <button type="button" class="ac-mi" role="menuitem" data-r="read">${_AC_SVG(read ? _AC_I.unread : _AC_I.read)}<span>${read ? 'Mark as Unread' : 'Mark as Read'}</span></button>`;
       row.classList.add('menu-on');
       row.appendChild(m);
       m.querySelector('.ac-mi')?.focus();
@@ -8921,6 +9189,7 @@ Kind regards,
         analyticsWeekOffset = -Math.max(0, weeksDiff);
       }
       renderAnalytics();
+      if (count > 0) _wfGoTo(new Date(Object.keys(days).sort().pop() + 'T00:00'), false);
 
       const name  = snap.user?.name || snap.cfg?.name || '';
       showToast('Import Successful', 'success', `${count} day${count !== 1 ? 's' : ''} restored${name ? ` · Welcome back, ${name}!` : '.'}`);
@@ -9502,20 +9771,6 @@ Kind regards,
     // Mobile theme + notif
     el('mobNotifBtn')?.addEventListener('click', toggleNotifPanel);
     el('notifBtn').addEventListener('click', toggleNotifPanel);
-    el('notifClearAll').addEventListener('click', () => {
-      const pending = buildNotifs();
-      if (!pending.length) {
-        // Nothing to clear — iOS-style shake to say "stop clicking"
-        const btn = el('notifClearAll');
-        btn.classList.remove('ios-shake');
-        void btn.offsetWidth; // reflow so the animation can re-trigger
-        btn.classList.add('ios-shake');
-        btn.addEventListener('animationend', () => btn.classList.remove('ios-shake'), { once: true });
-        return;
-      }
-      pending.forEach(n => addDismissed(n.id));
-      renderNotifs();
-    });
     ['inpDailyH','inpDailyM'].forEach(id => {
       el(id)?.addEventListener('change', autoSaveSettings);
       el(id)?.addEventListener('input', autoSaveSettings);
@@ -9586,14 +9841,8 @@ Kind regards,
     });
     el('coDone').addEventListener('click', closeCheckoutModal);
     el('checkoutOverlay').addEventListener('click', e => { if (e.target === el('checkoutOverlay')) closeCheckoutModal(); });
-    // Week nav (Analytics)
-    el('wkPrevBtn').addEventListener('click', () => {
-      analyticsWeekOffset--;
-      renderAnalytics();
-    });
-    el('wkNextBtn').addEventListener('click', () => {
-      if (analyticsWeekOffset < 0) { analyticsWeekOffset++; renderAnalytics(); }
-    });
+    // Week card feed (#55): calendar, Today, overlay scrollbar.
+    _wfInit();
 
     el('emailModalClose').addEventListener('click', closeEmailModal);
     el('emailModalOverlay').addEventListener('click', e => { if (e.target === el('emailModalOverlay')) closeEmailModal(); });
@@ -9909,6 +10158,8 @@ Kind regards,
     el('dayEditCancel').addEventListener('click', closeDayEditModal);
     _deTypeInit();
     _scInit();
+    window.__appLoader?.step(420);   // page loader: the app has started (4:00)
+    _ctInit();
     _bkInit();
     ['deStart', 'deEnd'].forEach(id => el(id).addEventListener('input', _deUpdateLive));
     // Phones: a bottom sheet that follows your finger; the body scrolls, the
@@ -11024,9 +11275,10 @@ Kind regards,
     }
     function _bkNotice(n) {
       if (!(n >= 0)) return null;
-      return { id: `backup-left-${n}`, type: n <= 2 ? 'warn' : 'info',
-        text: `You have ${_bkLeftText(n).replace(' left', '')} left.${n <= 2 ? ' Make new ones in Settings › Security.' : ''}`,
-        cta: 'Make new codes', ctaWeekKey: 'mfa:low' };
+      const text = `You have ${_bkLeftText(n).replace(' left', '')} left.${n <= 2 ? ' Make new ones in Settings › Security.' : ''}`;
+      return { id: `backup-left-${n}`, type: n <= 2 ? 'warn' : 'info', text, title: n === 1 ? '1 Backup Code Left' : `${n} Backup Codes Left`,
+        pv: n <= 2 ? 'Make new codes before you run out.' : 'Each code works once.', more: text, time: 'Today',
+        cta: 'Make New Codes', ctaWeekKey: 'mfa:low' };
     }
     function _bkInit() {
       el('bkCopyBtn')?.addEventListener('click', _copyBackupCodes);
@@ -11170,32 +11422,87 @@ Kind regards,
       });
     }
 
-    // ── Support Development Modal ─────────────────────────────────────────
-    function openSupportModal() {
-      el('supportOverlay').classList.add('open');
-      var wrap = el('supportQrWrap');
-      if (wrap && !wrap.firstChild) _loadLib('qrcode').then(function () {
-        if (wrap.firstChild) return;
-        new QRCode(wrap, {
-          text: 'upi://pay?pa=roshan.394@superyes&pn=Roshan%20Mohapatra&cu=INR',
-          width: 256, height: 256,
-          colorDark: '#000000', colorLight: '#ffffff',
-          correctLevel: QRCode.CorrectLevel.M
-        });
-      }).catch(function () {});
+    // ── Contribute (#57, approved 2026-11-15) ──────────────────────────────
+    // Two views in one dialog: pick an amount (presets + a money input), then pay
+    // (a UPI QR for that amount, Copy UPI ID, and on phones Pay with UPI → app picker).
+    // Payments are critical: the link format is fixed and covered by tests.
+    const _UPI_ID = 'roshan.394@superyes', _UPI_NAME = 'Roshan Mohapatra';
+    const _CT_MIN = 10, _CT_MAX = 100000, _CT_PRESETS = [199, 499, 999];
+    let _ctAmt = 499, _ctView = 'pick';
+    // NPCI style: pa stays plain (the @ is not encoded), the amount has 2 decimals, INR.
+    function _upiQuery(amt) { return `pa=${_UPI_ID}&pn=${encodeURIComponent(_UPI_NAME)}&am=${(+amt).toFixed(2)}&cu=INR`; }
+    function upiLink(amt) { return `upi://pay?${_upiQuery(amt)}`; }
+    // A chosen app, skipping the device's default UPI handler. Android: an intent
+    // naming the package. iPhone: the app's own scheme. Other = the plain link.
+    const _UPI_APPS = { gpay: ['com.google.android.apps.nbu.paisa.user', 'gpay://upi/pay'], phonepe: ['com.phonepe.app', 'phonepe://pay'], paytm: ['net.one97.paytm', 'paytmmp://pay'] };
+    function _upiAppLink(amt, app, platform) {
+      const q = _upiQuery(amt), a = _UPI_APPS[app];
+      if (!a) return `upi://pay?${q}`;
+      return platform === 'android' ? `intent://pay?${q}#Intent;scheme=upi;package=${a[0]};end` : `${a[1]}?${q}`;
     }
-    function closeSupportModal() { el('supportOverlay').classList.remove('open'); }
+    const _ctFmt = n => new Intl.NumberFormat('en-IN').format(n);
+    const _ctOk = n => n >= _CT_MIN && n <= _CT_MAX;
+    function _ctRender() {
+      const pick = _ctView === 'pick';
+      el('ctPick').hidden = !pick; el('ctPay').hidden = pick; el('ctBack').hidden = pick;
+      el('ctFootPick').hidden = !pick; el('ctFootPay').hidden = pick;
+      const inp = el('ctAmount');
+      if (document.activeElement !== inp) inp.value = _ctAmt ? _ctFmt(_ctAmt) : '';
+      el('ctPresets').querySelectorAll('[data-amt]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.amt === 'custom' ? !_CT_PRESETS.includes(_ctAmt) : +b.dataset.amt === _ctAmt)));
+      const bad = !_ctOk(_ctAmt);
+      el('ctHint').textContent = !_ctAmt ? '' : _ctAmt < _CT_MIN ? `The smallest amount is ₹${_CT_MIN}.` : _ctAmt > _CT_MAX ? `The largest amount is ₹${_ctFmt(_CT_MAX)}.` : '';
+      el('ctDonate').disabled = bad;
+      el('ctPayAmt').textContent = `₹${_ctFmt(_ctAmt)}`;
+    }
+    function _ctQr() {
+      const wrap = el('ctQr'); if (!wrap) return;
+      wrap.querySelector('.ct-qr-code')?.remove();
+      const box = document.createElement('div'); box.className = 'ct-qr-code'; wrap.prepend(box);
+      _loadLib('qrcode').then(() => {
+        // High error correction so the 5pm icon in the middle never breaks the scan.
+        new QRCode(box, { text: upiLink(_ctAmt), width: 512, height: 512, colorDark: '#0c0e13', colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.H });
+      }).catch(() => { box.innerHTML = '<p class="ct-qr-err">Couldn’t load the QR code. Copy the UPI ID instead.</p>'; });
+    }
+    function openSupportModal() {
+      _ctView = 'pick'; _ctAmt = 499; _ctRender();
+      el('supportOverlay').classList.add('open');
+    }
+    function closeSupportModal() { el('supportOverlay').classList.remove('open'); _ctCloseApps(); }
     let _upiResetTimer = null;
     function _copyUpi() {
-      navigator.clipboard?.writeText('roshan.394@superyes');
-      // Copied state: swap icon only, no color change
-      el('upiCopyIcon').style.display = 'none';
-      el('upiCheckIcon').style.display = '';
+      navigator.clipboard?.writeText(_UPI_ID);
+      const b = el('upiCopyBtn'); b.classList.add('done');
       if (_upiResetTimer) clearTimeout(_upiResetTimer);
-      _upiResetTimer = setTimeout(() => {
-        el('upiCopyIcon').style.display = '';
-        el('upiCheckIcon').style.display = 'none';
-      }, 2000);
+      _upiResetTimer = setTimeout(() => b.classList.remove('done'), 1600);
+    }
+    function _ctCloseApps() { el('ctApps')?.setAttribute('hidden', ''); el('ctPayUpi')?.setAttribute('aria-expanded', 'false'); }
+    function _ctInit() {
+      const ov = el('supportOverlay'); if (!ov) return;
+      const plat = /Android/i.test(navigator.userAgent) ? 'android' : /iPhone|iPad|iPod/i.test(navigator.userAgent) ? 'ios' : '';
+      el('ctPayUpi').hidden = !plat;   // phones only; on a computer the QR is the way
+      el('ctPresets').addEventListener('click', e => {
+        const b = e.target.closest('[data-amt]'); if (!b) return;
+        if (b.dataset.amt === 'custom') { _ctAmt = 0; _ctRender(); el('ctAmount').value = ''; el('ctAmount').focus(); return; }
+        _ctAmt = +b.dataset.amt; _ctRender();
+      });
+      el('ctAmount').addEventListener('input', e => {
+        const digits = e.target.value.replace(/[^\d]/g, '').slice(0, 7);
+        _ctAmt = digits ? +digits : 0;
+        e.target.value = digits ? _ctFmt(_ctAmt) : '';
+        _ctRender();
+      });
+      el('ctAmount').addEventListener('keydown', e => { if (e.key === 'Enter' && _ctOk(_ctAmt)) el('ctDonate').click(); });
+      el('ctDonate').addEventListener('click', () => { if (!_ctOk(_ctAmt)) return; _ctView = 'pay'; _ctRender(); _ctQr(); });
+      el('ctBack').addEventListener('click', () => { _ctView = 'pick'; _ctCloseApps(); _ctRender(); });
+      el('ctPayUpi').addEventListener('click', e => {
+        e.stopPropagation();
+        const m = el('ctApps'), open = m.hasAttribute('hidden');
+        if (open) { m.querySelectorAll('[data-app]').forEach(a => { a.href = _upiAppLink(_ctAmt, a.dataset.app, plat); }); m.removeAttribute('hidden'); }
+        else m.setAttribute('hidden', '');
+        el('ctPayUpi').setAttribute('aria-expanded', String(open));
+      });
+      ov.addEventListener('click', e => { if (!e.target.closest('#ctApps, #ctPayUpi')) _ctCloseApps(); });
+      document.addEventListener('keydown', e => { if (e.key === 'Escape' && ov.classList.contains('open')) { if (!el('ctApps').hasAttribute('hidden')) _ctCloseApps(); else closeSupportModal(); } });
     }
 
     function closeUpwdModal() {
@@ -12581,9 +12888,11 @@ Kind regards,
         if (from && into) { while (from.firstChild) into.appendChild(from.firstChild); }
         desktopSec.remove();
       }
-      // Payroll (#41): its own group on General, under the targets.
-      const payroll = sectionByName('Payroll');
-      if (payroll) panels.General.appendChild(payroll);
+      // Payroll (#41): Salary Cycle and Penalty Reminders sit right under Shift
+      // Hours in General's card, with no "Payroll" title (user, 2026-11-15).
+      const payroll = sectionByName('Payroll'), shift = el('inpShiftStart')?.closest('.form-field');
+      if (payroll && shift) { shift.after(el('scRow'), payroll.querySelector('.pay-switch')); payroll.remove(); }
+      else if (payroll) panels.General.appendChild(payroll);
 
       if (prefs) {
         const h = prefs.querySelector('.settings-section-header');

@@ -208,8 +208,6 @@ window.__H = Object.assign(window.__H || {}, {
   hf5b8683dda: function (event) { npSetType('half') },
   // onclick: npSetType('late')
   h2676943c4a: function (event) { npSetType('late') },
-  // onclick: openAnalyticsWeekPicker(this)
-  hcc29c6d1fd: function (event) { openAnalyticsWeekPicker(this) },
   // onclick: openAutoStopRecovery()
   he05a50dca0: function (event) { openAutoStopRecovery() },
   // onclick: openContinueWorkingModal('09:00 AM', 3 * 3600)

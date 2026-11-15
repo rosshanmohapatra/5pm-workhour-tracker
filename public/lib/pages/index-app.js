@@ -5146,7 +5146,7 @@
       return { kind: 'empty', today: isToday };
     }
 
-    function _wkRowHTML(day, m, isToday) {
+    function _wkRowHTML(day, m, isToday, weekend) {
       const d = day.date;
       const tile = `<span class="wk-tile" aria-hidden="true"><span class="wk-tile-n">${day.name.slice(0, 3)}</span><span class="wk-tile-d">${d.getDate()}</span></span>`;
       let mid = '';
@@ -5163,12 +5163,12 @@
       // ± chip only for finished days (a running or paused day has nothing to settle yet).
       const showDiff = m.diffSecs != null && Math.abs(m.diffSecs) >= 60;
       const chip = showDiff
-        ? `<span class="wk-chip ${m.diffSecs > 0 ? 'is-over' : 'is-short'}" aria-label="${wkSpoken(m.diffSecs)}">${wkSigned(m.diffSecs)}</span>`
+        ? `<span class="wk-chip ${m.extra ? 'is-extra' : m.diffSecs > 0 ? 'is-over' : 'is-short'}" aria-label="${m.extra ? durWorked(m.diffSecs) + ' extra' : wkSpoken(m.diffSecs)}">${wkSigned(m.diffSecs)}</span>`
         : '';
       const end = m.kind === 'missing'
         ? `<button type="button" class="btn-secondary wk-add">${wkSvg('plus')}Add hours</button>`
         : (m.hrsSecs ? `<span class="wk-hrs${m.kind === 'running' ? ' is-live' : ''}">${durWorked(m.hrsSecs)}</span>` : '<span class="wk-hrs is-none">–</span>');
-      const cls = ['wk-row', isToday ? 'today' : '', m.future ? 'is-future' : '', m.kind === 'missing' ? 'is-missing' : ''].filter(Boolean).join(' ');
+      const cls = ['wk-row', isToday ? 'today' : '', m.future ? 'is-future' : '', m.kind === 'missing' ? 'is-missing' : '', weekend ? 'is-weekend' : ''].filter(Boolean).join(' ');
       return `<div class="${cls}" role="button" tabindex="0" data-day-key="${day.key}"${isToday ? ' aria-current="date"' : ''}>`
            + `${tile}<span class="wk-mid">${mid}</span><span class="wk-end">${chip}${end}</span></div>`;
     }
@@ -5249,39 +5249,187 @@
       _renderWkFooter(worked);
     }
 
-    function renderHistory() {
-      const c = cfg(), wk = week(analyticsWeekOffset), tk = todayKey();
-      const rows = el('wkRows');
-      if (!rows) return;
-      // The card's title lives here, not only in renderAnalytics(): on Home the
-      // Dashboard tab no longer exists, and the HTML placeholder showed instead.
-      el('wkNavLabel').textContent = analyticsWeekOffset === 0 ? 'This Week' : weekRangeLabel(analyticsWeekOffset);
-      el('wkNextBtn').disabled = analyticsWeekOffset >= 0;
-      const dailySecs = c.dailyH * 3600;
-      const live = !!loginDate;
-      const liveSecs = live ? _sessionAccSecs + Math.max(0, Math.floor((new Date() - loginDate) / 1000)) : 0;
-      const days = wk.map(day => {
-        const log = dayLog(day.key);
-        const isToday = day.key === tk && analyticsWeekOffset === 0;
-        const isPast = !isToday && day.key < tk;
-        const isFuture = !isToday && day.key > tk;
-        const m = wkDayModel(log, { isToday, isPast, isFuture, live: isToday && live, liveSecs, dailySecs });
-        const lt = (log?.loginTime || '').split(':').map(Number);
-        const loginMin = lt.length >= 2 && !isNaN(lt[0]) ? lt[0] * 60 + (lt[1] || 0) : null;
-        return { day, log, m, isToday, loginMin };
-      });
-      rows.innerHTML = days.map(x => _wkRowHTML(x.day, x.m, x.isToday)).join('');
-      rows.querySelectorAll('.wk-row').forEach(r => {
-        const open = () => openDayEditModal(r.dataset.dayKey);
-        r.addEventListener('click', open);
-        r.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); } });
-      });
-      _wkCtx = { days, dailySecs, weekTarget: c.weeklyOn ? adjustedWeeklyTarget(wk) : dailySecs * wk.length, offset: analyticsWeekOffset };
-      _renderWkFooter(liveSecs);
+    // ── WEEK CARD FEED (#55, approved 2026-11-15) ───────────────────────────
+    // One scrolling feed of every day (weekends too), five weeks back to the end
+    // of next week, with sticky week titles. Today opens in the middle. The
+    // header names the week in the middle of the feed and opens a calendar
+    // (adapted from uiarc date-picker + calendar); the footer follows that week.
+    let _wfFrom = -5, _wfTo = 1, _wfData = {}, _wfOff = 0, _wfRendered = '', _wfSb = null;
+    const _WF_DAY = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const _wfMd = d => `${MONTHS[d.getMonth()].slice(0, 3)} ${d.getDate()}`;
+    // Monday of the week `off` weeks from this one, and its 7 days.
+    function _wfMonday(off) { const m = week(off)[0].date; return new Date(m.getFullYear(), m.getMonth(), m.getDate()); }
+    function _wfDays(off) { const m = _wfMonday(off); return [0, 1, 2, 3, 4, 5, 6].map(i => { const d = new Date(m.getFullYear(), m.getMonth(), m.getDate() + i); return { key: dateKey(d), name: _WF_DAY[d.getDay()], date: d }; }); }
+    // Which week (offset from this one) a date falls in.
+    function _wfOffsetOf(d) { const m0 = _wfMonday(0), x = new Date(d.getFullYear(), d.getMonth(), d.getDate()); x.setDate(x.getDate() - ((x.getDay() + 6) % 7)); return Math.round((x - m0) / (7 * 864e5)); }
+    // "This Week" / "Last Week" / "Next Week", or the range for other weeks.
+    function _wfTitle(off) { return off === 0 ? 'This Week' : off === -1 ? 'Last Week' : off === 1 ? 'Next Week' : null; }
+    function _wfRange(off) {
+      const a = _wfMonday(off), b = new Date(a.getFullYear(), a.getMonth(), a.getDate() + 6);
+      return a.getMonth() === b.getMonth() ? `${_wfMd(a)} – ${b.getDate()}` : `${_wfMd(a)} – ${_wfMd(b)}`;
+    }
+    // A weekend day: a quiet "Weekend" row, or "All extra" with a green chip when worked.
+    function _wfWeekendModel(log) {
+      const worked = log?.hoursWorked != null ? Math.round(log.hoursWorked * 3600) : 0;
+      return worked > 0 ? { kind: 'weekend', icon: 'weekend', label: 'Weekend', line: 'All extra', tone: 'success', hrsSecs: worked, diffSecs: worked, extra: true }
+        : { kind: 'weekend', icon: 'weekend', label: 'Weekend', line: 'Day off', tone: '' };
+    }
 
+    function renderHistory() {
+      const c = cfg(), tk = todayKey(), rows = el('wkRows');
+      if (!rows) return;
+      const dailySecs = c.dailyH * 3600, live = !!loginDate;
+      const liveSecs = live ? _sessionAccSecs + Math.max(0, Math.floor((new Date() - loginDate) / 1000)) : 0;
+      _wfData = {};
+      let html = '';
+      for (let off = _wfFrom; off <= _wfTo; off++) {
+        const work = new Set(week(off).map(d => d.key)), days = [];
+        let rowsHtml = '';
+        for (const day of _wfDays(off)) {
+          const log = dayLog(day.key), isToday = day.key === tk, isPast = !isToday && day.key < tk, isFuture = !isToday && day.key > tk;
+          if (!work.has(day.key)) { rowsHtml += _wkRowHTML(day, _wfWeekendModel(log), isToday, true); continue; }
+          const m = wkDayModel(log, { isToday, isPast, isFuture, live: isToday && live, liveSecs, dailySecs });
+          const lt = (log?.loginTime || '').split(':').map(Number);
+          const loginMin = lt.length >= 2 && !isNaN(lt[0]) ? lt[0] * 60 + (lt[1] || 0) : null;
+          days.push({ day, log, m, isToday, loginMin });
+          rowsHtml += _wkRowHTML(day, m, isToday);
+        }
+        _wfData[off] = { days, dailySecs, weekTarget: c.weeklyOn ? adjustedWeeklyTarget(week(off)) : dailySecs * days.length, offset: off };
+        const t = _wfTitle(off), r = _wfRange(off);
+        html += `<section class="wf-week" data-off="${off}" aria-label="${t || r}"><div class="wf-wh"><span class="wf-wt">${t || r}</span>${t ? `<span class="wf-wr">${r}</span>` : ''}</div>${rowsHtml}</section>`;
+      }
+      // Keep the reader's place when the data changes; open on today the first time.
+      const first = !_wfRendered, keep = rows.scrollTop;
+      rows.innerHTML = html;
+      _wfRendered = `${_wfFrom}:${_wfTo}`;
+      if (first) requestAnimationFrame(() => { _wfCentre(tk, false); document.fonts?.ready.then(() => _wfCentre(tk, false)); });
+      else rows.scrollTop = keep;
+      _wfOff = null; _wfSync(liveSecs);
       renderNotifs();
-      // Refresh day-selector dots when history changes
-      if (analyticsWeekOffset === 0) renderDaySelector();
+      renderDaySelector();   // the day selector's dots follow the history
+    }
+    // Footer, header and Today button follow the week in the middle of the feed.
+    function _wfSync(liveSecs) {
+      const rows = el('wkRows'); if (!rows) return;
+      const mid = rows.scrollTop + rows.clientHeight / 2;
+      let off = 0;
+      for (const s of rows.querySelectorAll('.wf-week')) { if (s.offsetTop <= mid) off = +s.dataset.off; else break; }
+      if (off !== _wfOff) {
+        _wfOff = off; analyticsWeekOffset = off;   // Stats and the report follow it too
+        el('wkNavLabel').textContent = _wfTitle(off) || _wfRange(off);
+        _wkCtx = _wfData[off] || null;
+        _renderWkFooter(liveSecs ?? (loginDate ? _sessionAccSecs + Math.max(0, Math.floor((new Date() - loginDate) / 1000)) : 0));
+      }
+      // "Today" shows only when today's row is out of view.
+      const t = rows.querySelector('.wk-row.today'), btn = el('wfToday');
+      if (btn) { const away = !t || t.offsetTop + t.offsetHeight < rows.scrollTop + 40 || t.offsetTop > rows.scrollTop + rows.clientHeight; btn.hidden = !away; }
+      _wfSb?.update();
+    }
+    // Glide a day's row to the middle; a picked day shows its hover look for a second.
+    function _wfCentre(key, smooth = true, mark = false) {
+      const rows = el('wkRows'), r = rows?.querySelector(`.wk-row[data-day-key="${key}"]`); if (!r) return;
+      const top = r.offsetTop - (rows.clientHeight - r.offsetHeight) / 2;
+      rows.scrollTo({ top: Math.max(0, top), behavior: smooth && !matchMedia('(prefers-reduced-motion: reduce)').matches ? 'smooth' : 'instant' });
+      if (mark) { r.classList.add('hl'); setTimeout(() => r.classList.remove('hl'), 1000); }
+    }
+    function _wfGoTo(d, mark = true) {
+      const off = _wfOffsetOf(d);
+      if (off < _wfFrom || off > _wfTo) { _wfFrom = Math.min(_wfFrom, off); _wfTo = Math.max(_wfTo, off); renderHistory(); }
+      requestAnimationFrame(() => _wfCentre(dateKey(d), true, mark));
+    }
+
+    // ── Overlay scrollbar (Fluent): a 2px thumb while scrolling that fades after
+    // 0.9 s; on hover or drag it widens to 6px on a faint track. Draggable; a
+    // click on the track jumps there. The native bar is hidden.
+    function _overlayScrollbar(scroller, host) {
+      const track = document.createElement('div'); track.className = 'osb'; track.setAttribute('aria-hidden', 'true');
+      const thumb = document.createElement('div'); thumb.className = 'osb-thumb'; track.appendChild(thumb); host.appendChild(track);
+      let idle = null, size = 0, drag = null;
+      const geo = () => { const ch = scroller.clientHeight, sh = scroller.scrollHeight; return { ch, sh, max: Math.max(1, sh - ch) }; };
+      function update() {
+        const { ch, sh, max } = geo();
+        track.hidden = sh <= ch + 1;
+        size = Math.max(24, ch * ch / sh);
+        thumb.style.height = size + 'px';
+        thumb.style.transform = `translateY(${(scroller.scrollTop / max) * (ch - size)}px)`;
+      }
+      function wake() { track.classList.add('on'); clearTimeout(idle); idle = setTimeout(() => { if (!drag) track.classList.remove('on'); }, 900); }
+      scroller.addEventListener('scroll', () => { update(); wake(); }, { passive: true });
+      thumb.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); drag = { y: e.clientY, top: scroller.scrollTop }; thumb.setPointerCapture(e.pointerId); track.classList.add('drag'); });
+      thumb.addEventListener('pointermove', e => { if (!drag) return; const { ch, max } = geo(); scroller.scrollTop = drag.top + (e.clientY - drag.y) * max / Math.max(1, ch - size); });
+      const end = () => { if (!drag) return; drag = null; track.classList.remove('drag'); wake(); };
+      thumb.addEventListener('pointerup', end); thumb.addEventListener('pointercancel', end);
+      track.addEventListener('pointerdown', e => { if (e.target !== track) return; const { ch, max } = geo(), y = e.clientY - track.getBoundingClientRect().top;
+        scroller.scrollTo({ top: (y - size / 2) / Math.max(1, ch - size) * max, behavior: 'smooth' }); });
+      new ResizeObserver(update).observe(scroller);
+      update();
+      return { update };
+    }
+
+    // ── The week card's calendar (adapted from uiarc date-picker + calendar) ──
+    // Mon-first; a dot only on days that need a look (missed = red, half day,
+    // leave, holiday in their colours); today in its hover fill, never a ring;
+    // footer: the picked day + Today. Picking a day closes it and glides there.
+    let _wfCal = null;   // { month: Date (1st), sel: Date }
+    function _wfDot(k, tk, firstKey) {
+      const log = dayLog(k), ov = log?.override;
+      if (ov === 'holiday') return 'orchid'; if (ov === 'leave') return 'blue'; if (ov === 'halfday') return 'teal';
+      if (k < tk && firstKey && k >= firstKey && !isWeekendKey(k) && !(log?.hoursWorked > 0)) return 'destructive';
+      return '';
+    }
+    function _wfCalRender() {
+      const box = el('wfCal'); if (!box || !_wfCal) return;
+      const tk = todayKey(), m0 = _wfCal.month, y = m0.getFullYear(), m = m0.getMonth();
+      const firstKey = Object.entries(Store.allDays()).filter(([, l]) => l?.hoursWorked > 0).map(([k]) => k).sort()[0];
+      const start = new Date(y, m, 1 - ((m0.getDay() + 6) % 7)), selK = dateKey(_wfCal.sel);
+      let cells = '';
+      for (let i = 0; i < 42; i++) {
+        const d = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i), k = dateKey(d), out = d.getMonth() !== m;
+        const dot = out ? '' : _wfDot(k, tk, firstKey);
+        cells += `<button type="button" class="wfc-d${out ? ' out' : ''}${k === tk ? ' today' : ''}${k === selK ? ' sel' : ''}" data-k="${k}" tabindex="${k === selK ? 0 : -1}"`
+          + ` aria-label="${d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}"${k === selK ? ' aria-selected="true"' : ''}>${d.getDate()}${dot ? `<i style="--k:var(--${dot})"></i>` : ''}</button>`;
+      }
+      const chev = p => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${p}"/></svg>`;
+      box.innerHTML = `<div class="wfc-head"><button type="button" class="wfc-nav" data-mo="-1" aria-label="Previous month">${chev('m15 18-6-6 6-6')}</button>`
+        + `<span class="wfc-mt">${MONTHS[m]} ${y}</span><button type="button" class="wfc-nav" data-mo="1" aria-label="Next month">${chev('m9 18 6-6-6-6')}</button></div>`
+        + `<div class="wfc-wd">${['M', 'T', 'W', 'T', 'F', 'S', 'S'].map(w => `<span>${w}</span>`).join('')}</div><div class="wfc-grid" role="grid">${cells}</div>`
+        + `<div class="wfc-foot"><span class="wfc-date">${_WF_DAY[_wfCal.sel.getDay()]}, ${_wfMd(_wfCal.sel)}</span><button type="button" class="wfc-today" data-today="1">Today</button></div>`;
+    }
+    function _wfCalOpen() {
+      const rows = el('wkRows'), r = rows?.querySelector(`.wf-week[data-off="${_wfOff ?? 0}"] .wk-row`);
+      const sel = _wfOff === 0 || _wfOff == null ? new Date(todayKey() + 'T00:00') : new Date(r?.dataset.dayKey + 'T00:00');
+      _wfCal = { month: new Date(sel.getFullYear(), sel.getMonth(), 1), sel };
+      _wfCalRender();
+      el('wfCal').hidden = false; el('wkNavLabelBtn').setAttribute('aria-expanded', 'true');
+      requestAnimationFrame(() => el('wfCal').querySelector('.wfc-d.sel')?.focus({ focusVisible: false }));
+    }
+    function _wfCalClose(focus) { if (!el('wfCal') || el('wfCal').hidden) return; el('wfCal').hidden = true; _wfCal = null; el('wkNavLabelBtn').setAttribute('aria-expanded', 'false'); if (focus) el('wkNavLabelBtn').focus(); }
+    function _wfCalPick(d) { _wfCalClose(); _wfGoTo(d); }
+    function _wfInit() {
+      const rows = el('wkRows'), btn = el('wkNavLabelBtn'), cal = el('wfCal'); if (!rows || !btn || !cal) return;
+      _wfSb = _overlayScrollbar(rows, el('wfWrap'));
+      let raf = 0;
+      rows.addEventListener('scroll', () => { if (!raf) raf = requestAnimationFrame(() => { raf = 0; _wfSync(); }); }, { passive: true });
+      // Rows open the day (Update Entry), as before.
+      rows.addEventListener('click', e => { const r = e.target.closest('.wk-row'); if (r) openDayEditModal(r.dataset.dayKey); });
+      rows.addEventListener('keydown', e => { const r = e.target.closest('.wk-row'); if (r && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); openDayEditModal(r.dataset.dayKey); } });
+      btn.addEventListener('click', e => { e.stopPropagation(); cal.hidden ? _wfCalOpen() : _wfCalClose(); });
+      el('wfToday')?.addEventListener('click', () => _wfCentre(todayKey(), true, true));
+      cal.addEventListener('click', e => {
+        e.stopPropagation();
+        const nav = e.target.closest('[data-mo]');
+        if (nav) { _wfCal.month = new Date(_wfCal.month.getFullYear(), _wfCal.month.getMonth() + +nav.dataset.mo, 1); _wfCalRender(); return; }
+        if (e.target.closest('[data-today]')) { _wfCalPick(new Date(todayKey() + 'T00:00')); return; }
+        const d = e.target.closest('[data-k]'); if (d) _wfCalPick(new Date(d.dataset.k + 'T00:00'));
+      });
+      cal.addEventListener('keydown', e => {
+        if (!_wfCal) return;
+        const step = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -7, ArrowDown: 7 }[e.key];
+        if (step) { e.preventDefault(); const s = _wfCal.sel; _wfCal.sel = new Date(s.getFullYear(), s.getMonth(), s.getDate() + step); _wfCal.month = new Date(_wfCal.sel.getFullYear(), _wfCal.sel.getMonth(), 1); _wfCalRender(); cal.querySelector('.wfc-d.sel')?.focus(); return; }
+        if (e.key === 'Enter' && e.target.closest('.wfc-d')) { e.preventDefault(); _wfCalPick(new Date(e.target.dataset.k + 'T00:00')); return; }
+        if (e.key === 'Escape') { e.stopPropagation(); _wfCalClose(true); }
+      });
+      document.addEventListener('click', e => { if (!e.target.closest('#wfCal, #wkNavLabelBtn')) _wfCalClose(); });
     }
 
 
@@ -6351,8 +6499,6 @@
 
     // ── ANALYTICS ──────────────────────────────────────
     function renderAnalytics() {
-      el('wkNavLabel').textContent = analyticsWeekOffset === 0 ? 'This Week' : weekRangeLabel(analyticsWeekOffset);
-      el('wkNextBtn').disabled = analyticsWeekOffset >= 0;
       renderHistory();
       renderPenalties();
     }
@@ -9021,6 +9167,7 @@ Kind regards,
         analyticsWeekOffset = -Math.max(0, weeksDiff);
       }
       renderAnalytics();
+      if (count > 0) _wfGoTo(new Date(Object.keys(days).sort().pop() + 'T00:00'), false);
 
       const name  = snap.user?.name || snap.cfg?.name || '';
       showToast('Import Successful', 'success', `${count} day${count !== 1 ? 's' : ''} restored${name ? ` · Welcome back, ${name}!` : '.'}`);
@@ -9672,14 +9819,8 @@ Kind regards,
     });
     el('coDone').addEventListener('click', closeCheckoutModal);
     el('checkoutOverlay').addEventListener('click', e => { if (e.target === el('checkoutOverlay')) closeCheckoutModal(); });
-    // Week nav (Analytics)
-    el('wkPrevBtn').addEventListener('click', () => {
-      analyticsWeekOffset--;
-      renderAnalytics();
-    });
-    el('wkNextBtn').addEventListener('click', () => {
-      if (analyticsWeekOffset < 0) { analyticsWeekOffset++; renderAnalytics(); }
-    });
+    // Week card feed (#55): calendar, Today, overlay scrollbar.
+    _wfInit();
 
     el('emailModalClose').addEventListener('click', closeEmailModal);
     el('emailModalOverlay').addEventListener('click', e => { if (e.target === el('emailModalOverlay')) closeEmailModal(); });

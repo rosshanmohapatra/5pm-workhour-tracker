@@ -1594,3 +1594,21 @@ test('Contribute (#57): UPI links are exact (payments), presets, two views', () 
   assert.match(HTML, /Open your UPI app and scan to pay Roshan Mohapatra/);
   assert.match(HTML, />Google Pay<\/a><a role="menuitem" data-app="phonepe" href="#">PhonePe<\/a><a role="menuitem" data-app="paytm" href="#">Paytm<\/a>/);
 });
+
+test('Week card feed (#55): every day in one feed, a calendar, Today, overlay scrollbar', () => {
+  const r = extract('function renderHistory(');
+  assert.match(r, /for \(let off = _wfFrom; off <= _wfTo; off\+\+\)/, 'five weeks back to next week');
+  assert.match(r, /if \(!work\.has\(day\.key\)\) \{ rowsHtml \+= _wkRowHTML\(day, _wfWeekendModel\(log\), isToday, true\); continue; \}/, 'weekends get rows');
+  assert.match(SRC, /let _wfFrom = -5, _wfTo = 1,/);
+  assert.match(extract('function _wfWeekendModel('), /line: 'All extra', tone: 'success'/);
+  assert.match(extract('function _wfSync('), /analyticsWeekOffset = off;/, 'footer, Stats and the header follow the middle week');
+  const dot = extract('function _wfDot(');
+  assert.match(dot, /if \(ov === 'holiday'\) return 'orchid'; if \(ov === 'leave'\) return 'blue'; if \(ov === 'halfday'\) return 'teal';/);
+  assert.match(dot, /!isWeekendKey\(k\)/, 'weekends never get a missed dot');
+  assert.match(extract('function _overlayScrollbar('), /idle = setTimeout\(\(\) => \{ if \(!drag\) track\.classList\.remove\('on'\); \}, 900\)/);
+  const HTML = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
+  assert.doesNotMatch(HTML, /id="wkPrevBtn"|id="wkNextBtn"/, 'header arrows removed');
+  assert.match(HTML, /<button type="button" class="wf-today" id="wfToday" hidden>Today<\/button>/);
+  assert.match(HTML, /\.wf-wh \{ position: sticky; top: 0;/);
+  assert.match(HTML, /\.wfc-d\.today \{ background: var\(--muted\); \}/, 'today in its hover fill, never a ring');
+});

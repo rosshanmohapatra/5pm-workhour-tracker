@@ -1435,7 +1435,7 @@ test('Geist: titles and big numbers use the display font, body text stays on --f
 test('Login: screens, copy and the signed-in page', () => {
   const LHTML = fs.readFileSync(path.join(WEB, 'login.html'), 'utf8');
   for (const id of ['signin', 'twostep', 'backup', 'lost', 'done', 'signup', 'confirm', 'reset', 'other', 'code', 'newpw', 'noAccount'])
-    assert.match(LOGIN, new RegExp(`\n  ${id}: \{ h: `), id);
+    assert.match(LOGIN, new RegExp(`\\n  ${id}: \\{ h: `), id);
   assert.match(LOGIN, /done: \{ h: \(\) => big\.ok \+ heading\('You’re in', 'Letting you in\.\.\.'\) \}/);   // user, 2026-11-15
   assert.match(LOGIN, /'That email and password don’t match\.'/);                  // one message, never says which emails exist
   assert.match(LOGIN, /resetPasswordForEmail\(email, \{ redirectTo: resetTo \}\)/);  // code first; the link goes to the public app

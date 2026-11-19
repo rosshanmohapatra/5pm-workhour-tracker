@@ -7,6 +7,25 @@
 // bug fixes as "Fixed <problem>". No em dashes.
 window.WHATS_NEW = [
   {
+    version: '1.2.34',
+    improvements: [
+      { icon: 'clock',    title: 'Today card',             line: 'Just today, with a big countdown to when you can leave.' },
+      { icon: 'sparkle',  title: 'Quick Start',            line: 'Start with one tap, or tap Already working? to set an earlier start time.' },
+      { icon: 'home',     title: 'Day type in one tap',    line: 'Switch today to Half Day, Leave or Holiday from the Today card.' },
+      { icon: 'calendar', title: 'Your Activity',          line: 'Today sits at the top, and every day opens Update Entry.' },
+      { icon: 'bell',     title: 'Action Center',          line: 'Tap a short day to raise a dispute straight away.' },
+      { icon: 'palette',  title: 'A sharper look',         line: 'A deeper button colour in light mode and a simpler loading screen.' },
+    ],
+    fixes: [
+      "Fixed logging out showing that you were signed out from another device.",
+      "Fixed a session starting at a time that hasn't happened yet.",
+      "Fixed Start and Pause responding slowly.",
+      "Fixed the Today card picture jumping when a session starts.",
+      "Fixed fields in Update Entry looking sunken in dark mode.",
+      "Fixed the Penalty Reminders row not switching when tapped.",
+    ],
+  },
+  {
     version: '1.2.33',
     improvements: [
       { icon: 'calendar', title: 'Week in one list',     line: 'Scroll through every day, weekends too, or jump to any date from the calendar.' },

@@ -800,32 +800,40 @@ test('Today card: Clock = Started | Done at, Hours = Worked | Target, one chip o
   const paint = extract('function _rcPaintKpis(');
   assert.match(paint, /el\('rcWorkedCap'\)\.textContent = 'Started';/);
   assert.match(paint, /el\('rcTargetCap'\)\.textContent = c\.doneAtTomorrow \? 'Done at · tomorrow' : 'Done at';/);
-  assert.match(paint, /el\('rcWorkedCap'\)\.innerHTML = live \+ 'Worked';/);
+  assert.match(paint, /el\('rcWorkedCap'\)\.textContent = 'Worked';/);   // no live dot here (user, 2026-11-19)
   assert.match(paint, /el\('rcTargetCap'\)\.textContent = c\.targetCap \|\| 'Target';/);
-  assert.doesNotMatch(paint, /'Now'/);                 // the header clock already shows the time
-  // The chip is painted once, outside the tab branches, so both tabs show the same thing.
-  assert.equal((paint.match(/_rcSetDesc\(/g) || []).length, 1);
+  assert.doesNotMatch(paint, /'Now'/);
+  // The time left is the headline above the KPI row (#61 "Headline above"), painted
+  // once outside the tab branches, so both tabs show the same thing.
+  assert.equal((paint.match(/_rcSetLead\(c, live\);/g) || []).length, 1);
+  const lead = extract('function _rcSetLead(');
+  assert.match(lead, /if \(!c\.chipHms\) \{ box\.hidden = true; return; \}/);
+  assert.match(lead, /box\.classList\.toggle\('over', !!c\.chipOver\)/);
+  const cap = load(extract('function _rcLeadCap(', '}'), {}, '_rcLeadCap');
+  assert.equal(cap(false), 'left until you can head out');
+  assert.equal(cap(true), 'over your target');
+  assert.doesNotMatch(SRC, /_rcSetDesc|rcDescRow|rcDescRight/);
   assert.doesNotMatch(SRC, /'You can leave at ' \+ _logoutStr/);
-  assert.doesNotMatch(SRC, /el\('rcTarget'\)\.title = eff > 0/);   // no tooltip repeating the chip
+  assert.doesNotMatch(SRC, /el\('rcTarget'\)\.title = eff > 0/);
   const HTML = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
   assert.match(HTML, />Clock<\/button>/); assert.match(HTML, />Hours<\/button>/);
-  assert.match(HTML, /#rcKpiGroup\.rc-finished\.rc-over \.rc-desc-row \{ padding: 32px 0;/);
+  const group = HTML.slice(HTML.indexOf('id="rcKpiGroup"'), HTML.indexOf('id="rcProgressTrack"'));
+  assert.match(group, /id="rcLead"[\s\S]*<div class="rc-numbers">/, 'the headline sits above the KPI row');
+  assert.match(HTML, /\.rc-lead-n \{ font: 400 40px\/1 var\(--font-display\);/);
+  assert.match(HTML, /\.rc-lead\.over \.rc-lead-n, \.rc-lead\.over \.rc-lead-c \{ color: var\(--warning\); \}/);
 });
 
-test('Centre chip: "left" before the target, hidden at it, "over" after (rounded so it adds up)', () => {
-  const chip = load(extract('function _rcRemainingFmt(') + '\n' + extract('function _minsGap(', '}') + '\n' + extract('function _rcChip('), { Math }, '_rcChip');
+test('Centre chip: hh:mm:ss "left" before the target, hidden at it, "over" after', () => {
+  const chip = load(extract('function _hms(') + '\n' + extract('function _rcChip('), { Math, p2: n => String(n).padStart(2, '0') }, '_rcChip');
   const H = 3600, M = 60, T = 8 * H + 30 * M;
-  assert.deepEqual({ ...chip(5 * H + 18 * M, T) }, { text: '3h 12m left', over: false });
-  assert.equal(chip(5 * H + 17 * M + 50, T).text, '3h 13m left');     // Worked shows 5h 17m: 8h 30m - 5h 17m
-  // A Smart Timings target with stray seconds still adds up on screen: 22m + 9h 48m = 10h 10m.
-  assert.equal(chip(22 * M + 40, 10 * H + 10 * M + 50).text, '9h 48m left');
-  assert.equal(chip(5 * H + 30 * M, T).text, '3h left');
-  assert.equal(chip(T - 42 * M, T).text, '42m left');
-  assert.equal(chip(T - 45, T).text, '45s left');
+  assert.deepEqual({ ...chip(5 * H + 18 * M, T) }, { text: '03:12:00 left', over: false, hms: '03:12:00' });
+  assert.equal(chip(5 * H + 17 * M + 50, T).text, '03:12:10 left');   // counts by the second
+  assert.equal(chip(5 * H + 17 * M + 49.4, T).text, '03:12:11 left'); // a part second still to go counts
+  assert.equal(chip(T - 45, T).text, '00:00:45 left');
   assert.equal(chip(T, T), null);                                      // at the target: hidden
   assert.equal(chip(T + 30, T), null);                                 // under a minute over: hidden
-  assert.deepEqual({ ...chip(T + 41 * M, T) }, { text: '41m over', over: true });
-  assert.equal(chip(T + H + 5 * M, T).text, '1h 5m over');
+  assert.deepEqual({ ...chip(T + 41 * M + 10, T) }, { text: '00:41:10 over', over: true, hms: '00:41:10' });
+  assert.equal(chip(T + 11 * H, T).text, '11:00:00 over');
   assert.equal(chip(100, 0), null);                                    // no target today
 });
 
@@ -846,7 +854,8 @@ test('Banner: one moment each, no numbers the card already shows', () => {
   assert.match(SRC, /_showDoneBanner\('done', 'success', 'check', "You're done\. Head out!", 'Nicely on time'\);/);
   assert.match(SRC, /_showDoneBanner\('late', 'warning', 'clock', 'Time to head out', ''\);/);
   assert.doesNotMatch(SRC, /_showDoneBanner\('over'/);                 // the chip carries the overtime number
-  assert.equal((SRC.match(/_showDoneBanner\('ended', 'violet', 'moon', 'Done for today', 'See you tomorrow'\);/g) || []).length, 2);
+  // One place: an ended Half Day takes the same ended path as a full day now (#61).
+  assert.equal((SRC.match(/_showDoneBanner\('ended', 'violet', 'moon', 'Done for today', 'See you tomorrow'\);/g) || []).length, 1);
   assert.match(extract('function _showDoneBanner('), /_doneDismissed === todayKey\(\) \+ '\|' \+ moment/);
   assert.match(extract('function _doneHint('), /wh_swipe_hint/);
 });
@@ -984,7 +993,7 @@ test('Ended summary line uses the centre chip (pill), amber when over, green whe
 });
 
 test('Starting with a time already past auto-stop does not crash', () => {
-  assert.match(extract('function _startSession('), /render\(\);\n(\s*\/\/.*\n)*\s*if \(!loginDate\) return;\n\s*if \(ticker\) clearInterval\(ticker\);/);
+  assert.match(extract('function _startSession('), /render\(\); \}\);\n(\s*\/\/.*\n)*\s*if \(!loginDate\) return;\n\s*if \(ticker\) clearInterval\(ticker\);/);
 });
 
 test('Weekend card: week total chip, tiny bars, note box; the week card opens the report', () => {
@@ -1211,11 +1220,10 @@ test('Day types share one icon + colour set across the app (#32)', () => {
   const T = load(extract('const WK_ICON = {', '\n    };') + '\n' + extract('const DAY_TYPES = {', '\n    };'), {}, '({ WK_ICON, DAY_TYPES })');
   assert.deepEqual(Object.fromEntries(Object.entries(T.DAY_TYPES).map(([k, v]) => [k, v.tone])),
     { fullday: '', halfday: 'teal', leave: 'blue', holiday: 'orchid', weekend: '' });
-  // Today panel draws the very same icons (uncoloured).
-  for (const plan of ['fullday', 'halfday', 'leave', 'holiday']) {
-    const btn = HTML.match(new RegExp(String.raw`data-plan="${plan}"[^>]*><svg[^>]*>([\s\S]*?)</svg>`));
-    assert.equal(btn[1], T.WK_ICON[T.DAY_TYPES[plan].icon], plan);
-  }
+  // The Today card's day-type button and menu draw the very same icons and tones.
+  assert.match(extract('function _tdToggle('), /const s = _tdItemState\(k, cur, has\), t = DAY_TYPES\[k\];[\s\S]*wkSvg\(t\.icon\)/);
+  assert.match(extract('function _tdSyncPlan('), /el\('rcDayTypeIcon'\)\.innerHTML = wkSvg\(t\.icon\);/);
+  assert.match(HTML, /id="rcDayTypeIcon"/);
   // The week card's tones match the table.
   const meta = extract('function wkDayModel(');
   assert.match(meta, /label: 'Holiday'[^\n]*tone: 'orchid', icon: 'holiday'/);
@@ -1358,8 +1366,13 @@ test('Action Center: card copy, read filter, clear confirm, empty state', () => 
   assert.match(r, /This Week' : 'This Month'/); assert.match(r, /Salary cycle · \$\{data\.cycle\.sub\}/);
   assert.match(r, /Yay, nothing to resolve/); assert.match(r, /All caught up/);
   assert.match(r, /Clear all \$\{rows\.length\}/);
-  const m = extract('function _acOpenRowMenu(');
-  assert.match(m, /Draft Email/); assert.match(m, /Update Hours/); assert.match(m, /Mark as Unread' : 'Mark as Read/);
+  // A row opens that day's Update Entry panel on Raise Dispute: no Resolve button, no row menu (user, 2026-11-19).
+  assert.doesNotMatch(extract('function _acRowHtml('), /Resolve|aria-haspopup/);
+  assert.doesNotMatch(SRC, /_acOpenRowMenu|_acCloseRowMenu|function openEmailModal|emailReason|_emailDayLines/);
+  assert.match(extract('function _acOpenDispute('), /openDayEditModal\(day\);\n\s+_deTab\('dispute'\);/);
+  assert.match(extract('function _acBind('), /_acOpenDispute\(row\.dataset\.penaltyKey\)/);
+  assert.match(extract('function handleNotifCta('), /_acOpenDispute\(hits\[0\]\.key\)/);
+  assert.doesNotMatch(SRC, /EMAIL_TPL = \{\n\s+daily:/);
   assert.match(extract('function _acMarkAllRead('), /label: 'Undo'/);
   const HTML = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
   assert.doesNotMatch(HTML, /Your Penalties/);
@@ -1428,9 +1441,6 @@ test('Penalty Reminders: gates, then the first matching rung of the ladder', () 
   assert.match(HTML, /id="scRail"/, 'the Salary Cycle picker has its presets rail');
 });
 test('Action Center: read rows show only while Show Read Items is on (muted, labelled Read)', () => {
-  const m = extract('function _acOpenRowMenu(');
-  assert.doesNotMatch(m, /_dismissPenaltyRow/);
-  assert.match(m, /_acKeepRead\.add\(key\)/);
   const all = extract('function _acMarkAllRead(');
   assert.doesNotMatch(all, /_dismissPenaltyRow/);
   assert.match(all, /_acKeepRead\.add\(r\.key\)/);
@@ -1544,10 +1554,10 @@ test('Update Entry panel: close button, note field and time picker', () => {
   const HTML = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
   const H = fs.readFileSync(path.join(WEB, 'lib', 'pages', 'index-handlers.js'), 'utf8');
   // Close: panel colour at rest, one outline in every state, lighter fill on hover.
-  assert.match(HTML, /#dayEditOverlay \.sheet-close \{ background: var\(--card\); box-shadow: inset 0 0 0 1px var\(--border\); \}/);
+  assert.match(HTML, /#dayEditOverlay \.sheet-close \{ background: var\(--surface-lift\); box-shadow: inset 0 0 0 1px var\(--border\); \}/);
   assert.match(HTML, /#dayEditOverlay \.sheet-close:hover \{ background: var\(--muted\); \}/);
   // Note: reads as a field; focus outline is a lighter grey, not white.
-  assert.match(HTML, /#dayEditOverlay \.de-note-wrap textarea \{ background: color-mix\(in srgb, var\(--foreground\) 7%, var\(--card\)\); box-shadow: inset 0 0 0 1px var\(--input\); caret-color: var\(--foreground\); \}/);
+  assert.match(HTML, /#dayEditOverlay \.de-note-wrap textarea \{ background: color-mix\(in srgb, var\(--foreground\) 7%, var\(--surface-lift\)\); box-shadow: inset 0 0 0 1px var\(--input\); caret-color: var\(--foreground\); \}/);
   // Picker titles match the rows, and the picker is measured so it stays on screen.
   assert.match(H, /openTpModal\('deStart',event,'Started'\)/);
   assert.match(H, /openTpModal\('deEnd',event,'Left at'\)/);
@@ -1564,7 +1574,9 @@ test('Batch 2026-11-15: privacy contact, logo, Action Center menu, toggle rows, 
   assert.match(PRIV, /<a class="back-btn" href="\/index\.html">Go Back to App<\/a>/);
   assert.match(HTML, /<img id="navLogo" src="\/icons\/brand-light\.svg" alt="5pm" height="32" style="display:block;border-radius:7px">/);  // no stroke
   assert.match(HTML, /\.ac-more \{[^}]*background: transparent; box-shadow: inset 0 0 0 1px var\(--border\);/);
-  assert.match(HTML, /<label class="pay-switch">/);                                   // whole row toggles
+  // Whole row toggles: the label names the switch, so a click never lands on the info button.
+  assert.match(HTML, /<label class="pay-switch" for="inpPenRemind">/);
+  assert.match(HTML, /#viewSettings \.tile-list > \.pay-switch \{ padding: 14px 16px; background: var\(--card\); \}/);
   assert.match(HTML, /#viewSettings :not\(\.tile-list\) > \[data-on-click\]:has\(> \.toggle\) \{ padding: 10px 12px; margin: -10px -12px;/);   // loose rows only; tile-list rows keep their padding
   assert.doesNotMatch(HTML, /\.notif-item \+ \.notif-item \{ border-top/);
 });
@@ -1572,7 +1584,7 @@ test('Batch 2026-11-15: privacy contact, logo, Action Center menu, toggle rows, 
 test('Settings tabs (#56): a rail with one gliding pill, panels rise in', () => {
   const HTML = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
   assert.match(HTML, /body\.shell-new \.set-tabs \{[^}]*border-radius: 14px;[^}]*background: var\(--surface-raised\); box-shadow: inset 0 0 0 1px var\(--border\);/);
-  assert.match(HTML, /\.set-tab-ind \{ position: absolute; z-index: 0; top: 4px; bottom: 4px; left: 0; background: var\(--card\);/);
+  assert.match(HTML, /\.set-tab-ind \{ position: absolute; z-index: 0; top: 4px; bottom: 4px; left: 0; background: var\(--surface-lift\);/);
   assert.doesNotMatch(HTML, /\.set-tab-ind \{[^}]*height: 2px/, 'the underline is gone');
   assert.match(HTML, /@keyframes set-rise \{ from \{ opacity: 0; transform: translateY\(6px\); filter: blur\(3px\); \}/);
   assert.match(extract('function moveIndicator('), /ind\.style\.left = t\.offsetLeft \+ 'px';/);
@@ -1611,23 +1623,31 @@ test('Week card feed (#55): every day in one feed, a calendar, Today, overlay sc
   const HTML = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
   assert.doesNotMatch(HTML, /id="wkPrevBtn"|id="wkNextBtn"/, 'header arrows removed');
   assert.match(HTML, /<button type="button" class="wf-today" id="wfToday" hidden>Today<\/button>/);
-  assert.match(HTML, /\.wf-wh \{ position: sticky; top: 0;/);
+  // #62: no sticky week bar (the calendar button names the week); a quiet date-range divider.
+  assert.match(HTML, /\.wf-wh \{ display: flex; align-items: center; gap: 10px;/);
+  assert.doesNotMatch(HTML, /\.wf-wh \{[^}]*sticky/);
   assert.match(HTML, /\.wfc-d\.today \{ background: var\(--muted\); \}/, 'today in its hover fill, never a ring');
 });
 
-test('Page loader (#60): a clock from 9 to 5, It is 5pm when ready, never stalls, never holds the app', () => {
+test('Page loader (#63): 5pm logo + Apple-style spinner, no clock, glides home, never holds the app', () => {
   const AL = fs.readFileSync(path.join(WEB, 'lib', 'pages', 'app-loader.js'), 'utf8');
-  assert.doesNotMatch(AL, /title\('Clocking In'\)|title\('Almost 5'\)/, 'no text while loading'); assert.match(AL, /title\('It\u2019s 5pm'\)/);
-  assert.match(AL, /target = Math\.min\(479\.4, target \+ \(479\.5 - target\) \* ease\(0\.012\)\)/, 'creeps toward 4:59, only 5 when ready');
-  assert.match(AL, /setTimeout\(function \(\) \{ if \(!finished\) \{ m = 480; draw\(\); finish\(\); \} \}, 900\)/, 'lands even if frames are slow');
-  assert.match(AL, /var ids = \['navLogo', 'mobLogo'\];/, 'rail logo on desktop, top bar on phones');
-  assert.match(AL, /setTimeout\(function \(\) \{ L\.classList\.add\('slow'\); \}, 6000\)/);
+  assert.doesNotMatch(AL, /rotate\(|requestAnimationFrame|It\u2019s 5pm/, 'no clock, no title');
+  assert.match(AL, /var ids = \['navLogo', 'mobLogo'\];/, 'glides to the rail logo on desktop, the top bar on phones');
+  assert.match(AL, /L\.classList\.add\('ready'\);/, 'the spinner fades first');
+  assert.match(AL, /window\.__appLoader = \{ step: function \(\) \{\}, done: done \};/);
+  assert.match(AL, /L\.classList\.add\('app-loader-out'\);/);
+  assert.match(AL, /setTimeout\(function \(\) \{ if \(!finished\) L\.classList\.add\('slow'\); \}, 6000\)/);
   assert.match(fs.readFileSync(path.join(WEB, 'lib', 'pages', 'index-auth-gate.js'), 'utf8'), /if \(window\.__appLoader\) \{ window\.__appLoader\.done\(\); return; \}/);
-  assert.match(SRC, /window\.__appLoader\?\.step\(420\);/);
   const HTML = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
+  assert.doesNotMatch(HTML, /[."]al-(face|title|hh|mh|ctr)\b|#appLoader\.five/, 'old clock markup and CSS gone');
+  assert.match(HTML, /<div class="al-mark" aria-hidden="true"><span class="al-lock"><span class="al-5">5<\/span><span class="al-pm">PM<\/span><\/span><\/div>\s*<div class="al-spin"/, 'logo first, spinner under it');
+  assert.match(HTML, /flex-direction: column; align-items: center; justify-content: center; gap: 16px;/);
+  assert.match(HTML, /\.al-pm \{ font: 600 12px\/1/, 'PM at the 12px minimum');
+  assert.match(HTML, /<div class="al-spin" aria-hidden="true">(<i><\/i>){8}<\/div>/, 'eight bars');
+  assert.match(HTML, /\.al-spin i:nth-child\(8\) \{ transform: rotate\(315deg\); opacity: 0\.23; \}/);
+  assert.match(HTML, /\.al-spin \{ position: relative; width: 28px; height: 28px; animation: al-spin \.8s steps\(8\) infinite; \}/);
   assert.match(HTML, /<div id="appLoaderHint">Taking longer than usual\. <button data-on-click="h248485a70e">Reload<\/button><\/div>/);
   assert.match(HTML, /<script src="\/lib\/pages\/app-loader\.js"><\/script>/);
-  assert.match(HTML, /display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;/, 'title 10px under the icon');
 });
 
 test('Charts on touch: a tapped day stays until the same bar or outside is tapped', () => {
@@ -1639,4 +1659,272 @@ test('Charts on touch: a tapped day stays until the same bar or outside is tappe
   assert.match(extract('function _chartTapAway('), /if \(e\.pointerType !== 'mouse' && !chart\.contains\(e\.target\)\) cb\(\);/);
   const HTML = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
   assert.match(HTML, /\.wf-feed \{ position: relative; height: min\(460px, 62vh\); padding-top: 0;/, 'sticky week titles sit flush under the header');
+});
+
+// ── Bug batch 2026-11-19 ──
+test('Own Log Out never says "signed out from another device"', () => {
+  const kick = extract('function _kickThisDevice(');
+  assert.match(kick, /if \(_kicking \|\| _selfLogout\) return;/);
+  assert.match(kick, /_selfLogoutRecent\(\) \? 'login\.html' : 'login\.html\?reason=elsewhere'/);   // other tabs of this browser
+  const out = extract('function confirmLogout(');
+  assert.match(out, /_selfLogout = true;/);
+  assert.match(out, /localStorage\.setItem\(SELF_LOGOUT_KEY/);
+  assert.ok(out.indexOf('SELF_LOGOUT_KEY') < out.indexOf('Devices.markSignedOut()'), 'flagged before the devices map changes');
+  const store = new Map();
+  const recent = load(`const SELF_LOGOUT_KEY = '5pm_self_logout';\n` + extract('function _selfLogoutRecent('),
+    { localStorage: { getItem: k => store.get(k) ?? null } }, '_selfLogoutRecent');
+  assert.equal(recent(1000), false);
+  store.set('5pm_self_logout', '1000');
+  assert.equal(recent(30000), true);
+  assert.equal(recent(70000), false);                               // a minute later it's a real remote sign-out again
+  assert.doesNotMatch(SRC, /'wh_self_logout'/);                     // not a wh_ key: the sign-out wipe must keep it
+});
+
+test('The page clock is gone; the Today card header follows the time (#61)', () => {
+  const tick = extract('function tickHeader(');
+  assert.match(tick, /_paintTodayHead\(\);/);
+  assert.doesNotMatch(SRC, /function clock\(|'selDayClock'|'dayClock'/);
+  const HTML = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
+  assert.doesNotMatch(HTML, /id="selDayClock"|id="selDayRel"|id="dayClock"/, 'no greeting or clock above the card');
+});
+
+test('A session can never start later than now', () => {
+  const msg = load(extract('function _futureStartMsg('), {
+    short: d => `${d.getHours() % 12 || 12}:${String(d.getMinutes()).padStart(2, '0')} ${d.getHours() >= 12 ? 'PM' : 'AM'}`,
+  }, '_futureStartMsg');
+  const now = new Date(2026, 10, 19, 9, 50);
+  assert.equal(msg(new Date(2026, 10, 19, 11, 50), now), "11:50 AM is in 2 hrs from now. You can't start a session for the future.");
+  assert.equal(msg(new Date(2026, 10, 19, 11, 1), now), "11:01 AM is in 1 hr 11 mins from now. You can't start a session for the future.");
+  assert.equal(msg(new Date(2026, 10, 19, 9, 51, 30), now), "9:51 AM is in 2 mins from now. You can't start a session for the future.");
+  assert.equal(msg(new Date(2026, 10, 19, 9, 50, 40), now), null);   // within the minute: fine
+  assert.equal(msg(new Date(2026, 10, 19, 8, 0), now), null);         // earlier today: fine
+  // Typed time, Quick Start and both picker tabs all check it.
+  assert.match(extract('function calculate('), /const future = _futureStartMsg\(p\);\n\s+if \(future\) \{ _showFutureTip\(\); return; \}/);
+  // The tooltip sits over the text cursor and stays while the field holds a future
+  // time: no timer; it follows typing, clicks and the caret, and the clock tick
+  // drops it once the time is no longer ahead (user, 2026-11-19).
+  const sync = extract('function _syncFutureTip(');
+  assert.match(sync, /if \(!msg \|\| !input\.offsetParent\) \{ tip\?\.classList\.remove\('show'\); return; \}/);
+  assert.match(sync, /x = _caretX\(input\)/);
+  assert.match(sync, /tip\.style\.setProperty\('--ax', \(x - left\) \+ 'px'\)/);
+  assert.doesNotMatch(SRC, /_futureTipTimer|_hideFutureTip/);
+  assert.match(extract('(function _futureTipInit('), /\['input', 'keyup', 'click', 'focus', 'select'\]/);
+  assert.match(extract('function tickHeader('), /_syncFutureTip\(\)/);
+  const typed = load(extract('function _futureTypedMsg('), {
+    parseLogin: v => (v === '4:40 PM' ? new Date(2026, 10, 19, 16, 40) : v === '9:00 AM' ? new Date(2026, 10, 19, 9, 0) : null),
+    _futureStartMsg: d => (d > new Date(2026, 10, 19, 14, 30) ? 'future' : null),
+  }, '_futureTypedMsg');
+  assert.equal(typed('4:40 PM'), 'future');
+  assert.equal(typed('9:00 AM'), null);                 // changed to an earlier time: the tooltip goes
+  assert.equal(typed(''), null);                        // removed: the tooltip goes
+  assert.equal(typed('4:4'), null);                     // half typed: nothing yet
+  const HTML7 = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
+  assert.match(HTML7, /\.future-tip::after \{ content: ''; position: absolute; left: var\(--ax, 50%\);/);
+  assert.match(extract('function _tpLive('), /set\.disabled = !!future;/);
+  const conf = extract('function confirmTpModal(');
+  assert.match(conf, /if \(el\('tpSetBtn'\)\?\.disabled\) return;/);
+  assert.match(conf, /if \(_futureStartMsg\(newLogin\)\) \{ _tpSwitchTab\('login'\); return; \}/);
+});
+
+test('Update Entry and the dispute email show times with seconds; the end time saves its seconds', () => {
+  const fns = load(extract('function clockHms(') + '\n' + extract('function _logHms('), {
+    cfg: () => ({}), p2: n => String(n).padStart(2, '0'), Math, Number, String,
+  }, '({ clockHms, _logHms })');
+  const log = { loginTime: '9:5:23', loginDisplay: '09:05 AM', checkoutTime: '18:44:02', checkoutDisplay: '06:44 PM', hoursWorked: 9.6 };
+  assert.equal(fns._logHms(log, 'start'), '09:05:23 AM');
+  assert.equal(fns._logHms(log, 'end'), '06:44:02 PM');
+  assert.equal(fns._logHms({ loginTime: '9:0:0', hoursWorked: 1.5 }, 'end'), '10:30:00 AM');   // end from start + hours
+  assert.equal(fns._logHms({}, 'start'), '');
+  const open = extract('function openDayEditModal(');
+  assert.match(open, /el\('deStart'\)\.value = _logHms\(log, 'start'\);/);
+  assert.match(SRC, /inp\.value = \/\^de\(Start\|End\)\$\/\.test\(_tpTargetId\) \? clockHms\(d\) : short\(d\);/);
+  assert.match(extract('function saveDayEditModal('), /checkoutTime:   `\$\{p2\(eAdj\.getHours\(\)\)\}:\$\{p2\(eAdj\.getMinutes\(\)\)\}:\$\{p2\(eAdj\.getSeconds\(\)\)\}`/);
+  assert.match(extract('function _deFillRecorded('), /_logHms\(l, 'start'\), _logHms\(l, 'end'\)/);
+  assert.match(extract('function _emailVars('), /start: p\.log\?\.loginTime \? _logHms\(p\.log, 'start'\) : ''/);
+  // Nowhere else: the card, week list and Done modal keep hh:mm.
+  assert.equal((SRC.match(/clockHms\(/g) || []).length, 5);   // definition + _logHms (3 uses) + the picker
+});
+
+test('Raise Dispute: own reason is the same field as the Update Entry note', () => {
+  const HTML = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
+  assert.match(HTML, /<div class="de-note-wrap visible" id="deDisputeOtherWrap">\s*<div class="de-sec-label" id="deDisputeOtherLabel">Or write your own reason<\/div>\s*<textarea id="deDisputeOther" rows="2" maxlength="200"/);
+  assert.doesNotMatch(HTML, /<input class="field-input" id="deDisputeOther"/);
+});
+
+// ── #61 Today card / #62 week card (approved 2026-11-19) ──
+test('Today card is about today only: no day strip, no other days, no Today panel (#61)', () => {
+  const HTML = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
+  assert.doesNotMatch(HTML, /id="daySelectorRow"|id="thisWeekLabel"|id="weekPrevBtn"|id="weekNextBtn"|id="futureDayPlan"|id="rcRunningElsewhere"|id="tdPanel"/);
+  assert.doesNotMatch(SRC, /function (renderDaySelector|navDaySelectorDay|renderPastDay|selectFutureDay|_renderFutureDayInline|updateSelDayHeader|selectWeekendView|_updateRunningElsewhereBanner|closeTodayDetails|_tdConfirm)\(/);
+  const sd = extract('function selectDay(');
+  assert.match(sd, /const key = todayKey\(\);/, 'every call shows today');
+  assert.match(SRC, /selectedDayKey = tk;\n/, 'opening or reloading lands on today');
+});
+
+test('Today card header: greeting with the first name, today\'s date (#61)', () => {
+  const head = load(`const FULL_DAYS_EN = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+    const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];\n` + extract('function _todayHeadText('), {}, '_todayHeadText');
+  assert.deepEqual({ ...head(new Date(2026, 10, 19, 9, 5), 'Roshan Mohapatra') }, { title: 'Good morning, Roshan!', date: 'Thursday, 19 Nov' });
+  assert.equal(head(new Date(2026, 10, 19, 14, 0), '').title, 'Good afternoon!', 'no name when none is set');
+  assert.equal(head(new Date(2026, 10, 19, 18, 0), '  ').title, 'Good evening!');
+  const HTML = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
+  const card = HTML.slice(HTML.indexOf('id="resultCard"'), HTML.indexOf('id="rcBody"'));
+  assert.match(card, /<div class="td-hd">[\s\S]*id="tdGreet"[\s\S]*id="tdDate"[\s\S]*id="dtWrap"[\s\S]*id="rcInfoBtn"[\s\S]*aria-haspopup="menu"[\s\S]*id="dtMenu"/);
+});
+
+test('Day type menu: Half Day at once; Leave Office / Holiday need a note and no hours (#61)', () => {
+  const st = load(extract('function _tdItemState('), {}, '_tdItemState');
+  assert.deepEqual({ ...st('halfday', 'fullday', true) }, { off: false, sub: "Halves today's target" });
+  assert.deepEqual({ ...st('leave', 'fullday', false) }, { off: false, sub: 'Asks for a note first' });
+  assert.deepEqual({ ...st('leave', 'fullday', true) }, { off: true, sub: "End or clear today's hours first" });
+  assert.deepEqual({ ...st('holiday', 'fullday', true) }, { off: true, sub: "End or clear today's hours first" });
+  assert.equal(st('holiday', 'holiday', true).off, false, 'the current type is never greyed out');
+  assert.match(SRC, /const _TD_PLAN_LABELS = \{ fullday: 'Full Day', halfday: 'Half Day', leave: 'Leave Office', holiday: 'Holiday' \};/);
+  const apply = extract('function _tdApply(');
+  assert.match(apply, /else \{ u\.override = 'halfday'; u\.todayTargetH = cfg\(\)\.dailyH \/ 2; \}/);
+  const save = extract('function _dtConfirmSave(');
+  assert.match(save, /if \(!note \|\| _tdHasHours\(\)\) return;/, 'a note is required; never over logged hours');
+  assert.match(save, /hoursWorked: 0, override: type, note,/);
+  assert.match(SRC, /note\.addEventListener\('input', \(\) => \{ el\('dtcOk'\)\.disabled = !note\.value\.trim\(\); \}\);/);
+  const HTML = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
+  assert.match(HTML, /<div class="dt-confirm" id="dtConfirm"[^>]*hidden>/);
+  assert.match(HTML, /#resultCard\.dt-confirming #rcBody \{ display: none; \}/, 'the tracker steps aside while it is open');
+});
+
+test('Not started: the C2 Stack drawing with a fixed title; only the leave time moves (#61)', () => {
+  const HTML = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
+  const es = HTML.slice(HTML.indexOf('<div id="rcEmptyState"'), HTML.indexOf('<div id="rcToday">'));
+  assert.match(es, /class="es-stack" aria-hidden="true"/);
+  assert.match(es, /<p class="es-t">Your day begins when you do\.<\/p>/);
+  assert.doesNotMatch(es, /Start now to leave by/, '#64: one line only; the leave time shows in the sheet and after Start');
+  assert.doesNotMatch(es.slice(0, es.indexOf('es-t')), /\d{1,2}:\d{2}/, 'no time inside the drawing');
+  // The hand-off into Running: the drawing lifts out, the card glides, the new parts rise in.
+  const hand = extract('function _rcHandOff(');
+  assert.match(hand, /ghost\.classList\.add\('rc-ghost-out'\)/);
+  assert.match(hand, /card\.animate\(\[\{ height: h0 \+ 'px' \}, \{ height: h1 \+ 'px' \}\], \{ duration: 320/);
+  assert.match(hand, /matchMedia\('\(prefers-reduced-motion: reduce\)'\)\.matches\) \{ apply\(\); return; \}/);
+  assert.match(extract('function _startSession('), /_rcHandOff\(\(\) => \{ selectDay\(todayKey\(\)\); el\('rcBody'\)\?\.classList\.remove\('ns-times', 'ns-progress'\); render\(\); \}\);/);
+  // One animation only: the old max-height transition (which fought the glide) is gone.
+  assert.doesNotMatch(SRC, /_rcTransitionToActive|rc-starting/);
+  assert.doesNotMatch(fs.readFileSync(path.join(WEB, 'index.html'), 'utf8'), /rc-starting/);
+  // The week card rebuild waits until the Today card has painted; one rebuild per moment.
+  const q = extract('function _queueWkRebuild(');
+  assert.match(q, /if \(_wkRebuildQueued\) return;/);
+  assert.match(q, /requestAnimationFrame\(\(\) => setTimeout\(/);
+  assert.match(extract('function setCalcBtnState('), /_queueWkRebuild\(\);/);
+  assert.doesNotMatch(extract('function setCalcBtnState('), /renderHistory\(\)/, 'no rebuild inside the click');
+});
+
+test('Week card: Your Activity title, today first, today leads to the Today card (#62)', () => {
+  const HTML = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
+  const head = HTML.slice(HTML.indexOf('<div class="rc-head wf-head">'), HTML.indexOf('id="wfWrap"'));
+  assert.match(head, /<h2 class="wf-title">Your Activity<\/h2>\s*<div class="wf-acts">\s*<button type="button" class="wf-today" id="wfToday" hidden>Today<\/button>\s*<button class="wf-trigger"/);
+  assert.match(extract('function _wfToTop('), /const top = r\.offsetTop;/, 'the day lands as the first row');
+  assert.doesNotMatch(SRC, /_wfCentre/);
+  assert.match(extract('function _wfSync('), /const top = rows\.scrollTop \+ 8;/, 'header and footer follow the top row');
+  assert.match(extract('function _wfSync('), /btn\.hidden = !!inView;/);
+  const open = extract('function _wfOpenRow(');
+  // #64: every row opens Update Entry, today included (no scroll-to-card special case).
+  assert.match(open, /openDayEditModal\(key\);/);
+  assert.doesNotMatch(open, /todayKey|scrollIntoView/);
+  assert.match(extract('function renderHistory('), /<div class="wf-wh"><span class="wf-wr">\$\{r\}<\/span><\/div>/);
+});
+
+test('Nothing sinks on a raised surface in dark mode: pieces on it use --surface-lift, never --card', () => {
+  // --card is lighter than --surface-raised in light mode but DARKER in dark mode, so a
+  // pill, card or field drawn with --card on a raised panel looked sunken in dark
+  // (user, 2026-11-19: Update Entry's tab and fields). --surface-lift is one step above
+  // the raised surface in both themes.
+  const HTML = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
+  const hex = s => parseInt(s.slice(1, 3), 16) + parseInt(s.slice(3, 5), 16) + parseInt(s.slice(5, 7), 16);
+  const tok = (block, name) => (block.match(new RegExp(`--${name}: (#[0-9a-f]{6})`)) || [])[1];
+  const light = HTML.slice(HTML.indexOf(':root {'), HTML.indexOf('.dark {'));
+  const dark = HTML.slice(HTML.indexOf('.dark {'), HTML.indexOf('}', HTML.indexOf('.dark {')));
+  for (const [name, block] of [['light', light], ['dark', dark]]) {
+    assert.ok(hex(tok(block, 'surface-lift')) > hex(tok(block, 'surface-raised')), `${name}: --surface-lift is lighter than --surface-raised`);
+  }
+  // Every CSS rule for a piece that sits on a raised surface: no --card background.
+  const ON_RAISED = /#dayEditOverlay|\.de-(rows|rec|reasons|type-pill|note-wrap)|\.set-tab-ind|\.sheet-close|\.ed-note|#dtcNote|\.dtc-/;
+  const bad = [];
+  for (const chunk of HTML.split('}')) {
+    const i = chunk.lastIndexOf('{'); if (i < 0) continue;
+    const sel = chunk.slice(Math.max(0, chunk.lastIndexOf('\n', i - 1)), i);
+    if (ON_RAISED.test(sel) && /background[^;]*var\(--card\)/.test(chunk.slice(i))) bad.push(sel.trim());
+  }
+  assert.deepEqual(bad, [], 'pieces on a raised surface must use var(--surface-lift)');
+});
+
+test('Desktop rail: Theme sits above Notifications, then Settings (user 2026-11-19)', () => {
+  const src = fs.readFileSync(path.join(WEB, 'lib/pages/index-app.js'), 'utf8');
+  assert.match(src, /railBottom\.append\(railTheme, realNotif, railProfile\)/);
+  assert.match(src, /else railBottom\.append\(railTheme, railProfile\)/);
+  assert.doesNotMatch(src, /cluster\.prepend\(railTheme\)/, 'Theme no longer moves to the top right on desktop');
+});
+
+test('Start: the fading copy of the empty state stays centred (no slide to the left)', () => {
+  const html = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
+  const src = fs.readFileSync(path.join(WEB, 'lib/pages/index-app.js'), 'utf8');
+  assert.match(src, /ghost\.removeAttribute\('id'\); ghost\.classList\.add\('es-ghost'\);/);
+  // Every rule that lays out #rcEmptyState also covers the id-less copy.
+  const rules = html.split('}').map(c => c.slice(Math.max(0, c.lastIndexOf('\n', c.lastIndexOf('{'))), c.lastIndexOf('{')))
+    .filter(s => /#rcEmptyState\b/.test(s) && !/weekend-mode/.test(s));
+  assert.ok(rules.length >= 3);
+  rules.forEach(s => assert.match(s, /\.es-ghost/, s.trim()));
+});
+
+// ── #64 "Already working?" sheet ────────────────────────────────────────────
+test('Start-time field: digits only, hh:mm, never more than 4 digits', () => {
+  const acc = load(extract('function _stAccept('), { p2 }, '_stAccept');
+  const type = (keys, h24 = false) => { let ds = '', ap = null;
+    for (const d of keys) { const nx = acc(ds, d, h24); if (!nx) continue; ds = nx.ds; if (nx.ap) ap = nx.ap; } return { ds, ap }; };
+  assert.deepEqual(type('9'), { ds: '09', ap: null }, '"9" is the hour');
+  assert.deepEqual(type('0930'), { ds: '0930', ap: null });
+  assert.deepEqual(type('2130'), { ds: '0930', ap: 'PM' }, '24-hour typing becomes 09:30 PM');
+  assert.deepEqual(type('0000'), { ds: '1200', ap: 'AM' }, '00:00 is 12:00 AM');
+  assert.deepEqual(type('12341230912312'), { ds: '1234', ap: null }, 'the rest is refused');
+  assert.equal(acc('09', '7', false), null, 'minutes start 0-5');
+  assert.deepEqual(type('2130', true), { ds: '2130', ap: null }, '24-hour mode keeps 21');
+});
+
+test('Start-time field: AM or PM follows the time now', () => {
+  const ap = load(extract('function _stClosestAp('), {}, '_stClosestAp');
+  const at958pm = 21 * 60 + 58, at1040am = 10 * 60 + 40;
+  assert.equal(ap(10, 0, at958pm), 'PM', '10:00 typed at 9:58 PM is 2 minutes ahead: PM, not 10 AM');
+  assert.equal(ap(9, 30, at958pm), 'PM');
+  assert.equal(ap(8, 15, at958pm), 'PM');
+  assert.equal(ap(10, 0, at1040am), 'AM');
+  assert.equal(ap(9, 30, at1040am), 'AM');
+  assert.equal(ap(1, 30, at1040am), 'AM', 'the most recent past reading, never 3 hours ahead');
+});
+
+test('Start-time sheet opens on a good guess', () => {
+  const _g = load(extract('function _stGuess('), {}, '_stGuess');
+  const guess = (...a) => ({ ..._g(...a) });   // plain object from this realm
+  const shift = [9 * 60, 18 * 60];
+  assert.deepEqual(guess(10 * 60 + 40, ...shift), { m: 540, why: 'Filled in with your shift start.' });
+  assert.deepEqual(guess(9 * 60 + 10, ...shift), { m: 550, why: 'Filled in with the time now.' }, 'under 15 minutes into the shift: now');
+  assert.deepEqual(guess(21 * 60 + 58, ...shift), { m: 1315, why: 'Filled in with the time now.' }, 'after the shift: now, rounded down to 5');
+  assert.deepEqual(guess(23 * 60, 22 * 60, 7 * 60), { m: 1380, why: 'Filled in with the time now.' }, 'overnight shift: now');
+});
+
+test('Not started: Quick Start + "Already working?"; the sheet starts through the same path (#64)', () => {
+  const HTML = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
+  assert.match(HTML, /<div class="shift-cta" id="todayLoginSection" data-mode="start">/);
+  assert.match(HTML, /<button type="button" class="qs-link" id="qsLink" aria-haspopup="dialog">Already working\?<\/button>/);
+  assert.match(HTML, /<input id="stInput" type="text" inputmode="numeric" pattern="\[0-9\]\*" enterkeyhint="go" maxlength="5"/);
+  assert.match(HTML, /#todayLoginSection\[data-mode="start"\] \.tp-seg-clock, #todayLoginSection\[data-mode="start"\] \.tp-free-input/);
+  const st = extract('function setCalcBtnState(');
+  assert.match(st, /sec\.dataset\.mode = state;/);
+  assert.match(st, /btn\.textContent = 'Quick Start';/);
+  // The sheet hands an exact Date to calculate(), which keeps the shift / continue checks.
+  assert.match(extract('function _stGo('), /calculate\(at\);/);
+  assert.match(extract('function calculate('), /if \(exact\) \{\n\s+p = at;/);
+  // AM/PM stays neutral: one primary per view.
+  assert.match(HTML, /\.st-ap button\[aria-pressed="true"\] \{ background: var\(--muted\); color: var\(--foreground\); \}/);
+});
+
+test('Light mode primary is Ink graphite (#65)', () => {
+  const HTML = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
+  const root = HTML.slice(HTML.indexOf(':root {'), HTML.indexOf('.dark {'));
+  assert.match(root, /--btn-primary-bg: #232733;/);
 });

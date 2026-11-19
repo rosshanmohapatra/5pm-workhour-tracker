@@ -4660,10 +4660,9 @@
       rows.scrollTo({ top: Math.max(0, top), behavior: smooth && !matchMedia('(prefers-reduced-motion: reduce)').matches ? 'smooth' : 'instant' });
       if (mark) { r.classList.add('hl'); setTimeout(() => r.classList.remove('hl'), 1000); }
     }
-    // A row: today scrolls up to the Today card (today lives there); any other day opens Update Entry.
+    // Every row opens Update Entry, today included (#64, user 2026-11-19): no special case to learn.
     function _wfOpenRow(key) {
-      if (key !== todayKey()) { openDayEditModal(key); return; }
-      el('resultCard')?.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
+      openDayEditModal(key);
     }
     function _wfGoTo(d, mark = true) {
       const off = _wfOffsetOf(d);
@@ -4809,6 +4808,8 @@
       btn.classList.remove('end-shift', 'pause-shift', 'resume-shift');
       btn.disabled = false;
       btn.dataset.state = state;
+      // #64: before a session the row is just Quick Start + "Already working?" (CSS keys off this).
+      const sec = el('todayLoginSection'); if (sec) sec.dataset.mode = state;
       if (dd) dd.style.display = 'none';
       const _svgPlay = '<svg width="12" height="12" viewBox="0 0 24 24" style="flex-shrink:0"><path fill="currentColor" d="M7 4v16l13-8z"/></svg>';
       const _svgPause = '<svg width="12" height="12" viewBox="0 0 24 24" style="flex-shrink:0"><rect fill="currentColor" x="6" y="5" width="4" height="14" rx="1"/><rect fill="currentColor" x="14" y="5" width="4" height="14" rx="1"/></svg>';
@@ -4842,7 +4843,7 @@
         if (chev) { chev.style.display = ''; chev.className = 'split-chevron-btn resume-shift-chev'; }
         _tcSetLabel('Update Login Time');
       } else { // 'start' — plain full-width button, no split styling
-        btn.innerHTML = '<span style="display:flex;align-items:center;gap:6px;justify-content:center">' + _svgPlay + 'Start</span>';
+        btn.textContent = 'Quick Start';
         wrap?.classList.remove('split-btn-wrap');
         if (chev) chev.style.display = 'none';
         _tcSetLabel('Enter Login Time');
@@ -4981,10 +4982,14 @@
       window.addEventListener('scroll', () => { if (el('futureTip')?.classList.contains('show')) _syncFutureTip(); }, true);
       window.addEventListener('resize', () => { if (el('futureTip')?.classList.contains('show')) _syncFutureTip(); });
     })();
-    function calculate() {
-      const raw = el('tc-r7m2').value.trim();
+    // `at`: an exact start time from the "Already working?" sheet (already checked there).
+    function calculate(at) {
+      const exact = at instanceof Date;
+      const raw = exact ? '' : el('tc-r7m2').value.trim();
       let p;
-      if (raw) {
+      if (exact) {
+        p = at;
+      } else if (raw) {
         p = parseLogin(raw);
         if (!p) { showErr("Couldn't parse that. Try: 11:30, 1130, 11:30 AM, or 13:30"); return; }
         const future = _futureStartMsg(p);
@@ -5001,6 +5006,161 @@
 
       _startOrContinue(p);
     }
+
+    // ── "ALREADY WORKING?" SHEET (#64) ─────────────────
+    // Quick Start begins now. For a day that began earlier, this sheet asks one
+    // question and opens already filled in with a good guess. The field takes digits
+    // only (hh:mm, 4 at most, the colon fills itself), works out AM or PM from the time
+    // now, and says what the answer means ("You can leave at 06:00 PM.").
+    // One digit typed into hh:mm: { ds } with the new digits (plus `ap` when the digit
+    // decides it), or null when it can't fit ("9" -> "09", "21" -> "09" PM, "00" -> "12" AM).
+    function _stAccept(ds, d, h24) {
+      const n = ds.length;
+      if (n >= 4) return null;
+      if (n === 0) return { ds: +d > 2 ? '0' + d : d };
+      if (n === 1) {
+        const hh = +(ds + d);
+        if (hh > 23) return +d <= 5 ? { ds: '0' + ds + d } : null;
+        if (h24) return { ds: ds + d };
+        if (hh > 12) return { ds: p2(hh - 12), ap: 'PM' };
+        if (hh === 0) return { ds: '12', ap: 'AM' };
+        return { ds: ds + d };
+      }
+      if (n === 2) return +d <= 5 ? { ds: ds + d } : null;
+      return { ds: ds + d };
+    }
+    // AM or PM for a typed h:mm, `now` in minutes since midnight: the reading that
+    // passed most recently, unless the other one is under an hour ahead and nearer
+    // (typing 10:00 at 9:58 PM means 10:00 PM, not 10:00 AM).
+    function _stClosestAp(h, m, now) {
+      const am = (h % 12) * 60 + m, pm = am + 720;
+      const ago = x => (now - x + 1440) % 1440, ahead = x => (x - now + 1440) % 1440;
+      const near = x => ahead(x) > 0 && ahead(x) <= 60;
+      if (near(pm) && ahead(pm) < ago(am)) return 'PM';
+      if (near(am) && ahead(am) < ago(pm)) return 'AM';
+      return ago(pm) < ago(am) ? 'PM' : 'AM';
+    }
+    // The time the sheet opens on (minutes): your shift start when you're 15+ minutes
+    // into today's shift, otherwise now rounded down to 5 minutes.
+    function _stGuess(now, shiftStart, shiftEnd) {
+      if (shiftStart != null && shiftEnd > shiftStart && now >= shiftStart + 15 && now <= shiftEnd)
+        return { m: shiftStart, why: 'Filled in with your shift start.' };
+      return { m: Math.floor(now / 5) * 5, why: 'Filled in with the time now.' };
+    }
+    const _st = { ap: 'AM', apSet: false, why: '', mode: 'none', at: null };
+    const _stMinsOf = d => d.getHours() * 60 + d.getMinutes();
+    const _stDigits = () => el('stInput').value.replace(/\D/g, '');
+    const _stMask = ds => !ds ? '' : ds.length <= 2 ? ds + (ds.length === 2 ? ':' : '') : `${ds.slice(0, 2)}:${ds.slice(2)}`;
+    const _stLeave = from => short(new Date(from.getTime() + effSecs() * 1000));
+    function _stSetAp(v, user) {
+      _st.ap = v; if (user) _st.apSet = true;
+      document.querySelectorAll('#stAp [data-ap]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.ap === v)));
+    }
+    function _stShake() {
+      const f = el('stField'); if (!f) return;
+      f.classList.remove('p12-shaking'); void f.offsetWidth; f.classList.add('p12-shaking');
+      f.addEventListener('animationend', () => f.classList.remove('p12-shaking'), { once: true });
+    }
+    // Reads the field, picks AM/PM if you haven't, and redraws the line + button.
+    function _stUpdate(filling) {
+      if (!filling) _st.why = '';   // once you edit it, it's your time, not our guess
+      const ds = _stDigits(), h24 = cfg().use24h === true, now = new Date();
+      if (!h24 && !_st.apSet && ds.length >= 2) _stSetAp(_stClosestAp(+ds.slice(0, 2), +(ds.slice(2) + '00').slice(0, 2), _stMinsOf(now)));
+      let at = null;
+      if (ds.length === 4) {
+        const h = +ds.slice(0, 2), m = +ds.slice(2);
+        at = new Date(now); at.setHours(h24 ? h : (h % 12) + (_st.ap === 'PM' ? 12 : 0), m, 0, 0);
+      }
+      const ahead = at ? at - now : 0, bad = ahead > 59000, mins = Math.ceil(ahead / 60000);
+      const away = mins >= 60 ? durWorked(mins * 60) : `${mins} min${mins === 1 ? '' : 's'}`;
+      const why = 'and 5pm only counts time that has already passed.';
+      const out = el('stOut'), go = el('stGo');
+      if (!at) { _st.mode = 'none'; out.textContent = `Type the time you began, like ${h24 ? '09:30' : '9:30'}.`; }
+      else if (!bad) { _st.mode = 'at'; out.innerHTML = `${_st.why ? _st.why + ' ' : ''}You can leave at <b>${_stLeave(at)}</b>.`; }
+      else if (mins <= 10) { _st.mode = 'now'; out.innerHTML = `${short(at)} is ${away} away, ${why} Start now and you can leave at <b>${_stLeave(now)}</b>.`; }
+      else { _st.mode = 'none'; out.innerHTML = `${short(at)} is ${away} away, ${why} Pick <b>${short(now)}</b> or earlier.`; }
+      _st.at = at;
+      out.classList.toggle('warn', bad);
+      el('stField').classList.toggle('bad', bad);
+      go.disabled = _st.mode === 'none';
+      go.textContent = _st.mode === 'at' ? `Start at ${short(at)}` : _st.mode === 'now' ? 'Start Now' : 'Start';
+    }
+    function _stFill(m) {
+      const h = Math.floor(m / 60), mi = m % 60, inp = el('stInput');
+      if (cfg().use24h) inp.value = `${p2(h)}:${p2(mi)}`;
+      else { _stSetAp(h >= 12 ? 'PM' : 'AM', true); inp.value = `${p2(h % 12 || 12)}:${p2(mi)}`; }
+      _stUpdate(true);
+    }
+    function openStartSheet() {
+      const c = cfg(), now = _stMinsOf(new Date());
+      const s = parse(c.shiftStart || '09:00 AM'), e = parse(c.shiftEnd || '06:00 PM');
+      const g = _stGuess(now, s ? _stMinsOf(s) : null, e ? _stMinsOf(e) : -1);
+      el('stAp').hidden = c.use24h === true;
+      _st.apSet = false; _st.why = g.why;
+      _stFill(g.m);
+      el('startTimeOverlay').classList.add('open');
+      // Selected, so typing replaces the guess.
+      setTimeout(() => { const i = el('stInput'); i.focus({ preventScroll: true }); i.select(); }, 60);
+    }
+    function closeStartSheet() { el('startTimeOverlay')?.classList.remove('open'); }
+    function _stGo() {
+      if (_st.mode === 'none') return;
+      const at = _st.mode === 'now' ? new Date() : _st.at;
+      closeStartSheet();
+      el('tc-r7m2').value = '';
+      calculate(at);
+    }
+    (function _stInit() {
+      const inp = el('stInput'), ov = el('startTimeOverlay'); if (!inp || !ov) return;
+      el('qsLink')?.addEventListener('click', openStartSheet);
+      el('stCancel').addEventListener('click', closeStartSheet);
+      el('stGo').addEventListener('click', _stGo);
+      ov.addEventListener('click', e => { if (e.target === ov) closeStartSheet(); });
+      ov.addEventListener('keydown', e => { if (e.key === 'Escape') { e.stopPropagation(); closeStartSheet(); } });
+      el('stAp').addEventListener('mousedown', e => e.preventDefault());   // keep the caret in the field
+      el('stAp').addEventListener('click', e => { const b = e.target.closest('[data-ap]'); if (b) { _stSetAp(b.dataset.ap, true); _stUpdate(); } });
+      inp.addEventListener('beforeinput', e => {
+        const t = e.inputType || '';
+        if (t === 'insertFromPaste') return;               // handled by 'paste'
+        if (t.startsWith('delete')) {
+          e.preventDefault();
+          const all = inp.selectionStart === 0 && inp.selectionEnd === inp.value.length;
+          inp.value = all ? '' : _stMask(_stDigits().slice(0, -1));
+          if (_stDigits().length < 2) _st.apSet = false;
+          _stUpdate(); return;
+        }
+        if (t !== 'insertText' || e.data == null) return;
+        e.preventDefault();
+        // Typing over the selected guess starts fresh, and AM/PM works itself out again.
+        if (inp.value && inp.selectionStart === 0 && inp.selectionEnd === inp.value.length) { inp.value = ''; _st.apSet = false; }
+        const h24 = cfg().use24h === true;
+        for (const ch of e.data) {
+          const ds = _stDigits();
+          if (/\d/.test(ch)) { const nx = _stAccept(ds, ch, h24); if (!nx) { _stShake(); continue; } if (nx.ap) _stSetAp(nx.ap, true); inp.value = _stMask(nx.ds); }
+          else if (!h24 && /[aA]/.test(ch)) _stSetAp('AM', true);
+          else if (!h24 && /[pP]/.test(ch)) _stSetAp('PM', true);
+          else if (/[:.\s]/.test(ch) && ds.length === 1) inp.value = _stMask('0' + ds);
+          else _stShake();
+        }
+        _stUpdate();
+      });
+      // Paste any text with a time in it ("Punched in 9.31 pm", a Keka line): only the time is kept.
+      inp.addEventListener('paste', e => {
+        e.preventDefault();
+        const m = (e.clipboardData?.getData('text') || '').match(/(\d{1,2})[:.](\d{2})(?::\d{2})?\s*([ap])?/i);
+        if (!m || +m[1] > 23 || +m[2] > 59) { _stShake(); return; }
+        let h = +m[1]; _st.apSet = false;
+        if (cfg().use24h) { if (m[3] && /p/i.test(m[3]) && h < 12) h += 12; inp.value = `${p2(h)}:${m[2]}`; }
+        else { if (m[3]) _stSetAp(/p/i.test(m[3]) ? 'PM' : 'AM', true); if (h > 12) { _stSetAp('PM', true); h -= 12; } inp.value = `${p2(h || 12)}:${m[2]}`; }
+        _stUpdate();
+      });
+      inp.addEventListener('keydown', e => {
+        if (e.key !== 'Enter') return;
+        e.preventDefault();
+        const ds = _stDigits(); if (ds.length === 2) { inp.value = _stMask(ds + '00'); _stUpdate(); }   // "10" + Enter = 10:00
+        _stGo();
+      });
+    })();
 
     // ── ONE MODAL AT A TIME ─────────────────────────────
     // Modals that open by themselves (Done for the Day, Auto-Stopped, the Monday

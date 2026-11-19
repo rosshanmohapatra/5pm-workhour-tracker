@@ -1796,7 +1796,7 @@ test('Not started: the C2 Stack drawing with a fixed title; only the leave time 
   const es = HTML.slice(HTML.indexOf('<div id="rcEmptyState"'), HTML.indexOf('<div id="rcToday">'));
   assert.match(es, /class="es-stack" aria-hidden="true"/);
   assert.match(es, /<p class="es-t">Your day begins when you do\.<\/p>/);
-  assert.match(es, /Start now to leave by <span id="rcEmptyLeaveTime">/);
+  assert.doesNotMatch(es, /Start now to leave by/, '#64: one line only; the leave time shows in the sheet and after Start');
   assert.doesNotMatch(es.slice(0, es.indexOf('es-t')), /\d{1,2}:\d{2}/, 'no time inside the drawing');
   // The hand-off into Running: the drawing lifts out, the card glides, the new parts rise in.
   const hand = extract('function _rcHandOff(');
@@ -1824,8 +1824,9 @@ test('Week card: Your Activity title, today first, today leads to the Today card
   assert.match(extract('function _wfSync('), /const top = rows\.scrollTop \+ 8;/, 'header and footer follow the top row');
   assert.match(extract('function _wfSync('), /btn\.hidden = !!inView;/);
   const open = extract('function _wfOpenRow(');
-  assert.match(open, /if \(key !== todayKey\(\)\) \{ openDayEditModal\(key\); return; \}/);
-  assert.match(open, /el\('resultCard'\)\?\.scrollIntoView\(/);
+  // #64: every row opens Update Entry, today included (no scroll-to-card special case).
+  assert.match(open, /openDayEditModal\(key\);/);
+  assert.doesNotMatch(open, /todayKey|scrollIntoView/);
   assert.match(extract('function renderHistory('), /<div class="wf-wh"><span class="wf-wr">\$\{r\}<\/span><\/div>/);
 });
 
@@ -1869,4 +1870,61 @@ test('Start: the fading copy of the empty state stays centred (no slide to the l
     .filter(s => /#rcEmptyState\b/.test(s) && !/weekend-mode/.test(s));
   assert.ok(rules.length >= 3);
   rules.forEach(s => assert.match(s, /\.es-ghost/, s.trim()));
+});
+
+// ── #64 "Already working?" sheet ────────────────────────────────────────────
+test('Start-time field: digits only, hh:mm, never more than 4 digits', () => {
+  const acc = load(extract('function _stAccept('), { p2 }, '_stAccept');
+  const type = (keys, h24 = false) => { let ds = '', ap = null;
+    for (const d of keys) { const nx = acc(ds, d, h24); if (!nx) continue; ds = nx.ds; if (nx.ap) ap = nx.ap; } return { ds, ap }; };
+  assert.deepEqual(type('9'), { ds: '09', ap: null }, '"9" is the hour');
+  assert.deepEqual(type('0930'), { ds: '0930', ap: null });
+  assert.deepEqual(type('2130'), { ds: '0930', ap: 'PM' }, '24-hour typing becomes 09:30 PM');
+  assert.deepEqual(type('0000'), { ds: '1200', ap: 'AM' }, '00:00 is 12:00 AM');
+  assert.deepEqual(type('12341230912312'), { ds: '1234', ap: null }, 'the rest is refused');
+  assert.equal(acc('09', '7', false), null, 'minutes start 0-5');
+  assert.deepEqual(type('2130', true), { ds: '2130', ap: null }, '24-hour mode keeps 21');
+});
+
+test('Start-time field: AM or PM follows the time now', () => {
+  const ap = load(extract('function _stClosestAp('), {}, '_stClosestAp');
+  const at958pm = 21 * 60 + 58, at1040am = 10 * 60 + 40;
+  assert.equal(ap(10, 0, at958pm), 'PM', '10:00 typed at 9:58 PM is 2 minutes ahead: PM, not 10 AM');
+  assert.equal(ap(9, 30, at958pm), 'PM');
+  assert.equal(ap(8, 15, at958pm), 'PM');
+  assert.equal(ap(10, 0, at1040am), 'AM');
+  assert.equal(ap(9, 30, at1040am), 'AM');
+  assert.equal(ap(1, 30, at1040am), 'AM', 'the most recent past reading, never 3 hours ahead');
+});
+
+test('Start-time sheet opens on a good guess', () => {
+  const _g = load(extract('function _stGuess('), {}, '_stGuess');
+  const guess = (...a) => ({ ..._g(...a) });   // plain object from this realm
+  const shift = [9 * 60, 18 * 60];
+  assert.deepEqual(guess(10 * 60 + 40, ...shift), { m: 540, why: 'Filled in with your shift start.' });
+  assert.deepEqual(guess(9 * 60 + 10, ...shift), { m: 550, why: 'Filled in with the time now.' }, 'under 15 minutes into the shift: now');
+  assert.deepEqual(guess(21 * 60 + 58, ...shift), { m: 1315, why: 'Filled in with the time now.' }, 'after the shift: now, rounded down to 5');
+  assert.deepEqual(guess(23 * 60, 22 * 60, 7 * 60), { m: 1380, why: 'Filled in with the time now.' }, 'overnight shift: now');
+});
+
+test('Not started: Quick Start + "Already working?"; the sheet starts through the same path (#64)', () => {
+  const HTML = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
+  assert.match(HTML, /<div class="shift-cta" id="todayLoginSection" data-mode="start">/);
+  assert.match(HTML, /<button type="button" class="qs-link" id="qsLink" aria-haspopup="dialog">Already working\?<\/button>/);
+  assert.match(HTML, /<input id="stInput" type="text" inputmode="numeric" pattern="\[0-9\]\*" enterkeyhint="go" maxlength="5"/);
+  assert.match(HTML, /#todayLoginSection\[data-mode="start"\] \.tp-seg-clock, #todayLoginSection\[data-mode="start"\] \.tp-free-input/);
+  const st = extract('function setCalcBtnState(');
+  assert.match(st, /sec\.dataset\.mode = state;/);
+  assert.match(st, /btn\.textContent = 'Quick Start';/);
+  // The sheet hands an exact Date to calculate(), which keeps the shift / continue checks.
+  assert.match(extract('function _stGo('), /calculate\(at\);/);
+  assert.match(extract('function calculate('), /if \(exact\) \{\n\s+p = at;/);
+  // AM/PM stays neutral: one primary per view.
+  assert.match(HTML, /\.st-ap button\[aria-pressed="true"\] \{ background: var\(--muted\); color: var\(--foreground\); \}/);
+});
+
+test('Light mode primary is Accent graphite (#65)', () => {
+  const HTML = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
+  const root = HTML.slice(HTML.indexOf(':root {'), HTML.indexOf('.dark {'));
+  assert.match(root, /--btn-primary-bg: #333845;/);
 });

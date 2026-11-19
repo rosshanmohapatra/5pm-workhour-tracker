@@ -110,7 +110,8 @@
       --border: #dde1e8; --border-subtle: #eceef3; --border-strong: #c3c8d2;
       --input: #c3c8d2; --input-bg: #f6f7fa; --ring: #0c0e13;
       --accent: #333845; --accent-subtle: rgba(51,56,69,.1);
-      --btn-primary-bg: #0b0b0b;
+      /* Primary CTA in light mode = Accent, the cool graphite of the dark palette (#65). */
+      --btn-primary-bg: #333845;
       --btn-secondary-bg: #e7eaf0; --btn-secondary-fg: #0c0e13; --btn-secondary-hover: #dde1e8;
       --success: #00774d; --success-bg: #e8f1ec; --success-border: #c8ded2;
       --warning: #9f6202; --warning-bg: #f6efe8; --warning-border: #e9d8c8;
@@ -907,6 +908,38 @@
     .shift-combo.active-state .shift-combo-active-label { display: none; }
     .login-ap-hint { font-size: 12px; font-weight: 500; color: var(--warning, #f59e0b);
       padding: 2px 4px; display: none; }
+    /* #64 Not started: Quick Start fills the row, "Already working?" sits under it, and the
+       time field lives in the sheet (#startTimeOverlay). Running/paused keep the combo. */
+    #todayLoginSection[data-mode="start"] .shift-combo { height: auto; padding: 0; border: none; background: none; box-shadow: none; }
+    #todayLoginSection[data-mode="start"] .tp-seg-clock, #todayLoginSection[data-mode="start"] .tp-free-input,
+    #todayLoginSection[data-mode="start"] .shift-combo-active-label { display: none; }
+    #todayLoginSection[data-mode="start"] #calcBtnWrap { flex: 1; }
+    #todayLoginSection[data-mode="start"] #calcBtn { width: 100%; height: 44px; border-radius: 12px; font-size: 14px; }
+    /* 12px under Quick Start: the section's 10px flex gap + 2px. */
+    .qs-link { display: none; height: 32px; margin: 2px auto 0; padding: 0 10px; border: none; border-radius: 8px; background: none;
+      font: 600 13px var(--font); color: var(--foreground); cursor: pointer; transition: background .14s; }
+    .qs-link:hover { background: var(--muted); }
+    #todayLoginSection[data-mode="start"] .qs-link { display: block; }
+    /* The sheet: one question, the field, what the answer means. */
+    .st-field { display: flex; align-items: center; gap: 10px; height: 54px; margin-top: 18px; padding: 0 6px 0 14px;
+      border-radius: 14px; background: var(--input-bg); box-shadow: inset 0 0 0 1px var(--border); transition: box-shadow .15s; }
+    .st-field:focus-within { box-shadow: inset 0 0 0 1.5px var(--border-strong); }
+    .st-field.bad { box-shadow: inset 0 0 0 1.5px var(--warning); }
+    .st-field > svg { width: 18px; height: 18px; flex: none; color: var(--muted-fg); }
+    .st-field input { flex: 1; min-width: 0; height: 100%; border: none; outline: none; background: none; padding: 0;
+      font: 600 20px var(--font); letter-spacing: .02em; font-variant-numeric: tabular-nums; color: var(--foreground); }
+    .st-field input::placeholder { color: var(--muted-fg); opacity: .6; font-weight: 500; }
+    /* AM/PM: neutral, like a secondary button. Never the primary colour (one primary per view). */
+    .st-ap { display: inline-flex; gap: 2px; flex: none; }
+    .st-ap[hidden] { display: none; }
+    .st-ap button { height: 34px; padding: 0 10px; border: none; border-radius: 9px; background: none;
+      font: 600 12px var(--font); color: var(--muted-fg); cursor: pointer; }
+    .st-ap button[aria-pressed="true"] { background: var(--muted); color: var(--foreground); }
+    .dark .st-ap button[aria-pressed="true"] { background: var(--border-strong); }
+    .st-ap button[aria-pressed="false"]:hover { color: var(--foreground); }
+    .st-out { min-height: 19px; margin: 10px 2px 0; font-size: 13px; line-height: 1.45; color: var(--muted-fg); text-align: left; }
+    .st-out b { color: var(--foreground); font-weight: 600; }
+    .st-out.warn, .st-out.warn b { color: var(--warning); }
     .shift-resume-row { display: flex; gap: 8px; }
     .shift-resume-btn { flex: 1; height: 40px; border-radius: 10px; border: none;
       background: var(--success-bg); color: var(--success); font-size: 13px; font-weight: 600;
@@ -1522,7 +1555,7 @@
     /* .es-ghost = the fading copy made at Start; it has no id, so it needs the same layout
        or it lines up left for a frame before it fades. */
     #rcEmptyState, .es-ghost { flex-direction: column; align-items: center; justify-content: center;
-      text-align: center; width: 100%; padding: 40px 16px; }
+      text-align: center; width: 100%; padding: 40px 16px 24px; }
     .rc-empty-text { font-size: 14px; font-weight: 500; color: var(--muted-fg); line-height: 1.5; }
     .rc-empty-text #rcEmptyLeaveTime { color: var(--foreground); font-weight: 700; }
     /* ── KPI numbers ── */
@@ -4393,12 +4426,11 @@
             <div class="es-stack" aria-hidden="true"><span class="es-card b2"></span><span class="es-card b1"></span>
               <span class="es-card top"><span class="es-sk w60"></span><span class="es-sk w35"></span><span class="es-skbar"></span></span></div>
             <p class="es-t">Your day begins when you do.</p>
-            <p class="rc-empty-text">Start now to leave by <span id="rcEmptyLeaveTime">—</span>.</p>
           </div>
           <!-- Day summary / Update Entry — sits ABOVE the time input so the
                summary reads before the input that edits it -->
           <div id="rcToday"></div>
-          <div class="shift-cta" id="todayLoginSection">
+          <div class="shift-cta" id="todayLoginSection" data-mode="start">
             <!-- Single combo: input + button inside -->
             <div class="shift-combo" id="shiftInputRow">
               <!-- Zero-size absorber — no name/type signals that credential managers key off -->
@@ -4434,6 +4466,8 @@
                 </div>
               </div>
             </div>
+            <!-- #64: before a session, Quick Start fills the row and the time lives in this sheet. -->
+            <button type="button" class="qs-link" id="qsLink" aria-haspopup="dialog">Already working?</button>
             <!-- Resume row (after End Session or auto-stop) -->
             <div class="shift-resume-row" id="resumeRow" style="display:none">
               <span class="shift-combo-hint" id="resumeLabel" style="flex:1;text-align:left;font-size:12px"></span>
@@ -6236,6 +6270,23 @@
   <!-- Outside Shift Modal -->
   <!-- Start before your shift? (approved 2026-11-14, option A): Apple dialog on
        desktop, bottom sheet on phones. Shown when starting 60+ min before the shift. -->
+  <!-- "Already working?" (#64): when did you start? Opens already filled in with a good guess. -->
+  <div class="overlay am-host" id="startTimeOverlay" data-dismiss="stCancel">
+    <div class="dialog am st-sheet" role="dialog" aria-modal="true" aria-labelledby="stTitle">
+      <p class="am-t" id="stTitle">When did you start work?</p>
+      <div class="st-field" id="stField">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+        <input id="stInput" type="text" inputmode="numeric" pattern="[0-9]*" enterkeyhint="go" maxlength="5" placeholder="hh:mm"
+          aria-label="Start time" aria-describedby="stOut" autocomplete="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true">
+        <span class="st-ap" id="stAp" role="group" aria-label="AM or PM"><button type="button" data-ap="AM" aria-pressed="true">AM</button><button type="button" data-ap="PM" aria-pressed="false">PM</button></span>
+      </div>
+      <p class="st-out" id="stOut" aria-live="polite"></p>
+      <div class="am-btns">
+        <button class="btn btn-primary" id="stGo" disabled>Start</button>
+        <button type="button" class="am-quiet" id="stCancel">Cancel</button>
+      </div>
+    </div>
+  </div>
   <div class="overlay am-host" id="outsideShiftOverlay" data-dismiss="osNotNow">
     <div class="dialog am" role="dialog" aria-modal="true" aria-labelledby="osTitle">
       <div class="am-hero"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2v8"/><path d="m4.93 10.93 1.41 1.41"/><path d="M2 18h2"/><path d="M20 18h2"/><path d="m19.07 10.93-1.41 1.41"/><path d="M22 22H2"/><path d="m8 6 4-4 4 4"/><path d="M16 18a4 4 0 0 0-8 0"/></svg></div>

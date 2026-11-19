@@ -32,8 +32,6 @@ window.__H = Object.assign(window.__H || {}, {
   hf1b50073cd: function (event) { _copyMfaSecret() },
   // onclick: _copyUpi()
   had1af3fc7a: function (event) { _copyUpi() },
-  // onclick: _dismissRunningElsewhereBanner()
-  h721b8ac2df: function (event) { _dismissRunningElsewhereBanner() },
   // onclick: _onSyncBtnClick()
   hbaa505cd7f: function (event) { _onSyncBtnClick() },
   // onclick: _rcSwitchPair('progress',this)
@@ -44,20 +42,8 @@ window.__H = Object.assign(window.__H || {}, {
   h08d903c236: function (event) { _reportSetMode('month') },
   // onclick: _reportSetMode('week')
   h12b61196e3: function (event) { _reportSetMode('week') },
-  // onclick: _selectFuturePlanType(this.getAttribute('data-click-a0'),this.getAttribute('data-click-a1'
-  hf0bed0e243: function (event) { _selectFuturePlanType(this.getAttribute('data-click-a0'),this.getAttribute('data-click-a1'),this) },
   // onclick: _submitWkndNote()
   h274a5d5671: function (event) { _submitWkndNote() },
-  // onclick: _tdConfirm()
-  h3d8c4a4b3a: function (event) { _tdConfirm() },
-  // onclick: _tdPick('fullday')
-  h6111ed02c2: function (event) { _tdPick('fullday') },
-  // onclick: _tdPick('halfday')
-  ha3743ad448: function (event) { _tdPick('halfday') },
-  // onclick: _tdPick('holiday')
-  ha06142f505: function (event) { _tdPick('holiday') },
-  // onclick: _tdPick('leave')
-  h1c1853eeb9: function (event) { _tdPick('leave') },
   // onclick: _tdToggle(event)
   hfba6e822e4: function (event) { _tdToggle(event) },
   // onclick: _toggleDiagLog()
@@ -108,8 +94,6 @@ window.__H = Object.assign(window.__H || {}, {
   h777a3469ff: function (event) { closeOutsideShiftModal() },
   // onclick: closeSupportModal()
   hd99fc99687: function (event) { closeSupportModal() },
-  // onclick: closeTodayDetails()
-  hfbcc321d43: function (event) { closeTodayDetails() },
   // onclick: closeUpwdModal()
   h3fd8d2a73b: function (event) { closeUpwdModal() },
   // onclick: closeWeekReport()
@@ -158,8 +142,6 @@ window.__H = Object.assign(window.__H || {}, {
   h4d52d42341: function (event) { el('weekPlanOverlay').classList.remove('open') },
   // onclick: event.stopPropagation()
   h6d554283fa: function (event) { event.stopPropagation() },
-  // onclick: event.stopPropagation();openDayEditModal(this.getAttribute('data-click-a0'),true)
-  h27129cfe3c: function (event) { event.stopPropagation();openDayEditModal(this.getAttribute('data-click-a0'),true) },
   // onclick: event.stopPropagation();resetQsShortcut()
   he8e64385df: function (event) { event.stopPropagation();resetQsShortcut() },
   // onclick: event.stopPropagation();startQsRecording()
@@ -194,10 +176,6 @@ window.__H = Object.assign(window.__H || {}, {
   hfa2eb79cc6: function (event) { mfaShowManage() },
   // onclick: mfaVerifyEnroll()
   ha18a9a252c: function (event) { mfaVerifyEnroll() },
-  // onclick: navDaySelectorDay(-1)
-  h776b844886: function (event) { navDaySelectorDay(-1) },
-  // onclick: navDaySelectorDay(1)
-  hde52b3e389: function (event) { navDaySelectorDay(1) },
   // onclick: navigator.clipboard?.writeText(this.dataset.uid||'');showToast('User ID copied','info','',
   h3082bc57c8: function (event) { navigator.clipboard?.writeText(this.dataset.uid||'');showToast('User ID copied','info','',{label:'Okay'}) },
   // onclick: npSetType('allday')
@@ -212,10 +190,6 @@ window.__H = Object.assign(window.__H || {}, {
   he05a50dca0: function (event) { openAutoStopRecovery() },
   // onclick: openContinueWorkingModal('09:00 AM', 3 * 3600)
   h386fbeb337: function (event) { openContinueWorkingModal('09:00 AM', 3 * 3600) },
-  // onclick: openDayEditModal(selectedDayKey)
-  hf5017a9390: function (event) { openDayEditModal(selectedDayKey) },
-  // onclick: openDayEditModal(this.getAttribute('data-click-a0'))
-  hd2a73229c7: function (event) { openDayEditModal(this.getAttribute('data-click-a0')) },
   // onclick: openDeleteModal()
   ha5a8dbb3e6: function (event) { openDeleteModal() },
   // onclick: openDevDatePicker(this)
@@ -242,8 +216,6 @@ window.__H = Object.assign(window.__H || {}, {
   h9b8ff4420c: function (event) { openTpModal('inpShiftStart',event) },
   // onclick: openTpModal('tc-r7m2',event,'Started at',calculate)
   h835997ffb5: function (event) { openTpModal('tc-r7m2',event,'Started at',calculate) },
-  // onclick: openWeekPicker(this)
-  h9f54862d09: function (event) { openWeekPicker(this) },
   // onclick: openWeekReport(analyticsWeekOffset)
   ha2e8e1871e: function (event) { openWeekReport(analyticsWeekOffset) },
   // onclick: overrideOutsideShift()
@@ -292,8 +264,6 @@ window.__H = Object.assign(window.__H || {}, {
   h1e8a7114e5: function (event) { autoExpandTa(this) },
   // oninput: el('delPwdContinueBtn').disabled = this.value.length < 1
   hf2ee0f7d5a: function (event) { el('delPwdContinueBtn').disabled = this.value.length < 1 },
-  // oninput: saveFutureDayReason(this.value)
-  hc55a156350: function (event) { saveFutureDayReason(this.value) },
   // oninput: this.value=this.value.replace(/\D/g,'').slice(0,6);el('mfaVerifyBtn').disabled=this.value.
   hd4f1fc3f54: function (event) { this.value=this.value.replace(/\D/g,'').slice(0,6);el('mfaVerifyBtn').disabled=this.value.length<6 },
   // oninput: updateWeeklyCalc()

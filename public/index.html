@@ -103,6 +103,10 @@
       --background: #eef0f4; --foreground: #0c0e13; --card: #ffffff;
       --surface-raised: #f6f7fa;
       --muted: #e7eaf0; --muted-fg: #545b69; --text-muted: #747c8a;
+      /* One step ABOVE the raised surface, in both themes: anything placed on a
+         --surface-raised container (side panels, raised cards, tab rails) uses this,
+         never --card. --card is lighter than raised in light but DARKER in dark. */
+      --surface-lift: #ffffff;
       --chart-bar: #c6ccd7;   /* bars in charts: a cool grey from the same family */
       /* Progress bar (#44 C Slim): fill, shimmer, paused fill, lines, target line, tooltip. */
       --pb-fill: #2a2f3a; --pb-shine: #6b7384; --pb-rest: #9aa1ad; --pb-line: #c6ccd7; --pb-target: #8b929e;
@@ -140,6 +144,7 @@
       --background: #08090c; --foreground: #eef1f6; --card: #13151a;
       --surface-raised: #1c1f26;
       --muted: #2a2e38; --muted-fg: #a9b0bd; --text-muted: #828a98;
+      --surface-lift: #262a33;
       --chart-bar: #454c5b;
       --pb-fill: #cfd4dd; --pb-shine: #ffffff; --pb-rest: #8b919d; --pb-line: #3b414d; --pb-target: #6b7280;
       --tip-bg: #1c1f26; --tip-bd: #3b414d; --tip-sub: #a9b0bd; --tip-shadow: 0 6px 20px rgba(0,0,0,.45);
@@ -440,7 +445,9 @@
     /* Rows in a tile list keep their own padding and fill edge to edge on hover; a toggle row sitting
        loose in a card gets a little padding pulled back with a negative margin so its hover fill has room. */
     #viewSettings [data-on-click]:has(> .toggle), #viewSettings .pay-switch { cursor: pointer; transition: background .15s; }
-    #viewSettings .tile-list > .pay-switch { padding: 14px 16px; }   /* a <label>, so the list's row padding doesn't reach it */
+    /* A <label>, so the list's div-only row rule (card colour, padding) doesn't reach it:
+       without the card colour the page showed through and the row looked black. */
+    #viewSettings .tile-list > .pay-switch { padding: 14px 16px; background: var(--card); }
     #viewSettings .tile-list [data-on-click][data-on-click]:has(> .toggle) { margin: 0; padding: 14px 16px; border-radius: 0; }   /* any toggle row inside a tile list sits on the list's grid */
     #viewSettings :not(.tile-list) > [data-on-click]:has(> .toggle) { padding: 10px 12px; margin: -10px -12px; border-radius: 12px; }
     @media (hover: hover) and (pointer: fine) { #viewSettings [data-on-click]:has(> .toggle):hover, #viewSettings .pay-switch:hover { background: var(--muted); } }
@@ -545,7 +552,7 @@
     body.shell-new .set-tabs-arrow.r { right: 1px; border-radius: 0 13px 13px 0; }
     body.shell-new .set-tabs-arrow[hidden] { display: none; }
     /* One pill that glides to the active tab (left + width set by the script). */
-    .set-tab-ind { position: absolute; z-index: 0; top: 4px; bottom: 4px; left: 0; background: var(--card);
+    .set-tab-ind { position: absolute; z-index: 0; top: 4px; bottom: 4px; left: 0; background: var(--surface-lift);
       border-radius: 10px; box-shadow: inset 0 0 0 1px var(--border), 0 1px 2px rgb(0 0 0 / .06);
       transition: left .3s var(--ease-sheet), width .3s var(--ease-sheet); }
 
@@ -998,8 +1005,6 @@
     /* ── Not-started single-KPI layout ── */
     #rcBody.ns-times .rc-numbers,
     #rcBody.ns-progress .rc-numbers { justify-content: center; padding-bottom: 0; }
-    #rcBody.ns-times #rcDescRow,
-    #rcBody.ns-progress #rcDescRow { padding-top: 0; }
     /* Before starting, Time/Progress has nothing to switch, but the day-type
        button beside it must stay: it's how a day is set to Half Day or Leave. */
     #rcBody.ns-times #rcPairTabs,
@@ -1008,7 +1013,6 @@
     #rcBody:not(.ns-times):not(.ns-progress):not(.weekend-mode):not(.past-day) { gap: 8px; }
     #rcBody:not(.ns-times):not(.ns-progress):not(.weekend-mode):not(.past-day) #rcKpiGroup { margin-top: 24px; margin-bottom: 24px; }
     #rcBody:not(.ns-times):not(.ns-progress):not(.weekend-mode):not(.past-day) .rc-numbers { padding-left: 0; padding-right: 0; margin-top: 0; margin-bottom: 0; width: 100%; }
-    #rcBody:not(.ns-times):not(.ns-progress):not(.weekend-mode):not(.past-day) #rcDescRow { padding: 0; margin-bottom: 0; }
     /* Past / future day: center single KPI, hide empty right col, remove active-mode margins */
     #rcBody.past-day .rc-numbers { justify-content: center; width: 100%; padding: 0; }
     #rcBody.past-day .rc-right-col { display: none; }
@@ -1061,7 +1065,7 @@
     .rc-body.weekend-mode #autostopBanner,
     .rc-body.weekend-mode #rcPairTabsRow,
     .rc-body.weekend-mode #rcProgressTrack,
-    .rc-body.weekend-mode #rcDescRow,
+    .rc-body.weekend-mode #rcLead,
     .rc-body.weekend-mode #rcEmptyState { display: none !important; }
     #weekendView { display: none; }
     .rc-body.weekend-mode #weekendView { display: block; animation: wknd-fade-in .28s ease; }
@@ -1133,80 +1137,6 @@
       transition: background .15s, color .15s; flex-shrink: 0; }
     .rc-info-btn:hover { background: var(--muted); }
     .rc-info-btn svg { flex-shrink: 0; }
-    /* ── Today panel: today's numbers on top, day types below within thumb
-       reach, Confirm last. A centred modal on wider screens, a draggable bottom
-       sheet on phones. A type is only picked until Confirm applies it. ── */
-    .td-panel { position: fixed; z-index: 250; top: 50%; left: 50%; width: 420px; max-width: calc(100vw - 32px);
-      display: flex; flex-direction: column; gap: 12px;
-      background: var(--card); border: 1px solid var(--border); border-radius: 16px;
-      box-shadow: 0 12px 40px rgba(0,0,0,.28); padding: 16px;
-      opacity: 0; transform: translate(-50%, -48%) scale(.98); pointer-events: none;
-      transition: opacity .15s ease, transform .15s ease; }
-    .td-panel.open { opacity: 1; transform: translate(-50%, -50%); pointer-events: all; }
-    .td-types { display: flex; flex-direction: column; gap: 2px; }
-    /* No fill at rest; a soft fill on hover and when picked, plus a check on
-       the picked one. Hover only where a mouse can hover, so a tap on a phone
-       doesn't leave a button looking hovered. */
-    .td-type { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%;
-      padding: 12px 14px; font-family: var(--font); font-size: 14px; font-weight: 500; color: var(--foreground);
-      background: transparent; border: none; border-radius: var(--radius-md); cursor: pointer;
-      text-align: left; transition: background .14s; -webkit-tap-highlight-color: transparent;
-      -webkit-user-select: none; user-select: none; }
-    @media (hover: hover) { .td-type:hover { background: var(--muted); } }
-    /* --muted is nearly the card colour, so a tap looked like nothing happened.
-       Picked and pressed use --border, and pressed shows at once. */
-    .td-type.active { background: var(--border); }
-    .td-type:active { background: var(--border); transition: none; }
-    .td-type.active::after { content: ''; width: 16px; height: 16px; flex-shrink: 0; background: currentColor;
-      -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E") center / contain no-repeat;
-              mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E") center / contain no-repeat; }
-    /* Numbers are read, not tapped: an outline, never a fill like the buttons. */
-    .td-kpis { border: 1px solid var(--border); border-radius: 12px; padding: 4px 14px; overflow: hidden;
-      transition: height .28s cubic-bezier(.4,0,.2,1); }
-    .td-confirm { height: 42px; font-size: 14px; }
-    /* Today panel, option B: "Today is a…", one segmented control (icons over
-       labels, a sliding pill), one live line, and a button naming the action. */
-    .td-head { margin: 0; font-size: 14px; font-weight: 600; color: var(--foreground); }
-    .td-types.td-seg { position: relative; display: grid; grid-template-columns: repeat(4, 1fr); gap: 0;
-      background: var(--muted); border-radius: 12px; padding: 3px; }
-    .td-seg .td-pill { position: absolute; top: 3px; bottom: 3px; left: 3px; width: 0; border-radius: 9px; background: var(--card);
-      box-shadow: 0 1px 3px rgba(0,0,0,.12); transition: transform .35s var(--ease-sheet), width .35s var(--ease-sheet); }
-    .dark .td-seg .td-pill { background: var(--btn-secondary-hover); }
-    .td-seg .td-type { position: relative; flex-direction: column; justify-content: center; gap: 4px; padding: 9px 2px 8px;
-      font-size: 12px; color: var(--muted-fg); background: transparent !important; border-radius: 9px; text-align: center;
-      transition: color .2s; }
-    .td-seg .td-type svg { width: 18px; height: 18px; }
-    .td-seg .td-type.active { color: var(--foreground); }
-    .td-seg .td-type.active::after { display: none; }
-    .td-kpis.td-line { border: none; padding: 2px 0; text-align: center; font-size: 13.5px; color: var(--muted-fg); min-height: 20px; }
-    .td-line b { color: var(--foreground); font-weight: 600; font-variant-numeric: tabular-nums; }
-    .td-scrim { position: fixed; inset: 0; z-index: 249; background: rgba(0,0,0,.28);
-      backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
-      opacity: 0; pointer-events: none; transition: opacity .2s ease; }
-    .td-scrim.open { opacity: 1; pointer-events: auto; }
-    /* Phones: an iOS-style sheet. Edge to edge, large concentric top corners,
-       the grab pill, a capsule Confirm. It owns its drag (touch-action), and the
-       page behind can't scroll or pull-to-refresh while it's open. */
-    @media (max-width: 640px) {
-      .td-panel { top: auto; left: 0; right: 0; bottom: 0; width: 100%; max-width: none;
-        border: none; border-radius: 32px 32px 0 0; gap: 14px;
-        padding: 6px 16px calc(20px + env(safe-area-inset-bottom));
-        box-shadow: 0 -8px 40px rgba(0,0,0,.35); touch-action: none; overscroll-behavior: contain;
-        transform: translateY(100%); transition: transform .34s cubic-bezier(.32,.72,0,1), opacity .2s ease; }
-      /* Opaque throughout, so closing is seen sliding down rather than fading
-         out first. Hidden only once it has left the screen (its shadow would
-         otherwise peek above the bottom edge). */
-      .td-panel { opacity: 1; visibility: hidden;
-        transition: transform .34s cubic-bezier(.32,.72,0,1), visibility 0s linear .34s; }
-      .td-panel.open { transform: none; visibility: visible; transition: transform .34s cubic-bezier(.32,.72,0,1); }
-      .td-panel.dragging { transition: none; }
-      .td-panel::before { content: ''; align-self: center; width: 36px; height: 5px; border-radius: 3px;
-        background: rgba(127,127,127,.4); margin: 0 0 4px; flex-shrink: 0; }
-      .td-kpis { border-radius: 20px; padding: 6px 16px; }
-      .td-type { padding: 14px 16px; font-size: 15px; border-radius: 14px; }
-      .td-confirm { height: 50px; font-size: 16px; font-weight: 600; border-radius: 999px; }
-      .td-scrim { touch-action: none; }
-    }
     /* ── iOS-style sheets on phones (Plan Your Day, Email Draft, install prompt) ──
        Float 4px in from the sides and bottom, with large rounded corners. Open
        and close on the iOS sheet curve. The grab pill widens and darkens while
@@ -1221,13 +1151,10 @@
     .ios-install-sheet.open { transform: none; }
     .ios-share-cta { width: 100%; height: 50px; margin-top: 24px; gap: 8px; font-size: 16px; font-weight: 600; border-radius: 999px;
       display: flex; align-items: center; justify-content: center; }
-    .ios-handle-bar, .td-panel::before, :is(#emailModalOverlay, #whatsNewOverlay) .email-modal::before {
+    .ios-handle-bar, :is(#emailModalOverlay, #whatsNewOverlay) .email-modal::before {
       transition: width .2s cubic-bezier(.32,.72,0,1), background-color .2s ease; }
     @media (max-width: 640px) {
-      .td-panel, .ios-install-sheet { left: 4px; right: 4px; bottom: 4px; width: auto; border: none; border-radius: 32px; }
-      .td-panel { padding-bottom: calc(16px + env(safe-area-inset-bottom)); box-shadow: 0 8px 40px rgba(0,0,0,.35);
-        transform: translateY(calc(100% + 8px)); transition: transform .5s cubic-bezier(.32,.72,0,1), visibility 0s linear .5s; }
-      .td-panel.open { transition: transform .5s cubic-bezier(.32,.72,0,1); }
+      .ios-install-sheet { left: 4px; right: 4px; bottom: 4px; width: auto; border: none; border-radius: 32px; }
       .ios-install-sheet { padding-bottom: calc(16px + env(safe-area-inset-bottom)); transform: translateY(calc(100% + 8px)); }
       .ios-install-sheet.open { transform: none; }
       :is(#emailModalOverlay, #whatsNewOverlay) { padding: 0 4px 4px; }
@@ -1238,12 +1165,12 @@
         background: rgba(127,127,127,.4); margin: 0 auto 14px; }
       /* Kept on their own GPU layer ahead of time, so a drag's first frame
          doesn't stall while the browser creates one. */
-      .td-panel, .ios-install-sheet, :is(#emailModalOverlay, #whatsNewOverlay) .email-modal { will-change: transform; }
-      .td-scrim, .ios-install-overlay { will-change: opacity; }
+      .ios-install-sheet, :is(#emailModalOverlay, #whatsNewOverlay) .email-modal { will-change: transform; }
+      .ios-install-overlay { will-change: opacity; }
       /* While a finger drags a sheet, it follows the finger exactly. The email
          sheet's open/close transition is !important, so this has to be too, or
          every move eased over half a second and the sheet jerked behind the finger. */
-      .td-panel.sheet-dragging, .ios-install-sheet.sheet-dragging,
+      .ios-install-sheet.sheet-dragging,
       :is(#emailModalOverlay, #whatsNewOverlay) .email-modal.sheet-dragging { transition: none !important; }
       /* Bottom sheets close by drag, tap outside or Escape: no × on phones. */
       :is(#emailModalOverlay, #whatsNewOverlay) .email-modal-close { display: none; }
@@ -1289,6 +1216,15 @@
     #rcKpiGroup { position: relative; }
     .pb-guide { position: absolute; width: 2px; border-radius: 2px; background: var(--foreground); opacity: 0; transform: translateX(-1px);
       z-index: 2; pointer-events: none; transition: opacity .12s; }
+    /* Start-time tooltip: a start later than now (user, 2026-11-19). */
+    .future-tip { position: fixed; z-index: 400; transform: translate(0, calc(-100% + 4px)); width: max-content; box-sizing: border-box;
+      background: var(--tip-bg); color: var(--foreground); border: 1px solid var(--tip-bd); border-radius: 10px; box-shadow: var(--tip-shadow);
+      padding: 8px 12px; font: 500 13px/1.4 var(--font); text-align: left; opacity: 0; pointer-events: none; transition: opacity .15s, transform .15s; }
+    .future-tip.show { opacity: 1; transform: translate(0, -100%); }
+    .future-tip::after { content: ''; position: absolute; left: var(--ax, 50%); top: 100%; width: 8px; height: 8px; background: var(--tip-bg);
+      border-right: 1px solid var(--tip-bd); border-bottom: 1px solid var(--tip-bd); transform: translate(-50%, -4px) rotate(45deg); }
+    .tp-set-btn:disabled { opacity: .45; cursor: not-allowed; }
+    @media (prefers-reduced-motion: reduce) { .future-tip { transition: none; } }
     .pb-tip { position: absolute; transform: translate(-50%, -100%); background: var(--tip-bg); color: var(--foreground);
       border: 1px solid var(--tip-bd); border-radius: 10px; box-shadow: var(--tip-shadow); padding: 8px 12px;
       display: flex; flex-direction: column; gap: 2px; white-space: nowrap; opacity: 0; pointer-events: none; z-index: 3;
@@ -1309,11 +1245,6 @@
       transition: left .5s cubic-bezier(.4,0,.2,1), width .5s cubic-bezier(.4,0,.2,1); }
     .rc-progress-fill.dim, #rcKpiGroup.rc-paused .rc-progress-fill { background: var(--pb-rest); }   /* paused: grey, still */
     #rcKpiGroup.rc-paused .rc-progress-fill::after { animation: none; }
-    /* ── Description row ── */
-    .rc-desc-row { display: flex; justify-content: center; align-items: center; min-height: 20px; padding: 32px 0; }
-    .rc-desc-right { font-size: 12px; font-weight: 500; color: var(--muted-fg);
-      padding: 8px 9px; border-radius: 8px; background: transparent;
-      transition: background .15s; cursor: default; }
     .rc-desc-chip { font-size: 12px; font-weight: 500; color: inherit; background: none; padding: 0; border-radius: 0; cursor: default; }
     /* Today card (approved 2026-11-13): each number states a fact and keeps one
        role (Clock: Started | Now → Left at; Hours: Worked | Target). Advice lives
@@ -1334,10 +1265,80 @@
     #rcKpiGroup.rc-finished .rc-progress-track { height: 1px; border-radius: 0; clip-path: none; margin: 0 -16px; width: calc(100% + 32px); background: var(--border); }
     #rcKpiGroup.rc-finished .rc-progress-fill { background: var(--border); border-radius: 0; }
     #rcKpiGroup.rc-finished .rc-progress-fill::after, #rcKpiGroup.rc-finished .rc-progress-fill-ot { display: none; }
-    .rc-desc-row { transition: padding .5s var(--ease-sheet), opacity .35s, min-height .5s var(--ease-sheet); }
-    #rcKpiGroup.rc-finished .rc-desc-row { padding: 0; min-height: 0; opacity: 0; }
-    /* Overtime: the chip comes back as "41m over" under the divider (approved 2026-11-14). */
-    #rcKpiGroup.rc-finished.rc-over .rc-desc-row { padding: 32px 0; min-height: 20px; opacity: 1; }
+    /* ── Today card (#61, approved 2026-11-19) ──
+       Header: greeting + today's date on the left, the day-type menu on the right. */
+    #resultCard { position: relative; }
+    .td-hd { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+    .td-hd-txt { min-width: 0; }
+    .td-hd-title { margin: 0; font-size: 18px; font-weight: 600; letter-spacing: -.01em; color: var(--foreground); text-wrap: balance; }
+    .td-hd-date { margin: 2px 0 0; font-size: 13px; color: var(--muted-fg); }
+    .dt-wrap { position: relative; flex: none; }
+    .dt-btn.rc-info-btn { height: 32px; gap: 6px; padding: 0 10px; border: 1px solid var(--border); border-radius: 9px; background: transparent;
+      font: 600 13px var(--font); color: var(--foreground); }
+    .dt-btn.rc-info-btn:hover, .dt-btn[aria-expanded="true"] { background: var(--muted); }
+    .dt-btn-ic { display: inline-flex; color: var(--dt, var(--muted-fg)); }
+    .dt-btn-ic svg { width: 16px; height: 16px; }
+    .dt-btn .dt-chev { color: var(--muted-fg); transition: transform .2s; }
+    .dt-btn[aria-expanded="true"] .dt-chev { transform: rotate(180deg); }
+    .dt-menu { min-width: 248px; }
+    .dt-mi { align-items: center; }
+    .dt-mi .dt-mi-ic { display: inline-flex; color: var(--dt); }
+    .dt-mi .dt-mi-ic svg { color: var(--dt); }
+    .dt-mi > span { display: flex; flex-direction: column; }
+    .dt-mi b { font-weight: 500; }
+    .dt-mi small { font-size: 12px; color: var(--text-muted); }
+    .dt-mi .dt-mi-ck { display: inline-flex; opacity: 0; } .dt-mi .dt-mi-ck svg { color: var(--foreground); }
+    .dt-mi[aria-checked="true"] .dt-mi-ck { opacity: 1; }
+    .dt-mi[disabled] { cursor: not-allowed; }
+    .dt-mi[disabled] b, .dt-mi[disabled] .dt-mi-ic { opacity: .45; }
+    /* Leave Office / Holiday confirm, inside the card. While it's open the tracker steps aside. */
+    .dt-confirm { margin-top: 20px; padding: 14px; border-radius: 14px; background: var(--surface-raised); border: 1px solid var(--border);
+      display: flex; flex-direction: column; gap: 10px; animation: dtc-in .32s cubic-bezier(.16,1,.3,1); }
+    #resultCard.dt-confirming #rcBody { display: none; }
+    @keyframes dtc-in { from { opacity: 0; transform: translateY(6px); filter: blur(3px); } }
+    .dtc-h { display: flex; gap: 10px; align-items: flex-start; }
+    .dtc-ic { width: 32px; height: 32px; border-radius: 9px; display: grid; place-items: center; flex: none; color: var(--dt); background: color-mix(in srgb, var(--dt) 14%, var(--surface-lift)); }
+    .dtc-ic svg { width: 16px; height: 16px; }
+    .dtc-t { margin: 0; font-size: 15px; font-weight: 600; color: var(--foreground); }
+    .dtc-d { margin: 2px 0 0; font-size: 13px; color: var(--muted-fg); }
+    .dtc-l { font-size: 12px; font-weight: 600; color: var(--muted-fg); }
+    #dtcNote { width: 100%; min-height: 64px; resize: none; box-sizing: border-box; padding: 10px 12px; border: 0; border-radius: 10px; font: 14px/1.45 var(--font); color: var(--foreground);
+      background: color-mix(in srgb, var(--foreground) 7%, var(--surface-lift)); box-shadow: inset 0 0 0 1px var(--input); outline: none; caret-color: var(--foreground); }
+    #dtcNote:focus { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--input) 55%, var(--foreground)); }
+    #dtcNote::placeholder { color: var(--text-muted); }
+    .dtc-hint { margin: -4px 0 0; font-size: 12px; color: var(--text-muted); }
+    .dtc-a { display: flex; justify-content: flex-end; gap: 8px; }
+    .dtc-a button { width: auto; height: 36px; padding: 0 14px; }
+    /* Not started (C2 Stack): a fixed drawing, room above and below. */
+    #rcEmptyState { gap: 0; padding: 32px 16px 12px; }
+    .es-stack { position: relative; width: 190px; height: 112px; }
+    .es-card { position: absolute; left: 50%; width: 150px; height: 92px; margin-left: -75px; border-radius: 16px; border: 1.5px solid var(--border-strong); background: var(--card);
+      animation: es-rise .7s cubic-bezier(.16,1,.3,1) both; }
+    .es-card.b2 { top: 4px; transform: rotate(-7deg) translateX(-14px); opacity: .55; animation-delay: .14s; --r: -7deg; }
+    .es-card.b1 { top: 12px; transform: rotate(5deg) translateX(12px); opacity: .8; animation-delay: .07s; --r: 5deg; }
+    .es-card.top { top: 20px; z-index: 1; display: flex; flex-direction: column; justify-content: center; gap: 9px; padding: 0 16px; border-color: var(--foreground); }
+    @keyframes es-rise { from { opacity: 0; transform: translateY(10px) rotate(var(--r, 0deg)) scale(.94); } }
+    .es-sk { height: 6px; border-radius: 3px; background: var(--muted); }
+    .es-sk.w60 { width: 60%; } .es-sk.w35 { width: 35%; }
+    .es-skbar { height: 8px; border-radius: 4px; background: repeating-linear-gradient(90deg, var(--border-strong) 0 2px, transparent 2px 6px); }
+    .es-t { margin: 18px 0 0; font-size: 15px; font-weight: 600; color: var(--foreground); text-wrap: balance; }
+    #rcEmptyState .rc-empty-text { margin: 6px 0 0; }
+    /* Running: the time left leads, the two facts sit under it (#61 "Headline above"). */
+    .rc-lead { display: flex; flex-direction: column; align-items: center; margin-top: 8px; }
+    .rc-lead[hidden] { display: none; }
+    .rc-lead-n { font: 400 40px/1 var(--font-display); font-variant-numeric: tabular-nums; letter-spacing: -.01em; color: var(--foreground); }
+    .rc-lead-c { display: inline-flex; align-items: center; gap: 6px; margin-top: 8px; font-size: 13px; color: var(--muted-fg); }
+    .rc-lead.over .rc-lead-n, .rc-lead.over .rc-lead-c { color: var(--warning); }
+    #rcKpiGroup.rc-finished:not(.rc-over) .rc-lead { display: none; }
+    @media (max-width: 640px) { .rc-lead-n { font-size: 34px; } }
+    /* Not started → Running: the drawing lifts out, the card glides to its new
+       height, the new parts rise in one after another. */
+    .rc-ghost-out { animation: rc-out .18s ease-in both; z-index: 2; }
+    @keyframes rc-out { to { opacity: 0; transform: translateY(-6px); filter: blur(4px); } }
+    #rcKpiGroup.rc-enter > *, #rcBody .rc-pair-tabs-row.rc-enter { animation: rc-in .42s cubic-bezier(.16,1,.3,1) both; }
+    #rcKpiGroup.rc-enter > :nth-child(2) { animation-delay: .05s; } #rcKpiGroup.rc-enter > :nth-child(3) { animation-delay: .1s; } #rcKpiGroup.rc-enter > :nth-child(n+4) { animation-delay: .15s; }
+    @keyframes rc-in { from { opacity: 0; transform: translateY(8px); filter: blur(4px); } }
+    @media (prefers-reduced-motion: reduce) { .es-card, .rc-ghost-out, #rcKpiGroup.rc-enter > *, .dt-confirm { animation: none !important; } }
     /* Paused: everything frozen, no live dot. */
     #rcKpiGroup.rc-paused .rc-live { display: none; }
     /* Worked past 10 hours: a touch smaller so it never wraps on a 320px phone. */
@@ -1381,8 +1382,8 @@
     .ed-row svg { width: 16px; height: 16px; flex-shrink: 0; }
     .ed-row b { margin-left: auto; font-weight: 600; color: var(--foreground); font-variant-numeric: tabular-nums; }
     .ed-note { display: flex; gap: 10px; align-items: flex-start; width: 100%; margin-top: 12px; padding: 11px 12px; border-radius: 12px;
-      border: 1px dashed var(--border-strong); background: var(--card); color: var(--muted-fg); font: 400 13.5px/1.45 var(--font); text-align: left; cursor: pointer; }
-    .ed-note:hover { background: color-mix(in srgb, var(--muted) 50%, var(--card)); }
+      border: 1px dashed var(--border-strong); background: var(--surface-lift); color: var(--muted-fg); font: 400 13.5px/1.45 var(--font); text-align: left; cursor: pointer; }
+    .ed-note:hover { background: color-mix(in srgb, var(--muted) 50%, var(--surface-lift)); }
     .ed-note.has { border-style: solid; border-color: var(--border); color: var(--foreground); }
     .ed-note svg { width: 16px; height: 16px; flex-shrink: 0; margin-top: 1px; }
     .ed-note span { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; white-space: pre-wrap; }
@@ -2414,17 +2415,12 @@
     .ac-gap b { font-size: 14px; font-weight: 600; color: var(--warning); font-variant-numeric: tabular-nums; }
     .ac-gap span { font-size: 12px; color: var(--text-muted); }
     .ac-sub { font-size: 12px; color: var(--muted-fg); margin-top: 2px; font-variant-numeric: tabular-nums; }
-    .ac-resolve { height: 30px; padding: 0 12px; font-size: 12px; opacity: 0; pointer-events: none; transition: opacity .15s; }
     @media (hover: hover) and (pointer: fine) {
       .ac-row:hover { background: var(--muted); }
       .ac-row:hover .wk-tile { background: var(--btn-secondary-hover); color: var(--foreground); }
-      .ac-row:hover .ac-resolve, .ac-row:focus-visible .ac-resolve, .ac-row.menu-on .ac-resolve { opacity: 1; pointer-events: auto; }
     }
-    .ac-row.menu-on { background: var(--muted); }
     .ac-row.read .ac-gap b { color: var(--muted-fg); }
     .ac-row.read { opacity: .7; }
-    .ac-rmenu { top: calc(100% - 4px); right: 6px; min-width: 230px; cursor: default; }
-    .ac-row.menu-on { z-index: 5; }
     .ac-mo { margin: 12px 6px 4px; font-size: 12px; font-weight: 600; color: var(--text-muted); }
     .ac-mo:first-child { margin-top: 6px; }
     .ac-caught { display: flex; align-items: center; gap: 12px; padding: 14px 6px; }
@@ -2550,7 +2546,6 @@
       -webkit-tap-highlight-color: transparent; transition: background .15s, color .15s, border-color .15s; }
     @media (hover: hover) { .de-chip:hover { color: var(--foreground); } }
     .de-chip[aria-checked="true"] { background: var(--foreground); border-color: var(--foreground); color: var(--background); }
-    #deDisputeOther { margin-top: 4px; }
     /* Report a Bug */
     .email-bug { display: flex; flex-direction: column; gap: 8px; }
     .email-bug-desc { height: auto; min-height: 96px; padding: 10px 14px; line-height: 1.5; resize: vertical; }
@@ -2677,7 +2672,7 @@
     .de-note-wrap textarea:focus, #futureDayReason:focus { box-shadow: inset 0 0 0 2.5px rgba(9,9,11,.10); }
     .dark .de-note-wrap textarea:focus, .dark #futureDayReason:focus { box-shadow: inset 0 0 0 2.5px rgba(250,250,250,.10); }
     /* Update Entry note: a lighter fill and a visible outline so it reads as a field; focus lifts the outline to a lighter grey (not white); the caret blinks in the text colour. */
-    #dayEditOverlay .de-note-wrap textarea { background: color-mix(in srgb, var(--foreground) 7%, var(--card)); box-shadow: inset 0 0 0 1px var(--input); caret-color: var(--foreground); }
+    #dayEditOverlay .de-note-wrap textarea { background: color-mix(in srgb, var(--foreground) 7%, var(--surface-lift)); box-shadow: inset 0 0 0 1px var(--input); caret-color: var(--foreground); }
     #dayEditOverlay .de-note-wrap textarea:focus, .dark #dayEditOverlay .de-note-wrap textarea:focus { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--input) 55%, var(--foreground)); }
     /* Future plan CTA — slides in when a chip is selected */
     .future-plan-cta { overflow: hidden; max-height: 0; opacity: 0;
@@ -3787,7 +3782,6 @@
     .email-modal { padding: 14px !important; }
     .email-modal-sep { margin: 12px -14px 14px; }
     .de-email-page { padding: 14px; }
-    .td-panel { padding: 14px; }
     .ob-head { padding: 14px 14px 0; }
     .ob-body { padding: 0 14px 14px; }
     .ob-foot { padding: 14px; }
@@ -3797,7 +3791,6 @@
        bar), with room at the top for the grab pill. */
     @media (max-width: 640px) {
       :is(#emailModalOverlay, #whatsNewOverlay) .email-modal { padding: 8px 14px calc(14px + env(safe-area-inset-bottom)) !important; }
-      .td-panel { padding: 6px 14px calc(14px + env(safe-area-inset-bottom)); }
       .ios-install-sheet { padding: 0 14px calc(14px + env(safe-area-inset-bottom)); }
     }
     /* ── Product Tour and tips (Driver.js, lib/driver.css underneath) ──────
@@ -4045,7 +4038,9 @@
     /* ── Week card feed (#55, approved 2026-11-15) ── */
     .wk-card { position: relative; overflow: visible; }   /* the calendar popover hangs below the header */
     .wf-head { position: relative; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-    .wf-trigger { display: inline-flex; align-items: center; gap: 8px; height: 34px; padding: 0 10px; margin-left: -10px; border: 0; border-radius: 10px; background: transparent;
+    .wf-title { margin: 0; font-size: 18px; font-weight: 600; letter-spacing: -.01em; color: var(--foreground); }
+    .wf-acts { display: flex; align-items: center; gap: 6px; }
+    .wf-trigger { display: inline-flex; align-items: center; gap: 8px; height: 34px; padding: 0 10px; margin-right: -6px; border: 0; border-radius: 10px; background: transparent;
       color: var(--foreground); font: 500 13px var(--font); cursor: pointer; transition: background .14s; }   /* same type as the Today button */
     .wf-trigger:hover, .wf-trigger[aria-expanded="true"] { background: var(--muted); }
     .wf-trigger > svg:first-child { width: 16px; height: 16px; color: var(--muted-fg); }
@@ -4057,9 +4052,11 @@
     .wf-wrap { position: relative; }
     .wf-feed { position: relative; height: min(460px, 62vh); padding-top: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none; outline: none; }
     .wf-feed::-webkit-scrollbar { display: none; }
-    .wf-wh { position: sticky; top: 0; z-index: 2; display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 14px 16px 8px; background: var(--card); }
-    .wf-wt { font-size: 18px; font-weight: 600; color: var(--foreground); }
-    .wf-wr { font-size: 13px; color: var(--muted-fg); font-variant-numeric: tabular-nums; }
+    /* Week break (#62): not sticky (the calendar button names the week); the date range and a hairline. */
+    .wf-wh { display: flex; align-items: center; gap: 10px; padding: 14px 16px 6px 12px; }
+    .wf-wh::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+    .wf-wr { font-size: 12px; font-weight: 600; letter-spacing: .02em; color: var(--text-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .wf-week:first-child .wf-wh { padding-top: 6px; }
     .wk-row.hl, .wf-feed .wk-row.today { background: var(--muted); }   /* today rule: today always in its hover look */
     .wk-row.is-weekend .wk-type-lbl { color: var(--muted-fg); }
     .wk-chip.is-extra { color: var(--success); background: color-mix(in srgb, var(--success) 14%, var(--card)); }
@@ -4116,7 +4113,7 @@
        the picked one takes its day-type colour. */
     .modal-override-row.de-type { position: relative; isolation: isolate; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 2px;
       padding: 3px; border-radius: 12px; background: var(--muted); border: 1px solid var(--border); flex-wrap: nowrap; }
-    .de-type .de-type-pill { position: absolute; z-index: 0; top: 3px; bottom: 3px; left: 0; width: 0; border-radius: 9px; background: var(--card);
+    .de-type .de-type-pill { position: absolute; z-index: 0; top: 3px; bottom: 3px; left: 0; width: 0; border-radius: 9px; background: var(--surface-lift);
       box-shadow: 0 1px 2px rgba(0,0,0,.08), 0 0 0 1px var(--border); transition: transform .32s var(--ease-sheet), width .32s var(--ease-sheet); }
     .dark .de-type .de-type-pill { background: var(--btn-secondary-hover); }
     .de-type .modal-override-btn { position: relative; z-index: 1; height: auto; min-width: 0; padding: 9px 2px 8px; border: 0; border-radius: 9px;
@@ -4128,7 +4125,7 @@
     .de-type .modal-override-btn span { overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
     .de-type .modal-override-btn:focus-visible { outline: 2px solid var(--ring); outline-offset: -2px; }
     /* Started / Left at: one grouped card, a row each; the clock opens the wheel. */
-    .de-rows { display: flex; flex-direction: column; border: 1px solid var(--border); border-radius: 12px; background: var(--card); overflow: hidden; }
+    .de-rows { display: flex; flex-direction: column; border: 1px solid var(--border); border-radius: 12px; background: var(--surface-lift); overflow: hidden; }
     .de-row { display: flex; align-items: center; gap: 8px; min-height: 48px; padding: 0 6px 0 12px; cursor: text; }
     .de-row + .de-row { border-top: 1px solid var(--border); }
     .de-row-k { display: inline-flex; align-items: center; gap: 8px; flex: none; width: 92px; font-size: 13px; font-weight: 500; color: var(--foreground); }
@@ -4143,10 +4140,10 @@
     .de-note-wrap .de-sec-label { margin-bottom: 6px; }
     /* Raise Dispute */
     .de-intro { margin: 0 2px; font-size: 13px; line-height: 1.45; color: var(--muted-fg); }
-    .de-rec { display: flex; flex-direction: column; gap: 2px; padding: 12px 14px; border-radius: 12px; background: var(--card); border: 1px solid var(--border); }
+    .de-rec { display: flex; flex-direction: column; gap: 2px; padding: 12px 14px; border-radius: 12px; background: var(--surface-lift); border: 1px solid var(--border); }
     .de-rec span { font-size: 12px; color: var(--text-muted); }
     .de-rec b { font-size: 14px; font-weight: 600; color: var(--foreground); font-variant-numeric: tabular-nums; }
-    .de-chips.de-reasons { display: flex; flex-direction: column; gap: 0; border: 1px solid var(--border); border-radius: 12px; background: var(--card); overflow: hidden; }
+    .de-chips.de-reasons { display: flex; flex-direction: column; gap: 0; border: 1px solid var(--border); border-radius: 12px; background: var(--surface-lift); overflow: hidden; }
     .de-reasons .de-chip { display: flex; align-items: center; justify-content: space-between; width: 100%; height: 46px; padding: 0 14px; border: 0; border-radius: 0;
       background: transparent; color: var(--foreground); font: 500 13px var(--font); text-align: left; cursor: pointer; }
     .de-reasons .de-chip + .de-chip { border-top: 1px solid var(--border); }
@@ -4173,7 +4170,7 @@
     body.rail-on #dayEditOverlay .sheet-close:hover { background: var(--btn-secondary-hover); color: var(--foreground); }
     body.rail-on #dayEditOverlay .sheet-close svg { width: 15px; height: 15px; }
     /* Close: the panel's own colour at rest, one outline in every state, a lighter fill on hover. */
-    body.rail-on #dayEditOverlay .sheet-close { background: var(--card); box-shadow: inset 0 0 0 1px var(--border); }
+    body.rail-on #dayEditOverlay .sheet-close { background: var(--surface-lift); box-shadow: inset 0 0 0 1px var(--border); }
     body.rail-on #dayEditOverlay .sheet-close:hover { background: var(--muted); }
     body.rail-on #dayEditDeleteBtn { right: 48px !important; }
     .notif-head-actions { display: flex; align-items: center; gap: 8px; }
@@ -4319,10 +4316,6 @@
   <div class="view active" id="viewHome">
     <main class="page">
 
-      <!-- Hidden anchor elements kept for tickHeader() compatibility -->
-      <div style="display:none">
-        <span id="dayClock"></span><span id="dayName"></span><span id="dayDate"></span>
-      </div>
 
       <!-- Notification permission warning -->
       <div class="ib" data-tone="warning" data-action="label" data-toggle id="notifPermBar">
@@ -4337,81 +4330,29 @@
         <pattern id="wsHatch" width="6" height="6" patternUnits="userSpaceOnUse"><path d="M-1 1l2-2M0 6l6-6M5 7l2-2"/></pattern>
         <pattern id="wsHatchHot" width="6" height="6" patternUnits="userSpaceOnUse"><path d="M-1 1l2-2M0 6l6-6M5 7l2-2"/></pattern>
       </defs></svg>
-      <!-- Selected day context — greeting hidden, clock remains -->
-      <div class="sel-day-ctx">
-        <div class="sel-day-left">
-          <div class="sel-day-rel" id="selDayRel">Today</div>
-        </div>
-        <div class="sel-day-clock" id="selDayClock">—</div>
-      </div>
-
       <!-- Unified card: week selector + divider + today card -->
       <div id="homeCard">
 
-      <!-- Day selector (Mon–Fri of current week) -->
-      <div class="this-week-wrap">
-        <div class="this-week-header">
-          <button class="this-week-label-btn" id="thisWeekLabel" data-on-click="h9f54862d09" type="button">
-            <span id="thisWeekLabelText">This Week</span>
-            <svg class="tw-chevron" width="10" height="10" viewBox="0 0 24 24" fill="none">
-              <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-          </button>
-          <div class="this-week-nav">
-            <button class="this-week-btn" id="weekPrevBtn" data-on-click="h776b844886" title="Previous day">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path fill-rule="evenodd" clip-rule="evenodd" d="M16.7071 3.29289C17.0976 3.68342 17.0976 4.31658 16.7071 4.70711L9.41421 12L16.7071 19.2929C17.0976 19.6834 17.0976 20.3166 16.7071 20.7071C16.3166 21.0976 15.6834 21.0976 15.2929 20.7071L7.29289 12.7071C6.90237 12.3166 6.90237 11.6834 7.29289 11.2929L15.2929 3.29289C15.6834 2.90237 16.3166 2.90237 16.7071 3.29289Z" fill="currentColor"/></svg>
-            </button>
-            <button class="this-week-btn" id="weekNextBtn" data-on-click="hde52b3e389" title="Next day" disabled>
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path fill-rule="evenodd" clip-rule="evenodd" d="M7.29289 3.29289C7.68342 2.90237 8.31658 2.90237 8.70711 3.29289L16.7071 11.2929C17.0976 11.6834 17.0976 12.3166 16.7071 12.7071L8.70711 20.7071C8.31658 21.0976 7.68342 21.0976 7.29289 20.7071C6.90237 20.3166 6.90237 19.6834 7.29289 19.2929L14.5858 12L7.29289 4.70711C6.90237 4.31658 6.90237 3.68342 7.29289 3.29289Z" fill="currentColor"/></svg>
-            </button>
-          </div>
-        </div>
-        <div class="ds-fade-wrap">
-          <div class="day-selector" id="daySelectorRow"><button class="day-sel-btn has-data"><span class="dsel-name">Mon</span><span class="dsel-num">13</span></button><button class="day-sel-btn has-data"><span class="dsel-name">Tue</span><span class="dsel-num">14</span></button><button class="day-sel-btn active"><span class="dsel-name">Wed</span><span class="dsel-num">15</span></button><button class="day-sel-btn future"><span class="dsel-name">Fri</span><span class="dsel-num">16</span></button><button class="day-sel-btn future"><span class="dsel-name">Fri</span><span class="dsel-num">17</span></button></div>
-        </div>
-      </div>
-
-      <!-- Divider between week selector and today card / future plan -->
-      <div class="home-divider"></div>
-
-      <!-- Future day plan section -->
-      <div id="futureDayPlan" style="display:none">
-        <div class="card" style="padding:14px;display:flex;flex-direction:column;gap:16px">
-          <!-- Question -->
-          <div style="font-size:14px;font-weight:600;color:var(--foreground)" id="futureDayQuestion">Any plans for this day?</div>
-          <!-- Plan type pills -->
-          <div style="display:flex;gap:8px;justify-content:flex-start;flex-wrap:wrap" id="futureDayChips"></div>
-          <!-- Reason input (shown after a plan is picked) -->
-          <div id="futureDayReasonWrap" style="display:none">
-            <textarea id="futureDayReason" placeholder="Add a reason (optional)" rows="2"
-              data-on-input="hc55a156350"></textarea>
-          </div>
-          <!-- CTA buttons — hidden until a chip is selected -->
-          <div id="futurePlanBtnWrap" class="future-plan-cta">
-            <div class="future-plan-actions" id="futurePlanActions">
-              <button class="btn-secondary" id="futurePlanDiscardBtn" style="height:36px;padding:0 16px;border-radius:10px;font-size:13px">Discard</button>
-              <button class="shift-start-btn" id="futurePlanBtn" style="font-size:13px;height:36px;border-radius:10px;padding:0 20px;width:auto">Looks Good</button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Today card -->
+      <!-- Today card (#61): about today only. Header = greeting + today's date, and the day-type menu. -->
       <div class="card result-card" id="resultCard">
-        <div class="rc-head">
-          <div class="rc-head-left">
-            <span class="section-label" id="rcDayLabel">Today</span>
-          </div>
-          <div style="display:flex;align-items:center;gap:10px">
-            <button class="rc-update-btn" id="rcUpdateEntryBtn" data-on-click="hf5017a9390">
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none"><path fill-rule="evenodd" clip-rule="evenodd" d="M18.4324 4C18.2266 4 18.0227 4.04055 17.8325 4.11933C17.6423 4.19811 17.4695 4.31358 17.3239 4.45914L5.25659 16.5265L4.42524 19.5748L7.47353 18.7434L19.5409 6.67608C19.6864 6.53051 19.8019 6.3577 19.8807 6.16751C19.9595 5.97732 20 5.77348 20 5.56761C20 5.36175 19.9595 5.1579 19.8807 4.96771C19.8019 4.77752 19.6864 4.60471 19.5409 4.45914C19.3953 4.31358 19.2225 4.19811 19.0323 4.11933C18.8421 4.04055 18.6383 4 18.4324 4ZM17.0671 2.27157C17.5 2.09228 17.9639 2 18.4324 2C18.9009 2 19.3648 2.09228 19.7977 2.27157C20.2305 2.45086 20.6238 2.71365 20.9551 3.04493C21.2864 3.37621 21.5492 3.7695 21.7285 4.20235C21.9077 4.63519 22 5.09911 22 5.56761C22 6.03611 21.9077 6.50003 21.7285 6.93288C21.5492 7.36572 21.2864 7.75901 20.9551 8.09029L8.69996 20.3454C8.57691 20.4685 8.42387 20.5573 8.25597 20.6031L3.26314 21.9648C2.91693 22.0592 2.54667 21.9609 2.29292 21.7071C2.03917 21.4534 1.94084 21.0831 2.03526 20.7369L3.39694 15.7441C3.44273 15.5762 3.53154 15.4231 3.6546 15.3001L15.9097 3.04493C16.241 2.71365 16.6343 2.45086 17.0671 2.27157Z" fill="currentColor"/></svg>
-              Update Entry
+        <div class="td-hd">
+          <div class="td-hd-txt"><h2 class="td-hd-title" id="tdGreet">Good morning!</h2><p class="td-hd-date" id="tdDate"></p></div>
+          <div class="dt-wrap" id="dtWrap">
+                        <button type="button" class="rc-info-btn dt-btn" id="rcInfoBtn" data-plan="" data-on-click="hfba6e822e4" aria-haspopup="menu" aria-expanded="false" aria-controls="dtMenu" aria-label="Today is a Full Day. Change">
+              <span class="dt-btn-ic" id="rcDayTypeIcon" aria-hidden="true"></span><span id="rcDayTypeLabel">Full Day</span>
+              <svg class="dt-chev" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
             </button>
-            <span class="rc-head-date" id="rcHeadDate"></span>
-            <div id="leaveChip" style="font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted-fg)">
-              <span id="leaveAt">—</span>
-            </div>
+            <div class="ac-menu dt-menu" id="dtMenu" role="menu" aria-label="Today is a"></div>
           </div>
+        </div>
+        <div class="dt-confirm" id="dtConfirm" role="group" aria-labelledby="dtcTitle" hidden>
+          <div class="dtc-h"><span class="dtc-ic" id="dtcIcon" aria-hidden="true"></span><div>
+            <p class="dtc-t" id="dtcTitle">Take today off?</p>
+            <p class="dtc-d">Today won't need any hours. Your week's target adjusts.</p></div></div>
+          <label class="dtc-l" id="dtcNoteLabel" for="dtcNote">Reason</label>
+          <textarea id="dtcNote" rows="2" maxlength="240"></textarea>
+          <p class="dtc-hint">Needed to confirm. It shows on the day and in your emails.</p>
+          <div class="dtc-a"><button type="button" class="btn-secondary" id="dtcCancel">Cancel</button><button type="button" class="btn btn-primary" id="dtcOk" disabled>Take Leave</button></div>
         </div>
         <div class="rc-body" id="rcBody">
           <!-- Skeleton shown on initial page load — JS hides it after first render/renderEmptyState -->
@@ -4433,15 +4374,10 @@
               <button class="rc-pair-tab rc-pair-tab-active" data-on-click="ha2f6205fb2">Clock</button>
               <button class="rc-pair-tab" data-on-click="h0b009e2a27">Hours</button>
             </div>
-            <!-- Today's day type; opens the Today panel (day types + today's numbers) -->
-            <button class="rc-info-btn" id="rcInfoBtn" data-plan="fullday"
-              data-on-click="hfba6e822e4" aria-haspopup="dialog"
-              title="Day type and today's numbers" aria-label="Day type: Full Day">
-              <span id="rcDayTypeLabel">Full Day</span>
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-            </button>
           </div>
           <div id="rcKpiGroup" style="display:flex;flex-direction:column;align-items:center;width:100%;gap:8px">
+          <!-- Time left (#61, "Headline above"): the number to watch, counted by the second. -->
+          <div class="rc-lead" id="rcLead" aria-live="off" hidden><b class="rc-lead-n" id="rcLeadNum"></b><span class="rc-lead-c" id="rcLeadCap"></span></div>
           <div class="rc-numbers">
             <div class="rc-left-col">
               <div class="rc-worked" id="rcWorked">—</div>
@@ -4458,12 +4394,14 @@
           </div>
           <div class="pb-guide" id="pbGuide" aria-hidden="true"></div>
           <div class="pb-tip" id="pbTip" aria-hidden="true"></div>
-          <div class="rc-desc-row" id="rcDescRow">
-            <span class="rc-desc-right" id="rcDescRight"></span>
           </div>
-          </div>
+          <!-- Not started (#61, C2 Stack): a fixed drawing (never changes with the clock),
+               then the one line that does. -->
           <div id="rcEmptyState" style="display:none">
-            <span class="rc-empty-text">Start now to leave by <span id="rcEmptyLeaveTime">—</span>.</span>
+            <div class="es-stack" aria-hidden="true"><span class="es-card b2"></span><span class="es-card b1"></span>
+              <span class="es-card top"><span class="es-sk w60"></span><span class="es-sk w35"></span><span class="es-skbar"></span></span></div>
+            <p class="es-t">Your day begins when you do.</p>
+            <p class="rc-empty-text">Start now to leave by <span id="rcEmptyLeaveTime">—</span>.</p>
           </div>
           <!-- Day summary / Update Entry — sits ABOVE the time input so the
                summary reads before the input that edits it -->
@@ -4579,26 +4517,6 @@
       </div><!-- /homeCard -->
 
 
-      <!-- Ongoing session banner — sits right below the home card, outside its
-           chrome, so it always reads as "the card's own status" rather than being
-           tucked inside a card region that can itself be hidden by weekend/past-day
-           layout switches. Shown whenever a session is running AND the user is
-           browsing a day other than Today (past, future, or weekend), so it's never
-           possible to lose track of a live session while looking at history.
-           Dismissing (X) silences it only until the user returns to Today —
-           navigating away again after that re-arms it. -->
-      <div id="rcRunningElsewhere" style="display:none">
-        <div class="rc-running-elsewhere-card">
-          <div class="rc-running-elsewhere-text">
-            <span class="rc-running-elsewhere-dot"></span>
-            <span id="rcRunningElsewhereLabel">Session running</span>
-          </div>
-          <button class="rc-running-elsewhere-close" data-on-click="h721b8ac2df" title="Dismiss" aria-label="Dismiss">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-          </button>
-        </div>
-      </div>
-
       <div id="homeBottomSpacer" aria-hidden="true"></div>
       </div><!-- /homeMain -->
 
@@ -4612,13 +4530,17 @@
       <!-- Week card (main analytics content) -->
       <div class="card wk-card" id="wkCardAnalytics">
         <!-- Week card feed (#55): the header names the week in the middle of the feed and opens a calendar. -->
+        <!-- Week card (#62, approved 2026-11-19): title left; Today (only while today's row is out of view) and the calendar right. -->
         <div class="rc-head wf-head">
+          <h2 class="wf-title">Your Activity</h2>
+          <div class="wf-acts">
+          <button type="button" class="wf-today" id="wfToday" hidden>Today</button>
           <button class="wf-trigger" id="wkNavLabelBtn" type="button" aria-haspopup="dialog" aria-expanded="false" aria-controls="wfCal">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/></svg><span id="wkNavLabel">This Week</span>
             <svg class="tw-chevron" width="10" height="10" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </button>
-          <button type="button" class="wf-today" id="wfToday" hidden>Today</button>
           <div class="wf-cal" id="wfCal" role="dialog" aria-label="Pick a day" hidden></div>
+          </div>
         </div>
         <div class="wf-wrap" id="wfWrap"><div class="wk-rows wf-feed" id="wkRows" tabindex="-1"><!-- filled by renderHistory() --></div></div>
         <div class="wk-footer" id="wkFooter">
@@ -4800,7 +4722,7 @@
               </div>
               <span class="sc-val"><span id="scValue">Start of the Month</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></span>
             </div>
-            <label class="pay-switch">
+            <label class="pay-switch" for="inpPenRemind">
               <span>
                 <span class="form-label pay-title" style="display:flex"><span id="penRemindLabel">Penalty Reminders</span><span class="info-wrap"><button type="button" class="info-tip" id="scInfo" aria-label="About the salary cycle" aria-describedby="scTip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg></button><span class="info-tip-pop" role="tooltip" id="scTip"></span></span></span>
                 <span class="form-sub" style="display:block">A nudge in the cycle's last week, at a calm moment.</span>
@@ -6235,7 +6157,11 @@
             <button type="button" class="de-chip" role="radio" aria-checked="false" data-reason="glitch">Technical glitch<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></button>
             <button type="button" class="de-chip" role="radio" aria-checked="false" data-reason="notupdated">Not updated<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></button>
           </div>
-          <input class="field-input" id="deDisputeOther" type="text" maxlength="200" placeholder="Or write your own reason" aria-label="Your own reason">
+          <!-- Same field as the Update Entry note: label above, the note's textarea look (user, 2026-11-19). -->
+          <div class="de-note-wrap visible" id="deDisputeOtherWrap">
+            <div class="de-sec-label" id="deDisputeOtherLabel">Or write your own reason</div>
+            <textarea id="deDisputeOther" rows="2" maxlength="200" placeholder="Write a reason (optional)" aria-labelledby="deDisputeOtherLabel"></textarea>
+          </div>
         </div>
         <div class="dialog-foot-row de-foot">
           <button class="btn btn-cancel" id="deDisputeCancel">Cancel</button>
@@ -6246,22 +6172,6 @@
       <!-- The Email Draft sheet's content is moved in here while it's shown. -->
       <div class="de-page de-email-page" id="deEmailPage" hidden></div>
     </div>
-  </div>
-
-  <!-- ── Today panel: day types + today's numbers. Popover on wider screens,
-       bottom sheet on phones (the scrim only shows there). ── -->
-  <div class="td-scrim" id="tdScrim" data-on-click="hfbcc321d43"></div>
-  <div class="td-panel" id="tdPanel" role="dialog" aria-modal="true" aria-label="Today">
-    <p class="td-head">Today is a…</p>
-    <div class="td-types td-seg" id="tdTypes" role="radiogroup" aria-label="Day type">
-      <span class="td-pill" aria-hidden="true"></span>
-      <button type="button" class="td-type" data-plan="fullday" role="radio" data-on-click="h6111ed02c2"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 20V4a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/><rect width="20" height="14" x="2" y="6" rx="2"/></svg><span>Full Day</span></button>
-      <button type="button" class="td-type" data-plan="halfday" role="radio" data-on-click="ha3743ad448"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 10V2"/><path d="m4.93 10.93 1.41 1.41"/><path d="M2 18h2"/><path d="M20 18h2"/><path d="m19.07 10.93-1.41 1.41"/><path d="M22 22H2"/><path d="m16 6-4 4-4-4"/><path d="M16 18a4 4 0 0 0-8 0"/></svg><span>Half Day</span></button>
-      <button type="button" class="td-type" data-plan="leave" role="radio" data-on-click="h1c1853eeb9"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/></svg><span>On Leave</span></button>
-      <button type="button" class="td-type" data-plan="holiday" role="radio" data-on-click="ha06142f505"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5.8 11.3 2 22l10.7-3.79"/><path d="M4 3h.01"/><path d="M22 8h.01"/><path d="M15 2h.01"/><path d="M22 20h.01"/><path d="m22 2-2.24.75a2.9 2.9 0 0 0-1.96 3.12c.1.86-.57 1.63-1.45 1.63h-.38c-.86 0-1.6.6-1.76 1.44L14 10"/><path d="m22 13-.82-.33c-.86-.34-1.82.2-1.98 1.11c-.11.7-.72 1.22-1.43 1.22H17"/><path d="m11 2 .33.82c.34.86-.2 1.82-1.11 1.98C9.52 4.9 9 5.52 9 6.23V7"/><path d="M11 13c1.93 1.93 2.83 4.17 2 5-.83.83-3.07-.07-5-2-1.93-1.93-2.83-4.17-2-5 .83-.83 3.07.07 5 2Z"/></svg><span>Holiday</span></button>
-    </div>
-    <div class="td-kpis td-line" id="tdKpis" aria-live="polite"></div>
-    <button type="button" class="btn btn-primary td-confirm" id="tdConfirm" data-on-click="h3d8c4a4b3a" disabled>Confirm</button>
   </div>
 
   <!-- Week Plan Modal (start-of-week overview) -->
@@ -6417,10 +6327,8 @@
             <input class="field-input" id="emailCc" type="email" multiple inputmode="email" autocomplete="email" placeholder="Optional">
             <label class="email-label" for="emailManager">Manager's name</label>
             <input class="field-input" id="emailManager" type="text" autocomplete="off" placeholder="Optional">
-            <label class="email-label" for="emailReason">Reason</label>
-            <input class="field-input" id="emailReason" type="text" autocomplete="off" placeholder="Optional, e.g. a doctor's appointment">
           </div>
-          <div class="email-hint">To, CC and the manager's name are saved to your account for all your devices. The reason is only for this email.</div>
+          <div class="email-hint">To, CC and the manager's name are saved to your account for all your devices.</div>
           <div class="email-actions">
             <button type="button" class="btn btn-secondary" id="emailEditCancel">Cancel</button>
             <button type="button" class="btn btn-primary" id="emailEditSave"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg>Save</button>

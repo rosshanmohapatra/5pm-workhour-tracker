@@ -306,7 +306,7 @@
 
     // ── FORMAT UTILS ───────────────────────────────────
     const p2 = n => String(n).padStart(2, '0');
-    function clock(d) {
+    function clockHms(d) {
       let h = d.getHours(), m = d.getMinutes(), s = d.getSeconds();
       if (cfg().use24h) return `${p2(h)}:${p2(m)}:${p2(s)}`;
       const ap = h >= 12 ? 'PM' : 'AM'; h = h % 12 || 12;
@@ -809,7 +809,6 @@
         setCalcBtnState('start');
         el('shiftInputRow').classList.remove('active-state', 'hidden');
         el('shiftActiveLabel').textContent = '—';
-        renderDaySelector();
         renderEmptyState();
       } else {
         // clearLogin() called inside closeCheckoutModal
@@ -855,7 +854,6 @@
       el('shiftInputRow').classList.remove('active-state', 'hidden');
       el('shiftActiveLabel').textContent = '—';
       el('autostopBanner').classList.remove('show');
-      renderDaySelector();
       renderEmptyState();
     }
 
@@ -884,14 +882,8 @@
     function _clockNow() { return _tzNow((cfg().tzName || '').trim(), nowTz()); }
 
     function tickHeader() {
-      const n = nowTz();
-      const timeStr = clock(n);
-      el('dayName').textContent  = FULL_DAYS_EN[n.getDay()];
-      el('dayDate').textContent  = `${MONTHS[n.getMonth()]} ${n.getDate()}`;
-      el('dayClock').textContent = timeStr;
-      const clkEl = el('selDayClock');
-      if (clkEl) clkEl.textContent = clock(_clockNow());
-      _setTodayDateChip();
+      _paintTodayHead();
+      if (el('futureTip')?.classList.contains('show')) _syncFutureTip();
     }
 
 
@@ -1186,14 +1178,14 @@
       if (weekKey === 'mfa:low') { switchTab('settings'); openMfaLow(); return; }   // Home notice: backup codes left
       switchTab('analytics'); // one-page layout: Home, with Penalties freshly rendered
       // A sample notification names its penalty directly.
-      if (weekKey.startsWith('pen:')) { openEmailModal(weekKey.slice(4)); return; }
+      if (weekKey.startsWith('pen:')) { _acOpenDispute(weekKey.slice(4)); return; }
       // Several penalties: take them to the Penalty card.
       if (!weekKey) { el('penaltiesList')?.closest('.analytics-card')?.scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
       const end = new Date(weekKey + 'T00:00'); end.setDate(end.getDate() + 6);
       const endKey = dateKey(end);
       const hits = _penaltyData.filter(p => !_discardedPenalties.has(p.key) &&
         (p.type === 'weekly' ? p.key === weekKey : p.key >= weekKey && p.key <= endKey));
-      if (hits.length === 1) { openEmailModal(hits[0].key); return; }
+      if (hits.length === 1) { _acOpenDispute(hits[0].key); return; }
       el('penaltiesList')?.closest('.analytics-card')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
 
@@ -1236,6 +1228,14 @@
     // that to login + hoursWorked, which is what the server row was derived from
     // anyway. Login already had this fallback; exit never did, which is why a day
     // could show its start but not its end.
+    function _logHms(log, which) {
+      if (!log) return '';
+      const at = hms => { const p = String(hms).split(':').map(Number); const d = new Date(); d.setHours(p[0] || 0, p[1] || 0, p[2] || 0, 0); return d; };
+      if (which === 'start') return log.loginTime ? clockHms(at(log.loginTime)) : (log.loginDisplay || '');
+      if (log.checkoutTime) return clockHms(at(log.checkoutTime));
+      if (log.loginTime && log.hoursWorked) return clockHms(new Date(at(log.loginTime).getTime() + Math.round(log.hoursWorked * 3600) * 1000));
+      return log.checkoutDisplay || '';
+    }
     function _checkoutDisplayFromLog(log) {
       if (!log) return '—';
       if (log.checkoutDisplay) return log.checkoutDisplay;
@@ -1310,29 +1310,6 @@
     // ── Week picker ──────────────────────────────────────────────────────────
     let _wpYear = 0, _wpMonth = 0, _wpContext = null; // null = overview, 'analytics' = dashboard
 
-    function openWeekPicker(triggerEl) {
-      if (triggerEl?.classList.contains('picker-open')) { closeWeekPicker(); return; }
-      // Opening from another picker's trigger never passes through closeWeekPicker, so
-      // the previous context (e.g. 'analytics') leaked in and drove this calendar.
-      el('wkNavLabelBtn')?.classList.remove('picker-open');
-      _wpContext = null;
-      triggerEl?.classList.add('picker-open');
-      // Open at the month of the currently selected day
-      const refDate = selectedDayKey && selectedDayKey !== '__wknd__'
-        ? new Date(selectedDayKey + 'T12:00')
-        : new Date();
-      _wpYear  = refDate.getFullYear();
-      _wpMonth = refDate.getMonth();
-      _wpRenderCal();
-      const overlay = el('wpPickerOverlay');
-      overlay.classList.add('open');
-      // Position below the trigger button (fall back to thisWeekLabel if not passed)
-      _wpPlace(triggerEl || el('thisWeekLabel'));
-      // Close on outside click
-      setTimeout(() => {
-        document.addEventListener('click', _wpOutsideClick, { once: true, capture: true });
-      }, 0);
-    }
     // Calendar popover: anchored under its trigger and kept on screen with
     // Floating UI's flip and shift, so a trigger near the edge of a phone
     // can't push it off. Shared by every place that opens the calendar.
@@ -1369,23 +1346,6 @@
       _wpContext = null;
     }
 
-    function openAnalyticsWeekPicker(triggerEl) {
-      if (triggerEl?.classList.contains('picker-open')) { closeWeekPicker(); return; }
-      el('thisWeekLabel')?.classList.remove('picker-open');
-      triggerEl?.classList.add('picker-open');
-      _wpContext = 'analytics';
-      const refKey = week(analyticsWeekOffset)[0]?.key;
-      const refDate = refKey ? new Date(refKey + 'T12:00') : new Date();
-      _wpYear  = refDate.getFullYear();
-      _wpMonth = refDate.getMonth();
-      _wpRenderCal();
-      const overlay = el('wpPickerOverlay');
-      overlay.classList.add('open');
-      _wpPlace(triggerEl);
-      setTimeout(() => {
-        document.addEventListener('click', _wpOutsideClick, { once: true, capture: true });
-      }, 0);
-    }
     function _wpPrevMonth() {
       _wpMonth--; if (_wpMonth < 0) { _wpMonth = 11; _wpYear--; }
       _wpRenderCal();
@@ -1455,10 +1415,7 @@
       }
     }
 
-    function _wpJumpToday() {
-      if (_wpContext === 'devDate') { clearDevDateOverride(); closeWeekPicker(); return; }
-      _wpSelectDay(todayKey());
-    }
+    function _wpJumpToday() { clearDevDateOverride(); closeWeekPicker(); }
 
     function _wpSelectDay(dayKey) {
       if (!dayKey) return;
@@ -1467,30 +1424,6 @@
         closeWeekPicker();
         return;
       }
-      if (_wpContext === 'analytics') {
-        const todayDate = new Date(todayKey() + 'T12:00');
-        const selDate   = new Date(dayKey + 'T12:00');
-        const todayMon  = todayDate.getTime() - ((todayDate.getDay() + 6) % 7) * 86400000;
-        const selMon    = selDate.getTime()   - ((selDate.getDay()   + 6) % 7) * 86400000;
-        analyticsWeekOffset = Math.min(0, Math.round((selMon - todayMon) / (7 * 86400000)));
-        renderAnalytics();
-        closeWeekPicker();
-        requestAnimationFrame(() => {
-          const flashRow = document.querySelector(`.wk-row[data-day-key="${dayKey}"]`);
-          if (flashRow) { flashRow.classList.remove('wk-row-flash'); void flashRow.offsetWidth; flashRow.classList.add('wk-row-flash'); }
-        });
-        return;
-      }
-      _dsUserNav = true;
-      const isFuture = new Date(dayKey + 'T12:00') > new Date() && dayKey !== todayKey();
-      const log = dayLog(dayKey);
-      const isOff = isWeekendKey(dayKey) || log?.override === 'holiday' || log?.override === 'leave';
-      // Weekends and off-days always route through selectDay (handles weekend/holiday card);
-      // future work days go through selectFutureDay (shows planning UI).
-      if (isFuture && !isOff) selectFutureDay(dayKey);
-      else selectDay(dayKey);
-      _syncOffsetFromKey(dayKey);
-      closeWeekPicker();
     }
     // ─────────────────────────────────────────────────────────────────────────
 
@@ -1552,7 +1485,11 @@
       const d = toDate(_tpHIdx, _tpMIdx, _tpApIdx);
       set.textContent = 'Set ' + short(d);
       const startPick = _tpTabMode ? _tpActiveTab === 'login' : _tpTargetId === 'tc-r7m2';
-      if (startPick) {
+      const future = startPick ? _futureStartMsg(d) : null;
+      set.disabled = !!future;
+      if (future) {
+        live.textContent = future;
+      } else if (startPick) {
         const eff = effSecs();
         live.innerHTML = eff > 0 ? `You can leave at <b>${short(new Date(d.getTime() + eff * 1000))}</b>` : '';
       } else if (_tpTabMode && _tpActiveTab === 'logout') {
@@ -1725,97 +1662,126 @@
 
 
 
-    // Today's numbers. Fixed rows lead (Recommended, Worked Duration) and the
-    // ones that come and go sit last (Remaining, Available Surplus, then any
-    // extras), so switching Full Day and Half Day changes values, never positions.
-    // Leave and Holiday have no target, so only Worked Duration shows.
-    // `plan` previews a type picked but not yet confirmed.
-    // Today panel's one line: what the picked type means for today.
-    function _tdBuildContent(plan = _tdCurrentPlan()) {
-      const c = cfg(), daily = c.dailyH * 3600;
-      if (plan === 'leave' || plan === 'holiday') return `<b>No hours today.</b> Your week adjusts.`;
-      const eff = plan === _tdCurrentPlan() ? effSecs()
-        : plan === 'halfday' ? daily / 2
-        : _weeklyEffSecs();
-      const worked = loginDate
-        ? Math.max(0, Math.floor((new Date() - loginDate) / 1000)) + _sessionAccSecs
-        : _sessionAccSecs;
-      if (eff > 0 && worked >= eff) return `<b>You're done for today.</b>`;
-      const leave = new Date(Date.now() + Math.max(0, eff - worked) * 1000);
-      return `You can leave at <b>${short(leave)}</b>`;
-    }
-
-    // The day-type button opens the Today panel, a centred modal over a blurred page.
-    let _tdPicked = null;
-    function _tdToggle(event) {
-      if (event) { event.stopPropagation(); event.preventDefault(); }
-      const panel = el('tdPanel');
-      if (panel.classList.contains('open')) { closeTodayDetails(); return; }
-      _tdPicked = _tdCurrentPlan();
-      _tdSyncPlan();
-      el('tdKpis').style.height = '';
-      el('tdKpis').innerHTML = _tdBuildContent();
-      // Values become NumberFlow at once (no roll), so the first pick animates.
-      // Plain text until the library arrives, then upgraded in place.
-      const upgrade = () => el('tdKpis').querySelectorAll('.td-row-val').forEach(v => { if (!v._nf) _odoSet(v, v.dataset.odo ?? v.textContent); });
-      upgrade();
-      _loadLib('numberflow').then(upgrade, () => {});
-      el('tdScrim').classList.add('open');
-      document.documentElement.classList.add('td-sheet-open'); // no page scroll or pull-to-refresh behind it
-      panel.classList.add('open');
-    }
-
-    function closeTodayDetails() {
-      const panel = el('tdPanel');
-      if (panel) { panel.classList.remove('open', 'dragging'); panel.style.transform = ''; }
-      el('tdScrim')?.classList.remove('open');
-      document.documentElement.classList.remove('td-sheet-open');
-    }
-    document.addEventListener('keydown', e => {
-      if (e.key === 'Escape' && el('tdPanel')?.classList.contains('open')) closeTodayDetails();
-    });
-
-    // Phones: drag down to close (shared iOS-style sheet drag, lib/pages/sheet.js).
-    window.Sheet?.attach(el('tdPanel'), {
-      close: closeTodayDetails,
-      isOpen: () => el('tdPanel').classList.contains('open'),
-    });
-
-    // ── Day type (Full Day / Half Day / On Leave / Holiday) ──
-    const _TD_PLAN_LABELS = { fullday: 'Full Day', halfday: 'Half Day', leave: 'On Leave', holiday: 'Holiday' };
-
+    // ── Day type menu (#61, approved 2026-11-19) ──
+    // The button in the Today card's header shows today's type; it opens a menu:
+    // Full Day · Half Day (halves today's target at once) · Leave Office · Holiday
+    // (both ask for a note inside the card first). A day off can't be set once
+    // today has hours: end or clear them first.
+    const _TD_PLAN_LABELS = { fullday: 'Full Day', halfday: 'Half Day', leave: 'Leave Office', holiday: 'Holiday' };
     function _tdCurrentPlan() {
       const ov = dayLog(todayKey())?.override;
       return ov === 'halfday' || ov === 'leave' || ov === 'holiday' ? ov : 'fullday';
     }
-
-    // The button shows today's type in its colour; the panel marks the picked one.
+    // Today already has hours: a running or paused session, or hours saved for today.
+    function _tdHasHours() {
+      const l = dayLog(todayKey()) || {};
+      return !!loginDate || _sessionAccSecs > 0 || (l.hoursWorked > 0 && l.override !== 'leave' && l.override !== 'holiday');
+    }
+    // What each menu item says under its name, or why it's off. Pure, for tests.
+    function _tdItemState(type, current, hasHours) {
+      const off = (type === 'leave' || type === 'holiday') && type !== current && hasHours;
+      const sub = off ? "End or clear today's hours first"
+        : type === 'halfday' ? "Halves today's target"
+        : type === 'leave' || type === 'holiday' ? 'Asks for a note first' : '';
+      return { off, sub };
+    }
+    // The button follows today's type: its icon, colour and name.
     function _tdSyncPlan() {
       const plan = _tdCurrentPlan(), btn = el('rcInfoBtn');
-      if (btn && btn.dataset.plan !== plan) {
-        btn.dataset.plan = plan;
-        el('rcDayTypeLabel').textContent = _TD_PLAN_LABELS[plan];
-        btn.setAttribute('aria-label', 'Day type: ' + _TD_PLAN_LABELS[plan]);
-      }
-      const picked = el('tdPanel')?.classList.contains('open') && _tdPicked ? _tdPicked : plan;
-      el('tdTypes')?.querySelectorAll('.td-type').forEach(t => {
-        t.classList.toggle('active', t.dataset.plan === picked);
-        t.setAttribute('aria-checked', String(t.dataset.plan === picked));
+      if (!btn || btn.dataset.plan === plan) return;
+      const t = DAY_TYPES[plan];
+      btn.dataset.plan = plan;
+      btn.style.setProperty('--dt', t.tone ? `var(--${t.tone})` : 'var(--muted-fg)');
+      el('rcDayTypeIcon').innerHTML = wkSvg(t.icon);
+      el('rcDayTypeLabel').textContent = _TD_PLAN_LABELS[plan];
+      btn.setAttribute('aria-label', 'Today is a ' + _TD_PLAN_LABELS[plan] + '. Change');
+    }
+    function _tdMenuOpen() { return el('dtMenu')?.classList.contains('open'); }
+    function _tdCloseMenu(focusBtn) {
+      el('dtMenu')?.classList.remove('open'); el('rcInfoBtn')?.setAttribute('aria-expanded', 'false');
+      if (focusBtn) el('rcInfoBtn')?.focus();
+    }
+    function _tdToggle(event) {
+      if (event) { event.stopPropagation(); event.preventDefault(); }
+      if (_tdMenuOpen()) { _tdCloseMenu(); return; }
+      const cur = _tdCurrentPlan(), has = _tdHasHours(), menu = el('dtMenu');
+      menu.innerHTML = Object.keys(_TD_PLAN_LABELS).map(k => {
+        const s = _tdItemState(k, cur, has), t = DAY_TYPES[k];
+        return `<button type="button" class="ac-mi dt-mi" role="menuitemradio" aria-checked="${k === cur}" data-plan="${k}"${s.off ? ' disabled aria-disabled="true"' : ''} style="--dt:${t.tone ? `var(--${t.tone})` : 'var(--muted-fg)'}">`
+          + `<i class="dt-mi-ic">${wkSvg(t.icon)}</i><span><b>${_TD_PLAN_LABELS[k]}</b>${s.sub ? `<small>${s.sub}</small>` : ''}</span><i class="dt-mi-ck">${wkSvg('check')}</i></button>`;
+      }).join('');
+      menu.classList.add('open'); el('rcInfoBtn').setAttribute('aria-expanded', 'true');
+      menu.querySelector('.ac-mi:not([disabled])')?.focus();
+    }
+    // Full Day / Half Day apply at once. Leaving a day off for Full Day / Half Day clears it too.
+    function _tdApply(type) {
+      const tk = todayKey(), u = { ...(dayLog(tk) || {}) };
+      if (type === 'fullday') { delete u.override; delete u.todayTargetH; }
+      else { u.override = 'halfday'; u.todayTargetH = cfg().dailyH / 2; }
+      u.lastUpdated = new Date().toISOString();
+      saveDayLogAndSync(tk, u);
+      _tdSyncPlan();
+      selectDay(tk);
+      showToast(type === 'halfday' ? `Half Day. Today's target is ${durWorked(cfg().dailyH * 1800)}.` : 'Full Day', 'success');
+    }
+    (function _tdMenuInit() {
+      const menu = el('dtMenu'); if (!menu) return;
+      menu.addEventListener('click', e => {
+        const b = e.target.closest('.dt-mi'); if (!b || b.disabled) return;
+        const k = b.dataset.plan; _tdCloseMenu(e.detail === 0);   // focus back only for keyboard picks
+        if (k === _tdCurrentPlan()) return;
+        if (k === 'leave' || k === 'holiday') _dtConfirmOpen(k); else { _dtConfirmClose(); _tdApply(k); }
       });
-      // The pill slides under the picked type.
-      const on = el('tdTypes')?.querySelector('.td-type.active'), pill = el('tdTypes')?.querySelector('.td-pill');
-      if (on && pill && on.offsetWidth) { pill.style.width = on.offsetWidth + 'px'; pill.style.transform = `translateX(${on.offsetLeft - 3}px)`; }
-      // The button names the action: "Keep Half Day" when nothing changed (it just closes).
-      const ok = el('tdConfirm');
-      if (ok) { ok.disabled = false; ok.textContent = (picked === plan ? 'Keep ' : 'Set ') + _TD_PLAN_LABELS[picked]; }
-    }
+      menu.addEventListener('keydown', e => {
+        const items = [...menu.querySelectorAll('.ac-mi:not([disabled])')], i = items.indexOf(document.activeElement);
+        if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); items[(i + (e.key === 'ArrowDown' ? 1 : items.length - 1)) % items.length]?.focus(); }
+        if (e.key === 'Escape') _tdCloseMenu(true);
+      });
+      document.addEventListener('click', e => { if (_tdMenuOpen() && !e.target.closest('#dtWrap')) _tdCloseMenu(); });
+    })();
 
-    // Rebuild the numbers in the open panel; render()/renderEmptyState() only
-    // refresh the card behind it.
-    function _tdRefreshBody() {
-      if (el('tdPanel')?.classList.contains('open')) el('tdKpis').innerHTML = _tdBuildContent(_tdPicked || undefined);
+    // Leave Office / Holiday: a confirm inside the Today card with a required note.
+    // It replaces the tracker until it's confirmed or cancelled.
+    function _dtConfirmOpen(type) {
+      const box = el('dtConfirm'), t = DAY_TYPES[type], leave = type === 'leave';
+      box.style.setProperty('--dt', `var(--${t.tone})`);
+      el('dtcIcon').innerHTML = wkSvg(t.icon);
+      el('dtcTitle').textContent = leave ? 'Take today off?' : 'Mark today as a holiday?';
+      el('dtcNoteLabel').textContent = leave ? 'Reason' : 'Which holiday?';
+      const note = el('dtcNote');
+      note.placeholder = leave ? "e.g. Doctor's appointment" : 'e.g. Diwali';
+      note.value = '';
+      el('dtcOk').textContent = leave ? 'Take Leave' : 'Mark Holiday';
+      el('dtcOk').disabled = true;
+      box.dataset.type = type;
+      box.hidden = false;
+      el('resultCard').classList.add('dt-confirming');
+      setTimeout(() => note.focus(), 60);
     }
-
+    function _dtConfirmClose() {
+      const box = el('dtConfirm'); if (!box || box.hidden) return;
+      box.hidden = true;
+      el('resultCard').classList.remove('dt-confirming');
+    }
+    function _dtConfirmSave() {
+      const type = el('dtConfirm').dataset.type, note = el('dtcNote').value.trim();
+      if (!note || _tdHasHours()) return;
+      const tk = todayKey(), ex = dayLog(tk) || {};
+      _setNoteDirty(tk);
+      saveDayLogAndSync(tk, { ...ex, hoursWorked: 0, override: type, note, sessionTag: 'edited', lastUpdated: new Date().toISOString() });
+      _dtConfirmClose();
+      _tdSyncPlan();
+      selectDay(tk);
+      renderHistory(); renderPenalties();
+      showToast(type === 'leave' ? 'Today is a day off' : 'Today is a holiday', 'success');
+    }
+    (function _dtConfirmInit() {
+      const note = el('dtcNote'); if (!note) return;
+      note.addEventListener('input', () => { el('dtcOk').disabled = !note.value.trim(); });
+      note.addEventListener('keydown', e => { if (e.key === 'Escape') _dtConfirmClose(); if (e.key === 'Enter' && !e.shiftKey && note.value.trim()) { e.preventDefault(); _dtConfirmSave(); } });
+      el('dtcCancel').addEventListener('click', _dtConfirmClose);
+      el('dtcOk').addEventListener('click', _dtConfirmSave);
+    })();
 
     // Animated times ("8h 25m", "25m") use NumberFlow, a library built for
     // this: digits roll, the width eases, and a group keeps hours and minutes
@@ -1847,33 +1813,6 @@
       else elm._nf.m.update(min);
     }
 
-    // Picking a type only previews it: the dot moves and the numbers show that
-    // day. Confirm applies it.
-    function _tdPick(type) {
-      _tdPicked = type;
-      _tdSyncPlan();
-      _tdRefreshBody();
-    }
-
-    // Half Day halves today's effective target (todayTargetH) and Full Day clears
-    // it, taking effect at once whether a session is running or not. Leave and
-    // Holiday go on to the Day Edit screen for a note before they apply.
-    function _tdConfirm() {
-      const type = _tdPicked, tk = todayKey(), ex = dayLog(tk) || {};
-      if (!type || type === _tdCurrentPlan()) { closeTodayDetails(); return; }
-      closeTodayDetails();
-      if (type === 'fullday' || type === 'halfday') {
-        const u = { ...ex };
-        if (type === 'fullday') { delete u.override; delete u.todayTargetH; }
-        else { u.override = 'halfday'; u.todayTargetH = cfg().dailyH / 2; }
-        saveDayLogAndSync(tk, u);
-        if (loginDate) render(); else renderEmptyState();
-        _tdSyncPlan();
-        return;
-      }
-      openDayEditModal(null, true);
-      setDeOverride(type);
-    }
 
     function _tpOutsideClick(e) {
       const modal = el('tpModal');
@@ -1907,6 +1846,7 @@
     }
 
     function confirmTpModal() {
+      if (el('tpSetBtn')?.disabled) return;   // a start later than now (see _tpLive)
       // Tab mode: Login + Logout tabs → update login time + derive new target
       if (_tpTabMode) {
         // Flush current tab's wheel state
@@ -1921,6 +1861,8 @@
         }
         const newLogin  = _stateToDate(_tpLoginState);
         const newLogout = _stateToDate(_tpLogoutState);
+        // A start later than now can't be set from either tab.
+        if (_futureStartMsg(newLogin)) { _tpSwitchTab('login'); return; }
 
         // Handle overnight (logout < login → add one day to logout)
         if (newLogout <= newLogin) newLogout.setDate(newLogout.getDate() + 1);
@@ -1964,7 +1906,7 @@
         if (_tp24Active) { h24 = _tpHIdx; }
         else { const h = _tpHIdx + 1, ap = TP_AMPM[_tpApIdx]; h24 = ap === 'PM' ? (h === 12 ? 12 : h + 12) : (h === 12 ? 0 : h); }
         const d = new Date(); d.setHours(h24, _tpMIdx, 0, 0);
-        inp.value = short(d);
+        inp.value = /^de(Start|End)$/.test(_tpTargetId) ? clockHms(d) : short(d);
         inp.dispatchEvent(new Event('input',  { bubbles: true }));
         inp.dispatchEvent(new Event('change', { bubbles: true }));
       }
@@ -2117,10 +2059,6 @@
     }
 
     // ── TODAY DATE CHIP ───────────────────────────────
-    function _setTodayDateChip() {
-      const chip = el('leaveAt');
-      if (chip) chip.textContent = _fmtDayHeading(nowTz()); // "Tuesday, 9th June" → uppercased by CSS
-    }
 
     // Dismisses the skeleton shimmer the first time real content is available.
     function _hideSkeleton() {
@@ -2128,32 +2066,8 @@
       if (skel && !skel.classList.contains('hidden')) skel.classList.add('hidden');
     }
 
-    // ── ONGOING SESSION ELSEWHERE BANNER ──────────────
-    // Dismissing silences the banner globally, not per-day — it only re-arms once the
-    // user is back on Today (see the reset below), matching "won't pop up again until
-    // you're back on today; leaving today again after that shows it again".
-    let _runningElsewhereDismissed = false;
 
-    function _updateRunningElsewhereBanner() {
-      const wrap = el('rcRunningElsewhere');
-      if (!wrap) return;
-      if (selectedDayKey === todayKey()) _runningElsewhereDismissed = false;
-      const show = !!loginDate && !!selectedDayKey && selectedDayKey !== todayKey()
-        && !_runningElsewhereDismissed;
-      wrap.style.display = show ? '' : 'none';
-      if (show) {
-        const lbl = el('rcRunningElsewhereLabel');
-        if (lbl) {
-          const leaveDate = _leaveAt();
-          lbl.textContent = 'Session running · Leave by ' + short(leaveDate);
-        }
-      }
-    }
 
-    function _dismissRunningElsewhereBanner() {
-      _runningElsewhereDismissed = true;
-      _updateRunningElsewhereBanner();
-    }
 
     // ── TODAY CARD: PAIR TABS + PROGRESS BAR ──────────
     // Clock (times) or Hours (progress): opens on Clock, remembers the last view.
@@ -2194,11 +2108,17 @@
     // Worked + left (or Target + over) always adds up to what's on screen, even
     // when a Smart Timings target carries stray seconds (10h 10m 50s).
     function _minsGap(a, b) { return Math.max(0, Math.floor(a / 60) - Math.floor(b / 60)) * 60; }
+    // The chip counts by the second, as hh:mm:ss (user, 2026-11-19): "03:12:45 left",
+    // hidden for the first minute past the target, then "00:41:10 over".
+    function _hms(secs) {
+      const s = Math.max(0, Math.floor(secs));
+      return `${p2(Math.floor(s / 3600))}:${p2(Math.floor(s % 3600 / 60))}:${p2(s % 60)}`;
+    }
     function _rcChip(worked, eff) {
       if (!(eff > 0)) return null;
-      const rem = eff - worked;
-      if (rem > 0) return { text: rem < 60 ? _rcRemainingFmt(rem) + ' left' : _rcRemainingFmt(_minsGap(eff, worked) || 60) + ' left', over: false };
-      return -rem < 60 ? null : { text: _rcRemainingFmt(_minsGap(worked, eff) || 60) + ' over', over: true };
+      const rem = Math.ceil(eff - worked);
+      if (rem > 0) return { text: _hms(rem) + ' left', over: false, hms: _hms(rem) };
+      return -rem < 60 ? null : { text: _hms(-rem) + ' over', over: true, hms: _hms(-rem) };
     }
     // When the target lands. Past midnight it says so in the caption, not the number.
     function _rcDoneAt(at, now = new Date()) {
@@ -2230,12 +2150,12 @@
         // (no count-up from zero); later minute changes still animate.
         if (el('rcWorked').dataset.animVal === undefined) { el('rcWorked').textContent = c.elapsedStr; el('rcWorked').dataset.animVal = c.elapsedStr; }
         else animateDuration('rcWorked', c.elapsedStr);
-        el('rcWorkedCap').innerHTML = live + 'Worked';
+        el('rcWorkedCap').textContent = 'Worked';
         _stopAnim('rcTarget');
         el('rcTarget').textContent = c.targetStr;
         el('rcTargetCap').textContent = c.targetCap || 'Target';
       }
-      _rcSetDesc(c.chip ? `<span class="rc-desc-chip pill${c.chipOver ? ' warn' : ''}">${c.chip}</span>` : '');
+      _rcSetLead(c, live);
       el('rcKpiGroup')?.classList.toggle('rc-over', !!c.chipOver);
     }
     // The done banner: after the target, with a coloured icon per moment. Dismissed
@@ -2342,9 +2262,17 @@
       track.addEventListener('pointercancel', hide);
     })();
 
-    function _rcSetDesc(rightHtml) {
-      const r = el('rcDescRight');
-      if (r) r.innerHTML = rightHtml || '';
+    // The headline: the time left counted by the second, or (amber) the time past the
+    // target after its first minute. Only the digits change each second.
+    function _rcLeadCap(over) { return over ? 'over your target' : 'left until you can head out'; }
+    function _rcSetLead(c, live) {
+      const box = el('rcLead'); if (!box) return;
+      if (!c.chipHms) { box.hidden = true; return; }
+      box.hidden = false;
+      box.classList.toggle('over', !!c.chipOver);
+      const n = el('rcLeadNum'); if (n.textContent !== c.chipHms) n.textContent = c.chipHms;
+      const cap = (live || '') + _rcLeadCap(c.chipOver);
+      if (box._cap !== cap) { el('rcLeadCap').innerHTML = cap; box._cap = cap; }
     }
 
     // "9h remaining" / "4h 12m remaining" / "48m remaining" — no leading 0h, no trailing 00m.
@@ -2358,6 +2286,31 @@
       return `${h}h ${m}m`;
     }
 
+    // Not started → Running (#61): the drawing lifts out (a copy fades up and away),
+    // the card glides from its old height to the new one, and the new parts rise in.
+    function _rcHandOff(apply) {
+      const card = el('resultCard'), es = el('rcEmptyState');
+      const shown = es && es.style.display !== 'none' && es.offsetParent;
+      if (!card || !shown || matchMedia('(prefers-reduced-motion: reduce)').matches) { apply(); return; }
+      const h0 = card.offsetHeight, r = es.getBoundingClientRect(), c = card.getBoundingClientRect();
+      const ghost = es.cloneNode(true);
+      ghost.removeAttribute('id'); ghost.querySelectorAll('[id]').forEach(n => n.removeAttribute('id'));
+      Object.assign(ghost.style, { position: 'absolute', left: (r.left - c.left) + 'px', top: (r.top - c.top) + 'px', width: r.width + 'px', margin: '0', pointerEvents: 'none' });
+      ghost.setAttribute('aria-hidden', 'true');
+      apply();
+      ghost.classList.add('rc-ghost-out');
+      card.appendChild(ghost);
+      setTimeout(() => ghost.remove(), 220);
+      const kg = el('rcKpiGroup'), tabs = el('rcPairTabsRow');
+      [kg, tabs].forEach(x => x?.classList.add('rc-enter'));
+      setTimeout(() => [kg, tabs].forEach(x => x?.classList.remove('rc-enter')), 900);
+      const h1 = card.offsetHeight;
+      if (Math.abs(h1 - h0) > 2) {
+        card.style.overflow = 'hidden';
+        const a = card.animate([{ height: h0 + 'px' }, { height: h1 + 'px' }], { duration: 420, easing: 'cubic-bezier(.32,.72,0,1)' });
+        a.onfinish = a.oncancel = () => { card.style.overflow = ''; };
+      }
+    }
     function _rcTransitionToActive() {
       const body = el('rcBody');
       if (!body) return;
@@ -2380,7 +2333,7 @@
         const _kg = el('rcKpiGroup'); if (_kg) _kg.style.display = '';
         const _es = el('rcEmptyState'); if (_es) _es.style.display = 'none';
       }
-      ['rcPairTabsRow','rcProgressTrack','rcDescRow'].forEach(id => {
+      ['rcPairTabsRow','rcProgressTrack','rcLead'].forEach(id => {
         const e = el(id); if (e) e.style.display = show ? 'none' : '';
       });
       const _pt = el('rcPairTabs'); if (_pt) _pt.style.visibility = '';
@@ -2403,9 +2356,10 @@
       _hideSkeleton();
       // Weekend override — show last-week summary card instead of the normal empty state
       const wknd = isWeekend() && !loginDate;
-      // Weekday Holiday / Leave / Half Day override — show planned-day UI instead of tracking UI
+      // Weekday Holiday / Leave: the day-off card instead of the tracker. Half Day keeps the
+      // tracker with its halved target (#61).
       const _todayOv = !loginDate && !wknd ? (dayLog(todayKey())?.override || null) : null;
-      const _isPlannedDay = _todayOv === 'holiday' || _todayOv === 'leave' || _todayOv === 'halfday';
+      const _isPlannedDay = _todayOv === 'holiday' || _todayOv === 'leave';
       el('rcBody')?.classList.toggle('weekend-mode', wknd || _isPlannedDay);
       if (wknd) {
         // Coming back from a past/future day leaves #rcBody.past-day set, which forces
@@ -2417,20 +2371,15 @@
         selectedDayKey = todayKey();
         _hideDoneBanner();
         renderWeekendState(todayKey(), 'weekend');
-        _updateDayNavBtns();
         return;
       }
       if (_isPlannedDay) {
         _rcShowPastMode(false); // same past-day-class leak as the weekend branch above
         selectedDayKey = todayKey();
-        // A Half Day that was worked and ended still gets its "Done for today".
-        const _pl = dayLog(todayKey()) || {};
-        if (_pl.checkoutDisplay && _pl.hoursWorked) _showDoneBanner('ended', 'violet', 'moon', 'Done for today', 'See you tomorrow');
-        else _hideDoneBanner();
-        _setShiftCtaVisible(_todayOv === 'halfday');
+        _hideDoneBanner();
+        _setShiftCtaVisible(false);
         el('resultCard').style.display = '';
         renderWeekendState(todayKey(), _todayOv);
-        _updateDayNavBtns();
         return;
       }
       _rcShowPastMode(false);
@@ -2453,10 +2402,10 @@
         el('rcToday').innerHTML = ''; el('rcToday').style.display = 'none';
         const _kg = el('rcKpiGroup'); if (_kg) { _kg.style.display = ''; _kg.classList.add('rc-paused'); }
         const _pt = el('rcPairTabs'); if (_pt) _pt.style.visibility = '';
-        ['rcPairTabsRow', 'rcProgressTrack', 'rcDescRow'].forEach(id => { const e = el(id); if (e) e.style.display = ''; });
+        ['rcPairTabsRow', 'rcProgressTrack', 'rcLead'].forEach(id => { const e = el(id); if (e) e.style.display = ''; });
         _rcCache = { loginStr: _loginDisplayFromLog(_logE) || '—', elapsedStr: durWorked(endedSecs), workedSecs: endedSecs,
           doneAtStr: doneAt.str, doneAtTomorrow: doneAt.tomorrow, targetStr: eff > 0 ? durWorked(eff) : '—',
-          targetCap: _rcTargetCap(eff), chip: chip?.text || '', chipOver: !!chip?.over, paused: true,
+          targetCap: _rcTargetCap(eff), chip: chip?.text || '', chipHms: chip?.hms || '', chipOver: !!chip?.over, paused: true,
           pct: eff > 0 ? endedSecs / eff : 1, isDone: eff > 0 && endedSecs >= eff, effSecs: eff };
         _rcMarkPairTab();
         _rcPaintKpis(_rcCache);
@@ -2466,7 +2415,6 @@
         el('otBanner').classList.remove('show');
         _hideDoneBanner();
         if (!autoStopped) el('autostopBanner').classList.remove('show');
-        _updateDayNavBtns?.();
         return;
       }
       el('rcKpiGroup')?.classList.remove('rc-paused');
@@ -2484,7 +2432,7 @@
         // eff === 0 means the weekly target was already met, so there's no meaningful
         // per-day target to compare against — pass null to suppress the verdict line.
         el('rcToday').style.display = '';
-        el('rcToday').innerHTML = _endedDayCardHtml({ key: todayKey(), type: 'fullday', worked: endedSecs, target: eff > 0 ? eff : null, login: _loginStr, out: _logoutStr });
+        el('rcToday').innerHTML = _endedDayCardHtml({ key: todayKey(), type: _logE.override === 'halfday' ? 'halfday' : 'fullday', worked: endedSecs, target: eff > 0 ? eff : null, login: _loginStr, out: _logoutStr });
         _bindEndedCard(el('rcToday'), todayKey());
         el('stayHint').style.display = 'none';
         el('otBanner').classList.remove('show');
@@ -2515,7 +2463,6 @@
         const _leaveTimeEl = el('rcEmptyLeaveTime');
         if (_leaveTimeEl) _leaveTimeEl.textContent = _projLogout;
       }
-      _setTodayDateChip();
       el('rcToday').innerHTML = ''; el('rcToday').style.display = 'none';
       el('stayHint').style.display = 'none';
       el('otBanner').classList.remove('show');
@@ -3941,43 +3888,6 @@
       } catch (e) { failed(e); } });
     }
 
-    // Navigate to the weekend view slot for the current daySelectorWeekOffset strip
-    function selectWeekendView() {
-      selectedDayKey = '__wknd__';
-      renderDaySelector();
-      _updateRunningElsewhereBanner();
-      // Header
-      const wk = week(daySelectorWeekOffset);
-      const mon = wk[0].date, fri = wk[wk.length - 1].date;
-      const name = cfg().name?.trim();
-      const h = nowTz().getHours();
-      const greeting = h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
-      el('selDayRel').textContent = name ? `${greeting}, ${name.split(' ')[0]}` : greeting;
-      const _isSundayOnly = cfg().workDays >= 6;
-      el('rcDayLabel').textContent = _isSundayOnly ? 'Sunday' : 'Weekend';
-      const wkndTitle = el('wkndPageTitle');
-      if (wkndTitle) wkndTitle.textContent = _isSundayOnly ? 'Sunday' : 'Weekend';
-      // Nudge user to check weekly report (once per week)
-      const _nudgeKey = 'wh_report_nudge_' + currentWeekId();
-      if (!localStorage.getItem(_nudgeKey)) {
-        localStorage.setItem(_nudgeKey, '1');
-        setTimeout(() => showToast('Check your weekly report', 'info', '', { label: 'Check', onClick: () => openWeekReport() }), 800);
-      }
-      const hd = el('rcHeadDate'); if (hd) { hd.textContent = ''; hd.classList.remove('visible'); }
-      // Show card, hide session-only elements
-      el('futureDayPlan').style.display = 'none';
-      el('resultCard').style.display = '';
-      _setShiftCtaVisible(false);
-      el('rcUpdateEntryBtn')?.classList.remove('visible');
-      el('leaveChip').style.display = 'none';
-      // Activate weekend mode — clear any leftover past-day state first (same
-      // align-items:center leak fixed in selectDay()/renderEmptyState()).
-      _rcShowPastMode(false);
-      el('rcBody')?.classList.add('weekend-mode');
-      _hideSkeleton();
-      renderWeekendState();
-      _updateDayNavBtns();
-    }
 
     // ── AUTO-STOP ─────────────────────────────────────
     // Worked seconds at which the running session auto-stops: the daily target
@@ -4023,7 +3933,6 @@
       setCalcBtnState('ended');
       el('shiftInputRow').classList.remove('active-state');
       _showAutostopBar(short(now));
-      renderDaySelector();
       renderEmptyState(); // swap the live tracker for the day summary right away
     }
 
@@ -4213,7 +4122,7 @@
         });
         closed = true;
       }
-      if (closed) { _syncNow(); renderHistory(); renderDaySelector(); }
+      if (closed) { _syncNow(); renderHistory(); }
     }
 
     // True only while End or auto-stop saves the finished day. The save syncs at
@@ -4234,13 +4143,6 @@
       // The Dashboard's live row ticks regardless of which day Home is showing,
       // so this sits above the past/future early-return below.
       if (el('wkRows')?.offsetParent) _tickWkLiveRow(); // the week card is on screen (Home in the new shell)
-      // When browsing a past/future day, only refresh the day-selector dots silently.
-      // Without this guard the live ticker overwrites past-day content every second.
-      if (selectedDayKey && selectedDayKey !== todayKey()) {
-        renderDaySelector();
-        _updateRunningElsewhereBanner();
-        return;
-      }
       el('rcBody')?.classList.remove('weekend-mode', 'ns-times', 'ns-progress', 'past-day');
       const c = cfg();
       const now = new Date(), eff = effSecs();
@@ -4311,7 +4213,7 @@
       el('rcKpiGroup')?.classList.remove('rc-paused');
       _rcCache = { loginStr: _loginStr, logoutStr: _logoutStr, elapsedStr: _elapsedStr,
         doneAtStr: _doneAt.str, doneAtTomorrow: _doneAt.tomorrow, targetCap: _rcTargetCap(eff),
-        chip: _chip?.text || '', chipOver: !!_chip?.over, workedSecs: worked, paused: false,
+        chip: _chip?.text || '', chipHms: _chip?.hms || '', chipOver: !!_chip?.over, workedSecs: worked, paused: false,
         rightStr: _rightStr, rightClass: _rightClass, pct: eff > 0 ? worked / eff : 1,
         barClass: _barClass, descLeft: _loginStr + ' → ' + _logoutStr,
         descRightTimes: _descRightTimes, descRightProgress: _descRightProgress,
@@ -4328,7 +4230,6 @@
       // "Leave at" badge: prefer personal Out Time target if set
       const _tkNow = todayKey(), _logNow = dayLog(_tkNow) || {};
       const _earlyTarget = _logNow.earlyLeaveTarget;
-      _setTodayDateChip();
 
       el('rcToday').innerHTML = ''; el('rcToday').style.display = 'none';
 
@@ -4377,598 +4278,63 @@
       if (!loginDate || now - _liveLogSavedAt >= 30000) _writeLiveLog(_loginSnapshot, worked);
 
       // Update day-selector dots live (week card is in analytics)
-      renderDaySelector();
     }
 
-    // ── DAY SELECTOR (Home) ────────────────────────────
-    let _dsSel = null;      // last key scrolled-to — prevents redundant scrolls on every tick
-    let _dsUserNav = false; // true when a click/nav triggered the render (forces re-centre)
 
-    // Desktop (rail on) shows the strip as a segmented control, one week per view.
-    const _dsDesk = () => document.body.classList.contains('rail-on');
-    const _DS_GAP = 2; // px between day columns on desktop (matches the CSS)
-    function _dsWeekStep(container) { return container.clientWidth + _DS_GAP; }
-    // Moves the raised pill under the selected day.
-    function _dsPlaceGlide() {
-      const c = el('daySelectorRow');
-      if (!c) return;
-      let g = c.querySelector('.ds-glide');
-      if (!g) { g = document.createElement('span'); g.className = 'ds-glide'; g.setAttribute('aria-hidden', 'true'); c.prepend(g); }
-      const a = c.querySelector('.day-sel-btn.active');
-      if (!a || !_dsDesk()) { g.style.opacity = '0'; return; }
-      g.style.opacity = '1';
-      g.style.width = a.offsetWidth + 'px';
-      g.style.transform = `translateX(${a.offsetLeft}px)`;
+
+    // Today card header (#61): "Good morning, Roshan!" (no name when none is set)
+    // and today's date, "Wednesday, 19 Nov". Pure text so it can be tested.
+    function _todayHeadText(d, name) {
+      const hr = d.getHours(), first = (name || '').trim().split(/\s+/)[0];
+      const greet = hr < 12 ? 'Good morning' : hr < 17 ? 'Good afternoon' : 'Good evening';
+      return { title: first ? `${greet}, ${first}!` : `${greet}!`, date: `${FULL_DAYS_EN[d.getDay()]}, ${d.getDate()} ${MONTHS[d.getMonth()].slice(0, 3)}` };
     }
-    function _dsScrollTo(container, btn, behavior) {
-      const cw = container.getBoundingClientRect().width;
-      if (!cw) return; // layout not ready
-      if (_dsDesk()) {
-        const btns = Array.from(container.querySelectorAll('.day-sel-btn[data-key]'));
-        const page = Math.floor(Math.max(0, btns.indexOf(btn)) / 7);
-        const left = page * _dsWeekStep(container);
-        if (behavior === 'smooth' && !matchMedia('(prefers-reduced-motion: reduce)').matches) container.scrollTo({ left, behavior: 'smooth' });
-        else container.scrollLeft = left;
-        return;
-      }
-      // Absolute position of button centre within the scroll content
-      const btnAbs = btn.getBoundingClientRect().left - container.getBoundingClientRect().left + container.scrollLeft + btn.offsetWidth / 2;
-      const target  = Math.max(0, btnAbs - cw / 2);
-      if (behavior === 'smooth') container.scrollTo({ left: target, behavior: 'smooth' });
-      else container.scrollLeft = target;
+    function _paintTodayHead() {
+      const t = _todayHeadText(nowTz(), cfg().name);
+      const g = el('tdGreet'), dt = el('tdDate');
+      if (g && g.textContent !== t.title) g.textContent = t.title;
+      if (dt && dt.textContent !== t.date) dt.textContent = t.date;
     }
-
-    // Returns the week label for any date key — O(1) date math, no loop.
-    function _weekLabelForKey(key) {
-      const d = new Date(key + 'T12:00');
-      const dow = d.getDay();
-      const mon = new Date(d); mon.setDate(d.getDate() + (dow === 0 ? -6 : 1 - dow)); mon.setHours(0,0,0,0);
-      const today = new Date(); today.setHours(0,0,0,0);
-      const todayDow = today.getDay();
-      const thisMon = new Date(today); thisMon.setDate(today.getDate() + (todayDow === 0 ? -6 : 1 - todayDow));
-      const off = Math.round((mon - thisMon) / (7 * 86400000));
-      return off === 0 ? 'This Week' : weekRangeLabel(off);
-    }
-
-    function _updateWeekLabel() {
-      const span = el('thisWeekLabelText'), container = el('daySelectorRow');
-      if (!span || !container) return;
-      // Track the centre-most visible card (the crosshair card).
-      const midX = container.scrollLeft + container.clientWidth / 2;
-      let centreBtn = null;
-      container.querySelectorAll('.day-sel-btn[data-key]').forEach(btn => {
-        const btnMid = btn.offsetLeft + btn.offsetWidth / 2;
-        if (!centreBtn || Math.abs(btnMid - midX) < Math.abs(centreBtn.offsetLeft + centreBtn.offsetWidth / 2 - midX)) {
-          centreBtn = btn;
-        }
-      });
-      if (centreBtn) span.textContent = _weekLabelForKey(centreBtn.dataset.key);
-    }
-
-    function _syncOffsetFromKey(key) {
-      const d = new Date(key + 'T12:00');
-      const dow = d.getDay();
-      const mon = new Date(d); mon.setDate(d.getDate() + (dow === 0 ? -6 : 1 - dow)); mon.setHours(0,0,0,0);
-      const today = new Date(); today.setHours(0,0,0,0);
-      const todayDow = today.getDay();
-      const thisMon = new Date(today); thisMon.setDate(today.getDate() + (todayDow === 0 ? -6 : 1 - todayDow));
-      daySelectorWeekOffset = Math.round((mon - thisMon) / (7 * 86400000));
-    }
-
-    // Scroll the strip so today's card is centred (Filmstrip view).
-    // Retries via rAF until the container has a real width (layout settled).
-    function _dsResetScroll() {
-      const container = el('daySelectorRow');
-      if (!container) return;
-      const tk = todayKey();
-      let targetBtn = container.querySelector(`.day-sel-btn[data-key="${tk}"]`);
-      // On weekends today's card isn't in a Mon–Fri strip — fall back to the
-      // nearest work day of the current week so the strip still lands there
-      // (otherwise it stays scrolled all the way back to the earliest week).
-      if (!targetBtn) {
-        const wk = week(0);
-        for (let i = wk.length - 1; i >= 0 && !targetBtn; i--) {
-          targetBtn = container.querySelector(`.day-sel-btn[data-key="${wk[i].key}"]`);
-        }
-      }
-      if (!targetBtn) return;
-      if (!container.getBoundingClientRect().width) {
-        requestAnimationFrame(() => _dsResetScroll());
-        return;
-      }
-      _dsScrollTo(container, targetBtn);
-    }
-
-    // ── Lazy-load helpers ──
-    let _dsEarliestOffset = -2; // tracks how far back we've rendered
-
-    function _dsMakeBtn(day, now, tk, selKey, c) {
-      const btn = document.createElement('button');
-      const log = dayLog(day.key);
-      const isFuture = day.date > now && day.key !== tk;
-      btn.className = 'day-sel-btn';
-      btn.dataset.key = day.key;
-      if (day.isWeekend) btn.classList.add('wkd-btn');
-      if (selKey && day.key === selKey) btn.classList.add('active');
-      // Penalty dot: only past/today with actual hours (> 0 guards realtime echo noise)
-      if (!isFuture && log?.hoursWorked > 0 && log?.override !== 'leave' && log?.override !== 'holiday') {
-        const t = c.dailyH * 3600, dt = log?.override === 'halfday' ? t / 2 : t;
-        if ((dt - log.hoursWorked * 3600) > 300) btn.classList.add('has-penalty');
-      }
-      // Plan dot: future plans AND past days where a plan was set (futurePlan persists in log)
-      if (!day.isWeekend && log?.futurePlan) btn.classList.add('has-plan');
-      if (!day.isWeekend && day.key < tk && !(log?.hoursWorked > 0) && !log?.override) btn.classList.add('has-missing');
-      if (isFuture) btn.classList.add('future');
-      btn.innerHTML = `<span class="dsel-name">${day.name.slice(0,3)}</span>`
-                    + `<span class="dsel-num">${day.date.getDate()}</span>`;
-      btn.addEventListener('click', () => {
-        _dsUserNav = true;
-        _animateCardHeight(() => {
-          if (isFuture) selectFutureDay(day.key);
-          else selectDay(day.key);
-        });
-        _syncOffsetFromKey(day.key);
-      });
-      return btn;
-    }
-
-    function _dsLoadMorePast() {
-      const newEarliest = _dsEarliestOffset - 2;
-      if (newEarliest < -52) return; // cap at ~1 year back
-      const container = el('daySelectorRow');
-      const now = new Date(), tk = todayKey(), c = cfg();
-      const selKey = selectedDayKey === '__wknd__' ? null : (selectedDayKey || tk);
-      const days = [];
-      for (let off = newEarliest; off < _dsEarliestOffset; off++) weekStrip(off).forEach(d => days.push(d));
-      const frag = document.createDocumentFragment();
-      days.forEach(day => frag.appendChild(_dsMakeBtn(day, now, tk, selKey, c)));
-      const widthBefore = container.scrollWidth;
-      const scrollBefore = container.scrollLeft;
-      container.insertBefore(frag, container.firstChild);
-      // Preserve viewport: shift scroll by however much width was prepended (card widths are flexible)
-      container.scrollLeft = scrollBefore + (container.scrollWidth - widthBefore);
-      _dsEarliestOffset = newEarliest;
-    }
-
-    function renderDaySelector() {
-      const tk = todayKey(), now = new Date(), c = cfg();
-      const selKey = selectedDayKey === '__wknd__' ? null : (selectedDayKey || tk);
-      const container = el('daySelectorRow');
-
-      // ── Soft update: just toggle classes, never reset scroll ──
-      const existing = container.querySelectorAll('.day-sel-btn[data-key]');
-      if (existing.length > 0) {
-        let selFound = false;
-        existing.forEach(btn => {
-          const key = btn.dataset.key;
-          const isActive = !!(selKey && key === selKey);
-          btn.classList.toggle('active', isActive);
-          if (isActive) selFound = true;
-          const log = dayLog(key);
-          btn.classList.toggle('future', new Date(key + 'T12:00') > now && key !== tk);
-          btn.classList.remove('has-penalty', 'has-plan');
-          const _isFutureKey = new Date(key + 'T12:00') > now && key !== tk;
-          const _isWkd = btn.classList.contains('wkd-btn');
-          if (!_isFutureKey && log?.hoursWorked > 0 && log?.override !== 'leave' && log?.override !== 'holiday') {
-            const t = c.dailyH * 3600, dt = log?.override === 'halfday' ? t / 2 : t;
-            if ((dt - log.hoursWorked * 3600) > 300) btn.classList.add('has-penalty');
-          }
-          if (!_isWkd && log?.futurePlan) btn.classList.add('has-plan');
-          btn.classList.toggle('has-missing', !_isWkd && key < tk && !(log?.hoursWorked > 0) && !log?.override);
-        });
-        if (!selKey || selFound) {
-          if (selKey && (selKey !== _dsSel || _dsUserNav)) {
-            const activeBtn = container.querySelector('.day-sel-btn.active');
-            if (activeBtn) _dsScrollTo(container, activeBtn, 'smooth');
-            _dsSel = selKey;
-          }
-          _dsUserNav = false;
-          _updateDayNavBtns();
-          _dsPlaceGlide();
-          return;
-        }
-      }
-
-      // ── Full render: 2 past weeks + current week + next week (lazy: more loaded on demand) ──
-      _dsEarliestOffset = -2;
-      const days = [];
-      for (let off = -2; off <= 1; off++) weekStrip(off).forEach(d => days.push(d));
-
-      container.innerHTML = '';
-      _dsSel = null;
-      let activeBtn = null, todayBtn = null;
-
-      days.forEach(day => {
-        const btn = _dsMakeBtn(day, now, tk, selKey, c);
-        if (selKey && day.key === selKey) { btn.classList.add('active'); activeBtn = btn; }
-        if (day.key === tk) todayBtn = btn;
-        container.appendChild(btn);
-      });
-
-      // On load, always show Monday of current week first — user swipes left for history.
-      if (activeBtn) _dsSel = selKey;
-      requestAnimationFrame(() => { _dsResetScroll(); _dsPlaceGlide(); _updateDayNavBtns(); });
-      _updateDayNavBtns();
-      _updateWeekLabel();
-    }
-
-    function navDaySelectorDay(dir) {
-      const container = el('daySelectorRow');
-      if (container && _dsDesk()) {
-        const max = container.scrollWidth - container.clientWidth;
-        const left = Math.max(0, Math.min(max, container.scrollLeft + dir * _dsWeekStep(container)));
-        container.scrollTo({ left, behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
-        setTimeout(() => { _updateWeekLabel(); _updateDayNavBtns(); }, 450);
-        return;
-      }
-      const btns = Array.from(container.querySelectorAll('.day-sel-btn[data-key]'));
-      if (!btns.length) return;
-      const selKey = selectedDayKey === '__wknd__' ? null : (selectedDayKey || todayKey());
-      const curIdx = selKey ? btns.findIndex(b => b.dataset.key === selKey) : -1;
-      const targetIdx = Math.max(0, Math.min(btns.length - 1, curIdx + dir));
-      if (targetIdx === curIdx) return;
-      const targetBtn = btns[targetIdx];
-      const targetKey = targetBtn.dataset.key;
-      const now = new Date();
-      const dayDate = new Date(targetKey + 'T12:00');
-      _dsUserNav = true;
-      _animateCardHeight(() => {
-        if (dayDate > now && targetKey !== todayKey()) selectFutureDay(targetKey);
-        else selectDay(targetKey);
-      });
-      _syncOffsetFromKey(targetKey);
-    }
-
-    function _updateDayNavBtns() {
-      const container = el('daySelectorRow');
-      const btns = container ? Array.from(container.querySelectorAll('.day-sel-btn[data-key]')) : [];
-      const selKey = selectedDayKey === '__wknd__' ? null : (selectedDayKey || todayKey());
-      const curIdx = selKey ? btns.findIndex(b => b.dataset.key === selKey) : -1;
-      const prevBtn = el('weekPrevBtn'), nextBtn = el('weekNextBtn');
-      if (container && _dsDesk()) {
-        // Desktop arrows page whole weeks, so they stop at the first and last week.
-        const max = container.scrollWidth - container.clientWidth;
-        if (prevBtn) { prevBtn.disabled = container.scrollLeft <= 1; prevBtn.title = 'Previous week'; }
-        if (nextBtn) { nextBtn.disabled = container.scrollLeft >= max - 1; nextBtn.title = 'Next week'; }
-        return;
-      }
-      if (prevBtn) prevBtn.disabled = curIdx <= 0;
-      if (nextBtn) nextBtn.disabled = curIdx >= btns.length - 1;
-    }
-
-    function _ordinal(n) {
-      const s = n % 100;
-      if (s >= 11 && s <= 13) return n + 'th';
-      return n + (['st','nd','rd'][n % 10 - 1] || 'th');
-    }
-    function _fmtDayHeading(dateObj) {
-      return `${FULL_DAYS_EN[dateObj.getDay()]}, ${_ordinal(dateObj.getDate())} ${MONTHS[dateObj.getMonth()]}`;
-    }
-
-    function updateSelDayHeader(key) {
-      const tk = todayKey(), wk = week(daySelectorWeekOffset);
-      const now = nowTz();
-      const day = wk.find(d => d.key === key);
-      const dayDate = day ? day.date : now;
-      const dateStrEl = el('selDayDateStr');
-      if (dateStrEl) dateStrEl.textContent = `${MONTHS[dayDate.getMonth()]} ${dayDate.getDate()}, ${dayDate.getFullYear()}`;
-      // Always show time-based greeting regardless of selected day
-      const h = now.getHours();
-      const greeting = h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
-      const name = (cfg().name || '').trim();
-      el('selDayRel').textContent = name ? `${greeting}, ${name.split(' ')[0]}` : greeting;
-      // rcDayLabel: relative label for adjacent days, formatted date for everything else
-      const _yd = new Date(nowTz()); _yd.setDate(_yd.getDate() - 1);
-      const _tm = new Date(nowTz()); _tm.setDate(_tm.getDate() + 1);
-      const ydKey = dateKey(_yd), tmKey = dateKey(_tm);
-      const _labelDate = day ? day.date : new Date(key + 'T12:00');
-      if      (key === tk)    el('rcDayLabel').textContent = 'Today';
-      else if (key === ydKey) el('rcDayLabel').textContent = 'Yesterday';
-      else if (key === tmKey) el('rcDayLabel').textContent = 'Tomorrow';
-      else                    el('rcDayLabel').textContent = _fmtDayHeading(_labelDate);
-    }
-
     function _setShiftCtaVisible(v) {
       const s = el('todayLoginSection'); if (!s) return;
       s.classList.toggle('cta-hidden', !v);
     }
 
-    function _animateCardHeight(fn) {
-      const card = el('homeCard');
-      const main = el('homeMain');
-      if (!card) { fn(); return; }
-      const prevH = card.offsetHeight;
-      // Pin BEFORE content change so the swap is invisible
-      card.style.height = prevH + 'px';
-      if (main) main.style.overflowY = 'hidden'; // prevent scroll jump during animation
-      fn();
-      // For growing: scrollHeight gives natural content height while card is pinned
-      // For shrinking: scrollHeight = prevH (clipped), so briefly go auto to measure
-      let newH = card.scrollHeight;
-      if (newH <= prevH) {
-        card.style.height = 'auto';
-        newH = card.offsetHeight; // forced sync reflow, no paint yet
-        card.style.height = prevH + 'px';
-      }
-      const _restore = () => {
-        card.style.height = '';
-        card.style.transition = '';
-        card.classList.remove('card-animating');
-        if (main) main.style.overflowY = '';
-      };
-      if (Math.abs(newH - prevH) < 4) { _restore(); return; }
-      card.classList.add('card-animating'); // suppresses wknd-fade-in during height anim
-      requestAnimationFrame(() => {
-        card.style.transition = 'height 0.32s cubic-bezier(0.4,0,0.2,1)';
-        card.style.height = newH + 'px';
-        card.addEventListener('transitionend', function _cleanup() {
-          _restore();
-          card.removeEventListener('transitionend', _cleanup);
-        }, { once: true });
-      });
-    }
 
-    function selectDay(key) {
-      const tk = todayKey();
+    // The Home card is about today only (#61): every call shows today, whatever
+    // day it names. Past and future days are opened from the week card instead.
+    function selectDay() {
+      const key = todayKey();
       selectedDayKey = key;
-      try { sessionStorage.setItem('wh_sel_day', key); } catch {}
-      _updateRunningElsewhereBanner();
       el('rcBody')?.classList.remove('weekend-mode');
       el('weekendView')?.classList.remove('override-mode');
-      // renderWeekendState sets inline display:none on these elements for holiday/leave;
-      // clear them here so renderPastDay (and render/renderEmptyState) start from clean state
+      // renderWeekendState hides these for Holiday / Leave; start from a clean card.
       const _rcNumEl = document.querySelector('.rc-numbers');
       if (_rcNumEl) _rcNumEl.style.display = '';
       ['rcToday', 'stayHint', 'otBanner', 'doneBanner', 'autostopBanner'].forEach(id => {
         const _e = el(id); if (_e) _e.style.display = '';
       });
-      renderDaySelector();
-      updateSelDayHeader(key);
-      el('futureDayPlan').style.display = 'none';
+      _paintTodayHead();
       el('wkndBadgeCard').style.display = 'none';
       el('resultCard').style.display = '';
       _hideSkeleton();
-
-      // Weekend day, or a day marked Holiday / Full Day Leave → unified info card
-      const _ovSel = dayLog(key)?.override;
-      // A running session always gets the tracking view, weekend or not:
-      // the info card hides the controls, leaving no way to stop it.
-      const _infoType = (key === tk && loginDate) ? null
+      // Weekend, or today marked Holiday / Leave / Half Day → the info card.
+      // A running session always gets the tracking view, weekend or not.
+      const _ov = dayLog(key)?.override;
+      const _infoType = loginDate ? null
         : isWeekendKey(key) ? 'weekend'
-        : _ovSel === 'holiday' ? 'holiday'
-        : _ovSel === 'leave'   ? 'leave'
-        : _ovSel === 'halfday' ? 'halfday' : null;
+        : _ov === 'holiday' ? 'holiday' : _ov === 'leave' ? 'leave' : null;   // Half Day = the tracker, target halved
       if (_infoType) {
-        // A previously-selected past/future day leaves #rcBody.past-day set (align-
-        // items:center), which shrinks #weekendView to its content width instead of
-        // stretching full-width — must clear it before rendering this weekend/override
-        // card, same leak as the renderEmptyState() branches above.
         _rcShowPastMode(false);
-        _syncOffsetFromKey(key);
         _setShiftCtaVisible(false);
-        // Past _infoType days get Update Entry; today doesn't need it (editable inline)
-        if (key < tk) { el('rcUpdateEntryBtn')?.classList.add('visible'); }
-        else           { el('rcUpdateEntryBtn')?.classList.remove('visible'); }
-        el('leaveChip').style.display = 'none';
-        el('rcHeadDate')?.classList.remove('visible'); // date already on left — never duplicate on right
         el('rcBody')?.classList.add('weekend-mode');
         renderWeekendState(key, _infoType);
         return;
       }
-
-      const headDateEl = el('rcHeadDate');
-      if (key === tk) {
-        // Today — clear past-day state before re-rendering so nothing flickers in
-        _rcShowPastMode(false);
-        _setShiftCtaVisible(true);
-        el('rcUpdateEntryBtn')?.classList.remove('visible');
-        el('leaveChip').style.display = '';
-        if (headDateEl) { headDateEl.classList.remove('visible'); }
-        if (loginDate) render(); else renderEmptyState();
-      } else if (key < tk) {
-        // Past day: show Update Entry button
-        _setShiftCtaVisible(false);
-        el('rcUpdateEntryBtn')?.classList.add('visible');
-        el('leaveChip').style.display = 'none';
-        if (headDateEl) { headDateEl.classList.remove('visible'); }
-        renderPastDay(key);
-      } else {
-        // Future day: day selector already shows the date — nothing needed on right
-        _setShiftCtaVisible(false);
-        el('rcUpdateEntryBtn')?.classList.remove('visible');
-        el('leaveChip').style.display = 'none';
-        if (headDateEl) headDateEl.classList.remove('visible');
-        renderPastDay(key);
-      }
+      _rcShowPastMode(false);
+      _setShiftCtaVisible(true);
+      if (loginDate) render(); else renderEmptyState();
     }
-
-    function _renderFutureDayBadge() {
-      // The week-progress card belongs only to the Weekend view (a recap of the
-      // last 7 days). Weekday future-day plan views never show it.
-      const badgeCard = el('wkndBadgeCard');
-      if (badgeCard) badgeCard.style.display = 'none';
-    }
-
-    function selectFutureDay(key) {
-      selectedDayKey = key;
-      try { sessionStorage.setItem('wh_sel_day', key); } catch {}
-      _updateRunningElsewhereBanner();
-      el('rcBody')?.classList.remove('weekend-mode');
-      const _rcNumElF = document.querySelector('.rc-numbers');
-      if (_rcNumElF) _rcNumElF.style.display = '';
-      ['rcToday', 'stayHint', 'otBanner', 'doneBanner', 'autostopBanner'].forEach(id => {
-        const _e = el(id); if (_e) _e.style.display = '';
-      });
-      renderDaySelector();
-
-      // Future weekend day → weekend info card (not the work-day planner)
-      if (isWeekendKey(key)) {
-        // Same past-day-class leak as selectDay()/selectWeekendView() — clear before render.
-        _rcShowPastMode(false);
-        _syncOffsetFromKey(key);
-        updateSelDayHeader(key); // sets rcDayLabel to day name ("Saturday") — not "Today"
-        _setShiftCtaVisible(false);
-        el('rcUpdateEntryBtn')?.classList.remove('visible');
-        el('leaveChip').style.display = 'none';
-        el('futureDayPlan').style.display = 'none';
-        el('resultCard').style.display = '';
-        el('rcHeadDate')?.classList.remove('visible'); // date already on left
-        el('rcBody')?.classList.add('weekend-mode');
-        renderWeekendState(key, 'weekend');
-        return;
-      }
-
-      const wk = week(daySelectorWeekOffset), day = wk.find(d => d.key === key);
-      const log = dayLog(key);
-
-      _setShiftCtaVisible(false);
-      el('rcUpdateEntryBtn')?.classList.remove('visible');
-      el('leaveChip').style.display = 'none';
-      el('rcHeadDate')?.classList.remove('visible'); // date already in day selector
-      el('resultCard').style.display = 'none';
-      el('futureDayPlan').style.display = '';
-      el('futureDayQuestion').textContent = `Any plans for ${day?.name || 'this day'}?`;
-
-      _renderFutureDayInline(key, log, day);
-      _renderFutureDayBadge();
-    }
-
-    function _renderFutureDayInline(key, log, day) {
-      const hasPlan   = !!(log?.futurePlan);
-      const planKey   = log?.futurePlan;
-      const isFresh   = _freshlySelectedPlanKeys.has(key); // picked this session, not yet confirmed
-      const isConfirmed = hasPlan && !isFresh;
-      const _OV_PLANS = new Set(['holiday', 'leave', 'halfday']);
-
-      const planTypes = [
-        { key: 'halfday', label: 'Half Day' },
-        { key: 'leave',   label: 'Full Day Leave' },
-        { key: 'holiday', label: 'Holiday' },
-      ];
-
-      // ── Chips area ──────────────────────────────────────────────────
-      const chipsEl = el('futureDayChips');
-      if (isConfirmed && _OV_PLANS.has(planKey)) {
-        // Confirmed override → dashed info card, clicking opens Update Entry
-        const _ovLabel = { holiday: 'Holiday', leave: 'Full Day Leave', halfday: 'Half Day' }[planKey];
-        // Timing first (halfday only)
-        let _timingLine = '';
-        if (planKey === 'halfday') {
-          const _sd = getShiftDefaults();
-          const _login  = log?.loginDisplay    || _sd.start || '';
-          const _logout = log?.checkoutDisplay || _sd.end   || '';
-          const _t = [_login, _logout].filter(Boolean).join(' → ');
-          if (_t) _timingLine = `<div style="font-size:13px;color:var(--muted-fg);margin-top:6px">${_escHtml(_t)}</div>`;
-        }
-        // Note below timing
-        const _ovNote = log?.futureReason
-          ? `<div style="font-size:13px;color:var(--muted-fg);margin-top:6px;line-height:1.5;white-space:pre-wrap">${_escHtml(log.futureReason)}</div>`
-          : `<div style="margin-top:8px"><span data-on-click="h27129cfe3c" data-click-a0="${key}" style="display:inline-flex;align-items:center;gap:5px;font-size:12px;color:var(--muted-fg);opacity:.55;cursor:pointer;text-decoration:none" data-on-mouseover="h745d1ed038" data-on-mouseout="h9ca1463baf"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>add description</span></div>`;
-        chipsEl.innerHTML = `<div class="override-info-editable" style="width:100%;box-sizing:border-box;text-align:center" data-on-click="hd2a73229c7" data-click-a0="${key}">
-          <div style="font-size:15px;font-weight:700;color:var(--foreground);margin-bottom:4px">${_ovLabel}</div>
-          ${_timingLine}${_ovNote}
-        </div>`;
-      } else {
-        // Normal chip buttons
-        chipsEl.innerHTML = planTypes.map(p =>
-          `<button class="modal-override-btn${planKey === p.key ? ' active' : ''}"
-            data-on-click="hf0bed0e243" data-click-a0="${key}" data-click-a1="${p.key}">${p.label}</button>`
-        ).join('');
-      }
-
-      // ── Reason field ─────────────────────────────────────────────────
-      const reasonWrap = el('futureDayReasonWrap');
-      if (reasonWrap) {
-        // Hide reason for confirmed overrides (card replaces it), show for fresh picks
-        const showReason = hasPlan && !(isConfirmed && _OV_PLANS.has(planKey));
-        reasonWrap.style.display = showReason ? '' : 'none';
-        const ta = el('futureDayReason');
-        if (ta) ta.value = log?.futureReason || '';
-      }
-
-      // ── Question heading — hide once confirmed ───────────────────────
-      const questionEl = el('futureDayQuestion');
-      if (questionEl) questionEl.style.display = isConfirmed ? 'none' : '';
-
-      // ── CTA buttons — hidden when confirmed, shown only for fresh picks ──
-      const btnWrap    = el('futurePlanBtnWrap');
-      const actionsDiv = el('futurePlanActions');
-      if (btnWrap) btnWrap.classList.toggle('visible', hasPlan && !isConfirmed);
-
-      if (hasPlan && !isConfirmed && actionsDiv) {
-        actionsDiv.innerHTML = `
-          <button class="btn-secondary" id="futurePlanDiscardBtn" style="height:36px;padding:0 16px;border-radius:10px;font-size:13px">Discard</button>
-          <button class="shift-start-btn" id="futurePlanBtn" style="font-size:13px;height:36px;border-radius:10px;padding:0 20px;width:auto">Looks Good</button>`;
-        const btn        = el('futurePlanBtn');
-        const discardBtn = el('futurePlanDiscardBtn');
-        if (btn)        btn.onclick        = () => toggleFuturePlanMode(key);
-        if (discardBtn) discardBtn.onclick = () => _openCancelPlanModal(key);
-      }
-    }
-
-    function _selectFuturePlanType(key, planKey, btn) {
-      const log = dayLog(key) || {};
-      const wasActive = btn.classList.contains('active');
-
-      // Toggle selection
-      el('futureDayChips').querySelectorAll('.modal-override-btn').forEach(b => b.classList.remove('active'));
-      if (wasActive) return; // already selected — only Cancel Plan button can remove it
-      btn.classList.add('active');
-      saveDayLog(key, { ...log, futurePlan: planKey });
-      _freshlySelectedPlanKeys.add(key); // fresh pick — not yet confirmed
-      _renderFutureDayInline(key, dayLog(key), week(daySelectorWeekOffset).find(d => d.key === key));
-      _renderFutureDayBadge();
-    }
-
-    let _futurePlanKey = null; // tracks which day the cancel modal targets
-    // Day keys where chip was just picked this session but "Looks Good" not yet clicked.
-    // Any key NOT in this set that already has a plan shows "Cancel Plan" on render.
-    const _freshlySelectedPlanKeys = new Set();
-
-    function toggleFuturePlanMode(key) {
-      _freshlySelectedPlanKeys.delete(key);
-      saveDayLogAndSync(key, dayLog(key)); // commit chip + reason together as one push
-      _renderFutureDayInline(key, dayLog(key), week(daySelectorWeekOffset).find(d => d.key === key));
-      _renderFutureDayBadge();
-    }
-
-    function _openCancelPlanModal(key) {
-      const log = dayLog(key) || {};
-      // No note written — discard directly without confirmation
-      if (!log.futureReason?.trim()) {
-        _futurePlanKey = key;
-        _confirmCancelPlan();
-        return;
-      }
-      _futurePlanKey = key;
-      const day = week(daySelectorWeekOffset).find(d => d.key === key);
-      const desc = el('cancelPlanDesc');
-      if (desc) desc.textContent = `You want to cancel your plan for ${day?.name || 'this day'}.`;
-      const confirmBtn = el('cancelPlanConfirmBtn');
-      if (confirmBtn) confirmBtn.onclick = () => _confirmCancelPlan();
-      el('cancelPlanOverlay').classList.add('open');
-    }
-
-    function _confirmCancelPlan() {
-      const key = _futurePlanKey;
-      if (!key) return;
-      el('cancelPlanOverlay').classList.remove('open');
-      const log = dayLog(key) || {};
-      const updated = { ...log }; delete updated.futurePlan; delete updated.futureReason;
-      saveDayLogAndSync(key, updated);
-      _freshlySelectedPlanKeys.delete(key);
-      _futurePlanKey = null;
-      _renderFutureDayInline(key, dayLog(key), week(daySelectorWeekOffset).find(d => d.key === key));
-      _renderFutureDayBadge();
-    }
-
-    function saveFutureDayReason(val) {
-      const log = dayLog(selectedDayKey) || {};
-      if (!log.futurePlan) return;
-      saveDayLog(selectedDayKey, { ...log, futureReason: val });
-    }
-
-
 
     // How an ended day landed, in the chip's words (approved 2026-11-14, option A):
     // "2h 15m short of your 9h" (grey) · "41m over your 9h" (amber) · "Right on
@@ -5031,55 +4397,6 @@
       box.querySelector('[data-ed="note"]')?.addEventListener('click', () => openDayEditModal(key, true));
     }
 
-    function renderPastDay(key) {
-      _hideSkeleton();
-      _rcShowPastMode(true); // hide tabs, progress bar, desc row for past/future days
-      const c = cfg(), log = dayLog(key);
-      const target = c.dailyH * 3600;
-      const _pastDay = week(daySelectorWeekOffset).find(d => d.key === key);
-      const _dayName = _pastDay?.name || 'Day';
-      const _targetLabel = _dayName + "'s Target";
-
-      // holiday / leave / halfday are routed through weekendView by selectDay — dead path
-
-      const isFutureDay = key > todayKey();
-      const targetRow = isFutureDay
-        ? `<div class="wk-target-row"><span class="section-label">Recommended</span><div class="wk-target-right"><span class="wk-target-val">${dur(target)}</span></div></div>`
-        : '';
-
-      // Clear the big-number right column — surplus shown in KPI box below
-      if (el('rcTarget')) { el('rcTarget').textContent = ''; el('rcTarget').style.color = ''; }
-      if (el('rcTargetLabel')) el('rcTargetLabel').textContent = '';
-
-      if (!log || log.hoursWorked == null) {
-        const _rcNumEl = document.querySelector('.rc-numbers');
-        if (_rcNumEl) _rcNumEl.style.display = 'none';
-        el('rcKpiGroup').style.display = 'none';
-        _setTodayDateChip();
-        el('stayHint').style.display = 'none';
-        el('otBanner').classList.remove('show'); _hideDoneBanner();
-        const _emptyMsg = isFutureDay ? '' : _endedDayCardHtml({ key, type: 'noentry' });
-        const _noDataContent = _emptyMsg + targetRow;
-        el('rcToday').innerHTML = _noDataContent;
-        el('rcToday').style.display = _noDataContent ? '' : 'none';
-        _bindEndedCard(el('rcToday'), key);
-        return;
-      }
-      // Past day with data: all display lives in rcToday, hide the KPI group
-      el('rcKpiGroup').style.display = 'none';
-      el('rcWorked').textContent = ''; el('rcWorked').style.color = '';
-      swapText('rcElapsedLabel', '', { color: '' });
-      const worked = Math.round(log.hoursWorked * 3600);
-      el('otBanner').classList.remove('show');
-      _hideDoneBanner();
-      _setTodayDateChip();
-      el('stayHint').style.display = 'none';
-      const loginDisp = log.loginDisplay || _loginDisplayFromLog(log);
-      const outDisp   = _checkoutDisplayFromLog(log);
-      el('rcToday').style.display = '';
-      el('rcToday').innerHTML = targetRow + _endedDayCardHtml({ key, type: 'fullday', worked, target, login: loginDisp, out: outDisp });
-      _bindEndedCard(el('rcToday'), key);
-    }
 
 
     // ── WEEK CARD ───────────────────────────────────────
@@ -5318,24 +4635,23 @@
         }
         _wfData[off] = { days, dailySecs, weekTarget: c.weeklyOn ? adjustedWeeklyTarget(week(off)) : dailySecs * days.length, offset: off };
         const t = _wfTitle(off), r = _wfRange(off);
-        html += `<section class="wf-week" data-off="${off}" aria-label="${t || r}"><div class="wf-wh"><span class="wf-wt">${t || r}</span>${t ? `<span class="wf-wr">${r}</span>` : ''}</div>${rowsHtml}</section>`;
+        html += `<section class="wf-week" data-off="${off}" aria-label="${t || r}"><div class="wf-wh"><span class="wf-wr">${r}</span></div>${rowsHtml}</section>`;
       }
       // Keep the reader's place when the data changes; open on today the first time.
       const first = !_wfRendered, keep = rows.scrollTop;
       rows.innerHTML = html;
       _wfRendered = `${_wfFrom}:${_wfTo}`;
-      if (first) requestAnimationFrame(() => { _wfCentre(tk, false); document.fonts?.ready.then(() => _wfCentre(tk, false)); });
+      if (first) requestAnimationFrame(() => { _wfToTop(tk, false); document.fonts?.ready.then(() => _wfToTop(tk, false)); });
       else rows.scrollTop = keep;
       _wfOff = null; _wfSync(liveSecs);
       renderNotifs();
-      renderDaySelector();   // the day selector's dots follow the history
     }
-    // Footer, header and Today button follow the week in the middle of the feed.
+    // Footer, header and Today button follow the week of the top row (today is read first).
     function _wfSync(liveSecs) {
       const rows = el('wkRows'); if (!rows) return;
-      const mid = rows.scrollTop + rows.clientHeight / 2;
+      const top = rows.scrollTop + 8;
       let off = 0;
-      for (const s of rows.querySelectorAll('.wf-week')) { if (s.offsetTop <= mid) off = +s.dataset.off; else break; }
+      for (const s of rows.querySelectorAll('.wf-week')) { if (s.offsetTop <= top) off = +s.dataset.off; else break; }
       if (off !== _wfOff) {
         _wfOff = off; analyticsWeekOffset = off;   // Stats and the report follow it too
         el('wkNavLabel').textContent = _wfTitle(off) || _wfRange(off);
@@ -5344,20 +4660,26 @@
       }
       // "Today" shows only when today's row is out of view.
       const t = rows.querySelector('.wk-row.today'), btn = el('wfToday');
-      if (btn) { const away = !t || t.offsetTop + t.offsetHeight < rows.scrollTop + 40 || t.offsetTop > rows.scrollTop + rows.clientHeight; btn.hidden = !away; }
+      if (btn) { const inView = t && t.offsetTop >= rows.scrollTop - 2 && t.offsetTop + t.offsetHeight <= rows.scrollTop + rows.clientHeight + 2; btn.hidden = !!inView; }
       _wfSb?.update();
     }
-    // Glide a day's row to the middle; a picked day shows its hover look for a second.
-    function _wfCentre(key, smooth = true, mark = false) {
+    // Glide a day's row to the top of the list, so it's the first row read (#62);
+    // a picked day shows its hover look for a second.
+    function _wfToTop(key, smooth = true, mark = false) {
       const rows = el('wkRows'), r = rows?.querySelector(`.wk-row[data-day-key="${key}"]`); if (!r) return;
-      const top = r.offsetTop - (rows.clientHeight - r.offsetHeight) / 2;
+      const top = r.offsetTop;
       rows.scrollTo({ top: Math.max(0, top), behavior: smooth && !matchMedia('(prefers-reduced-motion: reduce)').matches ? 'smooth' : 'instant' });
       if (mark) { r.classList.add('hl'); setTimeout(() => r.classList.remove('hl'), 1000); }
+    }
+    // A row: today scrolls up to the Today card (today lives there); any other day opens Update Entry.
+    function _wfOpenRow(key) {
+      if (key !== todayKey()) { openDayEditModal(key); return; }
+      el('resultCard')?.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
     }
     function _wfGoTo(d, mark = true) {
       const off = _wfOffsetOf(d);
       if (off < _wfFrom || off > _wfTo) { _wfFrom = Math.min(_wfFrom, off); _wfTo = Math.max(_wfTo, off); renderHistory(); }
-      requestAnimationFrame(() => _wfCentre(dateKey(d), true, mark));
+      requestAnimationFrame(() => _wfToTop(dateKey(d), true, mark));
     }
 
     // ── Overlay scrollbar (Fluent): a 2px thumb while scrolling that fades after
@@ -5433,10 +4755,10 @@
       let raf = 0;
       rows.addEventListener('scroll', () => { if (!raf) raf = requestAnimationFrame(() => { raf = 0; _wfSync(); }); }, { passive: true });
       // Rows open the day (Update Entry), as before.
-      rows.addEventListener('click', e => { const r = e.target.closest('.wk-row'); if (r) openDayEditModal(r.dataset.dayKey); });
-      rows.addEventListener('keydown', e => { const r = e.target.closest('.wk-row'); if (r && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); openDayEditModal(r.dataset.dayKey); } });
+      rows.addEventListener('click', e => { const r = e.target.closest('.wk-row'); if (r) _wfOpenRow(r.dataset.dayKey); });
+      rows.addEventListener('keydown', e => { const r = e.target.closest('.wk-row'); if (r && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); _wfOpenRow(r.dataset.dayKey); } });
       btn.addEventListener('click', e => { e.stopPropagation(); cal.hidden ? _wfCalOpen() : _wfCalClose(); });
-      el('wfToday')?.addEventListener('click', () => _wfCentre(todayKey(), true, true));
+      el('wfToday')?.addEventListener('click', () => _wfToTop(todayKey(), true, true));
       cal.addEventListener('click', e => {
         e.stopPropagation();
         const nav = e.target.closest('[data-mo]');
@@ -5482,7 +4804,6 @@
       // banner in sync too — without it, ending a session while browsing a past/
       // future day left the banner stuck showing "Session running" forever, since
       // none of checkout()/doAutoStop()/endSession() refreshed it themselves.
-      _updateRunningElsewhereBanner();
       // Same reasoning for the Dashboard's week card: starting/pausing/ending a
       // session changes today's row, but none of those paths rebuild it, so it
       // kept a stale live pill and Total Hours. Only when the week card is
@@ -5543,9 +4864,7 @@
       el('shiftActiveLabel').textContent = `Started at ${short(p)}`;
       el('autostopBanner').classList.remove('show');
       persistSession();
-      selectDay(todayKey());
-      _rcTransitionToActive();
-      render();
+      _rcHandOff(() => { selectDay(todayKey()); _rcTransitionToActive(); render(); });
       // A start time already past auto-stop (e.g. 7:00 AM typed at 7 PM) is stopped
       // by that first render: nothing left to tick, alert or sync as running.
       if (!loginDate) return;
@@ -5599,12 +4918,78 @@
       }
       _startSession(p);
     }
+    // A session can't start later than now, even on purpose (user, 2026-11-19):
+    // "11:50 AM is in 2 hrs from now. You can't start a session for the future."
+    function _futureStartMsg(d, now = new Date()) {
+      const ahead = d - now;
+      if (!(ahead > 59000)) return null;
+      const mins = Math.ceil(ahead / 60000), hh = Math.floor(mins / 60), mm = mins % 60;
+      const unit = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
+      const rel = hh ? unit(hh, 'hr') + (mm ? ' ' + unit(mm, 'min') : '') : unit(mm, 'min');
+      return `${short(d)} is in ${rel} from now. You can't start a session for the future.`;
+    }
+    // The tooltip sits over the text cursor in the start-time field and stays
+    // there while the field holds a time later than now; it goes once that time
+    // is changed or removed (user, 2026-11-19). It floats on the page because
+    // the field's row clips its overflow.
+    let _ftMeasure = null;
+    // Where the caret is, in page x: the text before it measured in the field's font.
+    function _caretX(input) {
+      const cs = getComputedStyle(input);
+      if (!_ftMeasure) {
+        _ftMeasure = document.createElement('span');
+        _ftMeasure.setAttribute('aria-hidden', 'true');
+        _ftMeasure.style.cssText = 'position:fixed;left:-9999px;top:0;visibility:hidden;white-space:pre';
+        document.body.appendChild(_ftMeasure);
+      }
+      _ftMeasure.style.font = cs.font; _ftMeasure.style.letterSpacing = cs.letterSpacing;
+      const pos = document.activeElement === input && input.selectionEnd != null ? input.selectionEnd : input.value.length;
+      _ftMeasure.textContent = input.value.slice(0, pos);
+      const r = input.getBoundingClientRect();
+      return Math.min(r.right, r.left + parseFloat(cs.paddingLeft || 0) + _ftMeasure.getBoundingClientRect().width - input.scrollLeft);
+    }
+    // The message for what's typed in the start field now, or null.
+    function _futureTypedMsg(raw) {
+      const v = (raw || '').trim();
+      const p = v ? parseLogin(v) : null;
+      return p ? _futureStartMsg(p) : null;
+    }
+    function _syncFutureTip() {
+      const input = el('tpFreeInput'), msg = input ? _futureTypedMsg(input.value) : null;
+      let tip = el('futureTip');
+      if (!msg || !input.offsetParent) { tip?.classList.remove('show'); return; }
+      if (!tip) { tip = document.createElement('div'); tip.id = 'futureTip'; tip.className = 'future-tip'; tip.setAttribute('role', 'alert'); document.body.appendChild(tip); }
+      if (tip.textContent !== msg) tip.textContent = msg;
+      tip.style.maxWidth = Math.min(320, window.innerWidth - 16) + 'px';
+      const r = input.getBoundingClientRect(), x = _caretX(input), w = tip.offsetWidth;
+      const left = Math.max(8, Math.min(x - w / 2, window.innerWidth - w - 8));
+      tip.style.left = left + 'px';
+      tip.style.top = (r.top - 8) + 'px';
+      tip.style.setProperty('--ax', (x - left) + 'px');   // the arrow points at the caret
+      tip.classList.add('show');
+    }
+    // Start pressed with a future time: shake the field; the tooltip is already there.
+    function _showFutureTip() {
+      const row = el('shiftInputRow');
+      if (row) { row.classList.remove('p12-shaking'); void row.offsetWidth; row.classList.add('p12-shaking');
+        row.addEventListener('animationend', () => row.classList.remove('p12-shaking'), { once: true }); }
+      _syncFutureTip();
+    }
+    (function _futureTipInit() {
+      const input = el('tpFreeInput'); if (!input) return;
+      ['input', 'keyup', 'click', 'focus', 'select'].forEach(ev => input.addEventListener(ev, _syncFutureTip));
+      document.addEventListener('selectionchange', () => { if (document.activeElement === input) _syncFutureTip(); });
+      window.addEventListener('scroll', () => { if (el('futureTip')?.classList.contains('show')) _syncFutureTip(); }, true);
+      window.addEventListener('resize', () => { if (el('futureTip')?.classList.contains('show')) _syncFutureTip(); });
+    })();
     function calculate() {
       const raw = el('tc-r7m2').value.trim();
       let p;
       if (raw) {
         p = parseLogin(raw);
         if (!p) { showErr("Couldn't parse that. Try: 11:30, 1130, 11:30 AM, or 13:30"); return; }
+        const future = _futureStartMsg(p);
+        if (future) { _showFutureTip(); return; }
       } else {
         p = new Date();
       }
@@ -5627,7 +5012,7 @@
     function _anyModalOpen() {
       if (_nativeModalOpen || document.body.classList.contains('driver-active')) return true;
       if (el('obOverlay')?.style.display === 'flex') return true;
-      return [...document.querySelectorAll('.overlay.open, .email-modal-overlay.open, .wp-picker-overlay.open, .td-panel.open, .ios-install-sheet.open')]
+      return [...document.querySelectorAll('.overlay.open, .email-modal-overlay.open, .wp-picker-overlay.open, .ios-install-sheet.open')]
         .some(n => getComputedStyle(n).display !== 'none');
     }
     function _queueModal(open) {
@@ -5673,10 +5058,8 @@
       el('autostopBanner').classList.remove('show');
       selectedDayKey = todayKey();
       _setShiftCtaVisible(true);
-      el('rcUpdateEntryBtn')?.classList.remove('visible');
-      updateSelDayHeader(selectedDayKey);
+      _paintTodayHead();
       renderEmptyState();
-      renderDaySelector();
     }
 
     // ── SETTINGS ───────────────────────────────────────
@@ -6389,7 +5772,6 @@
                 penaltyReminders: cfg().penaltyReminders, payrollNudges: cfg().payrollNudges });
       // If session is running, refresh button state to reflect break-time change
       if (loginDate) setCalcBtnState('running');
-      renderDaySelector(); // refresh strip in case work-days changed
       updateWeeklyCalc();
       _refreshLastSaved();
       refreshProfileCard(); // keep name/position in sync with inputs
@@ -6429,7 +5811,6 @@
         ).join('');
       }
       _setDaysSummary();
-      renderDaySelector();
     }
 
     // ── SHIFT PRESET HELPERS ───────────────────────────
@@ -6823,10 +6204,9 @@
     function _acRowHtml(r, read) {
       const d = r.date, wd = FULL_DAYS_EN[d.getDay()].slice(0, 3);
       const sub = `${_acDur(r.worked)} of ${_acDur(r.tgt)}${r.half ? ' · Half day' : ''}${r.sample ? ' · Sample' : ''}${read ? ' · Read' : ''}`;
-      return `<div class="penalty-row ac-row${read ? ' read' : ''}" data-penalty-key="${r.key}" tabindex="0" role="button" aria-haspopup="menu" aria-label="${FULL_DAYS_EN[d.getDay()]}, ${MONTHS[d.getMonth()]} ${d.getDate()}: ${_acDur(r.deficit)} short">
+      return `<div class="penalty-row ac-row${read ? ' read' : ''}" data-penalty-key="${r.key}" tabindex="0" role="button" aria-label="Raise a dispute for ${FULL_DAYS_EN[d.getDay()]}, ${MONTHS[d.getMonth()]} ${d.getDate()}: ${_acDur(r.deficit)} short">
           <div class="wk-tile ac-tile"><span class="wk-tile-n">${wd}</span><span class="wk-tile-d">${d.getDate()}</span></div>
           <div class="ac-txt"><div class="ac-gap"><b>${_acDur(r.deficit)}</b> <span>short</span></div><div class="ac-sub">${sub}</div></div>
-          <button type="button" class="btn-secondary ac-resolve" tabindex="-1" aria-hidden="true">Resolve</button>
         </div>`;
     }
     // Rows with a month label each time the list crosses into a new month.
@@ -6893,7 +6273,7 @@
       // ⋯ menu
       const more = el('acMore'), menu = el('acMoreMenu');
       const setMenu = open => { menu.classList.toggle('open', open); more.setAttribute('aria-expanded', String(open)); if (open) menu.querySelector('.ac-mi:not([disabled])')?.focus(); };
-      more.addEventListener('click', e => { e.stopPropagation(); _acCloseRowMenu(); setMenu(!menu.classList.contains('open')); });
+      more.addEventListener('click', e => { e.stopPropagation(); setMenu(!menu.classList.contains('open')); });
       menu.addEventListener('keydown', e => {
         const items = [...menu.querySelectorAll('.ac-mi:not([disabled])')], i = items.indexOf(document.activeElement);
         if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); items[(i + (e.key === 'ArrowDown' ? 1 : items.length - 1)) % items.length]?.focus(); }
@@ -6911,39 +6291,20 @@
         card._acDoc = true;
         document.addEventListener('click', e => {
           if (!e.target.closest('.ac-more-wrap')) { el('acMoreMenu')?.classList.remove('open'); el('acMore')?.setAttribute('aria-expanded', 'false'); }
-          if (!e.target.closest('.ac-rmenu') && !e.target.closest('.ac-row')) _acCloseRowMenu();
         });
-        // A row (or its Resolve button) opens the Resolve menu.
-        list.addEventListener('click', e => { if (e.target.closest('.ac-rmenu')) return; const row = e.target.closest('.ac-row'); if (row && !row.dataset.dismissing) _acOpenRowMenu(row); });
-        list.addEventListener('keydown', e => { if (e.target.closest('.ac-rmenu')) return; const row = e.target.closest('.ac-row'); if (row && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); _acOpenRowMenu(row); } });
+        // A row opens that day's Update Entry panel on the Raise Dispute tab (user, 2026-11-19).
+        list.addEventListener('click', e => { const row = e.target.closest('.ac-row'); if (row && !row.dataset.dismissing) _acOpenDispute(row.dataset.penaltyKey); });
+        list.addEventListener('keydown', e => { const row = e.target.closest('.ac-row'); if (row && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); _acOpenDispute(row.dataset.penaltyKey); } });
       }
     }
-    function _acCloseRowMenu() { document.querySelectorAll('.ac-rmenu').forEach(m => m.remove()); document.querySelectorAll('.ac-row.menu-on').forEach(r => r.classList.remove('menu-on')); }
-    function _acOpenRowMenu(row) {
-      const was = row.classList.contains('menu-on');
-      _acCloseRowMenu(); if (was) return;
-      const key = row.dataset.penaltyKey, read = _discardedPenalties.has(key);
-      const m = document.createElement('div');
-      m.className = 'ac-rmenu ac-menu open'; m.setAttribute('role', 'menu');
-      m.innerHTML = `<button type="button" class="ac-mi" role="menuitem" data-r="email">${_AC_SVG(_AC_I.mail)}<span>Draft Email</span></button>
-        <button type="button" class="ac-mi" role="menuitem" data-r="fix">${_AC_SVG(_AC_I.edit)}<span>Update Hours</span></button>
-        <button type="button" class="ac-mi" role="menuitem" data-r="read">${_AC_SVG(read ? _AC_I.unread : _AC_I.read)}<span>${read ? 'Mark as Unread' : 'Mark as Read'}</span></button>`;
-      row.classList.add('menu-on');
-      row.appendChild(m);
-      m.querySelector('.ac-mi')?.focus();
-      m.addEventListener('keydown', e => {
-        const items = [...m.querySelectorAll('.ac-mi')], i = items.indexOf(document.activeElement);
-        if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); items[(i + (e.key === 'ArrowDown' ? 1 : items.length - 1)) % items.length].focus(); }
-        if (e.key === 'Escape') { _acCloseRowMenu(); row.focus(); }
-      });
-      m.addEventListener('click', e => {
-        const b = e.target.closest('[data-r]'); if (!b) return;
-        _acCloseRowMenu();
-        if (b.dataset.r === 'email') openEmailModal(key);
-        else if (b.dataset.r === 'fix') openDayEditModal(key);
-        else if (read) { _discardedPenalties.delete(key); _acKeepRead.delete(key); _savePenDiscards(); renderPenalties(); renderNotifs(); }
-        else { _discardedPenalties.add(key); _acKeepRead.add(key); _savePenDiscards(); renderPenalties(); renderNotifs(); }
-      });
+    // The right panel (Update Entry) for a penalty's day, on Raise Dispute.
+    // Sample penalties carry their own date instead of a day key.
+    function _acOpenDispute(key) {
+      const p = _penaltyData.find(x => x.key === key);
+      const day = p?.date ? dateKey(p.date) : key;
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(day || '')) return;
+      openDayEditModal(day);
+      _deTab('dispute');
     }
     // Mark all as read: the rows stay in place, muted and labelled Read; a toast offers Undo.
     function _acMarkAllRead(un) {
@@ -6988,87 +6349,8 @@
     // Three hand-written formats per shortfall type. {name} tokens are filled
     // from the day's data and the inputs; a line whose token has no value is
     // left out (no reason typed, no reason line). No generated text.
-    const EMAIL_TPL = {
-      daily: {
-        concise: { subject: 'Short day on {date}', body:
-`{hi}
 
-I worked {worked} on {date}, {short} under the {target} target.
-Reason: {reason}
-I'll make up the time this week.
-
-{name}` },
-        detailed: { subject: 'Hours for {date}', body:
-`{hi}
-
-Here are my hours for {date}:
-
-Start: {start}
-End: {end}
-Worked: {worked}
-Target: {target}
-Short by: {short}
-
-Reason: {reason}
-
-I'll make up the difference over the next few days.
-
-Thanks,
-{name}
-{position}` },
-        formal: { subject: 'Attendance note: {date}', body:
-`{dear}
-
-I am writing to let you know that on {date} I worked {worked} against the standard {target}, which is {short} short.
-This was due to {reason}.
-
-I will make up the remaining time in the coming days. Please let me know if you need anything else from me.
-
-Kind regards,
-{name}
-{position}` },
-      },
-      weekly: {
-        concise: { subject: 'Short week: {range}', body:
-`{hi}
-
-I logged {worked} for the week of {range}, {short} under the {target} target.
-Reason: {reason}
-I'll make it up next week.
-
-{name}` },
-        detailed: { subject: 'Weekly hours: {range}', body:
-`{hi}
-
-Here are my hours for the week of {range}:
-
-{days}
-
-Total: {worked}
-Target: {target}
-Short by: {short}
-
-Reason: {reason}
-
-I'll make up the difference next week.
-
-Thanks,
-{name}
-{position}` },
-        formal: { subject: 'Weekly attendance note: {range}', body:
-`{dear}
-
-I am writing to let you know that for the week of {range} I logged {worked} against the weekly target of {target}, which is {short} short.
-This was due to {reason}.
-
-I will make up the remaining time next week. Please let me know if you need anything else from me.
-
-Kind regards,
-{name}
-{position}` },
-      },
-    };
-
+    const EMAIL_TPL = {};
     // Raise Dispute (Update Entry › Raise Dispute): ask HR to correct a day the
     // attendance system got wrong, with 5pm's own timings for it.
     EMAIL_TPL.dispute = {
@@ -7140,18 +6422,6 @@ Kind regards,
         .join('\n').replace(/\n{3,}/g, '\n\n').trim();
     }
 
-    // One line per weekday for the Detailed weekly format.
-    function _emailDayLines(days, logs) {
-      return (days || []).map(d => {
-        const log = logs?.[dateKey(d)] || dayLog(dateKey(d)) || {};
-        const label = `${FULL_DAYS_EN[d.getDay()].slice(0, 3)} ${d.getDate()} ${MONTHS[d.getMonth()].slice(0, 3)}`;
-        const ov = log.override;
-        if (ov === 'leave') return `${label}: On Leave`;
-        if (ov === 'holiday') return `${label}: Holiday`;
-        const hrs = log.hoursWorked ? durWorked(log.hoursWorked * 3600) : 'No hours logged';
-        return `${label}: ${hrs}${ov === 'halfday' ? ' (Half Day)' : ''}`;
-      }).join('\n');
-    }
 
     let _emailP = null, _emailDateStr = '';
 
@@ -7159,8 +6429,6 @@ Kind regards,
     // Shortfalls go to a manager, disputes to HR (saved separately, since it's
     // usually someone else), bug reports to the developer.
     const EMAIL_RECIPIENTS = {
-      daily:   { to: 'emailTo',   cc: 'emailCc',   name: 'emailManager', nameLabel: "Manager's name" },
-      weekly:  { to: 'emailTo',   cc: 'emailCc',   name: 'emailManager', nameLabel: "Manager's name" },
       dispute: { to: 'emailHrTo', cc: 'emailHrCc', name: 'emailHrName',  nameLabel: "HR contact's name" },
     };
 
@@ -7290,20 +6558,15 @@ Kind regards,
       const c = cfg(), p = _emailP;
       if (p.type === 'bug') return { ..._bugDevice(), description: el('emailBugDesc').value.trim() };
       const manager = el('emailManager').value.trim();
-      const worked = p.type === 'weekly' ? (p.totalSecs || 0) : (p.log?.hoursWorked || 0) * 3600;
-      const dispute = p.type === 'dispute';
+      const worked = (p.log?.hoursWorked || 0) * 3600;
       return {
         hi: manager ? `Hi ${manager},` : 'Hi,',
         dear: manager ? `Dear ${manager},` : 'Hello,',
         date: _emailDateStr,
-        range: p.rangeStr || _emailDateStr,
-        start: p.type !== 'weekly' && p.log?.loginTime ? _loginDisplayFromLog(p.log) : '',
-        end: p.type !== 'weekly' && (p.log?.checkoutDisplay || p.log?.checkoutTime) ? _checkoutDisplayFromLog(p.log) : '',
+        start: p.log?.loginTime ? _logHms(p.log, 'start') : '',
+        end: p.log?.checkoutDisplay || p.log?.checkoutTime ? _logHms(p.log, 'end') : '',
         worked: worked ? durWorked(worked) : '',
-        target: dispute ? '' : durWorked(worked + p.deficit),
-        short: dispute ? '' : durWorked(p.deficit),
-        reason: dispute ? el('emailBugDesc').value.trim().replace(/\.$/, '') : el('emailReason').value.trim().replace(/\.$/, ''),
-        days: p.type === 'weekly' ? _emailDayLines(p.wkDays, p.dayLogs) : '',
+        reason: el('emailBugDesc').value.trim().replace(/\.$/, ''),
         name: (c.name || '').trim(),
         position: (c.position || '').trim(),
       };
@@ -7384,10 +6647,6 @@ Kind regards,
       box.style.height = '';
     }
 
-    function openEmailModal(key) {
-      const p = _penaltyData.find(x => x.key === key);
-      if (p) _openEmailFor(p);
-    }
 
     // p: a penalty (daily/weekly), { type: 'dispute', date, log, reasonText }
     // or { type: 'bug' }. The same sheet, titled and fitted to each. A dispute
@@ -7400,7 +6659,7 @@ Kind regards,
       el('emailModalTitle').textContent =
         bug ? 'Report a Bug' : p.type === 'dispute' ? 'Raise Dispute' : 'Email Draft';
       el('emailModalDate').textContent = bug ? 'Goes to the developer, with your device details'
-        : p.type === 'weekly' ? `Week of ${p.rangeStr}` : _emailDateStr;
+        : _emailDateStr;
       // The text box: a bug's description, or a dispute's reason (prefilled
       // from the chip or what was written, and still editable here).
       const dispute = p.type === 'dispute';
@@ -7416,10 +6675,6 @@ Kind regards,
       // Update Entry sheet, and a null here stopped Draft Email working twice.
       document.querySelector('.email-pv-scroll').scrollTop = 0;
       el('emailCustomiseBtn').closest('.email-actions').classList.toggle('single', bug);
-      // The per-email reason only fits shortfalls; a dispute picked its reason already.
-      const shortfall = p.type === 'daily' || p.type === 'weekly';
-      el('emailReason').hidden = el('emailReason').previousElementSibling.hidden = !shortfall;
-      el('emailReason').value = '';
       el('emailBugDesc').value = dispute ? p.reasonText : '';
       _emailSwapReset();
       _emailFillSaved();
@@ -7557,7 +6812,7 @@ Kind regards,
     // Recipients and the contact's name come from the synced settings, saved
     // per kind (manager for shortfalls, HR for disputes).
     function _emailFillSaved() {
-      const c = cfg(), r = EMAIL_RECIPIENTS[_emailP?.type] || EMAIL_RECIPIENTS.daily;
+      const c = cfg(), r = EMAIL_RECIPIENTS[_emailP?.type] || EMAIL_RECIPIENTS.dispute;
       el('emailTo').value = c[r.to] || '';
       el('emailCc').value = c[r.cc] || '';
       el('emailManager').value = c[r.name] || '';
@@ -7589,16 +6844,14 @@ Kind regards,
     }
 
     // Customise: edit the inputs, then Save (to the account, every device) or
-    // Cancel (back to what was there). The reason stays with this email only.
-    let _emailReasonBefore = '';
+    // Cancel (back to what was there).
     function _emailCustomise() {
-      _emailReasonBefore = el('emailReason').value;
       _emailPane('edit', true);
       el('emailTo').focus({ preventScroll: true });
     }
-    function _emailCancel() { _emailFillSaved(); el('emailReason').value = _emailReasonBefore; _emailPane('preview', true); }
+    function _emailCancel() { _emailFillSaved(); _emailPane('preview', true); }
     function _emailSave() {
-      const r = EMAIL_RECIPIENTS[_emailP?.type] || EMAIL_RECIPIENTS.daily;
+      const r = EMAIL_RECIPIENTS[_emailP?.type] || EMAIL_RECIPIENTS.dispute;
       saveCfgAndSync({ ...cfg(), [r.to]: el('emailTo').value.trim(), [r.cc]: el('emailCc').value.trim(),
                        [r.name]: el('emailManager').value.trim() });
       _emailUpdate();
@@ -7758,7 +7011,6 @@ Kind regards,
         saveDayLogAndSync(key, u);
         closeDayEditModal();
         renderWeekendState(key, 'weekend');
-        renderDaySelector();
         return;
       }
       const key = _dayEditKey;
@@ -7787,15 +7039,7 @@ Kind regards,
       _setNoteDirty(key); // guard: prevents pullAll restoring stale remote on reload
       Store.remove(KEY.day + key);
       _markDirty(key); _syncNow();
-      // For future plan days: clear the inline view immediately before closing the modal
-      // so the empty state is visible the moment the overlay animates out
-      if (new Date(key + 'T12:00') > new Date() && key !== todayKey()) {
-        _freshlySelectedPlanKeys.delete(key);
-        _renderFutureDayInline(key, null, week(daySelectorWeekOffset).find(d => d.key === key));
-        _renderFutureDayBadge();
-      }
       closeDayEditModal();
-      renderDaySelector();
       renderHistory();
       renderPenalties();
       renderSurplusCircles();
@@ -7809,14 +7053,13 @@ Kind regards,
         const _card = el('homeCard'); if (_card) _card.style.height = '';
         renderEmptyState();
       } else if (new Date(key + 'T12:00') > new Date()) {
-        selectFutureDay(key);
+        selectDay(todayKey());
       } else if (key === selectedDayKey) {
         selectDay(key);
       }
       showUndoToast('Entry Deleted', () => {
         if (_deletedEntryKey && _deletedEntryData) {
           saveDayLogAndSync(_deletedEntryKey, _deletedEntryData);
-          renderDaySelector();
           renderHistory();
           renderPenalties();
           renderSurplusCircles();
@@ -7824,7 +7067,7 @@ Kind regards,
             renderEmptyState();
           } else if (_deletedEntryKey === selectedDayKey) {
             if (new Date(_deletedEntryKey + 'T12:00') > new Date()) {
-              selectFutureDay(_deletedEntryKey);
+              selectDay(todayKey());
             } else {
               selectDay(_deletedEntryKey);
             }
@@ -7856,8 +7099,8 @@ Kind regards,
       _deTab('edit');
       _deChip('missed');
       el('deDisputeOther').value = '';
-      el('deStart').value = log?.loginDisplay || '';
-      el('deEnd').value   = log?.checkoutDisplay || '';
+      el('deStart').value = _logHms(log, 'start');
+      el('deEnd').value   = log?.checkoutTime || log?.checkoutDisplay ? _logHms(log, 'end') : '';
       el('deErr').classList.remove('show');
       // Placeholders. Start: the shift's usual start. End: when this day's work
       // was last seen running, so an empty end suggests a real time; the shift's
@@ -8018,8 +7261,7 @@ Kind regards,
       saveDayLog(key, { ...ex, ...plan });
       persist();
       closeNewPlanModal();
-      renderDaySelector();
-      if (key === selectedDayKey) selectFutureDay(key);
+      if (key === selectedDayKey) selectDay(todayKey());
     }
 
         function closeDayEditModal() {
@@ -8096,7 +7338,7 @@ Kind regards,
       const box = el('deRecorded'); if (!box) return;
       const l = log || {};
       box.innerHTML = '<span>5pm recorded</span><b></b>';
-      box.querySelector('b').textContent = _deRecordedText(_loginDisplayFromLog(l), _checkoutDisplayFromLog(l), Math.round((l.hoursWorked || 0) * 3600));
+      box.querySelector('b').textContent = _deRecordedText(_logHms(l, 'start'), _logHms(l, 'end'), Math.round((l.hoursWorked || 0) * 3600));
     }
 
     // ── Export all logs as a local JSON file ───────────
@@ -8857,7 +8099,7 @@ Kind regards,
         else if (!loginDate && !autoStopped && _resumeFromLog(_pulled)) _startCheckpoint();
 
         // Penalties live on the one-page layout now; nothing else renders them at launch.
-        renderHistory(); renderDaySelector(); renderPenalties();
+        renderHistory(); renderPenalties();
         // Don't call render() for auto-stopped sessions — the ticker is dead and
         // render() would incorrectly fire the Daily Target modal.
         if (!loginDate || autoStopped) renderEmptyState(); else render();
@@ -8945,7 +8187,6 @@ Kind regards,
       try {
         Store.setCfg(remoteCfg);
         populateSettings();
-        renderDaySelector();
         renderNotifs(); // update dismissed state immediately on this device
         if (loginDate) render(); else renderEmptyState();
         showToast('Settings updated', 'info', 'Changes from another device were synced.');
@@ -8992,18 +8233,8 @@ Kind regards,
         }
         // A session just started on another device: run it here too.
         if (dk === todayKey() && !loginDate && !autoStopped && _resumeFromLog(Store.getDay(dk))) _startCheckpoint();
-        renderDaySelector();
         renderHistory();
-        // Don't collapse future-day plan view on realtime echo
-        const _onFuturePlanView = el('futureDayPlan')?.style.display !== 'none';
-        if (_onFuturePlanView) {
-          const _log = Store.getDay(selectedDayKey);
-          const _day = week(daySelectorWeekOffset).find(d => d.key === selectedDayKey);
-          _renderFutureDayInline(selectedDayKey, _log, _day);
-          _renderFutureDayBadge();
-        } else if (!loginDate) {
-          renderEmptyState();
-        }
+        if (!loginDate) renderEmptyState();
       } finally { _applyingRemote = false; }
     }
 
@@ -9173,7 +8404,6 @@ Kind regards,
 
       // Full UI refresh
       selectedDayKey = todayKey();
-      renderDaySelector();
       renderEmptyState();
       populateSettings();
 
@@ -9206,7 +8436,6 @@ Kind regards,
         else { const u = { ...ex }; delete u.note; u.lastUpdated = ts; saveDayLogAndSync(key, u); }
         closeDayEditModal();
         renderWeekendState(key, 'weekend');
-        renderDaySelector();
         return;
       }
       const s = parse(el('deStart').value), e = parse(el('deEnd').value);
@@ -9268,7 +8497,7 @@ Kind regards,
         el('deErr').classList.remove('show');
         persist();
         closeDayEditModal();
-        renderHistory(); renderDaySelector(); renderPenalties(); renderSurplusCircles();
+        renderHistory(); renderPenalties(); renderSurplusCircles();
         selectDay(key);
         return;
       } else {
@@ -9281,6 +8510,7 @@ Kind regards,
         saveDayLogAndSync(key, { ...ex,
           loginTime:      `${s.getHours()}:${s.getMinutes()}:${s.getSeconds()}`,
           loginDisplay:   short(s),
+          checkoutTime:   `${p2(eAdj.getHours())}:${p2(eAdj.getMinutes())}:${p2(eAdj.getSeconds())}`,
           checkoutDisplay: short(eAdj),
           hoursWorked:    worked / 3600,
           lastUpdated:    new Date().toISOString(),
@@ -9308,7 +8538,6 @@ Kind regards,
       persist();
       closeDayEditModal();
       renderHistory();
-      renderDaySelector();
       renderPenalties();
       renderSurplusCircles();
       // Always refresh the overview when editing today, regardless of session state
@@ -9316,7 +8545,7 @@ Kind regards,
         selectDay(key); // also removes weekend-mode if override was cleared
       } else if (key === selectedDayKey) {
         const _isFutureSave = new Date(key + 'T12:00') > new Date() && key !== todayKey();
-        if (_isFutureSave) selectFutureDay(key);
+        if (_isFutureSave) selectDay(todayKey());
         else selectDay(key);
       }
     }
@@ -9554,7 +8783,7 @@ Kind regards,
         setCalcBtnState('ended');
         renderEmptyState();
       }
-      renderDaySelector(); renderHistory();
+      renderHistory();
       closeAutoStopRecovery();
       showToast('Timer Auto Ended', 'success');
     }
@@ -10272,7 +9501,6 @@ Kind regards,
       el('shiftInputRow').classList.remove('active-state', 'hidden');
       el('shiftActiveLabel').textContent = '—';
       el('autostopBanner').classList.remove('show');
-      renderDaySelector();
       renderEmptyState();
     });
 
@@ -10310,65 +9538,6 @@ Kind regards,
       });
     })();
 
-    // ── Continuous day strip — manual touch scroll + label sync + lazy loading ──
-    // Uses a manual touchmove handler (non-passive, calls preventDefault) so that
-    // a horizontal swipe on the strip never triggers iOS pull-to-refresh, regardless
-    // of the vertical component. Native overflow scroll handles mouse/trackpad.
-    (function _initDayStripScroll() {
-      const container = el('daySelectorRow');
-      if (!container) return;
-
-      let _sx = 0, _sy = 0, _lx = 0, _horiz = null, _vx = 0, _lt = 0, _mid = null;
-
-      container.addEventListener('touchstart', e => {
-        if (e.touches.length !== 1) return;
-        _sx = _lx = e.touches[0].clientX;
-        _sy = e.touches[0].clientY;
-        _horiz = null; _vx = 0; _lt = Date.now();
-        if (_mid) { cancelAnimationFrame(_mid); _mid = null; }
-      }, { passive: true });
-
-      container.addEventListener('touchmove', e => {
-        if (e.touches.length !== 1) return;
-        const cx = e.touches[0].clientX, cy = e.touches[0].clientY;
-        if (_horiz === null) {
-          const adx = Math.abs(cx - _sx), ady = Math.abs(cy - _sy);
-          if (adx < 4 && ady < 4) return; // wait for intent
-          _horiz = adx >= ady;
-        }
-        if (_horiz) {
-          e.preventDefault(); // block pull-to-refresh for horizontal gestures
-          const dx = _lx - cx;
-          container.scrollLeft = Math.max(0, container.scrollLeft + dx);
-          const now = Date.now();
-          _vx = dx / Math.max(now - _lt, 1); // px/ms
-          _lt = now;
-        }
-        _lx = cx;
-      }, { passive: false });
-
-      container.addEventListener('touchend', () => {
-        if (!_horiz || Math.abs(_vx) < 0.05) return;
-        let v = _vx;
-        (function step() {
-          if (Math.abs(v) < 0.05) return;
-          container.scrollLeft = Math.max(0, container.scrollLeft + v * 16);
-          v *= 0.94;
-          _mid = requestAnimationFrame(step);
-        })();
-      }, { passive: true });
-
-      // Label + lazy-load on any scroll (manual drag, momentum, or programmatic)
-      let _raf = null;
-      container.addEventListener('scroll', () => {
-        if (_raf) return;
-        _raf = requestAnimationFrame(() => {
-          _raf = null;
-          _updateWeekLabel();
-          if (container.scrollLeft < 150) _dsLoadMorePast();
-        });
-      }, { passive: true });
-    })();
 
     // Inline edit Enter-key handlers (delegated — elements are created dynamically)
     document.addEventListener('keydown', ev => {
@@ -11748,9 +10917,18 @@ Kind regards,
 
     // Local sign-out forced by a revoke. Mirrors confirmLogout's wipe so no
     // cached work data is left on a device the user has cut off.
-    let _kicking = false;
+    let _kicking = false, _selfLogout = false;
+    // Set by Log Out (not a wh_ key, so the sign-out wipe keeps it for the other tabs).
+    const SELF_LOGOUT_KEY = '5pm_self_logout';
+    function _selfLogoutRecent(now = Date.now()) {
+      let t = 0; try { t = Number(localStorage.getItem(SELF_LOGOUT_KEY) || 0); } catch (_) {}
+      return t > 0 && now - t < 60000;
+    }
     function _kickThisDevice() {
-      if (_kicking) return;
+      // Our own Log Out marks this device signed out in the devices map; that
+      // change comes straight back here and must not read as "signed out from
+      // another device" (user bug, 2026-11-19).
+      if (_kicking || _selfLogout) return;
       _kicking = true;
       if (ticker) { clearInterval(ticker); ticker = null; }
       const t = el('signingOutTitle'); if (t) t.textContent = 'Signed Out';
@@ -11764,7 +10942,7 @@ Kind regards,
         Object.keys(localStorage)
           .filter(k => k.startsWith('wh_') && k !== 'wh_theme' && k !== DEV_ID_KEY && k !== IOS_SEEN_KEY && k !== RATE_KEY)
           .forEach(k => localStorage.removeItem(k));
-        window.location.href = 'login.html?reason=elsewhere';
+        window.location.href = _selfLogoutRecent() ? 'login.html' : 'login.html?reason=elsewhere';
       });
     }
 
@@ -12006,6 +11184,9 @@ Kind regards,
       el('logoutOverlay').classList.add('open');
     }
     function confirmLogout() {
+      _selfLogout = true;
+      // Other tabs of this browser hear the same change: tell them it was us.
+      try { localStorage.setItem(SELF_LOGOUT_KEY, String(Date.now())); } catch (_) {}
       el('logoutOverlay').classList.remove('open');
       if (ticker) { clearInterval(ticker); ticker = null; }
       el('signingOutTitle').textContent = 'Logging Out';
@@ -12228,7 +11409,6 @@ Kind regards,
 
       _tpInitWheels();
       _tpSegInit();
-      _setTodayDateChip();
       // The day-selector used to cancel every wheel event here so its crosshair
       // stayed the only way to move it. That also cancelled page scrolling
       // whenever the pointer sat over the row, and narrowing it to sideways
@@ -12243,11 +11423,9 @@ Kind regards,
       // "reload" vs "open" with no arbitrary time window. Opening the site always
       // lands on Today; reloading keeps whichever day (past, present, or future)
       // was being viewed.
-      let _sessionDay = null;
-      try { _sessionDay = sessionStorage.getItem('wh_sel_day'); } catch {}
-      selectedDayKey = (_sessionDay && /^\d{4}-\d{2}-\d{2}$/.test(_sessionDay)) ? _sessionDay : tk;
+      selectedDayKey = tk;
       daySelectorWeekOffset = 0;
-      updateSelDayHeader(selectedDayKey);
+      _paintTodayHead();
 
       // Notification permission warning
       if ('Notification' in window && Notification.permission === 'denied') {
@@ -12299,15 +11477,12 @@ Kind regards,
 
       // If selected day is not today, render appropriately; on weekends route
       // through selectDay so the strip card gets the active class.
-      if (selectedDayKey === '__wknd__') selectWeekendView();
-      else if (selectedDayKey !== tk) selectDay(selectedDayKey);
-      else if (isWeekend() || tl?.override) selectDay(tk);
-      else renderDaySelector();
-
+      if (isWeekend() || tl?.override) selectDay(tk);
+      else
       restoreSession();
       // The weekend/off-day card above was chosen before the session was
       // restored; a running session needs the tracking view and its End button.
-      if (loginDate && (isWeekend() || tl?.override) && (selectedDayKey === tk || selectedDayKey === '__wknd__')) selectDay(tk);
+      if (loginDate && (isWeekend() || tl?.override)) selectDay(tk);
       // Start checkpoint timer if session is active (survives reload)
       if (loginDate) _startCheckpoint();
       // Recovery prompts. Auto-stop recovery runs even when loginDate is set
@@ -12331,7 +11506,6 @@ Kind regards,
           try {
             Store.setCfg(remoteCfg);
             populateSettings();
-            renderDaySelector();
             renderNotifs(); // apply synced dismissed state on load
             refreshProfileCard(); // re-render card with pulled name/position
             if (loginDate) render(); else renderEmptyState();
@@ -12383,7 +11557,7 @@ Kind regards,
       // lock iOS Safari always honours) and put back exactly there on close.
       // One observer watches every class/style change, so any modal that opens
       // the usual way (an .open class or display) is covered without its own code.
-      const MODAL_OPEN = '.overlay.open, .wp-picker-overlay.open, .email-modal-overlay.open, .td-panel.open, ' +
+      const MODAL_OPEN = '.overlay.open, .wp-picker-overlay.open, .email-modal-overlay.open, ' +
                          '.ios-install-sheet.open, .notif-panel.open, .ob-overlay';
       const TOUCH = matchMedia('(hover: none) and (pointer: coarse)');
       const _shown = n => {
@@ -12410,7 +11584,7 @@ Kind regards,
       // re-checks when a modal itself changes, and never mid-drag: a sheet being
       // dragged rewrites its style every frame, and measuring the page each time
       // made dragging stutter.
-      const MODAL_ROOTS = '.overlay, .wp-picker-overlay, .email-modal-overlay, .td-panel, ' +
+      const MODAL_ROOTS = '.overlay, .wp-picker-overlay, .email-modal-overlay, ' +
                           '.ios-install-sheet, .notif-panel, .ob-overlay';
       new MutationObserver(records => {
         if (records.some(r => r.target.matches?.(MODAL_ROOTS) && !r.target.classList.contains('sheet-dragging'))) _syncScrollLock();
@@ -12650,10 +11824,6 @@ Kind regards,
       };
       RAIL_MQ.addEventListener('change', placeForMode);
       placeForMode();
-      // The day selector switches between swiping (touch) and one-week pages (desktop).
-      const _dsRelayout = () => requestAnimationFrame(() => { _dsResetScroll(); _dsPlaceGlide(); _updateDayNavBtns(); });
-      RAIL_MQ.addEventListener('change', _dsRelayout);
-      addEventListener('resize', _dsRelayout, { passive: true });
 
       // The notification panel hangs below its button instead of centre screen.
       // With the desktop rail it's a centred modal instead (CSS), so no placing.

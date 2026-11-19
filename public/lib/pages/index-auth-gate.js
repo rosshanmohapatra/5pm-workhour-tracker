@@ -120,7 +120,7 @@
       var _elapsed = Date.now() - (window._loaderStart || Date.now());
       var _wait = Math.max(0, 1000 - _elapsed);
       setTimeout(function() {
-        // The page loader lands on 5 and glides into the logo (app-loader.js).
+        // The page loader fades out and the app shows under it (app-loader.js).
         if (window.__appLoader) { window.__appLoader.done(); return; }
         var _l = document.getElementById('appLoader');
         if (_l) { _l.classList.add('app-loader-out'); setTimeout(function(){ _l.remove(); }, 320); }
@@ -131,7 +131,7 @@
 
     window._sbClient.auth.onAuthStateChange(function(event, session) {
       if (session) {
-        if (window.__appLoader) window.__appLoader.step(300);   // page loader: the session is known (2:00)
+        if (window.__appLoader) window.__appLoader.step(300);   // page loader: the session is known
         // ── A brand-new Google/GitHub account made from Sign in (#8) ──
         // login.js notes which button was used. Picking Google on Sign in with a
         // Google account 5pm has never seen creates a new account: ask first

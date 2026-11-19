@@ -57,41 +57,27 @@
   <link rel="preconnect" href="https://fonts.googleapis.com/">
   <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400..700&family=Inter:wght@100..900&display=swap" rel="stylesheet" media="print" data-on-load="he403411552"><noscript><link href="https://fonts.googleapis.com/css2?family=Geist:wght@400..700&family=Inter:wght@100..900&display=swap" rel="stylesheet"></noscript>
   <style>
-    /* ── Page loader (#60, approved 2026-11-15): Clock Face, 9 to 5 ──
-       A clock in the icon runs from 9 to 5 with the real loading steps, folds
-       into the 5 PM logo and glides to the logo's place. Title 10px under the
-       icon, like an app name: Clocking In → Almost 5 → It's 5pm. Script:
-       lib/pages/app-loader.js. */
+    /* ── Page loader (#63, user pick 2026-11-19: Apple standard) ──
+       Only a system-style spinner (8 tapered bars stepping round) in the middle
+       while the app opens; the app fades in under it. Script: lib/pages/app-loader.js. */
     #appLoader {
       position: fixed; inset: 0; z-index: 9999;
       background: var(--background);
       visibility: visible; /* overrides html[visibility:hidden] from auth gate */
-      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
+      display: flex; align-items: center; justify-content: center;
       transition: background-color .45s cubic-bezier(.4,0,.2,1); }
     #appLoader.app-loader-out { background-color: transparent; pointer-events: none; }
-    #appLoader.app-loader-out .al-title, #appLoader.app-loader-out #appLoaderHint { opacity: 0; transition: opacity .2s; }
-    .al-mark { position: relative; width: 64px; height: 64px; border-radius: 16px; display: grid; place-items: center; transform-origin: 0 0;
-      background: linear-gradient(160deg, #ffffff, #eceef2); box-shadow: 0 0 0 1px var(--border), 0 10px 28px rgb(0 0 0 / .12);
-      transition: transform .6s cubic-bezier(.16,1,.3,1), opacity .25s .55s; }
-    .dark .al-mark { background: linear-gradient(160deg, #2a2d33, #16181c); box-shadow: 0 0 0 1px var(--border), 0 10px 28px rgb(0 0 0 / .3); }
-    #appLoader.app-loader-out .al-mark { opacity: 0; }
-    .al-face { position: absolute; inset: 6px; transition: opacity .3s, transform .4s cubic-bezier(.16,1,.3,1); }
-    .al-face circle { fill: none; stroke: var(--border-strong); } .al-face .tk { stroke: var(--text-muted); stroke-linecap: round; }
-    .al-hh, .al-mh { stroke: var(--foreground); stroke-linecap: round; } .al-ctr { fill: #e5484d; }
-    .al-lock { display: inline-flex; align-items: flex-end; opacity: 0; transform: scale(.85); transition: opacity .3s, transform .4s cubic-bezier(.34,1.4,.64,1); }
-    .al-5 { font: 400 36px/38px var(--font); color: var(--foreground); }
-    .al-pm { max-width: 0; overflow: hidden; font: 600 12px/1 var(--font); color: #e5484d; padding-bottom: 6px; opacity: 0;
-      transition: max-width .4s cubic-bezier(.16,1,.3,1), margin .4s cubic-bezier(.16,1,.3,1), opacity .3s .1s; }
-    #appLoader.five .al-face { opacity: 0; transform: scale(.8); } #appLoader.five .al-lock { opacity: 1; transform: none; }
-    #appLoader.ready .al-pm { max-width: 22px; margin-left: 2px; opacity: 1; }
-    .al-title { position: relative; height: 22px; min-width: 160px; text-align: center; font: 500 15px var(--font); color: var(--foreground); }
-    .al-title span { position: absolute; inset: 0; transition: opacity .3s, transform .35s cubic-bezier(.16,1,.3,1), filter .3s; }
-    .al-title span.out { opacity: 0; transform: translateY(-.35em); filter: blur(2px); } .al-title span.in { opacity: 0; transform: translateY(.35em); filter: blur(3px); }
+    #appLoader.app-loader-out .al-spin, #appLoader.app-loader-out #appLoaderHint { opacity: 0; transition: opacity .2s; }
+    .al-spin { position: relative; width: 28px; height: 28px; animation: al-spin .8s steps(8) infinite; }
+    .al-spin i { position: absolute; left: 12.75px; top: 0; width: 2.5px; height: 8px; border-radius: 1.25px; background: var(--muted-fg); transform-origin: 1.25px 14px; }
+    .al-spin i:nth-child(1) { transform: rotate(0deg); opacity: 1.00; } .al-spin i:nth-child(2) { transform: rotate(45deg); opacity: 0.89; } .al-spin i:nth-child(3) { transform: rotate(90deg); opacity: 0.78; } .al-spin i:nth-child(4) { transform: rotate(135deg); opacity: 0.67; }
+    .al-spin i:nth-child(5) { transform: rotate(180deg); opacity: 0.56; } .al-spin i:nth-child(6) { transform: rotate(225deg); opacity: 0.45; } .al-spin i:nth-child(7) { transform: rotate(270deg); opacity: 0.34; } .al-spin i:nth-child(8) { transform: rotate(315deg); opacity: 0.23; }
+    @keyframes al-spin { to { transform: rotate(360deg); } }
     #appLoaderHint { position: absolute; left: 0; right: 0; bottom: calc(28px + env(safe-area-inset-bottom)); justify-content: center;
       font-size: 12px; color: var(--muted-fg); display: flex; align-items: center; gap: 5px; opacity: 0; transition: opacity .4s; }
     #appLoader.slow #appLoaderHint { opacity: 1; }
     #appLoaderHint button { font-size: 12px; font-weight: 500; color: var(--foreground); background: none; border: none; cursor: pointer; font-family: var(--font); padding: 0; text-decoration: underline; text-underline-offset: 2px; }
-    @media (prefers-reduced-motion: reduce) { .al-mark, .al-face, .al-lock, .al-pm, .al-title span { transition: opacity .2s; } }
+    @media (prefers-reduced-motion: reduce) { .al-spin { animation-duration: 1.6s; } }
 
     /* ── Design tokens ── */
     :root {
@@ -4193,11 +4179,7 @@
 
   <!-- ── PWA App Loader ── -->
   <div id="appLoader" role="status" aria-label="Opening 5pm">
-    <div class="al-mark" aria-hidden="true">
-      <svg class="al-face" viewBox="0 0 52 52"><circle cx="26" cy="26" r="24.5" stroke-width="1"/><line class="tk" stroke-width="1.6" x1="26.00" y1="4.00" x2="26.00" y2="5.00"/><line class="tk" stroke-width="1" x1="37.00" y1="6.95" x2="38.00" y2="5.22"/><line class="tk" stroke-width="1" x1="45.05" y1="15.00" x2="46.78" y2="14.00"/><line class="tk" stroke-width="1.6" x1="48.00" y1="26.00" x2="47.00" y2="26.00"/><line class="tk" stroke-width="1" x1="45.05" y1="37.00" x2="46.78" y2="38.00"/><line class="tk" stroke-width="1" x1="37.00" y1="45.05" x2="38.00" y2="46.78"/><line class="tk" stroke-width="1.6" x1="26.00" y1="48.00" x2="26.00" y2="47.00"/><line class="tk" stroke-width="1" x1="15.00" y1="45.05" x2="14.00" y2="46.78"/><line class="tk" stroke-width="1" x1="6.95" y1="37.00" x2="5.22" y2="38.00"/><line class="tk" stroke-width="1.6" x1="4.00" y1="26.00" x2="5.00" y2="26.00"/><line class="tk" stroke-width="1" x1="6.95" y1="15.00" x2="5.22" y2="14.00"/><line class="tk" stroke-width="1" x1="15.00" y1="6.95" x2="14.00" y2="5.22"/><line class="al-hh" x1="26" y1="26" x2="26" y2="14" stroke-width="2.4"/><line class="al-mh" x1="26" y1="26" x2="26" y2="7" stroke-width="1.6"/><circle class="al-ctr" cx="26" cy="26" r="2"/></svg>
-      <span class="al-lock"><span class="al-5">5</span><span class="al-pm">PM</span></span>
-    </div>
-    <div class="al-title" aria-live="polite"></div>
+    <div class="al-spin" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
     <div id="appLoaderHint">Taking longer than usual. <button data-on-click="h248485a70e">Reload</button></div>
   </div>
   <script src="/lib/pages/app-loader.js"></script>

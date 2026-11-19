@@ -1629,19 +1629,20 @@ test('Week card feed (#55): every day in one feed, a calendar, Today, overlay sc
   assert.match(HTML, /\.wfc-d\.today \{ background: var\(--muted\); \}/, 'today in its hover fill, never a ring');
 });
 
-test('Page loader (#60): a clock from 9 to 5, It is 5pm when ready, never stalls, never holds the app', () => {
+test('Page loader (#63): Apple-style spinner only, no clock or logo, never holds the app', () => {
   const AL = fs.readFileSync(path.join(WEB, 'lib', 'pages', 'app-loader.js'), 'utf8');
-  assert.doesNotMatch(AL, /title\('Clocking In'\)|title\('Almost 5'\)/, 'no text while loading'); assert.match(AL, /title\('It\u2019s 5pm'\)/);
-  assert.match(AL, /target = Math\.min\(479\.4, target \+ \(479\.5 - target\) \* ease\(0\.012\)\)/, 'creeps toward 4:59, only 5 when ready');
-  assert.match(AL, /setTimeout\(function \(\) \{ if \(!finished\) \{ m = 480; draw\(\); finish\(\); \} \}, 900\)/, 'lands even if frames are slow');
-  assert.match(AL, /var ids = \['navLogo', 'mobLogo'\];/, 'rail logo on desktop, top bar on phones');
-  assert.match(AL, /setTimeout\(function \(\) \{ L\.classList\.add\('slow'\); \}, 6000\)/);
+  assert.doesNotMatch(AL, /rotate\(|requestAnimationFrame|It\u2019s 5pm|navLogo/, 'no clock, no title, no glide');
+  assert.match(AL, /window\.__appLoader = \{ step: function \(\) \{\}, done: done \};/);
+  assert.match(AL, /L\.classList\.add\('app-loader-out'\);/);
+  assert.match(AL, /setTimeout\(function \(\) \{ if \(!finished\) L\.classList\.add\('slow'\); \}, 6000\)/);
   assert.match(fs.readFileSync(path.join(WEB, 'lib', 'pages', 'index-auth-gate.js'), 'utf8'), /if \(window\.__appLoader\) \{ window\.__appLoader\.done\(\); return; \}/);
-  assert.match(SRC, /window\.__appLoader\?\.step\(420\);/);
   const HTML = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
+  assert.doesNotMatch(HTML, /[."]al-(mark|face|title|pm|lock|hh|mh)\b/, 'old clock markup and CSS gone');
+  assert.match(HTML, /<div class="al-spin" aria-hidden="true">(<i><\/i>){8}<\/div>/, 'eight bars');
+  assert.match(HTML, /\.al-spin i:nth-child\(8\) \{ transform: rotate\(315deg\); opacity: 0\.23; \}/);
+  assert.match(HTML, /\.al-spin \{ position: relative; width: 28px; height: 28px; animation: al-spin \.8s steps\(8\) infinite; \}/);
   assert.match(HTML, /<div id="appLoaderHint">Taking longer than usual\. <button data-on-click="h248485a70e">Reload<\/button><\/div>/);
   assert.match(HTML, /<script src="\/lib\/pages\/app-loader\.js"><\/script>/);
-  assert.match(HTML, /display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;/, 'title 10px under the icon');
 });
 
 test('Charts on touch: a tapped day stays until the same bar or outside is tapped', () => {

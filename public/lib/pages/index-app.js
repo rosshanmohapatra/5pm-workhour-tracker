@@ -9386,7 +9386,7 @@ Kind regards,
     el('dayEditCancel').addEventListener('click', closeDayEditModal);
     _deTypeInit();
     _scInit();
-    window.__appLoader?.step(420);   // page loader: the app has started (4:00)
+    window.__appLoader?.step(420);   // page loader: the app has started
     _ctInit();
     _bkInit();
     ['deStart', 'deEnd'].forEach(id => el(id).addEventListener('input', _deUpdateLive));

@@ -2300,32 +2300,21 @@
       apply();
       ghost.classList.add('rc-ghost-out');
       card.appendChild(ghost);
-      setTimeout(() => ghost.remove(), 220);
+      setTimeout(() => ghost.remove(), 160);
       const kg = el('rcKpiGroup'), tabs = el('rcPairTabsRow');
       [kg, tabs].forEach(x => x?.classList.add('rc-enter'));
-      setTimeout(() => [kg, tabs].forEach(x => x?.classList.remove('rc-enter')), 900);
+      setTimeout(() => [kg, tabs].forEach(x => x?.classList.remove('rc-enter')), 600);
       const h1 = card.offsetHeight;
       if (Math.abs(h1 - h0) > 2) {
         card.style.overflow = 'hidden';
-        const a = card.animate([{ height: h0 + 'px' }, { height: h1 + 'px' }], { duration: 420, easing: 'cubic-bezier(.32,.72,0,1)' });
+        const a = card.animate([{ height: h0 + 'px' }, { height: h1 + 'px' }], { duration: 320, easing: 'cubic-bezier(.32,.72,0,1)' });
         a.onfinish = a.oncancel = () => { card.style.overflow = ''; };
       }
-    }
-    function _rcTransitionToActive() {
-      const body = el('rcBody');
-      if (!body) return;
-      // Apply transition first, then on next frame remove the ns-* class so the
-      // browser has a "before" value to animate from.
-      body.classList.add('rc-starting');
-      requestAnimationFrame(() => {
-        body.classList.remove('ns-times', 'ns-progress');
-        setTimeout(() => body.classList.remove('rc-starting'), 420);
-      });
     }
 
     function _rcShowPastMode(show) {
       if (show) {
-        el('rcBody')?.classList.remove('ns-times', 'ns-progress', 'rc-starting');
+        el('rcBody')?.classList.remove('ns-times', 'ns-progress');
         el('rcBody')?.classList.add('past-day');
         const _es = el('rcEmptyState'); if (_es) _es.style.display = 'none';
       } else {
@@ -2383,7 +2372,7 @@
         return;
       }
       _rcShowPastMode(false);
-      el('rcBody')?.classList.remove('ns-times', 'ns-progress', 'rc-starting');
+      el('rcBody')?.classList.remove('ns-times', 'ns-progress');
       const eff = effSecs();
       const _tkE = todayKey(), _logE = dayLog(_tkE) || {};
 
@@ -2454,7 +2443,7 @@
         rightStr: dur(eff), rightClass: 'muted', pct: 0, barClass: '',
         descLeft: '', descRightTimes: '', descRightProgress: '', notStarted: true };
       const _body = el('rcBody');
-      if (_body) _body.classList.remove('ns-times', 'ns-progress', 'rc-starting');
+      if (_body) _body.classList.remove('ns-times', 'ns-progress');
       _rcHidePairTabs();
       const _kpiGroup = el('rcKpiGroup'); if (_kpiGroup) _kpiGroup.style.display = 'none';
       const _emptyEl = el('rcEmptyState');
@@ -4795,6 +4784,14 @@
     }
 
     // ── SPLIT BUTTON STATE ────────────────────────────
+    // The week card's rebuild waits until the Today card has painted, so Start / Pause /
+    // End answer at once; several calls in one moment rebuild it once.
+    let _wkRebuildQueued = false;
+    function _queueWkRebuild() {
+      if (_wkRebuildQueued) return;
+      _wkRebuildQueued = true;
+      requestAnimationFrame(() => setTimeout(() => { _wkRebuildQueued = false; if (el('wkRows')?.offsetParent) renderHistory(); }, 0));
+    }
     function setCalcBtnState(state) {
       const btn = el('calcBtn'), chev = el('calcBtnChevron'),
             dd  = el('calcBtnDropdown'), wrap = el('calcBtnWrap');
@@ -4808,7 +4805,7 @@
       // session changes today's row, but none of those paths rebuild it, so it
       // kept a stale live pill and Total Hours. Only when the week card is
       // actually on screen (Home, since the new shell folded Dashboard into it).
-      if (el('wkRows')?.offsetParent) renderHistory();
+      _queueWkRebuild();
       btn.classList.remove('end-shift', 'pause-shift', 'resume-shift');
       btn.disabled = false;
       btn.dataset.state = state;
@@ -4864,7 +4861,9 @@
       el('shiftActiveLabel').textContent = `Started at ${short(p)}`;
       el('autostopBanner').classList.remove('show');
       persistSession();
-      _rcHandOff(() => { selectDay(todayKey()); _rcTransitionToActive(); render(); });
+      // Clear the not-started layout in the same frame, so the hand-off's height glide is
+      // the only animation (the old max-height transition fought it and the card snapped).
+      _rcHandOff(() => { selectDay(todayKey()); el('rcBody')?.classList.remove('ns-times', 'ns-progress'); render(); });
       // A start time already past auto-stop (e.g. 7:00 AM typed at 7 PM) is stopped
       // by that first render: nothing left to tick, alert or sync as running.
       if (!loginDate) return;
@@ -11802,12 +11801,10 @@ Kind regards,
         const permBar = el('notifPermBar'), notifList = el('notifList');
         if (on) {
           if (brand) railTop.appendChild(brand);
-          // Rail bottom, top to bottom: Notifications, Settings. The bell sits
-          // where Theme was; Theme takes the bell's place top right.
-          if (realNotif) { realNotif.classList.add('rail-btn'); railBottom.append(realNotif, railProfile); }
-          else railBottom.append(railProfile);
-          railTheme.classList.remove('rail-btn'); railTheme.classList.add('hdr-icon');
-          cluster.prepend(railTheme);
+          // Rail bottom, top to bottom: Theme, Notifications, Settings.
+          railTheme.classList.add('rail-btn'); railTheme.classList.remove('hdr-icon');
+          if (realNotif) { realNotif.classList.add('rail-btn'); railBottom.append(railTheme, realNotif, railProfile); }
+          else railBottom.append(railTheme, railProfile);
           // "Notifications are off" lives at the top of the notifications drawer.
           if (permBar && notifList && permBar.parentElement !== notifList.parentElement) {
             if (!permBar._home) permBar._home = { parent: permBar.parentElement, next: permBar.nextSibling };

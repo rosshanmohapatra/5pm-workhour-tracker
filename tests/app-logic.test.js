@@ -1795,9 +1795,18 @@ test('Not started: the C2 Stack drawing with a fixed title; only the leave time 
   // The hand-off into Running: the drawing lifts out, the card glides, the new parts rise in.
   const hand = extract('function _rcHandOff(');
   assert.match(hand, /ghost\.classList\.add\('rc-ghost-out'\)/);
-  assert.match(hand, /card\.animate\(\[\{ height: h0 \+ 'px' \}, \{ height: h1 \+ 'px' \}\], \{ duration: 420/);
+  assert.match(hand, /card\.animate\(\[\{ height: h0 \+ 'px' \}, \{ height: h1 \+ 'px' \}\], \{ duration: 320/);
   assert.match(hand, /matchMedia\('\(prefers-reduced-motion: reduce\)'\)\.matches\) \{ apply\(\); return; \}/);
-  assert.match(extract('function _startSession('), /_rcHandOff\(\(\) => \{ selectDay\(todayKey\(\)\); _rcTransitionToActive\(\); render\(\); \}\);/);
+  assert.match(extract('function _startSession('), /_rcHandOff\(\(\) => \{ selectDay\(todayKey\(\)\); el\('rcBody'\)\?\.classList\.remove\('ns-times', 'ns-progress'\); render\(\); \}\);/);
+  // One animation only: the old max-height transition (which fought the glide) is gone.
+  assert.doesNotMatch(SRC, /_rcTransitionToActive|rc-starting/);
+  assert.doesNotMatch(fs.readFileSync(path.join(WEB, 'index.html'), 'utf8'), /rc-starting/);
+  // The week card rebuild waits until the Today card has painted; one rebuild per moment.
+  const q = extract('function _queueWkRebuild(');
+  assert.match(q, /if \(_wkRebuildQueued\) return;/);
+  assert.match(q, /requestAnimationFrame\(\(\) => setTimeout\(/);
+  assert.match(extract('function setCalcBtnState('), /_queueWkRebuild\(\);/);
+  assert.doesNotMatch(extract('function setCalcBtnState('), /renderHistory\(\)/, 'no rebuild inside the click');
 });
 
 test('Week card: Your Activity title, today first, today leads to the Today card (#62)', () => {
@@ -1836,4 +1845,11 @@ test('Nothing sinks on a raised surface in dark mode: pieces on it use --surface
     if (ON_RAISED.test(sel) && /background[^;]*var\(--card\)/.test(chunk.slice(i))) bad.push(sel.trim());
   }
   assert.deepEqual(bad, [], 'pieces on a raised surface must use var(--surface-lift)');
+});
+
+test('Desktop rail: Theme sits above Notifications, then Settings (user 2026-11-19)', () => {
+  const src = fs.readFileSync(path.join(WEB, 'lib/pages/index-app.js'), 'utf8');
+  assert.match(src, /railBottom\.append\(railTheme, realNotif, railProfile\)/);
+  assert.match(src, /else railBottom\.append\(railTheme, railProfile\)/);
+  assert.doesNotMatch(src, /cluster\.prepend\(railTheme\)/, 'Theme no longer moves to the top right on desktop');
 });

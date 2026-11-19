@@ -1923,8 +1923,8 @@ test('Not started: Quick Start + "Already working?"; the sheet starts through th
   assert.match(HTML, /\.st-ap button\[aria-pressed="true"\] \{ background: var\(--muted\); color: var\(--foreground\); \}/);
 });
 
-test('Light mode primary is Accent graphite (#65)', () => {
+test('Light mode primary is Ink graphite (#65)', () => {
   const HTML = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
   const root = HTML.slice(HTML.indexOf(':root {'), HTML.indexOf('.dark {'));
-  assert.match(root, /--btn-primary-bg: #333845;/);
+  assert.match(root, /--btn-primary-bg: #232733;/);
 });

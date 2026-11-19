@@ -1629,15 +1629,20 @@ test('Week card feed (#55): every day in one feed, a calendar, Today, overlay sc
   assert.match(HTML, /\.wfc-d\.today \{ background: var\(--muted\); \}/, 'today in its hover fill, never a ring');
 });
 
-test('Page loader (#63): Apple-style spinner only, no clock or logo, never holds the app', () => {
+test('Page loader (#63): 5pm logo + Apple-style spinner, no clock, glides home, never holds the app', () => {
   const AL = fs.readFileSync(path.join(WEB, 'lib', 'pages', 'app-loader.js'), 'utf8');
-  assert.doesNotMatch(AL, /rotate\(|requestAnimationFrame|It\u2019s 5pm|navLogo/, 'no clock, no title, no glide');
+  assert.doesNotMatch(AL, /rotate\(|requestAnimationFrame|It\u2019s 5pm/, 'no clock, no title');
+  assert.match(AL, /var ids = \['navLogo', 'mobLogo'\];/, 'glides to the rail logo on desktop, the top bar on phones');
+  assert.match(AL, /L\.classList\.add\('ready'\);/, 'the spinner fades first');
   assert.match(AL, /window\.__appLoader = \{ step: function \(\) \{\}, done: done \};/);
   assert.match(AL, /L\.classList\.add\('app-loader-out'\);/);
   assert.match(AL, /setTimeout\(function \(\) \{ if \(!finished\) L\.classList\.add\('slow'\); \}, 6000\)/);
   assert.match(fs.readFileSync(path.join(WEB, 'lib', 'pages', 'index-auth-gate.js'), 'utf8'), /if \(window\.__appLoader\) \{ window\.__appLoader\.done\(\); return; \}/);
   const HTML = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
-  assert.doesNotMatch(HTML, /[."]al-(mark|face|title|pm|lock|hh|mh)\b/, 'old clock markup and CSS gone');
+  assert.doesNotMatch(HTML, /[."]al-(face|title|hh|mh|ctr)\b|#appLoader\.five/, 'old clock markup and CSS gone');
+  assert.match(HTML, /<div class="al-mark" aria-hidden="true"><span class="al-lock"><span class="al-5">5<\/span><span class="al-pm">PM<\/span><\/span><\/div>\s*<div class="al-spin"/, 'logo first, spinner under it');
+  assert.match(HTML, /flex-direction: column; align-items: center; justify-content: center; gap: 16px;/);
+  assert.match(HTML, /\.al-pm \{ font: 600 12px\/1/, 'PM at the 12px minimum');
   assert.match(HTML, /<div class="al-spin" aria-hidden="true">(<i><\/i>){8}<\/div>/, 'eight bars');
   assert.match(HTML, /\.al-spin i:nth-child\(8\) \{ transform: rotate\(315deg\); opacity: 0\.23; \}/);
   assert.match(HTML, /\.al-spin \{ position: relative; width: 28px; height: 28px; animation: al-spin \.8s steps\(8\) infinite; \}/);

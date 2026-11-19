@@ -2294,7 +2294,7 @@
       if (!card || !shown || matchMedia('(prefers-reduced-motion: reduce)').matches) { apply(); return; }
       const h0 = card.offsetHeight, r = es.getBoundingClientRect(), c = card.getBoundingClientRect();
       const ghost = es.cloneNode(true);
-      ghost.removeAttribute('id'); ghost.querySelectorAll('[id]').forEach(n => n.removeAttribute('id'));
+      ghost.removeAttribute('id'); ghost.classList.add('es-ghost'); ghost.querySelectorAll('[id]').forEach(n => n.removeAttribute('id'));
       Object.assign(ghost.style, { position: 'absolute', left: (r.left - c.left) + 'px', top: (r.top - c.top) + 'px', width: r.width + 'px', margin: '0', pointerEvents: 'none' });
       ghost.setAttribute('aria-hidden', 'true');
       apply();

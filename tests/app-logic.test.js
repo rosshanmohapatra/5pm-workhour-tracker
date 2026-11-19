@@ -1853,3 +1853,14 @@ test('Desktop rail: Theme sits above Notifications, then Settings (user 2026-11-
   assert.match(src, /else railBottom\.append\(railTheme, railProfile\)/);
   assert.doesNotMatch(src, /cluster\.prepend\(railTheme\)/, 'Theme no longer moves to the top right on desktop');
 });
+
+test('Start: the fading copy of the empty state stays centred (no slide to the left)', () => {
+  const html = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
+  const src = fs.readFileSync(path.join(WEB, 'lib/pages/index-app.js'), 'utf8');
+  assert.match(src, /ghost\.removeAttribute\('id'\); ghost\.classList\.add\('es-ghost'\);/);
+  // Every rule that lays out #rcEmptyState also covers the id-less copy.
+  const rules = html.split('}').map(c => c.slice(Math.max(0, c.lastIndexOf('\n', c.lastIndexOf('{'))), c.lastIndexOf('{')))
+    .filter(s => /#rcEmptyState\b/.test(s) && !/weekend-mode/.test(s));
+  assert.ok(rules.length >= 3);
+  rules.forEach(s => assert.match(s, /\.es-ghost/, s.trim()));
+});

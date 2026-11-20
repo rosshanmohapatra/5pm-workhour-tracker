@@ -807,11 +807,11 @@ test('Today card: Clock = Started | Done at, Hours = Worked | Target, one chip o
   // once outside the tab branches, so both tabs show the same thing.
   assert.equal((paint.match(/_rcSetLead\(c, live\);/g) || []).length, 1);
   const lead = extract('function _rcSetLead(');
-  assert.match(lead, /if \(!c\.chipHms\) \{ box\.hidden = true; return; \}/);
+  assert.match(lead, /if \(!c\.chipHms && !headOut\) \{ box\.hidden = true; return; \}/);
   assert.match(lead, /box\.classList\.toggle\('over', !!c\.chipOver\)/);
-  const cap = load(extract('function _rcLeadCap(', '}'), {}, '_rcLeadCap');
-  assert.equal(cap(false), 'left until you can head out');
-  assert.equal(cap(true), 'over your target');
+  // #68: no caption while counting down; only "over your target" once over.
+  assert.match(lead, /const cap = c\.chipOver \? \(live \|\| ''\) \+ 'over your target' : '';/);
+  assert.doesNotMatch(SRC, /left until you can head out/);
   assert.doesNotMatch(SRC, /_rcSetDesc|rcDescRow|rcDescRight/);
   assert.doesNotMatch(SRC, /'You can leave at ' \+ _logoutStr/);
   assert.doesNotMatch(SRC, /el\('rcTarget'\)\.title = eff > 0/);
@@ -819,7 +819,9 @@ test('Today card: Clock = Started | Done at, Hours = Worked | Target, one chip o
   assert.match(HTML, />Clock<\/button>/); assert.match(HTML, />Hours<\/button>/);
   const group = HTML.slice(HTML.indexOf('id="rcKpiGroup"'), HTML.indexOf('id="rcProgressTrack"'));
   assert.match(group, /id="rcLead"[\s\S]*<div class="rc-numbers">/, 'the headline sits above the KPI row');
-  assert.match(HTML, /\.rc-lead-n \{ font: 400 40px\/1 var\(--font-display\);/);
+  // #68: the uiarc countdown, digit wheels at 40px display with unit names.
+  assert.match(HTML, /\.rc-lead-n \{ display: inline-flex; align-items: flex-start; white-space: nowrap; font: 400 40px\/1 var\(--font-display\);/);
+  assert.match(HTML, /<span class="cd-done" aria-hidden="true"><span class="cd-pulse"><\/span>Time to head out<\/span>/);
   assert.match(HTML, /\.rc-lead\.over \.rc-lead-n, \.rc-lead\.over \.rc-lead-c \{ color: var\(--warning\); \}/);
 });
 
@@ -1180,12 +1182,14 @@ test('Destructive button: one red component, Primary / Secondary / Tertiary (#43
   assert.match(HTML, /--danger-solid: #c42b33; --danger-solid-hover: #b4232b; --danger-solid-press: #9f1f26;/);   // light
   assert.match(HTML, /--danger-solid: #d2373d; --danger-solid-hover: #c9323a; --danger-solid-press: #b4232b;/);   // dark
   assert.match(HTML, /\.btn-danger \{ background: var\(--danger-solid\); color: #fff; \}/);
-  assert.match(HTML, /\.btn-danger-2 \{ background: var\(--btn-secondary-bg\); color: var\(--danger-text\); \}/);
-  assert.match(HTML, /\.btn-danger-2:hover:not\(:disabled\) \{ background: var\(--danger-solid-hover\); color: #fff; \}/);
+  // #71: outlined Danger (uiarc) is the default; solid red only where it's final or a hold.
+  assert.match(HTML, /\.btn-danger-2 \{ background: var\(--btn-surface, var\(--card\)\); color: var\(--danger-text\); box-shadow: inset 0 0 0 1px var\(--btn-line, var\(--border\)\); \}/);
+  assert.match(HTML, /\.btn-danger-2:hover:not\(:disabled\) \{ background: var\(--muted\); box-shadow: inset 0 0 0 1px var\(--danger-text\); \}/);
   assert.match(HTML, /\.btn-danger-3:hover:not\(:disabled\) \{ background: var\(--danger-tint\); \}/);
-  assert.doesNotMatch(HTML.slice(HTML.indexOf('.btn-danger, .btn-danger-2, .btn-danger-3 {'), HTML.indexOf('@keyframes btn-danger-spin')), /border: 1px/);  // borderless
-  // Confirms in destructive dialogs are solid red; the loading state keeps the label.
-  for (const id of ['pkRemoveBtn', 'delPwdContinueBtn', 'mfaDisableBtn', 'cancelPlanConfirmBtn']) assert.match(HTML, new RegExp(`class="btn-danger"[^>]*id="${id}"|id="${id}"[^>]*class="btn-danger"`));
+  for (const id of ['delPwdContinueBtn']) assert.match(HTML, new RegExp(`class="btn-danger"[^>]*id="${id}"`));
+  assert.match(HTML, /class="btn-danger bk-done" id="bkRegenBtn">Make New Codes/);
+  for (const id of ['pkRemoveBtn', 'mfaDisableBtn', 'cancelPlanConfirmBtn', 'endSessionConfirmBtn']) assert.match(HTML, new RegExp(`class="btn-danger-2"[^>]*id="${id}"|id="${id}"[^>]*class="btn-danger-2"`));
+  assert.match(SRC, /class="btn-danger-2 sm" data-ac="cf-yes">Clear All/);
   const busy = load(extract('function _btnBusy(', '}') + '\n' + extract('function _btnIdle(', '}'), {}, '({ _btnBusy, _btnIdle })');
   const btn = { attrs: {}, setAttribute(k, v) { this.attrs[k] = v; }, removeAttribute(k) { delete this.attrs[k]; } };
   busy._btnBusy(btn, 'Logging Out');
@@ -1444,7 +1448,7 @@ test('Action Center: read rows show only while Show Read Items is on (muted, lab
   const all = extract('function _acMarkAllRead(');
   assert.doesNotMatch(all, /_dismissPenaltyRow/);
   assert.match(all, /_acKeepRead\.add\(r\.key\)/);
-  assert.match(extract('function _acRowHtml('), /\$\{read \? ' · Read' : ''\}/);
+  assert.match(extract('function _acRowHtml('), /\(read \? '<span class="ac-chip">Read<\/span>' : ''\)/);
   assert.match(extract('function _renderPenaltyCard('), /const shown = _acShowRead \? rows : un;/);
 });
 
@@ -1557,7 +1561,8 @@ test('Update Entry panel: close button, note field and time picker', () => {
   assert.match(HTML, /#dayEditOverlay \.sheet-close \{ background: var\(--surface-lift\); box-shadow: inset 0 0 0 1px var\(--border\); \}/);
   assert.match(HTML, /#dayEditOverlay \.sheet-close:hover \{ background: var\(--muted\); \}/);
   // Note: reads as a field; focus outline is a lighter grey, not white.
-  assert.match(HTML, /#dayEditOverlay \.de-note-wrap textarea \{ background: color-mix\(in srgb, var\(--foreground\) 7%, var\(--surface-lift\)\); box-shadow: inset 0 0 0 1px var\(--input\); caret-color: var\(--foreground\); \}/);
+  // Same look as the start-time sheet's field (user 2026-11-20: the grey mix looked odd).
+  assert.match(HTML, /#dayEditOverlay \.de-note-wrap textarea \{ background: var\(--surface-lift\); box-shadow: inset 0 0 0 1px var\(--border\); caret-color: var\(--foreground\); transition: box-shadow \.15s; \}/);
   // Picker titles match the rows, and the picker is measured so it stays on screen.
   assert.match(H, /openTpModal\('deStart',event,'Started'\)/);
   assert.match(H, /openTpModal\('deEnd',event,'Left at'\)/);
@@ -1726,23 +1731,24 @@ test('A session can never start later than now', () => {
   assert.match(conf, /if \(_futureStartMsg\(newLogin\)\) \{ _tpSwitchTab\('login'\); return; \}/);
 });
 
-test('Update Entry and the dispute email show times with seconds; the end time saves its seconds', () => {
-  const fns = load(extract('function clockHms(') + '\n' + extract('function _logHms('), {
+test('Update Entry shows seconds only when you typed them (user 2026-11-20)', () => {
+  const fns = load('const short = d => { let h = d.getHours(); const m = d.getMinutes(), ap = h >= 12 ? "PM" : "AM"; h = h % 12 || 12; return `${p2(h)}:${p2(m)} ${ap}`; };\n'
+    + extract('function clockHms(') + '\n' + extract('function _logHms('), {
     cfg: () => ({}), p2: n => String(n).padStart(2, '0'), Math, Number, String,
   }, '({ clockHms, _logHms })');
   const log = { loginTime: '9:5:23', loginDisplay: '09:05 AM', checkoutTime: '18:44:02', checkoutDisplay: '06:44 PM', hoursWorked: 9.6 };
-  assert.equal(fns._logHms(log, 'start'), '09:05:23 AM');
-  assert.equal(fns._logHms(log, 'end'), '06:44:02 PM');
-  assert.equal(fns._logHms({ loginTime: '9:0:0', hoursWorked: 1.5 }, 'end'), '10:30:00 AM');   // end from start + hours
+  assert.equal(fns._logHms(log, 'start'), '09:05 AM', 'a recorded session: hh:mm');
+  assert.equal(fns._logHms(log, 'end'), '06:44 PM');
+  assert.equal(fns._logHms({ ...log, withSecs: true }, 'start'), '09:05:23 AM', 'seconds you typed are shown');
+  assert.equal(fns._logHms({ ...log, withSecs: true }, 'end'), '06:44:02 PM');
+  assert.equal(fns._logHms({ loginTime: '9:0:0', hoursWorked: 1.5 }, 'end'), '10:30 AM');   // end from start + hours
   assert.equal(fns._logHms({}, 'start'), '');
-  const open = extract('function openDayEditModal(');
-  assert.match(open, /el\('deStart'\)\.value = _logHms\(log, 'start'\);/);
-  assert.match(SRC, /inp\.value = \/\^de\(Start\|End\)\$\/\.test\(_tpTargetId\) \? clockHms\(d\) : short\(d\);/);
-  assert.match(extract('function saveDayEditModal('), /checkoutTime:   `\$\{p2\(eAdj\.getHours\(\)\)\}:\$\{p2\(eAdj\.getMinutes\(\)\)\}:\$\{p2\(eAdj\.getSeconds\(\)\)\}`/);
-  assert.match(extract('function _deFillRecorded('), /_logHms\(l, 'start'\), _logHms\(l, 'end'\)/);
-  assert.match(extract('function _emailVars('), /start: p\.log\?\.loginTime \? _logHms\(p\.log, 'start'\) : ''/);
-  // Nowhere else: the card, week list and Done modal keep hh:mm.
-  assert.equal((SRC.match(/clockHms\(/g) || []).length, 5);   // definition + _logHms (3 uses) + the picker
+  const save = SRC;   // saveDayEditModal is long; extract() stops at an inner block
+  assert.ok(save.includes(String.raw`const withSecs = /\d:\d\d:\d\d/.test(`), 'seconds only when typed');
+  assert.match(save, /if \(!withSecs\) \{ s\?\.setSeconds\(0, 0\); e\?\.setSeconds\(0, 0\); \}/);
+  assert.match(save, /checkoutDisplay: short\(eAdj\), withSecs: withSecs \|\| undefined,/);
+  assert.match(SRC, /inp\.value = short\(d\);/, 'the wheel writes hh:mm');
+  assert.match(extract('function openDayEditModal('), /el\('deStart'\)\.value = _logHms\(log, 'start'\);/);
 });
 
 test('Raise Dispute: own reason is the same field as the Update Entry note', () => {
@@ -1897,27 +1903,30 @@ test('Start-time field: AM or PM follows the time now', () => {
   assert.equal(ap(1, 30, at1040am), 'AM', 'the most recent past reading, never 3 hours ahead');
 });
 
-test('Start-time sheet opens on a good guess', () => {
-  const _g = load(extract('function _stGuess('), {}, '_stGuess');
-  const guess = (...a) => ({ ..._g(...a) });   // plain object from this realm
-  const shift = [9 * 60, 18 * 60];
-  assert.deepEqual(guess(10 * 60 + 40, ...shift), { m: 540, why: 'Filled in with your shift start.' });
-  assert.deepEqual(guess(9 * 60 + 10, ...shift), { m: 550, why: 'Filled in with the time now.' }, 'under 15 minutes into the shift: now');
-  assert.deepEqual(guess(21 * 60 + 58, ...shift), { m: 1315, why: 'Filled in with the time now.' }, 'after the shift: now, rounded down to 5');
-  assert.deepEqual(guess(23 * 60, 22 * 60, 7 * 60), { m: 1380, why: 'Filled in with the time now.' }, 'overnight shift: now');
+test('Already working? opens empty and says when you can leave (user 2026-11-20)', () => {
+  const up = extract('function _stUpdate(');
+  assert.match(up, /out\.textContent = 'Fill the time to know when to leave\.';/);
+  assert.match(up, /out\.innerHTML = `You can leave by <b>\$\{_stLeave\(at\)\}<\/b>\.`;/);
+  assert.match(extract('function _stSetOpen('), /_st\.tf\.reset\(\);/);
+  assert.doesNotMatch(SRC, /_stGuess|Filled in with/, 'no pre-filled guess');
 });
 
-test('Not started: Quick Start + "Already working?"; the sheet starts through the same path (#64)', () => {
+test('Not started: Quick Start + "Already working?" opens in place (#64, #67)', () => {
   const HTML = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
   assert.match(HTML, /<div class="shift-cta" id="todayLoginSection" data-mode="start">/);
-  assert.match(HTML, /<button type="button" class="qs-link" id="qsLink" aria-haspopup="dialog">Already working\?<\/button>/);
+  assert.match(HTML, /<button type="button" class="qs-link" id="qsLink" aria-expanded="false" aria-controls="qsSlot">Already working\?<\/button>/);
+  assert.match(HTML, /<div class="qs-slot" id="qsSlot">/);
+  assert.doesNotMatch(HTML, /id="startTimeOverlay"/, 'no modal for it any more');
   assert.match(HTML, /<input id="stInput" type="text" inputmode="numeric" pattern="\[0-9\]\*" enterkeyhint="go" maxlength="5"/);
   assert.match(HTML, /#todayLoginSection\[data-mode="start"\] \.tp-seg-clock, #todayLoginSection\[data-mode="start"\] \.tp-free-input/);
   const st = extract('function setCalcBtnState(');
   assert.match(st, /sec\.dataset\.mode = state;/);
   assert.match(st, /btn\.textContent = 'Quick Start';/);
-  // The sheet hands an exact Date to calculate(), which keeps the shift / continue checks.
+  // Open: Quick Start names the time and starts from it, with the same shift / continue checks.
   assert.match(extract('function _stGo('), /calculate\(at\);/);
+  assert.match(SRC, /\} else if \(_st\.open\) _stGo\(\);/);
+  assert.match(extract('function _stUpdate('), /go\.textContent = _st\.mode === 'at' \? `Start at \$\{short\(at\)\}` : _st\.mode === 'now' \? 'Start Now' : 'Start';/);
+  assert.match(extract('function _stSetOpen('), /link\.textContent = open \? 'Cancel' : 'Already working\?';/);
   assert.match(extract('function calculate('), /if \(exact\) \{\n\s+p = at;/);
   // AM/PM stays neutral: one primary per view.
   assert.match(HTML, /\.st-ap button\[aria-pressed="true"\] \{ background: var\(--muted\); color: var\(--foreground\); \}/);
@@ -1927,4 +1936,88 @@ test('Light mode primary is Ink graphite (#65)', () => {
   const HTML = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
   const root = HTML.slice(HTML.indexOf(':root {'), HTML.indexOf('.dark {'));
   assert.match(root, /--btn-primary-bg: #232733;/);
+});
+
+test('Update Login Time uses the same smart field as the sheet; sheets slide before the backdrop fades', () => {
+  const HTML = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
+  assert.match(HTML, /<input class="tp-free-input" id="tpFreeInput" type="text" inputmode="numeric" pattern="\[0-9\]\*" enterkeyhint="go"\s+placeholder="Enter Login Time" maxlength="5"/);
+  assert.match(HTML, /<span class="st-ap tp-ap" id="tpAp" role="group" aria-label="AM or PM" hidden>/);
+  assert.match(extract('function _tpSegInit('), /_loginTf = _timeInput\(input, el\('tpAp'\), \{ onUpdate: _loginTfSync, onEnter: \(\) => calculate\(\) \}\);/);
+  assert.match(SRC, /_st\.tf = _timeInput\(inp, el\('stAp'\), \{ onUpdate: at => _stUpdate\(at\), onEnter: _stGo \}\);/);
+  // The hidden field gets an exact time with AM/PM, so calculate() reads what was meant.
+  assert.match(extract('function _loginTfSync('), /hidden\.value = at \? short\(at\) : '';/);
+  // Phones: the backdrop waits for the sheet's slide before fading.
+  assert.match(HTML, /\.overlay\.am-host \{ align-items: flex-end; padding: 0; transition: opacity \.2s ease \.26s; \}\n\s+\.overlay\.am-host\.open \{ transition-delay: 0s; \}/);
+});
+
+test('Action Center rows: the date, then only what needs resolving (#66 D)', () => {
+  const row = extract('function _acRowHtml(');
+  assert.match(row, /<span class="ac-chip w">\$\{_acDur\(r\.deficit\)\} short<\/span>/);
+  assert.match(row, /\(r\.half \? '<span class="ac-chip half">Half Day<\/span>' : ''\)/);
+  assert.doesNotMatch(row, /_acDur\(r\.worked\)|_acDur\(r\.tgt\)/, 'worked / target live in the Update Entry panel');
+});
+
+test('A session under 5 minutes is discarded on End, with Undo (#69 A)', () => {
+  assert.match(SRC, /const _TINY_SESSION_SECS = 300;/);
+  assert.match(extract('function confirmEndSession('), /if \(loginDate && workedSecs < _TINY_SESSION_SECS\) \{ _discardTinySession\(workedSecs\); return; \}/);
+  const d = extract('function _discardTinySession(');
+  assert.match(d, /Store\.remove\(KEY\.day \+ tk\);/);
+  assert.match(d, /showUndoToast\('The session was too short\. Discarded\.', \(\) => \{/);
+  assert.match(d, /saveDayLogAndSync\(tk, \{ \.\.\.ended, lastUpdated: new Date\(\)\.toISOString\(\) \}\);/);
+});
+
+test('Toasts are one uiarc-style stack at the bottom centre (#70)', () => {
+  const HTML = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
+  assert.match(HTML, /<section class="ts-vp" id="toastStack" aria-label="Notifications"><ol class="ts-list" id="toastList" aria-live="polite"><\/ol><\/section>/);
+  assert.doesNotMatch(HTML, /id="appToast"|id="ieToast"|\.wh-toast/, 'the two old toasts are gone');
+  assert.match(HTML, /\.ts-vp \{ position: fixed; z-index: 9999; left: 0; right: 0; bottom: 24px; margin-inline: auto;/);
+  assert.match(SRC, /const _TS = \{ items: \[\], open: false, PEEK: 14, GAP: 12, STEP: \.05, MAX: 3, inited: false \};/);
+  // Both old entry points go through the stack; titles are text, never HTML.
+  assert.match(extract('function showToast('), /_tsPush\(\{ type, title, desc, action: action\?\.label \? action : null \}\);/);
+  assert.match(extract('function showUndoToast('), /_tsPush\(\{ type: 'info', title: msg, action: undoFn \? \{ label: 'Undo', onClick: undoFn \} : null, ms: durationMs \}\);/);
+  assert.match(extract('function _tsPush('), /t\.textContent = title;/);
+  assert.doesNotMatch(SRC, /_toastUndoFn|appToastUndo/);
+});
+
+test('Buttons follow the uiarc layout at 5pm sizes (#71)', () => {
+  const HTML = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
+  assert.match(HTML, /\.btn-secondary, \.btn-cancel, \.btn-sm \{ background: var\(--btn-surface, var\(--card\)\); color: var\(--foreground\); box-shadow: inset 0 0 0 1px var\(--btn-line, var\(--border\)\);/);
+  assert.match(HTML, /#dayEditOverlay, \.ac-confirm, #notifPanel \{ --btn-surface: var\(--surface-lift\); --btn-line: var\(--border-strong\); \}/, 'never sinks on raised panels');
+  assert.match(HTML, /\.btn-primary:active:not\(:disabled\) \{ opacity: \.84; transform: scale\(\.985\); \}/);
+  assert.match(HTML, /\.btn-secondary:height|\.btn-secondary \{ height: 36px;/, 'sizes kept');
+});
+
+test('Import merges by default: adds the backup, keeps yours, newer day wins (#72)', () => {
+  const method = extract('importSnap(snap, mode', '\n      },');
+  const mk = (loginDate) => load(`const KEY = { day: 'day_', cfg: 'cfg' }; let loginDate = ${loginDate}; const todayKey = () => '2026-11-20';
+    const Store = { m: {}, get(k) { return this.m[k] ?? null; }, set(k, v) { this.m[k] = v; }, remove(k) { delete this.m[k]; },
+      keys(p) { return Object.keys(this.m).filter(k => k.startsWith(p)); }, setCfg() {}, _touch() {}, ${method} };`, {}, 'Store');
+  const backup = { days: {
+    '2026-11-10': { hoursWorked: 9, lastUpdated: '2026-11-10T18:00:00Z' },   // only in the backup
+    '2026-11-11': { hoursWorked: 1, lastUpdated: '2026-11-11T09:00:00Z' },   // older than yours
+    '2026-11-12': { hoursWorked: 8, lastUpdated: '2026-11-13T09:00:00Z' },   // newer than yours
+    '2026-11-20': { hoursWorked: 2, lastUpdated: '2026-11-20T23:00:00Z' },   // today
+  } };
+  const s = mk('new Date()');
+  s.m['day_2026-11-11'] = { hoursWorked: 7, lastUpdated: '2026-11-12T09:00:00Z' };
+  s.m['day_2026-11-12'] = { hoursWorked: 5, lastUpdated: '2026-11-12T09:00:00Z' };
+  s.m['day_2026-11-20'] = { hoursWorked: 4, lastUpdated: '2026-11-20T10:00:00Z' };
+  s.m['day_2026-11-05'] = { hoursWorked: 6 };
+  assert.equal(s.importSnap(backup, 'merge'), 4);
+  assert.equal(s.m['day_2026-11-10'].hoursWorked, 9, 'added');
+  assert.equal(s.m['day_2026-11-11'].hoursWorked, 7, 'yours was newer: kept');
+  assert.equal(s.m['day_2026-11-12'].hoursWorked, 8, 'backup was newer: taken');
+  assert.equal(s.m['day_2026-11-20'].hoursWorked, 4, 'today stays while a session runs');
+  assert.equal(s.m['day_2026-11-05'].hoursWorked, 6, 'days only you have stay');
+  const o = mk('null'); o.m['day_2026-11-05'] = { hoursWorked: 6 };
+  assert.equal(o.importSnap(backup, 'overwrite'), 4);
+  assert.equal(o.m['day_2026-11-05'], undefined, 'overwrite replaces the whole log');
+  // UI: the in-row drop field, Merge as primary, optional copy first, and the Export toast.
+  const HTML = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
+  assert.match(HTML, /<button type="button" class="btn-secondary" id="impBtn"[^>]*aria-expanded="false" aria-controls="impSlot">/);
+  assert.match(HTML, /<div class="imp-slot" id="impSlot">/);
+  assert.doesNotMatch(HTML, /id="importConfirmOverlay"|id="importModal"/);
+  assert.match(SRC, /class="btn-danger-2" id="impOver">Overwrite<\/button><button type="button" class="btn btn-primary" id="impMerge">Merge<\/button>/);
+  assert.match(SRC, /<input type="checkbox" id="impKeep" checked>/);
+  assert.match(extract('function exportBackup('), /showToast\('Exported', 'success', `\$\{file\} is saved in your Downloads folder\.`\)/);
 });

@@ -337,23 +337,28 @@
       font: 600 13px var(--font); border: none; border-radius: var(--radius-md);
       display: inline-flex; align-items: center; justify-content: center; white-space: nowrap; flex-shrink: 0;
       cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent;
-      transition: background .14s, color .14s, box-shadow .14s; }
+      transition: background .14s, color .14s, box-shadow .14s, transform .12s cubic-bezier(.2,0,0,1); }
     .btn-danger { background: var(--danger-solid); color: #fff; }
-    .btn-danger-2 { background: var(--btn-secondary-bg); color: var(--danger-text); }
+    /* #71: .btn-danger-2 = uiarc Danger, the DEFAULT destructive button (outlined, red text).
+       .btn-danger (solid) only for Hold to Log Out, Delete Forever, Make New Codes. */
+    .btn-danger-2 { background: var(--btn-surface, var(--card)); color: var(--danger-text); box-shadow: inset 0 0 0 1px var(--btn-line, var(--border)); }
     .btn-danger-3 { background: transparent; color: var(--danger-text); }
     @media (hover: hover) and (pointer: fine) {
       .btn-danger:hover:not(:disabled) { background: var(--danger-solid-hover); }
-      .btn-danger-2:hover:not(:disabled) { background: var(--danger-solid-hover); color: #fff; }
+      .btn-danger-2:hover:not(:disabled) { background: var(--muted); box-shadow: inset 0 0 0 1px var(--danger-text); }
       .btn-danger-3:hover:not(:disabled) { background: var(--danger-tint); }
     }
-    .btn-danger:active:not(:disabled), .btn-danger-2:active:not(:disabled) { background: var(--danger-solid-press); color: #fff; }
+    .btn-danger:active:not(:disabled) { background: var(--danger-solid-press); color: #fff; }
+    .btn-danger-2:active:not(:disabled) { background: var(--muted); box-shadow: inset 0 0 0 1px var(--danger-text); }
+    .btn-danger:active:not(:disabled), .btn-danger-2:active:not(:disabled), .btn-danger-3:active:not(:disabled) { transform: scale(.97); }
     .btn-danger-3:active:not(:disabled) { background: var(--danger-tint); }
     .btn-danger:focus-visible, .btn-danger-2:focus-visible, .btn-danger-3:focus-visible {
       outline: none; box-shadow: 0 0 0 2px var(--card), 0 0 0 4px var(--danger-solid); }
     .btn-danger:disabled:not([aria-busy="true"]), .btn-danger-2:disabled:not([aria-busy="true"]), .btn-danger-3:disabled:not([aria-busy="true"]) {
       background: var(--muted); color: var(--text-muted); cursor: not-allowed; }
     .btn-danger-3:disabled:not([aria-busy="true"]) { background: transparent; }
-    .btn-danger-2[aria-busy="true"] { background: var(--danger-solid); color: #fff; }
+    /* Disabled outlined keeps its shape: muted fill, faded red label. */
+    .btn-danger-2:disabled:not([aria-busy="true"]) { color: color-mix(in srgb, var(--danger-text) 55%, var(--muted)); box-shadow: inset 0 0 0 1px var(--btn-line, var(--border)); }
     .btn-danger.sm, .btn-danger-2.sm, .btn-danger-3.sm { height: 30px; padding: 0 12px; font-size: 12px; }
     .btn-danger svg, .btn-danger-2 svg, .btn-danger-3 svg { width: 14px; height: 14px; flex: none; }
     .btn-danger[aria-busy="true"], .btn-danger-2[aria-busy="true"], .btn-danger-3[aria-busy="true"] { cursor: progress; }
@@ -362,6 +367,36 @@
       border-radius: 50%; animation: btn-danger-spin .7s linear infinite; }
     @keyframes btn-danger-spin { to { transform: rotate(360deg); } }
     @media (prefers-reduced-motion: reduce) { .btn-danger, .btn-danger-2, .btn-danger-3 { transition: none; } }
+    /* ── Buttons (#71, uiarc "button" layout; 5pm's sizes kept) ──
+       Primary = filled; Secondary (.btn-secondary / .btn-cancel / .btn-sm) = the surface + a 1px border;
+       Ghost (.am-quiet) = transparent until hover. Press = a slight scale; focus = 2px ring with a gap.
+       --btn-surface is the card colour, or one step up on raised panels (never sinks in dark mode). */
+    #dayEditOverlay, .ac-confirm, #notifPanel { --btn-surface: var(--surface-lift); --btn-line: var(--border-strong); }
+    .btn-primary { border: 1px solid var(--btn-primary-bg); transition: background .14s, opacity .14s, box-shadow .14s, transform .12s cubic-bezier(.2,0,0,1); }
+    .btn-primary:hover:not(:disabled) { filter: none; opacity: .91; box-shadow: 0 1px 2px rgba(0,0,0,.18); }
+    .btn-primary:active:not(:disabled) { opacity: .84; transform: scale(.985); }
+    .btn-primary:disabled { opacity: .52; }
+    .btn-secondary, .btn-cancel, .btn-sm { background: var(--btn-surface, var(--card)); color: var(--foreground); box-shadow: inset 0 0 0 1px var(--btn-line, var(--border));
+      transition: background .14s, color .14s, box-shadow .14s, transform .12s cubic-bezier(.2,0,0,1); }
+    @media (hover: hover) and (pointer: fine) {
+      .btn-secondary:hover:not(:disabled), .btn-cancel:hover:not(:disabled), .btn-sm:hover:not(:disabled) {
+        background: var(--muted); box-shadow: inset 0 0 0 1px var(--btn-line, var(--border)), 0 1px 2px rgba(0,0,0,.12); }
+      .am-quiet:hover:not(:disabled) { color: var(--foreground); background: var(--muted); }
+    }
+    .btn-secondary:active:not(:disabled), .btn-sm:active:not(:disabled) { background: var(--muted); transform: scale(.97); }
+    .btn-cancel:active:not(:disabled) { background: var(--muted); transform: scale(.985); }
+    .am-quiet { transition: background .14s, color .14s, transform .12s cubic-bezier(.2,0,0,1); }
+    .am-quiet:active:not(:disabled) { color: var(--foreground); background: var(--muted); transform: scale(.97); }
+    .btn-secondary:disabled, .btn-cancel:disabled, .btn-sm:disabled { color: var(--text-muted); background: var(--muted); cursor: not-allowed; }
+    .btn-primary:focus-visible, .btn-secondary:focus-visible, .btn-cancel:focus-visible, .btn-sm:focus-visible, .am-quiet:focus-visible {
+      outline: none; box-shadow: 0 0 0 2px var(--card), 0 0 0 4px var(--ring); }
+    /* In the Apple-style dialogs the outlined Danger fills the row like the primary (End for today). */
+    .am-btns .btn-danger-2 { width: 100%; height: 46px; font-size: 14.5px; border-radius: 13px; }
+    @media (prefers-reduced-motion: reduce) {
+      .btn-primary, .btn-secondary, .btn-cancel, .btn-sm, .am-quiet { transition: none; }
+      .btn-primary:active, .btn-secondary:active, .btn-cancel:active, .btn-sm:active, .am-quiet:active,
+      .btn-danger:active, .btn-danger-2:active, .btn-danger-3:active { transform: none; }
+    }
     .theme-icon-wrap { position: relative; display: inline-flex; width: 16px; height: 16px; }
     .theme-icon-wrap .theme-icon-solid { position: absolute; top: 0; left: 0; opacity: 0; transition: opacity .18s ease; }
     .theme-icon-wrap .theme-icon-outline { transition: opacity .18s ease; }
@@ -725,7 +760,6 @@
       body.shell-new #notifPanel { top: calc(56px + env(safe-area-inset-top) + 8px); }
       body.shell-new #ptrWrap { top: calc(56px + env(safe-area-inset-top) + 24px); }
       body.shell-new .page { padding-bottom: calc(32px + env(safe-area-inset-bottom)); }
-      body.shell-new .wh-toast { bottom: calc(16px + env(safe-area-inset-bottom)); }
     }
 
     .notif-panel { position: fixed; top: calc(24px + 52px + 8px); left: 50%; transform: translateX(-50%);
@@ -909,10 +943,14 @@
     .login-ap-hint { font-size: 12px; font-weight: 500; color: var(--warning, #f59e0b);
       padding: 2px 4px; display: none; }
     /* #64 Not started: Quick Start fills the row, "Already working?" sits under it, and the
-       time field lives in the sheet (#startTimeOverlay). Running/paused keep the combo. */
+       time field opens in place under Quick Start (#qsSlot). Running/paused keep the combo. */
     #todayLoginSection[data-mode="start"] .shift-combo { height: auto; padding: 0; border: none; background: none; box-shadow: none; }
     #todayLoginSection[data-mode="start"] .tp-seg-clock, #todayLoginSection[data-mode="start"] .tp-free-input,
-    #todayLoginSection[data-mode="start"] .shift-combo-active-label { display: none; }
+    #todayLoginSection[data-mode="start"] .shift-combo-active-label, #todayLoginSection[data-mode="start"] .tp-ap { display: none; }
+    /* AM/PM inside the Update Login Time field: smaller, so Pause keeps its room. */
+    .tp-ap button { height: 30px; padding: 0 8px; }
+    .shift-combo .tp-ap button[aria-pressed="true"] { background: var(--muted); }
+    .dark .shift-combo .tp-ap button[aria-pressed="true"] { background: var(--border-strong); }
     #todayLoginSection[data-mode="start"] #calcBtnWrap { flex: 1; }
     #todayLoginSection[data-mode="start"] #calcBtn { width: 100%; height: 44px; border-radius: 12px; font-size: 14px; }
     /* 12px under Quick Start: the section's 10px flex gap + 2px. */
@@ -920,8 +958,15 @@
       font: 600 13px var(--font); color: var(--foreground); cursor: pointer; transition: background .14s; }
     .qs-link:hover { background: var(--muted); }
     #todayLoginSection[data-mode="start"] .qs-link { display: block; }
-    /* The sheet: one question, the field, what the answer means. */
-    .st-field { display: flex; align-items: center; gap: 10px; height: 54px; margin-top: 18px; padding: 0 6px 0 14px;
+    .qs-slot { display: none; grid-template-rows: 0fr; transition: grid-template-rows .32s var(--ease-sheet); }
+    #todayLoginSection[data-mode="start"] .qs-slot { display: grid; }
+    .qs-slot.open { grid-template-rows: 1fr; }
+    .qs-slot > div { overflow: hidden; min-height: 0; }
+    .qs-slot-in { padding-top: 2px; }
+    .qs-slot:not(.open) .qs-slot-in { visibility: hidden; transition: visibility 0s .32s; }
+    @media (prefers-reduced-motion: reduce) { .qs-slot { transition: none; } }
+    /* The start-time field (in the Today card): the field, then what the answer means. */
+    .st-field { display: flex; align-items: center; gap: 10px; height: 54px; margin-top: 0; padding: 0 6px 0 14px;
       border-radius: 14px; background: var(--input-bg); box-shadow: inset 0 0 0 1px var(--border); transition: box-shadow .15s; }
     .st-field:focus-within { box-shadow: inset 0 0 0 1.5px var(--border-strong); }
     .st-field.bad { box-shadow: inset 0 0 0 1.5px var(--warning); }
@@ -1352,11 +1397,35 @@
     /* Running: the time left leads, the two facts sit under it (#61 "Headline above"). */
     .rc-lead { display: flex; flex-direction: column; align-items: center; margin-top: 8px; }
     .rc-lead[hidden] { display: none; }
-    .rc-lead-n { font: 400 40px/1 var(--font-display); font-variant-numeric: tabular-nums; letter-spacing: -.01em; color: var(--foreground); }
-    .rc-lead-c { display: inline-flex; align-items: center; gap: 6px; margin-top: 8px; font-size: 13px; color: var(--muted-fg); }
+    /* #68 Countdown (uiarc "countdown", large): digit wheels + Hours / Minutes / Seconds. */
+    .rc-lead-w { position: relative; display: flex; justify-content: center; }
+    .rc-lead-n { display: inline-flex; align-items: flex-start; white-space: nowrap; font: 400 40px/1 var(--font-display); letter-spacing: -.01em; color: var(--foreground);
+      transition: opacity .25s, transform .4s var(--ease-sheet), filter .4s; }
+    .cd-group { display: inline-grid; justify-items: center; gap: 6px; min-width: 2.3ch; }
+    .cd-num { display: inline-flex; font-variant-numeric: tabular-nums; }
+    .cd-name { font: 500 12px/1 var(--font); letter-spacing: 0; color: var(--text-muted); }
+    .cd-colon { color: var(--text-muted); opacity: .6; padding-inline: .12em; transform: translateY(-.06em); }
+    /* Each digit is a clipped wheel whose window feathers out, so a turning digit fades at the edge. */
+    .cd-wheel { --f: .16em; position: relative; display: inline-block; overflow: hidden; margin-block: calc(var(--f) * -1); padding-block: var(--f);
+      -webkit-mask-image: linear-gradient(to bottom, transparent, #000 calc(var(--f) * 1.5), #000 calc(100% - var(--f) * 1.5), transparent);
+              mask-image: linear-gradient(to bottom, transparent, #000 calc(var(--f) * 1.5), #000 calc(100% - var(--f) * 1.5), transparent); }
+    .cd-sizer { visibility: hidden; }
+    .cd-g { position: absolute; inset: var(--f) 0; text-align: center; }
+    /* At the target the digits give way to the label and a live mark. */
+    .cd-done { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: .4em; white-space: nowrap;
+      font: 400 30px/1.1 var(--font-display); letter-spacing: -.01em; color: var(--foreground);
+      opacity: 0; transform: scale(.92); filter: blur(6px); pointer-events: none; transition: opacity .3s, transform .45s var(--ease-sheet), filter .45s; }
+    .rc-lead.complete .rc-lead-n { opacity: 0; transform: scale(.92); filter: blur(6px); }
+    .rc-lead.complete .cd-done { opacity: 1; transform: none; filter: none; }
+    .cd-pulse { position: relative; width: 10px; height: 10px; flex: none; border-radius: 50%; background: var(--success); }
+    .cd-pulse::after { content: ''; position: absolute; inset: 0; border-radius: inherit; background: var(--success); animation: cd-pulse 2s ease infinite; }
+    @keyframes cd-pulse { from { opacity: .5; transform: scale(1); } 70%, to { opacity: 0; transform: scale(2.6); } }
+    .rc-lead-c { display: inline-flex; align-items: center; gap: 6px; margin-top: 10px; font-size: 13px; color: var(--muted-fg); }
+    .rc-lead-c:empty { display: none; }
     .rc-lead.over .rc-lead-n, .rc-lead.over .rc-lead-c { color: var(--warning); }
-    #rcKpiGroup.rc-finished:not(.rc-over) .rc-lead { display: none; }
-    @media (max-width: 640px) { .rc-lead-n { font-size: 34px; } }
+    #rcKpiGroup.rc-finished:not(.rc-over) .rc-lead:not(.complete) { display: none; }
+    @media (max-width: 640px) { .rc-lead-n { font-size: 34px; } .cd-done { font-size: 26px; } }
+    @media (prefers-reduced-motion: reduce) { .cd-pulse::after { animation: none; } .rc-lead-n, .cd-done { transition: none; } }
     /* Not started → Running: the drawing lifts out, the card glides to its new
        height, the new parts rise in one after another. */
     .rc-ghost-out { animation: rc-out .14s ease-in both; z-index: 2; }
@@ -2221,7 +2290,10 @@
     .am-quiet.danger { color: var(--danger-text); font-weight: 600; transition: background .14s; }
     .am-quiet.danger:hover, .am-quiet.danger:active { color: var(--danger-text); background: var(--danger-tint); }
     @media (max-width: 640px) {
-      .overlay.am-host { align-items: flex-end; padding: 0; }
+      /* Closing: the sheet slides down first; the dimmed backdrop fades only as it lands
+         (it used to fade in .2s and take the sheet with it, so it looked like it vanished). */
+      .overlay.am-host { align-items: flex-end; padding: 0; transition: opacity .2s ease .26s; }
+      .overlay.am-host.open { transition-delay: 0s; }
       .overlay.am-host > .dialog.am { max-width: none; width: 100%; border-radius: 24px 24px 0 0; border-bottom: none;
         padding: 10px 18px calc(18px + env(safe-area-inset-bottom)); transform: translateY(100%);
         transition: transform .45s var(--ease-sheet); }
@@ -2231,12 +2303,6 @@
       .overlay.am-host > .dialog.am.sheet-dragging { transition: none !important; }
     }
     .dialog-head { padding: 22px 22px 16px; position: relative; }
-    /* Toast */
-    #appToast.toast-show { opacity: 1 !important; pointer-events: all !important; transform: translateX(-50%) translateY(0) !important; }
-    @media (max-width: 640px) {
-      #appToast { left: 16px !important; right: 16px !important; width: auto !important; white-space: normal !important; transform: translateY(20px) !important; }
-      #appToast.toast-show { transform: translateY(0) !important; }
-    }
     /* About Project card */
     .about-dev-pic { width: 40px; height: 40px; border-radius: 50%; object-fit: cover;
       border: 2px solid var(--border); flex-shrink: 0; }
@@ -2440,14 +2506,20 @@
     .ac-row + .ac-row::before { content: ''; position: absolute; left: 62px; right: 6px; top: 0; border-top: 1px solid var(--border-subtle); }
     .ac-row:focus-visible { outline: 2px solid var(--ring); outline-offset: -2px; }
     .ac-txt { flex: 1; min-width: 0; }
-    .ac-gap b { font-size: 14px; font-weight: 600; color: var(--warning); font-variant-numeric: tabular-nums; }
-    .ac-gap span { font-size: 12px; color: var(--text-muted); }
-    .ac-sub { font-size: 12px; color: var(--muted-fg); margin-top: 2px; font-variant-numeric: tabular-nums; }
+    /* Row (#66 D): the date, then chips for what needs resolving; a chevron says it opens. */
+    .ac-day { font-size: 14px; font-weight: 600; color: var(--foreground); }
+    .ac-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 5px; }
+    .ac-chip { display: inline-flex; align-items: center; height: 22px; padding: 0 8px; border-radius: 6px; font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums;
+      background: var(--muted); color: var(--muted-fg); }
+    .ac-chip.w { background: var(--warning-bg); color: var(--warning); box-shadow: inset 0 0 0 1px var(--warning-border); }
+    .ac-chip.half { background: color-mix(in srgb, var(--teal) 12%, var(--card)); color: var(--teal); }
+    .ac-chev { width: 16px; height: 16px; flex: none; margin-left: auto; color: var(--text-muted); }
+    .ac-row:hover .ac-chev { color: var(--foreground); }
     @media (hover: hover) and (pointer: fine) {
       .ac-row:hover { background: var(--muted); }
       .ac-row:hover .wk-tile { background: var(--btn-secondary-hover); color: var(--foreground); }
     }
-    .ac-row.read .ac-gap b { color: var(--muted-fg); }
+    .ac-row.read .ac-chip.w { background: var(--muted); color: var(--muted-fg); box-shadow: none; }
     .ac-row.read { opacity: .7; }
     .ac-mo { margin: 12px 6px 4px; font-size: 12px; font-weight: 600; color: var(--text-muted); }
     .ac-mo:first-child { margin-top: 6px; }
@@ -2700,8 +2772,10 @@
     .de-note-wrap textarea:focus, #futureDayReason:focus { box-shadow: inset 0 0 0 2.5px rgba(9,9,11,.10); }
     .dark .de-note-wrap textarea:focus, .dark #futureDayReason:focus { box-shadow: inset 0 0 0 2.5px rgba(250,250,250,.10); }
     /* Update Entry note: a lighter fill and a visible outline so it reads as a field; focus lifts the outline to a lighter grey (not white); the caret blinks in the text colour. */
-    #dayEditOverlay .de-note-wrap textarea { background: color-mix(in srgb, var(--foreground) 7%, var(--surface-lift)); box-shadow: inset 0 0 0 1px var(--input); caret-color: var(--foreground); }
-    #dayEditOverlay .de-note-wrap textarea:focus, .dark #dayEditOverlay .de-note-wrap textarea:focus { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--input) 55%, var(--foreground)); }
+    /* Note + "Or write your own reason": the same field as the start-time sheet (#stField):
+       a plain surface one step up from the panel, a 1px border, a stronger border on focus. */
+    #dayEditOverlay .de-note-wrap textarea { background: var(--surface-lift); box-shadow: inset 0 0 0 1px var(--border); caret-color: var(--foreground); transition: box-shadow .15s; }
+    #dayEditOverlay .de-note-wrap textarea:focus, .dark #dayEditOverlay .de-note-wrap textarea:focus { box-shadow: inset 0 0 0 1.5px var(--border-strong); }
     /* Future plan CTA — slides in when a chip is selected */
     .future-plan-cta { overflow: hidden; max-height: 0; opacity: 0;
       transition: max-height .25s ease, opacity .2s ease; pointer-events: none; }
@@ -3139,34 +3213,37 @@
       transition:background .12s; }
     .elt-clear-btn:hover { background:var(--blue-border); }
 
-    /* ── Toast (shadcn-style) ── */
-    /* ── Toast — bottom-center dark pill (shadcn/mynaui style) ── */
-    .wh-toast {
-      position:fixed; bottom:24px; left:50%;
-      transform:translateX(-50%) translateY(14px);
-      min-width:220px; max-width:380px;
-      background:var(--background); border:1px solid var(--border);
-      border-radius:12px; padding:4px 4px 4px 14px;
-      box-shadow:var(--shadow-lg);
-      transition:transform .32s cubic-bezier(.32,1,.54,1), opacity .22s;
-      opacity:0; pointer-events:none; z-index:9999;
-      display:flex; align-items:center; gap:10px;
+    /* ── Toasts (#70, uiarc "toast-stack") ──
+       Bottom centre. The newest toast is in front; up to 3 older ones tuck behind it,
+       14px of each peeking above, 5% smaller per step. Hover or focus fans them out. */
+    .ts-vp { position: fixed; z-index: 9999; left: 0; right: 0; bottom: 24px; margin-inline: auto; width: min(360px, calc(100% - 32px)); pointer-events: none; }
+    .ts-list { position: relative; margin: 0; padding: 0; list-style: none; pointer-events: auto; transition: height .45s var(--ease-sheet); }
+    .ts-item { position: absolute; left: 0; right: 0; bottom: 0; transform-origin: 50% 0; transition: transform .45s var(--ease-sheet), opacity .3s; }
+    .ts-item.enter { transform: translateY(24px) scale(.96) !important; opacity: 0 !important; }
+    .ts-item.leave { opacity: 0 !important; transition: transform .3s var(--ease-sheet), opacity .2s; }
+    .ts-card { position: relative; overflow: hidden; border: 1px solid var(--border); border-radius: 16px; background: var(--surface-raised); box-shadow: var(--shadow-lg);
+      touch-action: pan-y; transition: height .45s var(--ease-sheet), background .3s; }
+    .ts-item[data-front="false"][data-open="false"] .ts-card { background: var(--muted); }
+    .ts-ct { display: flex; align-items: flex-start; gap: 12px; padding: 12px 12px 12px 16px; transition: opacity .25s; }
+    .ts-item[data-front="false"][data-open="false"] .ts-ct { opacity: 0; }
+    .ts-ic { width: 18px; height: 20px; flex: none; display: grid; place-items: center; color: var(--c, var(--muted-fg)); }
+    .ts-ic svg { width: 18px; height: 18px; }
+    .ts-ic .ts-check { stroke-dasharray: 24; stroke-dashoffset: 24; animation: ts-draw .4s cubic-bezier(.16,1,.3,1) .12s forwards; }
+    @keyframes ts-draw { to { stroke-dashoffset: 0; } }
+    .ts-copy { flex: 1; min-width: 0; font-size: 14px; line-height: 20px; }
+    .ts-t { display: block; font-weight: 500; color: var(--foreground); }
+    .ts-d { display: block; margin-top: 2px; font-size: 13px; line-height: 19px; color: var(--muted-fg); }
+    .ts-act { height: 28px; padding: 0 12px; flex: none; margin-top: -4px; border: 1px solid var(--border); border-radius: 999px; background: var(--card); color: var(--foreground);
+      font: 500 13px var(--font); white-space: nowrap; cursor: pointer; transition: background .14s, border-color .14s; }
+    .ts-x { width: 28px; height: 28px; flex: none; margin: -4px -2px 0 0; display: grid; place-items: center; border: 0; border-radius: 50%; background: none; color: var(--text-muted); cursor: pointer; transition: background .14s, color .14s; }
+    .ts-x svg { width: 16px; height: 16px; }
+    @media (hover: hover) and (pointer: fine) {
+      .ts-act:hover { border-color: var(--border-strong); background: var(--muted); }
+      .ts-x:hover { background: var(--muted); color: var(--foreground); }
     }
-    .wh-toast.show {
-      transform:translateX(-50%) translateY(0);
-      opacity:1; pointer-events:auto;
-    }
-    @media (max-width:640px) {
-      .wh-toast { bottom:calc(max(4px, env(safe-area-inset-bottom) * 0.5) + 65px); width:max-content; max-width:calc(100% - 32px); }
-    }
-    .wh-toast-icon { width:15px; height:15px; flex-shrink:0; }
-    .wh-toast-body { flex:1; min-width:0; }
-    .wh-toast-title { font-size:13px; font-weight:500; color:var(--foreground); }
-    .wh-toast-desc { font-size:12px; color:var(--muted-fg); margin-top:2px; line-height:1.4; display:none; }
-    .wh-toast-desc.visible { display:block; }
-    .wh-toast.success .wh-toast-icon { color:var(--success); }
-    .wh-toast.error   .wh-toast-icon { color:var(--destructive); }
-    .wh-toast.info    .wh-toast-icon { color:var(--blue); }
+    .ts-act:active, .ts-x:active { transform: scale(.96); }
+    @media (max-width: 640px) { .ts-vp { bottom: calc(16px + env(safe-area-inset-bottom)); } }
+    @media (prefers-reduced-motion: reduce) { .ts-item, .ts-card, .ts-list { transition: opacity .15s; } .ts-ic .ts-check { animation: none; stroke-dashoffset: 0; } }
 
     /* ── Footer label ── */
     .app-footer { position:fixed; bottom:14px; right:18px; font-size:12px; font-weight:500;
@@ -3578,6 +3655,52 @@
     .ob-panel input[type="text"] { outline: none; }
     .ob-panel input[type="text"]:focus { border-color: var(--ring) !important; box-shadow: inset 0 0 0 3px rgba(9,9,11,.08); }
     .dark .ob-panel input[type="text"]:focus { box-shadow: inset 0 0 0 3px rgba(250,250,250,.08); }
+    /* ── Backup & Restore: Import in place (#72, uiarc "file-upload") ── */
+    .imp-slot { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .36s var(--ease-sheet); }
+    .imp-slot.open { grid-template-rows: 1fr; }
+    .imp-slot > div { overflow: hidden; min-height: 0; }
+    .imp-in { padding-top: 14px; opacity: 0; transform: translateY(-4px); transition: opacity .2s, transform .3s cubic-bezier(.16,1,.3,1); }
+    .imp-slot.open .imp-in { opacity: 1; transform: none; transition-delay: .08s; }
+    .imp-slot:not(.open) .imp-in { visibility: hidden; transition: opacity .15s, transform .2s, visibility 0s .36s; }
+    #impBtn[aria-expanded="true"] { background: var(--muted); box-shadow: inset 0 0 0 1px var(--border-strong); }
+    .imp-input { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+    .imp-drop { display: flex; min-height: 84px; align-items: center; gap: 12px; padding: 16px; border: 1px dashed var(--border-strong); border-radius: 14px;
+      background: var(--card); cursor: pointer; transition: border-color .2s, background .2s; }
+    .imp-drop:hover, .imp-drop.dragging, .imp-drop:active { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, var(--card)); }
+    .imp-drop:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--card), 0 0 0 4px var(--ring); }
+    .imp-cloud { width: 24px; height: 24px; flex: none; color: var(--foreground); transition: transform .3s cubic-bezier(.34,1.56,.64,1); }
+    .imp-drop.dragging .imp-cloud { transform: translateY(-3px); }
+    .imp-copy { flex: 1; min-width: 0; } .imp-copy strong { display: block; font-size: 14px; font-weight: 500; color: var(--foreground); }
+    .imp-copy span { display: block; margin-top: 2px; font-size: 12px; color: var(--text-muted); }
+    .imp-status { margin: 8px 2px 0; font-size: 12px; color: var(--text-muted); } .imp-status:empty { display: none; } .imp-status.err { color: var(--danger-text); }
+    .imp-file { display: flex; align-items: center; gap: 12px; margin-top: 8px; padding: 10px 10px 10px 12px; border: 1px solid var(--border-subtle); border-radius: 10px; background: var(--muted); animation: imp-rise .3s cubic-bezier(.16,1,.3,1); }
+    @keyframes imp-rise { from { opacity: 0; transform: translateY(6px); } }
+    .imp-file > svg { width: 22px; height: 22px; flex: none; color: var(--muted-fg); }
+    .imp-fc { flex: 1; min-width: 0; } .imp-fc strong { display: block; font-size: 13px; font-weight: 500; color: var(--foreground); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .imp-fc span { display: block; font-size: 12px; color: var(--text-muted); font-variant-numeric: tabular-nums; } .imp-fc span.err { color: var(--danger-text); }
+    .imp-trk { height: 3px; margin: 5px 0 1px; border-radius: 99px; background: var(--border); overflow: hidden; }
+    .imp-trk i { display: block; height: 100%; width: 0; background: var(--accent); border-radius: inherit; transition: width .6s var(--ease-sheet); }
+    .imp-ok { width: 22px; height: 22px; display: grid; place-items: center; color: var(--success); }
+    .imp-ok path { stroke-dasharray: 22; stroke-dashoffset: 22; animation: imp-draw .35s cubic-bezier(.16,1,.3,1) .05s forwards; }
+    @keyframes imp-draw { to { stroke-dashoffset: 0; } }
+    .imp-x { width: 26px; height: 26px; flex: none; border: 0; border-radius: 50%; background: none; color: var(--text-muted); display: grid; place-items: center; cursor: pointer; }
+    .imp-x:hover { background: var(--card); color: var(--foreground); }
+    .imp-x svg { width: 15px; height: 15px; }
+    .imp-choice { margin-top: 10px; padding: 12px 14px; border-radius: 12px; background: var(--surface-raised); border: 1px solid var(--border); animation: imp-rise .3s cubic-bezier(.16,1,.3,1);
+      --btn-surface: var(--surface-lift); --btn-line: var(--border-strong); }
+    .imp-choice > b { display: block; font-size: 14px; color: var(--foreground); }
+    .imp-choice > p { margin: 3px 0 12px; font-size: 13px; line-height: 1.45; color: var(--muted-fg); } .imp-choice p b { font-weight: 600; color: var(--foreground); }
+    .imp-keep { display: flex; align-items: flex-start; gap: 10px; margin: 0 0 12px; padding: 10px 12px; border-radius: 10px; background: var(--surface-lift); box-shadow: inset 0 0 0 1px var(--border-strong); cursor: pointer; }
+    .imp-keep input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+    .imp-cb { width: 18px; height: 18px; flex: none; margin-top: 1px; border-radius: 5px; box-shadow: inset 0 0 0 1.5px var(--border-strong); display: grid; place-items: center; color: transparent; transition: background .14s, color .14s, box-shadow .14s; }
+    .imp-cb svg { width: 12px; height: 12px; }
+    .imp-keep input:checked + .imp-cb { background: var(--btn-primary-bg); color: var(--card); box-shadow: none; }
+    .imp-keep input:focus-visible + .imp-cb { box-shadow: 0 0 0 2px var(--surface-lift), 0 0 0 4px var(--ring); }
+    .imp-keep b { display: block; font-size: 13px; font-weight: 600; color: var(--foreground); } .imp-keep small { display: block; margin-top: 1px; font-size: 12px; color: var(--text-muted); }
+    .imp-acts { display: flex; justify-content: flex-end; gap: 8px; }
+    /* The Security tab uses the compact 30px scale (shell-new rule); Merge matches it. */
+    .imp-acts .btn-primary { width: auto; height: 30px; padding: 0 12px; font-size: 12px; border-radius: 8px; }
+    @media (prefers-reduced-motion: reduce) { .imp-slot, .imp-in, .imp-drop, .imp-cloud, .imp-trk i { transition: none; } .imp-file, .imp-choice { animation: none; } .imp-ok path { animation: none; stroke-dashoffset: 0; } }
     .ob-import-zone { border: 2px dashed var(--border); border-radius: 12px; padding: 28px 20px;
       text-align: center; cursor: pointer;
       transition: border-color .22s ease, background .22s ease, box-shadow .22s ease; display: flex;
@@ -4081,8 +4204,9 @@
     .wf-feed { position: relative; height: min(460px, 62vh); padding-top: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none; outline: none; }
     .wf-feed::-webkit-scrollbar { display: none; }
     /* Week break (#62): not sticky (the calendar button names the week); the date range and a hairline. */
+    /* Week title centred between two hairlines, so it's clear where one week ends. */
     .wf-wh { display: flex; align-items: center; gap: 10px; padding: 14px 16px 6px 12px; }
-    .wf-wh::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+    .wf-wh::before, .wf-wh::after { content: ''; flex: 1; height: 1px; background: var(--border); }
     .wf-wr { font-size: 12px; font-weight: 600; letter-spacing: .02em; color: var(--text-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
     .wf-week:first-child .wf-wh { padding-top: 6px; }
     .wk-row.hl, .wf-feed .wk-row.today { background: var(--muted); }   /* today rule: today always in its hover look */
@@ -4143,7 +4267,8 @@
       padding: 3px; border-radius: 12px; background: var(--muted); border: 1px solid var(--border); flex-wrap: nowrap; }
     .de-type .de-type-pill { position: absolute; z-index: 0; top: 3px; bottom: 3px; left: 0; width: 0; border-radius: 9px; background: var(--surface-lift);
       box-shadow: 0 1px 2px rgba(0,0,0,.08), 0 0 0 1px var(--border); transition: transform .32s var(--ease-sheet), width .32s var(--ease-sheet); }
-    .dark .de-type .de-type-pill { background: var(--btn-secondary-hover); }
+    /* Dark: no ring (the border colour is darker than the pill and read as a black stroke). */
+    .dark .de-type .de-type-pill { background: var(--btn-secondary-hover); box-shadow: 0 1px 2px rgba(0,0,0,.3); }
     .de-type .modal-override-btn { position: relative; z-index: 1; height: auto; min-width: 0; padding: 9px 2px 8px; border: 0; border-radius: 9px;
       display: flex; flex-direction: column; align-items: center; gap: 4px; background: transparent; color: var(--text-muted);
       font: 500 12px var(--font); white-space: nowrap; cursor: pointer; transition: color .15s; }
@@ -4207,14 +4332,9 @@
       transition: background .14s, color .14s; }
     body.rail-on .notif-panel .sheet-close:hover { background: var(--btn-secondary-hover); color: var(--foreground); }
     body.rail-on .notif-panel .sheet-close svg { width: 13px; height: 13px; }
-    /* Toasts: bottom-right on desktop, sliding up with the sheet easing. */
-    body.rail-on .wh-toast { left: auto; right: 24px; bottom: 24px; transform: translateY(14px);
-      transition: transform .48s var(--ease-sheet), opacity .32s var(--ease-sheet); }
-    body.rail-on .wh-toast.show { transform: translateY(0); }
     @media (prefers-reduced-motion: reduce) {
       body.rail-on .notif-panel, body.rail-on .notif-panel.open { transform: none; transition: opacity .2s; }
       body.rail-on #dayEditOverlay > .dialog, body.rail-on #dayEditOverlay.open > .dialog { transform: none; transition: none; }
-      body.rail-on .wh-toast, body.rail-on .wh-toast.show { transform: none; transition: opacity .2s; }
     }
   </style>
 </head>
@@ -4402,7 +4522,7 @@
           </div>
           <div id="rcKpiGroup" style="display:flex;flex-direction:column;align-items:center;width:100%;gap:8px">
           <!-- Time left (#61, "Headline above"): the number to watch, counted by the second. -->
-          <div class="rc-lead" id="rcLead" aria-live="off" hidden><b class="rc-lead-n" id="rcLeadNum"></b><span class="rc-lead-c" id="rcLeadCap"></span></div>
+          <div class="rc-lead" id="rcLead" role="timer" aria-live="off" hidden><span class="rc-lead-w"><b class="rc-lead-n" id="rcLeadNum" aria-hidden="true"></b><span class="cd-done" aria-hidden="true"><span class="cd-pulse"></span>Time to head out</span></span><span class="rc-lead-c" id="rcLeadCap"></span></div>
           <div class="rc-numbers">
             <div class="rc-left-col">
               <div class="rc-worked" id="rcWorked">—</div>
@@ -4449,9 +4569,10 @@
                 </svg>
               </button>
               <!-- Free-text time input -->
-              <input class="tp-free-input" id="tpFreeInput" type="text" inputmode="text"
-                placeholder="Enter Login Time" maxlength="14"
+              <input class="tp-free-input" id="tpFreeInput" type="text" inputmode="numeric" pattern="[0-9]*" enterkeyhint="go"
+                placeholder="Enter Login Time" maxlength="5" aria-label="Login time"
                 autocomplete="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true">
+              <span class="st-ap tp-ap" id="tpAp" role="group" aria-label="AM or PM" hidden><button type="button" data-ap="AM" aria-pressed="true">AM</button><button type="button" data-ap="PM" aria-pressed="false">PM</button></span>
               <span class="shift-combo-active-label" id="shiftActiveLabel">—</span>
               <div id="calcBtnWrap" style="position:relative;display:flex;align-items:stretch">
                 <button class="shift-combo-btn" id="calcBtn">Quick Start</button>
@@ -4466,8 +4587,18 @@
                 </div>
               </div>
             </div>
-            <!-- #64: before a session, Quick Start fills the row and the time lives in this sheet. -->
-            <button type="button" class="qs-link" id="qsLink" aria-haspopup="dialog">Already working?</button>
+            <!-- #67 Expand in place: "Already working?" opens the start time right here, under
+                 Quick Start (which then reads "Start at 09:00 AM"); the link becomes Cancel. -->
+            <div class="qs-slot" id="qsSlot"><div><div class="qs-slot-in">
+              <div class="st-field" id="stField">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+                <input id="stInput" type="text" inputmode="numeric" pattern="[0-9]*" enterkeyhint="go" maxlength="5" placeholder="hh:mm"
+                  aria-label="When did you start work?" aria-describedby="stOut" autocomplete="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true" tabindex="-1">
+                <span class="st-ap" id="stAp" role="group" aria-label="AM or PM"><button type="button" data-ap="AM" aria-pressed="true" tabindex="-1">AM</button><button type="button" data-ap="PM" aria-pressed="false" tabindex="-1">PM</button></span>
+              </div>
+              <p class="st-out" id="stOut" aria-live="polite"></p>
+            </div></div></div>
+            <button type="button" class="qs-link" id="qsLink" aria-expanded="false" aria-controls="qsSlot">Already working?</button>
             <!-- Resume row (after End Session or auto-stop) -->
             <div class="shift-resume-row" id="resumeRow" style="display:none">
               <span class="shift-combo-hint" id="resumeLabel" style="flex:1;text-align:left;font-size:12px"></span>
@@ -5028,18 +5159,26 @@
                   <div class="form-sub">Save a copy of your work log, or bring one back.</div>
                 </div>
                 <div style="display:flex;gap:8px;flex-shrink:0">
-                  <button class="btn-secondary" style="gap:5px;padding:0 12px" data-on-click="h52e490390c">
+                  <button type="button" class="btn-secondary" id="impBtn" style="gap:5px;padding:0 12px" aria-expanded="false" aria-controls="impSlot">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M7.70711 13.7071L11 10.4142L11 21C11 21.5523 11.4477 22 12 22C12.5523 22 13 21.5523 13 21L13 10.4142L16.2929 13.7071C16.6834 14.0976 17.3166 14.0976 17.7071 13.7071C18.0976 13.3166 18.0976 12.6834 17.7071 12.2929L12.7071 7.29289C12.3166 6.90237 11.6834 6.90237 11.2929 7.29289L6.29289 12.2929C5.90237 12.6834 5.90237 13.3166 6.29289 13.7071C6.68342 14.0976 7.31658 14.0976 7.70711 13.7071Z" fill="currentColor"/><path d="M4 4C3.44772 4 3 3.55228 3 3C3 2.44772 3.44772 2 4 2H20C20.5523 2 21 2.44772 21 3C21 3.55228 20.5523 4 20 4H4Z" fill="currentColor"/></svg>
                     Import
                   </button>
-                  <!-- Hidden fallback input kept for backward-compat event listener -->
-                  <input type="file" id="logFileInput" accept=".json" style="display:none">
                   <button class="btn-secondary" id="manualExportBtn" style="gap:5px;padding:0 12px">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M7.70711 10.2929L11 13.5858L11 3C11 2.44771 11.4477 2 12 2C12.5523 2 13 2.44771 13 3L13 13.5858L16.2929 10.2929C16.6834 9.90237 17.3166 9.90237 17.7071 10.2929C18.0976 10.6834 18.0976 11.3166 17.7071 11.7071L12.7071 16.7071C12.3166 17.0976 11.6834 17.0976 11.2929 16.7071L6.29289 11.7071C5.90237 11.3166 5.90237 10.6834 6.29289 10.2929C6.68342 9.90237 7.31658 9.90237 7.70711 10.2929Z" fill="currentColor"/><path d="M4 22C3.44772 22 3 21.5523 3 21C3 20.4477 3.44772 20 4 20H20C20.5523 20 21 20.4477 21 21C21 21.5523 20.5523 22 20 22H4Z" fill="currentColor"/></svg>
                     Export
                   </button>
                 </div>
               </div>
+              <!-- #72 Import in place (uiarc file-upload): opens right inside this row. -->
+              <div class="imp-slot" id="impSlot"><div><div class="imp-in">
+                <input class="imp-input" type="file" id="logFileInput" accept=".json,application/json" tabindex="-1" aria-hidden="true">
+                <div class="imp-drop" id="impDrop" role="button" tabindex="-1" aria-describedby="impDropD">
+                  <svg class="imp-cloud" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 13v8"/><path d="m8 17 4-4 4 4"/><path d="M20 16.6A5 5 0 0 0 18 7h-1.3A8 8 0 1 0 4 15.3"/></svg>
+                  <span class="imp-copy"><strong id="impDropT">Import a backup</strong><span id="impDropD">Drop a .json file exported from 5pm here, or click to choose one. Up to 5 MB.</span></span>
+                </div>
+                <p class="imp-status" id="impStatus" aria-live="polite"></p>
+                <div id="impFiles"></div>
+              </div></div></div>
             </div>
 
             <!-- Delete Account -->
@@ -5495,7 +5634,7 @@
       </div>
       <div style="padding:0 14px 14px;display:flex;justify-content:flex-end;gap:8px">
         <button class="btn-secondary" data-on-click="h60803b94db">Keep</button>
-        <button class="btn-danger" id="cancelPlanConfirmBtn">Cancel Plan</button>
+        <button class="btn-danger-2" id="cancelPlanConfirmBtn">Cancel Plan</button>
       </div>
     </div>
   </div>
@@ -5509,23 +5648,9 @@
       <div class="am-note" id="endSessionHalfDayNote" style="display:none"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 16h.01"/></svg>This will count as a half day.</div>
       <div class="am-btns">
         <button class="btn btn-primary" id="endSessionCancelBtn">Keep working</button>
-        <button type="button" class="am-quiet danger" id="endSessionConfirmBtn">End for today</button>
+        <button type="button" class="btn-danger-2" id="endSessionConfirmBtn">End for today</button>
       </div>
     </div>
-  </div>
-
-  <!-- ── Toast Notification ── -->
-  <div id="appToast" style="
-    position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);
-    background:var(--foreground);color:var(--card);border-radius:10px;
-    padding:4px 4px 4px 14px;display:flex;align-items:center;gap:12px;
-    font-size:13px;font-weight:500;white-space:nowrap;
-    box-shadow:0 4px 20px rgba(0,0,0,.22);z-index:9999;
-    opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;font-family:var(--font)">
-    <span id="appToastMsg">Entry deleted.</span>
-    <button id="appToastUndo" style="background:none;border:none;cursor:pointer;font-family:inherit;
-      font-size:13px;font-weight:700;color:var(--card);opacity:.8;padding:6px;border-radius:7px;letter-spacing:.03em"
-      data-on-mouseover="h14373a3cf1" data-on-mouseout="hd75e357a3a">UNDO</button>
   </div>
 
   <!-- ── Logout Confirmation Modal ── -->
@@ -5542,7 +5667,7 @@
       </div>
       <div style="padding:14px;display:flex;justify-content:flex-end;gap:8px">
         <button class="btn-secondary" data-on-click="h3a488fe697">Stay Back</button>
-        <button class="btn-danger" data-on-click="hc1fb0c2186">Log Out</button>
+        <button class="btn-danger-2" data-on-click="hc1fb0c2186">Log Out</button>
       </div>
     </div>
   </div>
@@ -5561,7 +5686,7 @@
       </div>
       <div style="padding:14px;display:flex;justify-content:flex-end;gap:8px">
         <button class="btn-secondary" data-on-click="h8a0431c316">Cancel</button>
-        <button class="btn-danger" id="pkRemoveBtn" data-on-click="h69f23197dd">Remove</button>
+        <button class="btn-danger-2" id="pkRemoveBtn" data-on-click="h69f23197dd">Remove</button>
       </div>
     </div>
   </div>
@@ -5899,7 +6024,7 @@
         </div>
         <div style="padding:0 14px 14px;display:flex;gap:8px">
           <button class="btn-secondary" style="flex:1;justify-content:center" data-on-click="hfa2eb79cc6">Cancel</button>
-          <button id="mfaDisableBtn" class="btn-danger" style="flex:1" data-on-click="ha5880d0f8f">Disable</button>
+          <button id="mfaDisableBtn" class="btn-danger-2" style="flex:1" data-on-click="ha5880d0f8f">Disable</button>
         </div>
       </div>
 
@@ -5937,14 +6062,8 @@
     <span class="sync-pill-spin" aria-hidden="true"></span>Checking for updates from other devices
   </div>
 
-  <div class="wh-toast" id="ieToast">
-    <svg class="wh-toast-icon" id="toastIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"></svg>
-    <div class="wh-toast-body">
-      <div class="wh-toast-title" id="toastTitle"></div>
-      <div class="wh-toast-desc" id="toastDesc"></div>
-    </div>
-    <button class="btn-secondary" id="toastActionBtn" style="font-size:12px;height:auto;padding:8px;flex-shrink:0">Close</button>
-  </div>
+  <!-- Toasts (#70, uiarc toast-stack): bottom centre; new ones land in front, older ones tuck behind. -->
+  <section class="ts-vp" id="toastStack" aria-label="Notifications"><ol class="ts-list" id="toastList" aria-live="polite"></ol></section>
 
   <!-- ── Wheel Time Picker Modal ── -->
   <div id="tpModal" class="tp-modal">
@@ -6027,61 +6146,6 @@
       <div class="dialog-foot-row">
         <button class="btn btn-cancel" id="npCancel">Cancel</button>
         <button class="btn btn-primary" id="npSave">Save Plan</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Import Confirm -->
-  <div class="overlay" id="importConfirmOverlay">
-    <div class="dialog" style="max-width:380px">
-      <div class="dialog-head" style="display:flex;align-items:flex-start;justify-content:space-between">
-        <div>
-          <div class="dialog-title">Are you sure?</div>
-          <div class="dialog-desc">This will replace your existing data.</div>
-        </div>
-        <button class="btn-icon" data-on-click="heac8a99fb5" title="Close" style="margin:-4px -4px -4px 8px;flex-shrink:0">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-        </button>
-      </div>
-      <div class="dialog-body">
-        <!-- File info card -->
-        <div id="importInfoCard" style="background:var(--muted);border-radius:8px;padding:12px 14px;display:flex;flex-direction:column;gap:4px">
-          <div style="font-size:13px;font-weight:600;color:var(--foreground)" id="importInfoUser"></div>
-          <div style="font-size:12px;color:var(--muted-fg)" id="importInfoMeta"></div>
-        </div>
-      </div>
-      <div class="dialog-foot">
-        <div style="display:flex;align-items:center;gap:8px">
-          <button class="btn-sm" id="importSaveLogBtn" style="height:34px;font-size:12px;padding:0 12px;flex-shrink:0">
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" style="vertical-align:middle;margin-right:4px"><path fill-rule="evenodd" clip-rule="evenodd" d="M5 2C4.20435 2 3.44129 2.31607 2.87868 2.87868C2.31607 3.44129 2 4.20435 2 5V19C2 19.7957 2.31607 20.5587 2.87868 21.1213C3.44129 21.6839 4.20435 22 5 22H19C19.7957 22 20.5587 21.6839 21.1213 21.1213C21.6839 20.5587 22 19.7957 22 19V8C22 7.73478 21.8946 7.48043 21.7071 7.29289L16.7071 2.29289C16.5196 2.10536 16.2652 2 16 2H5ZM5 4C4.73478 4 4.48043 4.10536 4.29289 4.29289C4.10536 4.48043 4 4.73478 4 5V19C4 19.2652 4.10536 19.5196 4.29289 19.7071C4.48043 19.8946 4.73478 20 5 20H6V13C6 12.4477 6.44772 12 7 12H17C17.5523 12 18 12.4477 18 13V20H19C19.2652 20 19.5196 19.8946 19.7071 19.7071C19.8946 19.5196 20 19.2652 20 19V8.41421L15.5858 4H9V7H16C16.5523 7 17 7.44772 17 8C17 8.55228 16.5523 9 16 9H8C7.44772 9 7 8.55228 7 8V4H5ZM8 14V20H16V14H8Z" fill="currentColor"/></svg>Save Log
-          </button>
-          <div style="flex:1"></div>
-          <button class="btn btn-cancel" id="importCancelBtn" style="width:auto;padding:0 16px;height:38px;font-size:13px">Cancel</button>
-          <button class="btn btn-primary" id="importConfirmBtn" style="width:auto;padding:0 16px;height:38px;font-size:13px">Import</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ── Import Modal (Drag & Drop) ── -->
-  <div class="overlay" id="importModal" data-on-click="h36d7cea20b">
-    <div class="dialog" style="max-width:420px">
-      <div class="dialog-head" style="display:flex;align-items:center;justify-content:space-between">
-        <div>
-          <div class="dialog-title">Import Backup</div>
-          <div class="dialog-desc">Restore your data from a .json backup file.</div>
-        </div>
-        <button class="btn-icon" data-on-click="h218e700fa8" title="Close" style="margin:-4px -4px -4px 0;flex-shrink:0">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-        </button>
-      </div>
-      <div class="dialog-body" style="padding-bottom:20px">
-        <label class="ob-import-zone" for="importModalFile" id="importModalZone">
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none"><path d="M11 4C8.37318 4 6.2324 5.99599 6.01793 8.51595C5.98608 8.89012 5.74729 9.21492 5.39963 9.35691C3.3976 10.1746 2 12.1199 2 14.3783C2 16.2952 3.00543 17.9848 4.53512 18.9537C5.00168 19.2493 5.14031 19.8671 4.84477 20.3336C4.54923 20.8002 3.93143 20.9388 3.46488 20.6433C1.38625 19.3266 0 17.0152 0 14.3783C0 11.4804 1.67256 8.9777 4.10178 7.75216C4.66997 4.47797 7.54913 2 11 2C13.8191 2 16.2533 3.65235 17.362 6.03971C19.4286 6.43792 21 8.24044 21 10.4206C21 10.7714 20.959 11.1133 20.8815 11.4415C22.7225 12.3197 24 14.186 24 16.3571C24 18.2066 23.0706 19.8374 21.6596 20.8205C21.2065 21.1362 20.5832 21.0248 20.2675 20.5717C19.9518 20.1185 20.0632 19.4952 20.5163 19.1795C21.4183 18.5511 22 17.5193 22 16.3571C22 14.7492 20.882 13.3863 19.3555 13.0085C19.056 12.9344 18.8075 12.7261 18.6821 12.4442C18.5567 12.1623 18.5684 11.8383 18.7139 11.5662C18.8965 11.2247 19 10.8359 19 10.4206C19 9.10788 17.9516 8.0197 16.6155 7.96031C16.2093 7.94225 15.8545 7.68006 15.7179 7.29708C15.0347 5.38045 13.1833 4 11 4Z" fill="currentColor"/><path d="M7.29289 16.7071C7.68342 17.0976 8.31658 17.0976 8.70711 16.7071L11 14.4142V22C11 22.5523 11.4477 23 12 23C12.5523 23 13 22.5523 13 22V14.4142L15.2929 16.7071C15.6834 17.0976 16.3166 17.0976 16.7071 16.7071C17.0976 16.3166 17.0976 15.6834 16.7071 15.2929L12.7071 11.2929C12.3166 10.9024 11.6834 10.9024 11.2929 11.2929L7.29289 15.2929C6.90237 15.6834 6.90237 16.3166 7.29289 16.7071Z" fill="currentColor"/></svg>
-          <div class="ob-import-zone-text" id="importModalZoneText"><strong>Choose a file or drag &amp; drop here</strong><br>Supports .json files</div>
-          <input type="file" id="importModalFile" accept=".json" style="display:none">
-        </label>
-        <div id="importModalStatus" style="font-size:12px;color:var(--muted-fg);text-align:center;margin-top:8px;display:none"></div>
       </div>
     </div>
   </div>
@@ -6270,23 +6334,6 @@
   <!-- Outside Shift Modal -->
   <!-- Start before your shift? (approved 2026-11-14, option A): Apple dialog on
        desktop, bottom sheet on phones. Shown when starting 60+ min before the shift. -->
-  <!-- "Already working?" (#64): when did you start? Opens already filled in with a good guess. -->
-  <div class="overlay am-host" id="startTimeOverlay" data-dismiss="stCancel">
-    <div class="dialog am st-sheet" role="dialog" aria-modal="true" aria-labelledby="stTitle">
-      <p class="am-t" id="stTitle">When did you start work?</p>
-      <div class="st-field" id="stField">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
-        <input id="stInput" type="text" inputmode="numeric" pattern="[0-9]*" enterkeyhint="go" maxlength="5" placeholder="hh:mm"
-          aria-label="Start time" aria-describedby="stOut" autocomplete="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true">
-        <span class="st-ap" id="stAp" role="group" aria-label="AM or PM"><button type="button" data-ap="AM" aria-pressed="true">AM</button><button type="button" data-ap="PM" aria-pressed="false">PM</button></span>
-      </div>
-      <p class="st-out" id="stOut" aria-live="polite"></p>
-      <div class="am-btns">
-        <button class="btn btn-primary" id="stGo" disabled>Start</button>
-        <button type="button" class="am-quiet" id="stCancel">Cancel</button>
-      </div>
-    </div>
-  </div>
   <div class="overlay am-host" id="outsideShiftOverlay" data-dismiss="osNotNow">
     <div class="dialog am" role="dialog" aria-modal="true" aria-labelledby="osTitle">
       <div class="am-hero"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2v8"/><path d="m4.93 10.93 1.41 1.41"/><path d="M2 18h2"/><path d="M20 18h2"/><path d="m19.07 10.93-1.41 1.41"/><path d="M22 22H2"/><path d="m8 6 4-4 4 4"/><path d="M16 18a4 4 0 0 0-8 0"/></svg></div>

@@ -523,14 +523,17 @@ test('Notification center (#59): All | Unread, read state, rows that open, Clear
   const render = extract('function renderNotifs(');
   // Every row has a title, a preview, a time; opening shows the CTA + Mark as Read/Unread + Dismiss.
   assert.match(render, /const title = n\.title \|\| n\.text, pv = n\.pv \|\| '', more = n\.more \|\| pv;/);
-  assert.match(render, /\$\{isRead \? dot \+ 'Mark as Unread' : check \+ 'Mark as Read'\}/);
-  assert.match(render, /data-nc="dismiss">\$\{x\}Dismiss/);
+  // Rows no longer expand: a tap slides the row left to show Dismiss; swipe right = Read/Unread.
+  assert.match(render, /\$\{isRead \? mailDot \+ 'Unread' : mailOpen \+ 'Read'\}/);
+  assert.match(render, /class="nc-lay trail"[^`]*\$\{x\}Dismiss/);
+  assert.doesNotMatch(render, /nc-det/, 'no expanding details');
+  assert.match(SRC, /_ncSwSet\(sw, -_NC_ACT, true\); _ncSwOpen = sw;/, 'tap reveals Dismiss');
   assert.match(render, /const hasBadge = un > 0;/, 'the bell dot means unread');
   assert.match(render, /el\('ncFoot'\)\.hidden = !un;/, 'Mark All as Read only while something is unread');
   assert.match(render, /clr\.classList\.toggle\('nc-gone', !rd\)/, 'Clear Read only when something is read');
   assert.match(render, /Nothing unread/); assert.match(render, /All clear/);
   const init = extract('function _ncInit(');
-  assert.match(init, /if \(_ncOpen === id && !isRead && _ncView === 'all'\) _ncSetRead\(\[id\], true\);/, 'opening reads it');
+  assert.doesNotMatch(init, /_ncOpen = _ncOpen === id/, 'a tap no longer expands the row');
   assert.match(init, /ids\.forEach\(addDismissed\)/, 'Clear Read dismisses the read ones');
   assert.match(extract('function _ncSetRead('), /notifRead: pruneDismissed\(\[\.\.\.s\]\)\.slice\(-80\)/, 'read state syncs in cfg');
   // Each notification type carries a title.
@@ -1982,7 +1985,7 @@ test('Toasts are one uiarc-style stack at the bottom centre (#70)', () => {
 test('Buttons follow the uiarc layout at 5pm sizes (#71)', () => {
   const HTML = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
   assert.match(HTML, /\.btn-secondary, \.btn-cancel, \.btn-sm \{ background: var\(--btn-surface, var\(--card\)\); color: var\(--foreground\); box-shadow: inset 0 0 0 1px var\(--btn-line, var\(--border\)\);/);
-  assert.match(HTML, /#dayEditOverlay, \.ac-confirm, #notifPanel \{ --btn-surface: var\(--surface-lift\); --btn-line: var\(--border-strong\); \}/, 'never sinks on raised panels');
+  assert.match(HTML, /#dayEditOverlay, \.ac-confirm, #notifPanel, \.sc-host, \.imp-choice \{ --btn-surface: var\(--surface-lift\); --btn-line: var\(--border-strong\); \}/, 'never sinks on raised panels');
   assert.match(HTML, /\.btn-primary:active:not\(:disabled\) \{ opacity: \.84; transform: scale\(\.985\); \}/);
   assert.match(HTML, /\.btn-secondary:height|\.btn-secondary \{ height: 36px;/, 'sizes kept');
 });
@@ -2020,4 +2023,37 @@ test('Import merges by default: adds the backup, keeps yours, newer day wins (#7
   assert.match(SRC, /class="btn-danger-2" id="impOver">Overwrite<\/button><button type="button" class="btn btn-primary" id="impMerge">Merge<\/button>/);
   assert.match(SRC, /<input type="checkbox" id="impKeep" checked>/);
   assert.match(extract('function exportBackup('), /showToast\('Exported', 'success', `\$\{file\} is saved in your Downloads folder\.`\)/);
+});
+
+test('Tooltips: one theme-matched tooltip that only fades, no browser title boxes (#7)', () => {
+  const SRC = fs.readFileSync(path.join(__dirname, '..', 'public', 'lib', 'pages', 'index-app.js'), 'utf8');
+  const HTML = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
+  assert.match(SRC, /function _appTipInit\(\)/);
+  assert.match(SRC, /n\.removeAttribute\('title'\)/, 'titles move to data-tip so the native box never shows');
+  assert.match(HTML, /\.app-tip \{[^}]*padding: 8px;/);
+  const rule = HTML.match(/\.app-tip \{[^}]*\}/)[0] + HTML.match(/\.app-tip\.show \{[^}]*\}/)[0];
+  assert.doesNotMatch(rule, /transition:[^;]*transform/, 'no travel towards the button, just a fade');
+  assert.match(HTML, /\.dark \{ --tip-bg: #262a33; --tip-line: #3b414d; \}/);
+  assert.doesNotMatch(HTML, /\.sc-item\[data-tip\]:hover::after/, 'old pseudo tooltip removed');
+});
+
+test('Notification swipe actions: right = Read/Unread, left = Dismiss, neutral, full height (#8)', () => {
+  const SRC = fs.readFileSync(path.join(__dirname, '..', 'public', 'lib', 'pages', 'index-app.js'), 'utf8');
+  const HTML = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
+  assert.match(SRC, /class="nc-lay lead"/);
+  assert.match(SRC, /class="nc-lay trail"/);
+  assert.match(SRC, /list\.addEventListener\('pointerdown'/, 'mouse and touch, not touch only');
+  const lay = HTML.match(/\.nc-lay \{[^}]*\}/)[0];
+  assert.match(lay, /height: 100%/);
+  assert.doesNotMatch(lay, /destructive|danger|--red/, 'Dismiss is not red');
+});
+
+test('Import field is the uiarc file dropzone and never crops while dragging (#9)', () => {
+  const SRC = fs.readFileSync(path.join(__dirname, '..', 'public', 'lib', 'pages', 'index-app.js'), 'utf8');
+  const HTML = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
+  assert.match(HTML, /<rect id="impEdge"/);
+  assert.match(HTML, /class="imp-sheets"/);
+  assert.match(HTML, /\.imp-slot > div \{ overflow: hidden; min-height: 0; margin: 0 -6px; padding: 0 6px; \}/, 'room for the breathing edge inside the clipped slot');
+  assert.match(SRC, /function _impCompact\(on\)/);
+  assert.match(SRC, /'Choose another file'/);
 });

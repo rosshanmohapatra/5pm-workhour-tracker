@@ -1032,25 +1032,27 @@
       const infoSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>`;
       const check = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>`;
       const dot   = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="1"/></svg>`;
+      // Lucide mail-open (mark read) and mail-dot (mark unread) for the swipe actions.
+      const mailOpen = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21.2 8.4c.5.38.8.97.8 1.6v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V10a2 2 0 0 1 .8-1.6l8-6a2 2 0 0 1 2.4 0l8 6Z"/><path d="m22 10-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 10"/></svg>`;
+      const mailDot = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.674 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-4.675"/><path d="m2 7 9 5.701a2 2 0 0 0 2 0l1.084-.686"/><circle cx="19" cy="7" r="3"/></svg>`;
       const x     = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>`;
 
       list.innerHTML = shown.map(n => {
         const icon = n.type === 'warn' ? warnSvg : n.type === 'ok' ? okSvg : infoSvg;
         const safeId = _escHtml(n.id || ''), isRead = read.has(n.id), open = _ncOpen === n.id;
         const title = n.title || n.text, pv = n.pv || '', more = n.more || pv;
-        const cta = n.cta ? `<button type="button" class="nc-pri" data-on-click="h837093f811" data-click-a0="${safeId}" data-click-a1="${_escHtml(n.ctaWeekKey || '')}">${_escHtml(n.cta)}</button>` : '';
-        const surplus = n.surplus ? `<span class="notif-surplus">${_escHtml(n.surplus)} saved</span>` : '';
-        return `<div class="notif-item nc-row${isRead ? ' read' : ''}${open ? ' open' : ''}" id="ni-${safeId}" data-id="${safeId}" role="listitem">
+        // #8 swipe actions: right = Read/Unread, left = Dismiss. Both sit under the row, full height.
+        return `<div class="nc-sw" id="ni-${safeId}" role="listitem">
+          <div class="nc-lay lead" aria-hidden="true"><span class="nc-gl">${isRead ? mailDot + 'Unread' : mailOpen + 'Read'}</span></div>
+          <button type="button" class="nc-lay trail" tabindex="-1" aria-label="Dismiss ${_escHtml(title)}"><span class="nc-gl">${x}Dismiss</span></button>
+          <div class="notif-item nc-row${isRead ? ' read' : ''}" data-id="${safeId}">
           <div class="notif-icon ${n.type}">${icon}</div>
-          <button type="button" class="nc-tog" aria-expanded="${open}" aria-label="${_escHtml(title)}${isRead ? '' : ', unread'}. ${open ? 'Hide details' : 'Show details'}">
+          <button type="button" class="nc-tog" aria-label="${_escHtml(title)}${isRead ? '' : ', unread'}. Show Dismiss">
             <span class="nc-t"><strong>${_escHtml(title)}</strong><span class="nc-dot" aria-hidden="true"></span></span>
-            <span class="nc-pv">${_escHtml(open ? more : pv)}</span>
+            <span class="nc-pv">${_escHtml(pv)}</span>
           </button>
           <time class="nc-time">${_escHtml(n.time || '')}</time>
-          <div class="nc-det"><div><div class="nc-acts">${surplus}${cta}
-            <button type="button" data-nc="read">${isRead ? dot + 'Mark as Unread' : check + 'Mark as Read'}</button>
-            <button type="button" data-nc="dismiss">${x}Dismiss</button></div></div></div>
-        </div>`;
+        </div></div>`;
       }).join('');
     }
     // All | Unread: one fill glides between the two.
@@ -1075,11 +1077,12 @@
         if (a?.dataset.nc === 'dismiss') { if (_ncOpen === id) _ncOpen = null; _ncCollapse([id], () => { addDismissed(id); renderNotifs(); }); return; }
         if (e.target.closest('.nc-pri')) { if (!isRead) _ncSetRead([id], true); return; }   // the CTA's own handler opens it
         if (e.target.closest('.nc-tog')) {
-          // Opening a notification reads it (in All). Closing keeps its state.
-          _ncOpen = _ncOpen === id ? null : id;
-          if (_ncOpen === id && !isRead && _ncView === 'all') _ncSetRead([id], true);
-          renderNotifs();
-          requestAnimationFrame(() => el('ni-' + id)?.querySelector('.nc-tog')?.focus({ focusVisible: false, preventScroll: true }));
+          // A tap no longer expands the row: it slides it left a little to show Dismiss.
+          const sw = row.closest('.nc-sw'); if (!sw) return;
+          if (_ncSwOpen && _ncSwOpen !== sw) _ncSwClose(_ncSwOpen);
+          _ncSwSet(sw, -_NC_ACT, true); _ncSwOpen = sw;
+          const lay = sw.querySelector('.nc-lay.trail');
+          if (lay) { lay.tabIndex = 0; if (e.detail === 0) setTimeout(() => lay.focus({ preventScroll: true }), 60); }   // keyboard: Enter, then Enter again dismisses
         }
       });
       el('ncView')?.addEventListener('click', e => {
@@ -1099,75 +1102,97 @@
       });
     }
 
-    // Shared exit animation, used by the swipe and by Clear All so every
-    // dismissal looks the same. dir is -1 or 1 so the card leaves the way the
-    // finger sent it. Animates from wherever it currently sits, so a
-    // half-finished drag continues rather than snapping back to 0 first.
-    function _dismissNotifItem(item, id, dir) {
-      if (!item || item.dataset.dismissing) return;
-      item.dataset.dismissing = '1';
-      item.classList.remove('swiping');   // re-enable the eased transition
-      item.classList.add('dismissing');   // stop it swallowing further taps
-      void item.offsetWidth;              // lock in the current position first
-      item.style.transform = `translateX(${dir < 0 ? -110 : 110}%)`;
-      item.style.opacity = '0';
-      let fired = false;
-      const finish = () => { if (fired) return; fired = true; addDismissed(id); renderNotifs(); };
-      item.addEventListener('transitionend', finish, { once: true });
-      setTimeout(finish, 420);            // fallback if transitionend never lands
+    // #8 Swipe actions (uiarc swipe-actions): drag a row with a finger or the mouse.
+    // Right = Mark as Read / Unread (the row springs back). Left = Dismiss: a short swipe
+    // leaves the Dismiss button showing, past half the row or a flick dismisses it.
+    // One row open at a time; tap elsewhere or Esc puts it away. The same actions are in
+    // each opened row, so keyboards never need the gesture.
+    let _notifSwipe = null, _ncSwOpen = null, _ncSwJustDragged = false;
+    const _NC_ACT = 76, _NC_SLOP = 8;
+    const _ncRubber = (o, d) => (1 - 1 / (o * .55 / d + 1)) * d;
+    function _ncSwSet(sw, x, anim) {
+      const row = sw?.querySelector('.nc-row'); if (!row) return;
+      row.style.transition = anim ? 'transform .42s cubic-bezier(.16,1,.3,1), background .12s' : 'background .12s';
+      row.style.transform = x ? `translateX(${x}px)` : '';
+      sw._x = x;
+      sw.classList.toggle('sw-lead', x > 0); sw.classList.toggle('sw-trail', x < 0);
     }
-
-
-    // Swipe either direction to dismiss. Touch only, so it simply never engages
-    // on a desktop pointer — there, Clear All is the way.
-    let _notifSwipe = null;
+    function _ncSwClose(sw) {
+      if (!sw) return; _ncSwSet(sw, 0, true); sw.classList.remove('sw-commit');
+      const lay = sw.querySelector('.nc-lay.trail'); if (lay) lay.tabIndex = -1;
+      if (_ncSwOpen === sw) _ncSwOpen = null;
+    }
+    function _ncSwDismiss(sw) {
+      const id = sw.querySelector('.nc-row')?.dataset.id; if (!id || sw.dataset.dismissing) return;
+      sw.dataset.dismissing = '1';
+      const row = sw.querySelector('.nc-row');
+      row.style.transition = 'transform .26s cubic-bezier(.4,0,1,1)'; row.style.transform = 'translateX(-110%)';
+      if (_ncOpen === id) _ncOpen = null;
+      setTimeout(() => _ncCollapse([id], () => { addDismissed(id); renderNotifs(); }), 200);
+    }
+    function _ncSwRead(sw) {
+      const id = sw.querySelector('.nc-row')?.dataset.id; if (!id) return;
+      const isRead = _ncRead().has(id);
+      _ncSwClose(sw);
+      setTimeout(() => {
+        if (!isRead && _ncView === 'unread') { _ncSetRead([id], true); _ncCollapse([id], renderNotifs); return; }
+        _ncSetRead([id], !isRead); renderNotifs();
+      }, 260);
+    }
     function _initNotifSwipe() {
       const list = el('notifList');
       if (!list || list.dataset.swipeInit) return;
-      list.dataset.swipeInit = '1'; // delegated once — survives list re-renders
+      list.dataset.swipeInit = '1'; // delegated once, survives list re-renders
 
-      list.addEventListener('touchstart', e => {
-        const item = e.target.closest('.notif-item');
-        if (!item || item.dataset.dismissing || e.touches.length !== 1) return;
-        const t = e.touches[0];
-        _notifSwipe = { item, x0: t.clientX, y0: t.clientY, dx: 0, axis: null };
-      }, { passive: true });
-
-      list.addEventListener('touchmove', e => {
-        if (!_notifSwipe) return;
-        const t = e.touches[0];
-        const dx = t.clientX - _notifSwipe.x0, dy = t.clientY - _notifSwipe.y0;
-        // Decide once whether this is a horizontal swipe or a vertical scroll,
-        // then stick with it, otherwise the card jitters mid-scroll.
-        if (!_notifSwipe.axis) {
-          if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
-          if (Math.abs(dy) >= Math.abs(dx)) { _notifSwipe = null; return; } // let the page scroll
-          _notifSwipe.axis = 'x';
-          _notifSwipe.item.classList.add('swiping');
+      list.addEventListener('pointerdown', e => {
+        const sw = e.target.closest('.nc-sw');
+        if (!sw || sw.dataset.dismissing || e.button > 0) return;
+        if (e.target.closest('.nc-lay.trail') && _ncSwOpen === sw) return; // tap on the revealed Dismiss
+        if (e.target.closest('.nc-acts, .nc-pri')) return;                  // buttons inside an opened row
+        if (_ncSwOpen && _ncSwOpen !== sw) _ncSwClose(_ncSwOpen);
+        _notifSwipe = { sw, id: e.pointerId, x0: e.clientX, y0: e.clientY, o: sw._x || 0, axis: null, w: sw.offsetWidth || 320, s: [[e.timeStamp, e.clientX]] };
+      });
+      list.addEventListener('pointermove', e => {
+        const d = _notifSwipe; if (!d || e.pointerId !== d.id) return;
+        const dx = e.clientX - d.x0, dy = e.clientY - d.y0;
+        if (!d.axis) {
+          if (Math.abs(dx) < _NC_SLOP && Math.abs(dy) < _NC_SLOP) return;
+          if (Math.abs(dy) >= Math.abs(dx)) { _notifSwipe = null; return; } // let the list scroll
+          d.axis = 'x'; d.sw.classList.add('swiping');
+          try { d.sw.setPointerCapture(e.pointerId); } catch (_) {}
         }
-        _notifSwipe.dx = dx; // either direction, unlike the right-only penalty rows
-        const w = _notifSwipe.item.offsetWidth || 320;
-        _notifSwipe.item.style.transform = `translateX(${dx}px)`;
-        _notifSwipe.item.style.opacity = String(Math.max(0.15, 1 - Math.abs(dx) / w));
-        e.preventDefault(); // we own this gesture now
-      }, { passive: false });
-
-      const endSwipe = () => {
-        if (!_notifSwipe) return;
-        const { item, dx, axis } = _notifSwipe;
+        let x = d.o + dx;
+        if (x > _NC_ACT) x = _NC_ACT + _ncRubber(x - _NC_ACT, d.w);
+        if (x < -d.w * .5) x = -d.w * .5 - _ncRubber(-x - d.w * .5, d.w);
+        d.sw.classList.toggle('sw-commit', x < -d.w * .5 || x >= _NC_ACT * .6);
+        _ncSwSet(d.sw, x, false);
+        d.s.push([e.timeStamp, e.clientX]); if (d.s.length > 5) d.s.shift();
+        e.preventDefault();
+      });
+      const end = e => {
+        const d = _notifSwipe; if (!d || e.pointerId !== d.id) return;
         _notifSwipe = null;
-        if (axis !== 'x') return;
-        const w = item.offsetWidth || 320;
-        if (Math.abs(dx) > Math.min(120, w * 0.3)) {
-          _dismissNotifItem(item, item.id.replace(/^ni-/, ''), dx < 0 ? -1 : 1);
-        } else {
-          item.classList.remove('swiping'); // spring back under the eased transition
-          item.style.transform = '';
-          item.style.opacity = '';
-        }
+        if (d.axis !== 'x') return;
+        d.sw.classList.remove('swiping', 'sw-commit');
+        _ncSwJustDragged = true; setTimeout(() => { _ncSwJustDragged = false; }, 0);
+        const s = d.s, v = s.length > 1 ? (s[s.length - 1][1] - s[0][1]) / Math.max(1, s[s.length - 1][0] - s[0][0]) * 1000 : 0;
+        const x = d.sw._x || 0, proj = x + v * .1;
+        if (proj <= -d.w * .5 || (v < -900 && x < 0)) { _ncSwDismiss(d.sw); return; }
+        if (x >= _NC_ACT * .6 || (v > 900 && x > 0)) { _ncSwRead(d.sw); return; }
+        if (proj < -_NC_ACT * .5) { _ncSwSet(d.sw, -_NC_ACT, true); _ncSwOpen = d.sw; return; }
+        _ncSwClose(d.sw);
       };
-      list.addEventListener('touchend', endSwipe);
-      list.addEventListener('touchcancel', endSwipe);
+      list.addEventListener('pointerup', end);
+      list.addEventListener('pointercancel', end);
+      // A drag never also opens the row; a tap on the revealed Dismiss dismisses.
+      list.addEventListener('click', e => {
+        if (_ncSwJustDragged) { e.stopPropagation(); e.preventDefault(); return; }
+        const lay = e.target.closest('.nc-lay.trail');
+        if (lay) { e.stopPropagation(); _ncSwDismiss(lay.closest('.nc-sw')); return; }
+        if (_ncSwOpen && _ncSwOpen.contains(e.target)) { e.stopPropagation(); _ncSwClose(_ncSwOpen); }
+      }, true);
+      document.addEventListener('pointerdown', e => { if (_ncSwOpen && !_ncSwOpen.contains(e.target)) _ncSwClose(_ncSwOpen); }, true);
+      document.addEventListener('keydown', e => { if (e.key === 'Escape' && _ncSwOpen) _ncSwClose(_ncSwOpen); });
     }
 
     // Penalty notification tapped: open the email draft when the week has one
@@ -1697,8 +1722,8 @@
       const cur = _tdCurrentPlan(), has = _tdHasHours(), menu = el('dtMenu');
       menu.innerHTML = Object.keys(_TD_PLAN_LABELS).map(k => {
         const s = _tdItemState(k, cur, has), t = DAY_TYPES[k];
-        return `<button type="button" class="ac-mi dt-mi" role="menuitemradio" aria-checked="${k === cur}" data-plan="${k}"${s.off ? ' disabled aria-disabled="true"' : ''} style="--dt:${t.tone ? `var(--${t.tone})` : 'var(--muted-fg)'}">`
-          + `<i class="dt-mi-ic">${wkSvg(t.icon)}</i><span><b>${_TD_PLAN_LABELS[k]}</b>${s.sub ? `<small>${s.sub}</small>` : ''}</span><i class="dt-mi-ck">${wkSvg('check')}</i></button>`;
+        return `<button type="button" class="ac-mi dt-mi" role="menuitemradio" aria-checked="${k === cur}" data-plan="${k}"${s.off ? ` disabled aria-disabled="true" title="${s.sub}"` : ''} style="--dt:${t.tone ? `var(--${t.tone})` : 'var(--muted-fg)'}">`
+          + `<i class="dt-mi-ic">${wkSvg(t.icon)}</i><span><b>${_TD_PLAN_LABELS[k]}</b></span><i class="dt-mi-ck">${wkSvg('check')}</i></button>`;
       }).join('');
       menu.classList.add('open'); el('rcInfoBtn').setAttribute('aria-expanded', 'true');
       menu.querySelector('.ac-mi:not([disabled])')?.focus();
@@ -3595,8 +3620,8 @@
         const end   = daysArr.length ? daysArr[daysArr.length - 1].date : now;
         const sameMonth = start.getMonth() === end.getMonth() && start.getFullYear() === end.getFullYear();
         const label = sameMonth
-          ? `${MONTHS[start.getMonth()]} ${start.getDate()} – ${end.getDate()}, ${end.getFullYear()}`
-          : `${MONTHS[start.getMonth()]} ${start.getDate()} – ${MONTHS[end.getMonth()]} ${end.getDate()}, ${end.getFullYear()}`;
+          ? `${MONTHS[start.getMonth()].slice(0, 3)} ${start.getDate()} – ${end.getDate()}, ${end.getFullYear()}`
+          : `${MONTHS[start.getMonth()].slice(0, 3)} ${start.getDate()} – ${MONTHS[end.getMonth()].slice(0, 3)} ${end.getDate()}, ${end.getFullYear()}`;
         return { daysArr, grouped: true, label, pdfRange: label, pdfPeriod: '30 DAYS',
                  totalLabel: 'Total Work Hours',
                  fileBase: `30day-report-${dateKey(end)}` };
@@ -3604,7 +3629,9 @@
       const wk = week(_reportWeekOffset);
       const mon = wk[0].date, fri = wk[wk.length - 1].date;
       return { daysArr: wk, grouped: false,
-               label: `${MONTHS[mon.getMonth()]} ${mon.getDate()} to ${MONTHS[fri.getMonth()]} ${fri.getDate()}, ${fri.getFullYear()}`,
+               label: mon.getMonth() === fri.getMonth()
+                 ? `${MONTHS[mon.getMonth()].slice(0, 3)} ${mon.getDate()} – ${fri.getDate()}, ${fri.getFullYear()}`
+                 : `${MONTHS[mon.getMonth()].slice(0, 3)} ${mon.getDate()} – ${MONTHS[fri.getMonth()].slice(0, 3)} ${fri.getDate()}, ${fri.getFullYear()}`,
                pdfRange: `${MONTHS[mon.getMonth()]} ${mon.getDate()} – ${MONTHS[fri.getMonth()]} ${fri.getDate()}, ${fri.getFullYear()}`,
                pdfPeriod: '7 DAYS', totalLabel: 'Weekly Work Hours',
                fileBase: `week-report-${mon.getFullYear()}-${String(mon.getMonth()+1).padStart(2,'0')}-${String(mon.getDate()).padStart(2,'0')}` };
@@ -3723,7 +3750,7 @@
       const count = el('wrCount');
       if (count) {
         const col = _RPT_COLS.find(c => c.key === sort.key);
-        count.textContent = `${rows.length} days` + (col ? ` · sorted by ${(col.label || _surplusLabel()).toLowerCase()}` : '');
+        count.textContent = `${rows.length} workday${rows.length === 1 ? '' : 's'} in this report` + (col ? ` · sorted by ${(col.label || _surplusLabel()).toLowerCase()}` : '');
       }
     }
 
@@ -4372,6 +4399,11 @@
     }
     function _paintTodayHead() {
       const t = _todayHeadText(nowTz(), cfg().name);
+      // Weekends: no day-type menu, and the greeting says so, centred.
+      const wk = isWeekendKey(todayKey()) && !loginDate;
+      if (wk) t.title = 'Happy Weekend!';
+      document.querySelector('.td-hd')?.classList.toggle('td-wknd', wk);
+      if (wk && _tdMenuOpen()) _tdCloseMenu();
       const g = el('tdGreet'), dt = el('tdDate');
       if (g && g.textContent !== t.title) g.textContent = t.title;
       if (dt && dt.textContent !== t.date) dt.textContent = t.date;
@@ -8667,6 +8699,21 @@ Kind regards,
       if (f) f.innerHTML = '';
       if (st) { st.textContent = ''; st.classList.remove('err'); }
       if (inp) inp.value = '';
+      _impCompact(false);
+    }
+    // Once a good file is in, the field folds into a slim "Choose another file" strip.
+    function _impCompact(on) {
+      const d = el('impDrop'); if (!d) return;
+      d.classList.toggle('compact', on);
+      el('impDropT').textContent = on ? 'Choose another file' : 'Import a backup';
+      _impFitEdge();
+    }
+    // The dashed edge is an SVG rect sized to the field, so a drag can close its dashes.
+    function _impFitEdge() {
+      const d = el('impDrop'), r = el('impEdge'); if (!d || !r || !d.offsetWidth) return;
+      const rad = d.classList.contains('compact') ? 12 : 16;
+      r.setAttribute('width', d.offsetWidth - 1); r.setAttribute('height', d.offsetHeight - 1);
+      r.setAttribute('rx', rad); r.setAttribute('ry', rad);
     }
     function _impSetOpen(open) {
       const slot = el('impSlot'), btn = el('impBtn'); if (!slot || !btn) return;
@@ -8717,6 +8764,7 @@ Kind regards,
           el('impBar')?.parentElement.remove();
           el('impOkSlot').innerHTML = '<span class="imp-ok"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12.5l5 5L20 6.5"/></svg></span>';
           const card = document.createElement('div');
+          _impCompact(true);
           card.className = 'imp-choice'; card.setAttribute('role', 'group'); card.setAttribute('aria-labelledby', 'impChT');
           card.innerHTML = `<b id="impChT">Merge or overwrite?</b><p></p>
             <label class="imp-keep"><input type="checkbox" id="impKeep" checked><span class="imp-cb" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span><span><b>Download my current log first</b><small>A copy of what's on this device now, just in case.</small></span></label>
@@ -8762,10 +8810,12 @@ Kind regards,
       drop.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); inp.click(); } });
       inp.addEventListener('change', () => importLogFile(inp.files[0]));
       let depth = 0;
-      const drag = on => { drop.classList.toggle('dragging', on); el('impDropT').textContent = on ? 'Drop to add a file' : 'Import a backup'; };
-      drop.addEventListener('dragenter', e => { e.preventDefault(); depth++; drag(true); });
+      const drag = on => { drop.classList.toggle('dragging', on); el('impDropT').textContent = on ? 'Drop to add a file' : drop.classList.contains('compact') ? 'Choose another file' : 'Import a backup'; };
+      const at = e => { const r = drop.getBoundingClientRect(); drop.style.setProperty('--mx', `${e.clientX - r.left}px`); drop.style.setProperty('--my', `${e.clientY - r.top}px`); };
+      if (window.ResizeObserver) new ResizeObserver(_impFitEdge).observe(drop);
+      drop.addEventListener('dragenter', e => { e.preventDefault(); depth++; drag(true); at(e); });
       drop.addEventListener('dragleave', () => { if (--depth <= 0) { depth = 0; drag(false); } });
-      drop.addEventListener('dragover', e => e.preventDefault());
+      drop.addEventListener('dragover', e => { e.preventDefault(); at(e); });
       drop.addEventListener('drop', e => { e.preventDefault(); depth = 0; drag(false); importLogFile(e.dataTransfer?.files?.[0]); });
       el('impSlot').addEventListener('keydown', e => { if (e.key === 'Escape') { e.stopPropagation(); _impSetOpen(false); btn.focus(); } });
     })();
@@ -12505,11 +12555,12 @@ Kind regards,
       const entries = [];
       Object.entries(panels).forEach(([tab, p]) => p.querySelectorAll('.form-label').forEach(l => {
         if (l.closest('#notifTestCard')) return; // developer tools stay hidden
-        const label = l.textContent.trim();
+        const label = _srchText(l);
         if (!label) return;
         const row = l.closest('.tile-sub > div, .tile-list > div, #notifSubGroup > div > div, .settings-card-merged') || l;
-        const sub = l.parentElement.querySelector('.form-sub')?.textContent.trim() || '';
-        entries.push({ label, sub, tab, row, hay: (label + ' ' + sub + ' ' + (KEYWORDS[label] || '')).toLowerCase() });
+        const subEl = l.parentElement.querySelector('.form-sub');
+        const sub = subEl && !subEl.closest('[role="tooltip"], .tip, .sc-tip') ? _srchText(subEl) : '';
+        entries.push({ label, sub, tab, row, l: label.toLowerCase(), s: sub.toLowerCase(), k: (KEYWORDS[label] || '').toLowerCase() });
       }));
 
       const box = document.createElement('div');
@@ -12551,7 +12602,7 @@ Kind regards,
       q.addEventListener('input', () => {
         const words = q.value.toLowerCase().split(/\s+/).filter(Boolean);
         if (!words.length) { close(); return; }
-        hits = entries.filter(e => words.every(w => e.hay.includes(w))).slice(0, 8);
+        hits = _srchRank(entries, words).slice(0, 8);
         cur = 0; paint();
       });
       q.addEventListener('keydown', e => {
@@ -12565,6 +12616,30 @@ Kind regards,
       q.addEventListener('blur', () => setTimeout(close, 120));
     })();
 
+    // Settings search reads only what the row shows: tooltips, info buttons and
+    // hidden helper text are left out, so their words never make a match.
+    function _srchText(node) {
+      const c = node.cloneNode(true);
+      c.querySelectorAll('[role="tooltip"], .tip, .sc-tip, button, [hidden], [aria-hidden="true"]').forEach(n => n.remove());
+      return c.textContent.replace(/\s+/g, ' ').trim();
+    }
+    // Every word must start a word somewhere (no matches in the middle of a word).
+    // Title matches rank first, then the description, then extra keywords.
+    function _srchRank(entries, words) {
+      const starts = (txt, w) => (' ' + txt).includes(' ' + w) || txt.split(/[^a-z0-9]+/).some(t => t.startsWith(w));
+      const score = e => {
+        let sc = 0;
+        for (const w of words) {
+          if (starts(e.l, w)) sc += e.l.startsWith(w) ? 4 : 3;
+          else if (starts(e.s, w)) sc += 2;
+          else if (starts(e.k, w)) sc += 1;
+          else return 0;
+        }
+        return sc;
+      };
+      return entries.map(e => [e, score(e)]).filter(x => x[1]).sort((a, b) => b[1] - a[1]).map(x => x[0]);
+    }
+
     // The desktop app's Add Passkey opens the web app here, on Settings › Passkeys.
     if (location.hash === '#passkeys') {
       history.replaceState(null, '', location.pathname + location.search);
@@ -12574,3 +12649,83 @@ Kind regards,
     }
 
   
+
+    // Tooltips (#7): every title="" (and data-tip) shows one theme-matched tooltip
+    // instead of the browser's grey box. Mouse/trackpad only; it just fades in and out.
+    (function _appTipInit() {
+      if (!window.matchMedia || !matchMedia('(hover: hover) and (pointer: fine)').matches) return;
+      const tip = document.createElement('div');
+      tip.className = 'app-tip'; tip.id = 'appTip'; tip.setAttribute('role', 'tooltip');
+      document.body.appendChild(tip);
+      let cur = null, timer = 0, warm = false, cool = 0;
+      const GAP = 8, EDGE = 8;
+      // Move a title into data-tip so the browser's own box never shows.
+      const take = n => {
+        const t = n.getAttribute('title');
+        if (t != null) {
+          n.removeAttribute('title');
+          if (t) {
+            n.dataset.tip = t;
+            if (!n.hasAttribute('aria-label') && !n.textContent.trim()) n.setAttribute('aria-label', t);
+          }
+        }
+        return n.dataset.tip || '';
+      };
+      const target = e => {
+        const n = e.target instanceof Element ? e.target.closest('[title]:not(svg *):not(html):not(head *), [data-tip]') : null;
+        return n && n !== document.documentElement ? n : null;
+      };
+      function place(n) {
+        const r = n.getBoundingClientRect(), w = tip.offsetWidth, h = tip.offsetHeight;
+        let side = r.left < 90 && r.width < 80 ? 'right' : 'top';
+        if (side === 'top' && r.top - h - GAP < EDGE) side = 'bottom';
+        let x, y;
+        if (side === 'right') { x = r.right + GAP; y = r.top + r.height / 2 - h / 2; }
+        else { x = r.left + r.width / 2 - w / 2; y = side === 'top' ? r.top - h - GAP : r.bottom + GAP; }
+        x = Math.max(EDGE, Math.min(x, innerWidth - w - EDGE));
+        y = Math.max(EDGE, Math.min(y, innerHeight - h - EDGE));
+        tip.style.transform = `translate(${Math.round(x)}px, ${Math.round(y)}px)`;
+      }
+      function open(n) {
+        const text = take(n); if (!text) return;
+        cur = n; clearTimeout(cool);
+        tip.textContent = text;
+        tip.classList.toggle('instant', warm);
+        place(n);
+        n.setAttribute('aria-describedby', 'appTip');
+        tip.classList.add('show'); warm = true;
+      }
+      function close() {
+        clearTimeout(timer);
+        if (!cur) return;
+        cur.removeAttribute('aria-describedby'); cur = null;
+        tip.classList.remove('instant', 'show');
+        cool = setTimeout(() => { warm = false; }, 300);
+      }
+      document.addEventListener('pointerover', e => {
+        if (e.pointerType && e.pointerType !== 'mouse') return;
+        const n = target(e); if (!n) return;
+        take(n);
+        if (n === cur) return;
+        clearTimeout(timer);
+        if (warm) open(n); else timer = setTimeout(() => open(n), 250);
+      });
+      document.addEventListener('pointerout', e => {
+        const n = target(e); if (!n) return;
+        if (e.relatedTarget instanceof Node && n.contains(e.relatedTarget)) return;
+        if (n === cur) close(); else clearTimeout(timer);
+      });
+      document.addEventListener('focusin', e => {
+        const n = e.target instanceof Element && e.target.matches(':focus-visible') ? e.target.closest('[title], [data-tip]') : null;
+        if (n) open(n);
+      });
+      document.addEventListener('focusout', () => close());
+      // A click can change the label (Switch to Dark → Switch to Light, Copy → Copied).
+      document.addEventListener('click', () => {
+        const n = cur; if (!n) return;
+        setTimeout(() => { if (cur === n) { const t = take(n); if (t) { tip.textContent = t; place(n); } else close(); } }, 0);
+      }, true);
+      document.addEventListener('keydown', e => { if (e.key === 'Escape') close(); });
+      addEventListener('scroll', close, true);
+      addEventListener('blur', close);
+    })();

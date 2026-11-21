@@ -371,7 +371,7 @@
        Primary = filled; Secondary (.btn-secondary / .btn-cancel / .btn-sm) = the surface + a 1px border;
        Ghost (.am-quiet) = transparent until hover. Press = a slight scale; focus = 2px ring with a gap.
        --btn-surface is the card colour, or one step up on raised panels (never sinks in dark mode). */
-    #dayEditOverlay, .ac-confirm, #notifPanel { --btn-surface: var(--surface-lift); --btn-line: var(--border-strong); }
+    #dayEditOverlay, .ac-confirm, #notifPanel, .sc-host, .imp-choice { --btn-surface: var(--surface-lift); --btn-line: var(--border-strong); }
     .btn-primary { border: 1px solid var(--btn-primary-bg); transition: background .14s, opacity .14s, box-shadow .14s, transform .12s cubic-bezier(.2,0,0,1); }
     .btn-primary:hover:not(:disabled) { filter: none; opacity: .91; box-shadow: 0 1px 2px rgba(0,0,0,.18); }
     .btn-primary:active:not(:disabled) { opacity: .84; transform: scale(.985); }
@@ -868,6 +868,20 @@
     .nc-acts .nc-pri { background: var(--foreground); color: var(--card); box-shadow: none; }
     .nc-acts .nc-pri:hover { box-shadow: none; opacity: .9; }
     .nc-acts svg { width: 14px; height: 14px; }
+    /* #8 swipe actions: the row slides over two neutral actions that fill its full height. */
+    .nc-sw { position: relative; isolation: isolate; border-radius: 14px; overflow: hidden; flex: none; }
+    .nc-sw > .nc-row { position: relative; z-index: 1; background: var(--card); touch-action: pan-y; user-select: none; -webkit-user-select: none; }
+    @media (hover: hover) and (pointer: fine) { .nc-sw > .nc-row { cursor: default; } .nc-sw.swiping > .nc-row { cursor: grabbing; } }
+    .nc-lay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; align-items: center; visibility: hidden; border-radius: inherit; background: var(--border-strong); color: var(--foreground); cursor: pointer; }
+    .nc-lay.lead { justify-content: flex-start; } .nc-lay.trail { justify-content: flex-end; }
+    button.nc-lay { border: 0; padding: 0; font: inherit; }
+    .nc-lay.trail:focus-visible { outline: 2px solid var(--ring); outline-offset: -2px; }
+    .nc-sw.sw-lead .nc-lay.lead, .nc-sw.sw-trail .nc-lay.trail { visibility: visible; }
+    .nc-gl { width: 76px; display: flex; flex-direction: column; align-items: center; gap: 3px; font-size: 12px; font-weight: 500; transition: transform .2s cubic-bezier(.34,1.56,.64,1); }
+    .nc-gl svg { width: 18px; height: 18px; }
+    .nc-sw.sw-commit .nc-gl { transform: scale(1.12); }
+    .nc-sw.nc-out { height: 0 !important; opacity: 0; transition: height .3s var(--ease-sheet), opacity .2s; }
+    @media (prefers-reduced-motion: reduce) { .nc-gl, .nc-sw.nc-out { transition: none; } }
     .nc-row.nc-out { height: 0 !important; padding-top: 0; padding-bottom: 0; opacity: 0; transition: height .3s var(--ease-sheet), padding .3s var(--ease-sheet), opacity .2s; }
     .nc-empty { display: grid; justify-items: center; padding: 32px 16px 36px; text-align: center; }
     .nc-empty strong { font-size: 14px; font-weight: 600; color: var(--foreground); }
@@ -1343,6 +1357,9 @@
     .td-hd-txt { min-width: 0; }
     .td-hd-title { margin: 0; font-size: 18px; font-weight: 600; letter-spacing: -.01em; color: var(--foreground); text-wrap: balance; }
     .td-hd-date { margin: 2px 0 0; font-size: 13px; color: var(--muted-fg); }
+    .td-hd.td-wknd { justify-content: center; text-align: center; }
+    .td-hd.td-wknd .td-hd-txt { flex: 1; }
+    .td-hd.td-wknd .dt-wrap { display: none; }
     .dt-wrap { position: relative; flex: none; }
     .dt-btn.rc-info-btn { height: 32px; gap: 6px; padding: 0 10px; border: 1px solid var(--border); border-radius: 9px; background: transparent;
       font: 600 13px var(--font); color: var(--foreground); }
@@ -2160,7 +2177,9 @@
 
     /* ── Support modal QR + UPI sizing ── */
     /* Contribute (#57): 5pm dialog spacing (head 22/22/16, body 16 22, foot 0 22 22). */
-    .dialog.ct-dialog { max-width: 400px; padding: 0; }
+    .dialog.ct-dialog { max-width: 400px; padding: 0; position: relative; }
+    .ct-dialog .ct-x { position: absolute; top: 14px; right: 14px; }
+    .ct-dialog .ct-head { padding-right: 60px; }
     .ct-head { display: flex; align-items: center; gap: 12px; padding: 22px 22px 16px; }
     .ct-photo { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; flex: none; background: var(--muted); }
     .ct-who { flex: 1; min-width: 0; } .ct-who .dialog-desc { margin-top: 2px; }
@@ -2403,17 +2422,6 @@
     /* Surplus circles */
     .sc-row { display: flex; gap: 8px; justify-content: space-between; }
     .sc-item { display: flex; flex-direction: column; align-items: center; gap: 6px; flex: 1; position: relative; }
-    .sc-item[data-tip]:hover::after {
-      content: attr(data-tip);
-      position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%);
-      background: var(--foreground); color: var(--background);
-      font-size: 12px; font-weight: 500; white-space: nowrap;
-      padding: 4px 8px; border-radius: 6px; pointer-events: none; z-index: 100;
-    }
-    .sc-item[data-tip]:hover::before {
-      content: ''; position: absolute; bottom: calc(100% + 1px); left: 50%; transform: translateX(-50%);
-      border: 5px solid transparent; border-top-color: var(--foreground); pointer-events: none; z-index: 100;
-    }
     .sc-day-label { font-size: 12px; font-weight: 600; color: var(--muted-fg);
       text-transform: capitalize; letter-spacing: .01em; text-align: center; }
     .sc-total-row { display: flex; align-items: center; justify-content: space-between;
@@ -2965,7 +2973,7 @@
     /* ── Stats table (uiarc sortable data table) ──
        Rounded bordered table, sticky headers, a tinted sorted column, rows that
        fade into their new order. Chips reuse the week card's .wk-chip. */
-    .rpt-body { flex: 1; min-height: 0; display: flex; padding: 0 14px 4px; }
+    .rpt-body { flex: 1; min-height: 0; display: flex; padding: 4px 14px 8px; }
     .rpt-wrap { flex: 1; min-width: 0; border: 1px solid var(--border); border-radius: 14px; overflow: hidden; background: var(--card); display: flex; }
     .rpt-scroll { flex: 1; overflow: auto; scrollbar-width: thin; }
     .rpt-table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13px; color: var(--foreground); }
@@ -3216,6 +3224,15 @@
     /* ── Toasts (#70, uiarc "toast-stack") ──
        Bottom centre. The newest toast is in front; up to 3 older ones tuck behind it,
        14px of each peeking above, 5% smaller per step. Hover or focus fans them out. */
+    /* Tooltip (#7): one for the whole app, in the theme's own colours. It only fades in and out. */
+    .app-tip { position: fixed; z-index: 10000; left: 0; top: 0; max-width: 240px; padding: 8px; border-radius: 8px;
+      background: var(--tip-bg, #fff); color: var(--foreground); box-shadow: inset 0 0 0 1px var(--tip-line, var(--border)), 0 6px 20px rgba(12,14,19,.12), 0 1px 3px rgba(12,14,19,.08);
+      font-size: 12px; font-weight: 500; line-height: 16px; pointer-events: none; opacity: 0; visibility: hidden; transition: opacity .12s linear, visibility 0s linear .12s; }
+    .app-tip.show { opacity: 1; visibility: visible; transition: opacity .12s linear; }
+    .app-tip.instant { transition: none; }
+    :root { --tip-bg: #ffffff; --tip-line: #dde1e8; }
+    .dark { --tip-bg: #262a33; --tip-line: #3b414d; }
+    .dark .app-tip { box-shadow: inset 0 0 0 1px var(--tip-line), 0 8px 24px rgba(0,0,0,.45), 0 1px 3px rgba(0,0,0,.4); }
     .ts-vp { position: fixed; z-index: 9999; left: 0; right: 0; bottom: 24px; margin-inline: auto; width: min(360px, calc(100% - 32px)); pointer-events: none; }
     .ts-list { position: relative; margin: 0; padding: 0; list-style: none; pointer-events: auto; transition: height .45s var(--ease-sheet); }
     .ts-item { position: absolute; left: 0; right: 0; bottom: 0; transform-origin: 50% 0; transition: transform .45s var(--ease-sheet), opacity .3s; }
@@ -3224,7 +3241,7 @@
     .ts-card { position: relative; overflow: hidden; border: 1px solid var(--border); border-radius: 16px; background: var(--surface-raised); box-shadow: var(--shadow-lg);
       touch-action: pan-y; transition: height .45s var(--ease-sheet), background .3s; }
     .ts-item[data-front="false"][data-open="false"] .ts-card { background: var(--muted); }
-    .ts-ct { display: flex; align-items: flex-start; gap: 12px; padding: 12px 12px 12px 16px; transition: opacity .25s; }
+    .ts-ct { display: flex; align-items: center; gap: 12px; padding: 10px 10px 10px 16px; transition: opacity .25s; }
     .ts-item[data-front="false"][data-open="false"] .ts-ct { opacity: 0; }
     .ts-ic { width: 18px; height: 20px; flex: none; display: grid; place-items: center; color: var(--c, var(--muted-fg)); }
     .ts-ic svg { width: 18px; height: 18px; }
@@ -3233,9 +3250,9 @@
     .ts-copy { flex: 1; min-width: 0; font-size: 14px; line-height: 20px; }
     .ts-t { display: block; font-weight: 500; color: var(--foreground); }
     .ts-d { display: block; margin-top: 2px; font-size: 13px; line-height: 19px; color: var(--muted-fg); }
-    .ts-act { height: 28px; padding: 0 12px; flex: none; margin-top: -4px; border: 1px solid var(--border); border-radius: 999px; background: var(--card); color: var(--foreground);
+    .ts-act { height: 28px; padding: 0 12px; flex: none; border: 1px solid var(--border); border-radius: 999px; background: var(--card); color: var(--foreground);
       font: 500 13px var(--font); white-space: nowrap; cursor: pointer; transition: background .14s, border-color .14s; }
-    .ts-x { width: 28px; height: 28px; flex: none; margin: -4px -2px 0 0; display: grid; place-items: center; border: 0; border-radius: 50%; background: none; color: var(--text-muted); cursor: pointer; transition: background .14s, color .14s; }
+    .ts-x { width: 28px; height: 28px; flex: none; margin: 0; display: grid; place-items: center; border: 0; border-radius: 50%; background: none; color: var(--text-muted); cursor: pointer; transition: background .14s, color .14s; }
     .ts-x svg { width: 16px; height: 16px; }
     @media (hover: hover) and (pointer: fine) {
       .ts-act:hover { border-color: var(--border-strong); background: var(--muted); }
@@ -3658,20 +3675,44 @@
     /* ── Backup & Restore: Import in place (#72, uiarc "file-upload") ── */
     .imp-slot { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .36s var(--ease-sheet); }
     .imp-slot.open { grid-template-rows: 1fr; }
-    .imp-slot > div { overflow: hidden; min-height: 0; }
-    .imp-in { padding-top: 14px; opacity: 0; transform: translateY(-4px); transition: opacity .2s, transform .3s cubic-bezier(.16,1,.3,1); }
+    .imp-slot > div { overflow: hidden; min-height: 0; margin: 0 -6px; padding: 0 6px; } /* 6px of room so the breathing edge is never cropped */
+    .imp-in { padding: 14px 0 6px; opacity: 0; transform: translateY(-4px); transition: opacity .2s, transform .3s cubic-bezier(.16,1,.3,1); }
     .imp-slot.open .imp-in { opacity: 1; transform: none; transition-delay: .08s; }
     .imp-slot:not(.open) .imp-in { visibility: hidden; transition: opacity .15s, transform .2s, visibility 0s .36s; }
     #impBtn[aria-expanded="true"] { background: var(--muted); box-shadow: inset 0 0 0 1px var(--border-strong); }
     .imp-input { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
-    .imp-drop { display: flex; min-height: 84px; align-items: center; gap: 12px; padding: 16px; border: 1px dashed var(--border-strong); border-radius: 14px;
-      background: var(--card); cursor: pointer; transition: border-color .2s, background .2s; }
-    .imp-drop:hover, .imp-drop.dragging, .imp-drop:active { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, var(--card)); }
-    .imp-drop:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--card), 0 0 0 4px var(--ring); }
-    .imp-cloud { width: 24px; height: 24px; flex: none; color: var(--foreground); transition: transform .3s cubic-bezier(.34,1.56,.64,1); }
-    .imp-drop.dragging .imp-cloud { transform: translateY(-3px); }
-    .imp-copy { flex: 1; min-width: 0; } .imp-copy strong { display: block; font-size: 14px; font-weight: 500; color: var(--foreground); }
-    .imp-copy span { display: block; margin-top: 2px; font-size: 12px; color: var(--text-muted); }
+    /* #9 uiarc file dropzone: drawn dashed edge that closes into a line under a file, light that
+       follows the file, three paper sheets that fan out. Folds to a slim strip once a file is in. */
+    .imp-drop { position: relative; display: flex; flex-direction: column; align-items: center; text-align: center; padding: 24px 20px; border-radius: 16px; background: var(--surface-raised); cursor: pointer; outline: none;
+      transition: background .2s, padding .36s var(--ease-sheet), border-radius .4s cubic-bezier(.34,1.3,.64,1); }
+    .imp-drop > * { pointer-events: none; }
+    .imp-edge { position: absolute; top: .5px; left: .5px; width: calc(100% - 1px); height: calc(100% - 1px); overflow: visible; }
+    .imp-edge rect { fill: none; stroke: var(--border-strong); stroke-width: 1; stroke-dasharray: 3.5 3.5; transition: stroke .15s, stroke-dasharray .3s, stroke-dashoffset .3s; }
+    @media (hover: hover) and (pointer: fine) { .imp-drop:hover { background: var(--muted); } .imp-drop:hover .imp-edge rect { stroke: var(--text-muted); } }
+    .imp-drop:active { background: var(--muted); }
+    .imp-drop:focus-visible { box-shadow: 0 0 0 2px var(--card), 0 0 0 4px var(--ring); }
+    .imp-drop.dragging { background: color-mix(in oklab, var(--blue) 4%, var(--surface-raised)); animation: imp-breathe 2.2s ease-in-out infinite; }
+    @keyframes imp-breathe { 50% { transform: scale(1.01); } }
+    .imp-drop.dragging .imp-edge rect { stroke: color-mix(in oklab, var(--blue) 55%, var(--border)); stroke-dasharray: 7 0; }
+    .imp-wash, .imp-glow { position: absolute; inset: 0; border-radius: inherit; opacity: 0; transition: opacity .2s; }
+    .imp-wash { background: radial-gradient(220px circle at var(--mx, 50%) var(--my, 50%), color-mix(in oklab, var(--blue) 10%, transparent), transparent 70%); }
+    .imp-glow { padding: 1.5px; background: radial-gradient(140px circle at var(--mx, 50%) var(--my, 50%), var(--blue), transparent 70%);
+      -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0); }
+    .imp-drop.dragging .imp-wash, .imp-drop.dragging .imp-glow { opacity: 1; }
+    .imp-ics { display: grid; width: 100%; grid-template-rows: 1fr; transition: grid-template-rows .36s var(--ease-sheet), opacity .2s; }
+    .imp-ics > span { display: block; overflow: hidden; min-height: 0; }
+    .imp-sheets { display: block; position: relative; width: 36px; height: 44px; margin: 10px auto 12px; }
+    .imp-sheet { --r: 0deg; --x: 0px; --y: 0px; display: grid; place-items: center; position: absolute; inset: 0; border-radius: 7px; background: var(--surface-lift); box-shadow: inset 0 0 0 1px var(--border-strong), 0 2px 6px rgba(0,0,0,.08);
+      color: var(--text-muted); font-size: 12px; font-weight: 600; transform: translate(var(--x), var(--y)) rotate(var(--r)); transition: transform .45s cubic-bezier(.34,1.56,.64,1); }
+    .imp-sheet:nth-child(3) { font-size: 12px; transform: translate(var(--x), var(--y)) rotate(var(--r)) scale(.75); }
+    .imp-sheet:nth-child(1) { --r: -12deg; --x: -9px; --y: 3px; } .imp-sheet:nth-child(2) { --r: 10deg; --x: 9px; --y: 3px; }
+    .imp-drop:hover .imp-sheet:nth-child(1) { --r: -16deg; --x: -12px; --y: 1px; } .imp-drop:hover .imp-sheet:nth-child(2) { --r: 14deg; --x: 12px; --y: 1px; } .imp-drop:hover .imp-sheet:nth-child(3) { --y: -3px; }
+    .imp-drop.dragging .imp-sheet:nth-child(1) { --r: -20deg; --x: -15px; --y: -2px; } .imp-drop.dragging .imp-sheet:nth-child(2) { --r: 18deg; --x: 15px; --y: -2px; } .imp-drop.dragging .imp-sheet:nth-child(3) { --y: -7px; }
+    .imp-t { display: block; font-size: 14px; font-weight: 500; color: var(--foreground); }
+    .imp-d { display: block; max-width: 36ch; margin-top: 2px; font-size: 12px; color: var(--muted-fg); }
+    .imp-drop.compact { padding: 12px 16px; border-radius: 12px; }
+    .imp-drop.compact .imp-ics { grid-template-rows: 0fr; opacity: 0; }
+    .imp-drop.compact .imp-d { display: none; }
     .imp-status { margin: 8px 2px 0; font-size: 12px; color: var(--text-muted); } .imp-status:empty { display: none; } .imp-status.err { color: var(--danger-text); }
     .imp-file { display: flex; align-items: center; gap: 12px; margin-top: 8px; padding: 10px 10px 10px 12px; border: 1px solid var(--border-subtle); border-radius: 10px; background: var(--muted); animation: imp-rise .3s cubic-bezier(.16,1,.3,1); }
     @keyframes imp-rise { from { opacity: 0; transform: translateY(6px); } }
@@ -3700,7 +3741,7 @@
     .imp-acts { display: flex; justify-content: flex-end; gap: 8px; }
     /* The Security tab uses the compact 30px scale (shell-new rule); Merge matches it. */
     .imp-acts .btn-primary { width: auto; height: 30px; padding: 0 12px; font-size: 12px; border-radius: 8px; }
-    @media (prefers-reduced-motion: reduce) { .imp-slot, .imp-in, .imp-drop, .imp-cloud, .imp-trk i { transition: none; } .imp-file, .imp-choice { animation: none; } .imp-ok path { animation: none; stroke-dashoffset: 0; } }
+    @media (prefers-reduced-motion: reduce) { .imp-drop.dragging { animation: none; } .imp-sheet, .imp-ics, .imp-slot, .imp-in, .imp-drop, .imp-trk i { transition: none; } .imp-file, .imp-choice { animation: none; } .imp-ok path { animation: none; stroke-dashoffset: 0; } }
     .ob-import-zone { border: 2px dashed var(--border); border-radius: 12px; padding: 28px 20px;
       text-align: center; cursor: pointer;
       transition: border-color .22s ease, background .22s ease, box-shadow .22s ease; display: flex;
@@ -4170,7 +4211,7 @@
     .sc-bar b { font-size: 14px; font-weight: 600; color: var(--foreground); font-variant-numeric: tabular-nums; }
     .sc-acts { display: flex; gap: 6px; flex: none; }
     .sc-acts .btn { width: auto; height: 34px; padding: 0 14px; font-size: 13px; font-weight: 600; border-radius: 11px; }
-    .sc-acts .btn-primary { min-width: 76px; }
+    .sc-acts .btn { min-width: 76px; } /* both buttons the same size; only the look differs */
     @media (max-width: 640px) {
       .overlay.sc-host { align-items: flex-end; padding: 0; }
       .overlay.sc-host > .dialog.sc-dialog { width: 100%; max-width: none; padding: 0 16px; border-radius: 24px 24px 0 0; border-bottom: none; transform: translateY(100%);
@@ -4207,7 +4248,7 @@
     /* Week title centred between two hairlines, so it's clear where one week ends. */
     .wf-wh { display: flex; align-items: center; gap: 10px; padding: 14px 16px 6px 12px; }
     .wf-wh::before, .wf-wh::after { content: ''; flex: 1; height: 1px; background: var(--border); }
-    .wf-wr { font-size: 12px; font-weight: 600; letter-spacing: .02em; color: var(--text-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .wf-wr { font-size: 12px; font-weight: 600; letter-spacing: .02em; color: var(--foreground); font-variant-numeric: tabular-nums; white-space: nowrap; }
     .wf-week:first-child .wf-wh { padding-top: 6px; }
     .wk-row.hl, .wf-feed .wk-row.today { background: var(--muted); }   /* today rule: today always in its hover look */
     .wk-row.is-weekend .wk-type-lbl { color: var(--muted-fg); }
@@ -4592,7 +4633,7 @@
             <div class="qs-slot" id="qsSlot"><div><div class="qs-slot-in">
               <div class="st-field" id="stField">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
-                <input id="stInput" type="text" inputmode="numeric" pattern="[0-9]*" enterkeyhint="go" maxlength="5" placeholder="hh:mm"
+                <input id="stInput" type="text" inputmode="numeric" pattern="[0-9]*" enterkeyhint="go" maxlength="5" placeholder="eg. 10:15"
                   aria-label="When did you start work?" aria-describedby="stOut" autocomplete="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true" tabindex="-1">
                 <span class="st-ap" id="stAp" role="group" aria-label="AM or PM"><button type="button" data-ap="AM" aria-pressed="true" tabindex="-1">AM</button><button type="button" data-ap="PM" aria-pressed="false" tabindex="-1">PM</button></span>
               </div>
@@ -5173,8 +5214,11 @@
               <div class="imp-slot" id="impSlot"><div><div class="imp-in">
                 <input class="imp-input" type="file" id="logFileInput" accept=".json,application/json" tabindex="-1" aria-hidden="true">
                 <div class="imp-drop" id="impDrop" role="button" tabindex="-1" aria-describedby="impDropD">
-                  <svg class="imp-cloud" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 13v8"/><path d="m8 17 4-4 4 4"/><path d="M20 16.6A5 5 0 0 0 18 7h-1.3A8 8 0 1 0 4 15.3"/></svg>
-                  <span class="imp-copy"><strong id="impDropT">Import a backup</strong><span id="impDropD">Drop a .json file exported from 5pm here, or click to choose one. Up to 5 MB.</span></span>
+                  <svg class="imp-edge" aria-hidden="true"><rect id="impEdge" x="0" y="0" rx="16" ry="16"/></svg>
+                  <span class="imp-wash" aria-hidden="true"></span><span class="imp-glow" aria-hidden="true"></span>
+                  <span class="imp-ics" aria-hidden="true"><span><span class="imp-sheets"><span class="imp-sheet"></span><span class="imp-sheet"></span><span class="imp-sheet">JSON</span></span></span></span>
+                  <strong class="imp-t" id="impDropT">Import a backup</strong>
+                  <span class="imp-d" id="impDropD">Drop a .json file exported from 5pm here, or click to choose one. Up to 5 MB.</span>
                 </div>
                 <p class="imp-status" id="impStatus" aria-live="polite"></p>
                 <div id="impFiles"></div>
@@ -5570,7 +5614,7 @@
             <button type="button" class="st-tab active" id="reportTabWeek" data-on-click="h12b61196e3">7 Days</button>
             <button type="button" class="st-tab" id="reportTabMonth" data-on-click="h08d903c236">30 Days</button>
           </div>
-          <div class="dialog-desc" id="weekReportRange">—</div>
+          <div class="dialog-desc" id="weekReportRange" style="margin-top:4px">—</div>
         </div>
         <button class="btn-icon" data-on-click="h106648fa62" title="Close" style="margin:0;flex-shrink:0">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
@@ -5579,7 +5623,7 @@
       <div class="rpt-body">
         <div class="rpt-wrap"><div class="rpt-scroll"><table id="weekReportTable" class="rpt-table"></table></div></div>
       </div>
-      <div class="dialog-foot" style="flex-shrink:0;padding-top:12px;display:flex;flex-direction:row;justify-content:space-between;align-items:center;gap:12px">
+      <div class="dialog-foot" style="flex-shrink:0;padding-top:12px;padding-bottom:14px;display:flex;flex-direction:row;justify-content:space-between;align-items:center;gap:12px">
         <span class="rpt-count" id="wrCount"></span>
         <button class="btn-secondary" id="wrExportBtn" style="gap:5px;padding:0 10px" data-on-click="hf11c074512">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M7.70711 10.2929L11 13.5858L11 3C11 2.44771 11.4477 2 12 2C12.5523 2 13 2.44771 13 3L13 13.5858L16.2929 10.2929C16.6834 9.90237 17.3166 9.90237 17.7071 10.2929C18.0976 10.6834 18.0976 11.3166 17.7071 11.7071L12.7071 16.7071C12.3166 17.0976 11.6834 17.0976 11.2929 16.7071L6.29289 11.7071C5.90237 11.3166 5.90237 10.6834 6.29289 10.2929C6.68342 9.90237 7.31658 9.90237 7.70711 10.2929Z" fill="currentColor"/><path d="M4 22C3.44772 22 3 21.5523 3 21C3 20.4477 3.44772 20 4 20H20C20.5523 20 21 20.4477 21 21C21 21.5523 20.5523 22 20 22H4Z" fill="currentColor"/></svg>

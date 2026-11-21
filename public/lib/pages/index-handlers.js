@@ -145,7 +145,6 @@ window.__H = Object.assign(window.__H || {}, {
   // onclick: goToDeletePwd()
   hf9398af895: function (event) { goToDeletePwd() },
   // onclick: handleNotifCta(this.getAttribute('data-click-a0'),this.getAttribute('data-click-a1'))
-  h837093f811: function (event) { handleNotifCta(this.getAttribute('data-click-a0'),this.getAttribute('data-click-a1')) },
   // onclick: if(event.target===this)closeAutoStopRecovery()
   haef0170aaa: function (event) { if(event.target===this)closeAutoStopRecovery() },
   // onclick: if(event.target===this)closeCreatePwdModal()

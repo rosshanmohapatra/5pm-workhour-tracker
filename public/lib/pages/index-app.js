@@ -7070,11 +7070,108 @@ Kind regards,
       _deEmailMoveOut();
     }
 
+    // #13 Report a Bug: its own small form. The email keeps the full diagnostics
+    // (_diagLines) plus the recent errors 5pm recorded itself (diag.js).
+    let _bg = { area: '', url: '' };
+    const _bgDesktop = () => matchMedia('(hover: hover) and (pointer: fine)').matches;
+    function _bgErrText(r) {
+      const t = new Date(r.at).toTimeString().slice(0, 5), n = r.n > 1 ? ` · ${r.n} times` : '';
+      return r.kind === 'net' ? `${r.status} ${r.what} (network, ${t}${n})` : `${r.what}${r.where ? ' · ' + r.where : ''} (console, ${t}${n})`;
+    }
+    function _bgErrors() {
+      const D = window.__diag || {};
+      return [...(D.net || []), ...(D.cons || [])].sort((a, b) => b.at - a.at).slice(0, 10);
+    }
+    function _bgCompose() {
+      const desc = el('bgDesc').value.trim();
+      const errs = _bgErrors();
+      const v = { ..._bugDevice(), description: (_bg.area ? `[${_bg.area}] ` : '') + desc };
+      const subject = _fillTpl(EMAIL_TPL.bug.concise.subject, v);
+      let body = _fillTpl(EMAIL_TPL.bug.concise.body, v);
+      if (errs.length) body += '\n\nRecent errors\n' + errs.map(_bgErrText).join('\n');
+      return { subject, body };
+    }
+    function _bgUpdate() {
+      const n = el('bgDesc').value.trim().length, left = Math.max(0, BUG_MIN_CHARS - n);
+      el('bgRing').style.strokeDashoffset = String(37.7 * (1 - Math.min(1, n / BUG_MIN_CHARS)));
+      el('bgCnt').classList.toggle('ok', !left);
+      el('bgCntT').textContent = left ? `${left} more character${left === 1 ? '' : 's'}` : 'Good enough';
+      el('bgSend').disabled = !!left;
+      const w = el('bgSendW');
+      if (left) w.dataset.tip = `Add ${left} more character${left === 1 ? '' : 's'} to the description first.`; else delete w.dataset.tip;
+    }
+    function _bgPaintDetails() {
+      const lines = _diagLines().split('\n').filter(l => /^[A-Z][\w ]+: /.test(l)).slice(0, 8);
+      const dl = el('bgDevList'); dl.innerHTML = '';
+      lines.forEach(l => {
+        const i = l.indexOf(': '), dt = document.createElement('dt'), dd = document.createElement('dd');
+        dt.textContent = l.slice(0, i); dd.textContent = l.slice(i + 2); dl.append(dt, dd);
+      });
+      const [, browser] = _diagSystem();
+      el('bgDevSum').textContent = `5pm ${APP_VERSION} · ${browser.split(' ')[0]} on ${_diagSystem()[0].split(' ')[0]}`;
+      const errs = _bgErrors(), D = window.__diag || {};
+      el('bgErr').hidden = !errs.length;
+      if (errs.length) {
+        const net = (D.net || []).length, con = (D.cons || []).length;
+        el('bgErrSum').textContent = [net && `${net} failed request${net === 1 ? '' : 's'}`, con && `${con} console error${con === 1 ? '' : 's'}`].filter(Boolean).join(' · ');
+        const ul = el('bgErrList'); ul.innerHTML = '';
+        errs.forEach(r => {
+          const li = document.createElement('li'), tag = document.createElement('span'), b = document.createElement('b'), m = document.createElement('span');
+          tag.className = 'bg-tag' + (r.kind === 'net' ? ' bad' : ''); tag.textContent = r.status;
+          b.textContent = r.what;
+          m.className = 'm'; m.textContent = `${r.kind === 'net' ? 'Network' : 'Console'}${r.where ? ' · ' + r.where : ''} · ${short(new Date(r.at))}${r.n > 1 ? ` · ${r.n} times` : ''}`;
+          li.append(tag, b, m); ul.appendChild(li);
+        });
+      }
+    }
     function openBugReport() {
       _diagStepsAtOpen = (window.__diag?.steps.length || 1) - 1;   // minus the Report tap itself
-      _openEmailFor({ type: 'bug' });
-      _diagRefresh().then(() => { if (_emailP?.type === 'bug') _emailUpdate(); });
+      _bg = { area: '', url: '' };
+      el('bgDesc').value = '';
+      el('bgChips').querySelectorAll('.bg-chip').forEach(c => c.setAttribute('aria-pressed', 'false'));
+      el('bugOverlay').querySelectorAll('.bg-det').forEach(d => { d.classList.remove('open'); d.querySelector('.bg-dh').setAttribute('aria-expanded', 'false'); });
+      el('bgMain').hidden = false; el('bgSent').hidden = true;
+      el('bgSendT').textContent = _bgDesktop() ? 'Open Gmail' : 'Open Mail';
+      _bgUpdate(); _bgPaintDetails();
+      el('bugOverlay').classList.add('open');
+      setTimeout(() => el('bgDesc')?.focus({ preventScroll: true }), 200);
+      _diagRefresh().then(() => { if (el('bugOverlay').classList.contains('open')) _bgPaintDetails(); });
     }
+    function closeBugReport() { el('bugOverlay').classList.remove('open'); }
+    (function _bgInit() {
+      const ov = el('bugOverlay'); if (!ov) return;
+      el('bugClose').addEventListener('click', closeBugReport);
+      el('bgDone').addEventListener('click', closeBugReport);
+      ov.addEventListener('click', e => { if (e.target === ov) closeBugReport(); });
+      ov.addEventListener('keydown', e => { if (e.key === 'Escape') { e.stopPropagation(); closeBugReport(); } });
+      el('bgDesc').addEventListener('input', _bgUpdate);
+      el('bgChips').addEventListener('click', e => {
+        const c = e.target.closest('.bg-chip'); if (!c) return;
+        const on = c.getAttribute('aria-pressed') !== 'true';
+        el('bgChips').querySelectorAll('.bg-chip').forEach(x => x.setAttribute('aria-pressed', 'false'));
+        c.setAttribute('aria-pressed', String(on)); _bg.area = on ? c.textContent : '';
+      });
+      ov.querySelectorAll('.bg-dh').forEach(h => h.addEventListener('click', () => {
+        const d = h.closest('.bg-det'), o = !d.classList.contains('open');
+        d.classList.toggle('open', o); h.setAttribute('aria-expanded', String(o));
+      }));
+      el('bgCopy').addEventListener('click', () => {
+        const { subject, body } = _bgCompose();
+        navigator.clipboard?.writeText(`To: ${BUG_REPORT_TO}\nSubject: ${subject}\n\n${body}`);
+        el('bgCopyT').textContent = 'Copied';
+        setTimeout(() => { el('bgCopyT').textContent = 'Copy Report'; }, 1600);
+      });
+      el('bgSend').addEventListener('click', () => {
+        const { subject, body } = _bgCompose(), enc = encodeURIComponent;
+        const a = document.createElement('a');
+        if (_bgDesktop()) { a.href = `https://mail.google.com/mail/?view=cm&fs=1&to=${enc(BUG_REPORT_TO)}&su=${enc(subject)}&body=${enc(body)}`; a.target = '_blank'; a.rel = 'noopener'; }
+        else a.href = `mailto:${BUG_REPORT_TO}?subject=${enc(subject)}&body=${enc(body.replace(/\n/g, '\r\n'))}`;
+        a.click();
+        el('bgSentP').textContent = _bgDesktop() ? 'Gmail opened in a new tab with your report. Press Send there to reach Roshan.'
+          : 'Your mail app opened with your report. Press Send there to reach Roshan.';
+        el('bgMain').hidden = true; el('bgSent').hidden = false;
+      });
+    })();
 
     // ── What's New ──
     // The notes live in lib/whats-new.js (also the source for the GitHub and

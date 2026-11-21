@@ -2057,3 +2057,25 @@ test('Import field is the uiarc file dropzone and never crops while dragging (#9
   assert.match(SRC, /function _impCompact\(on\)/);
   assert.match(SRC, /'Choose another file'/);
 });
+
+test('Report a Bug: own form, ring counter, tooltip on the disabled send, recent errors (#13)', () => {
+  const SRC = fs.readFileSync(path.join(__dirname, '..', 'public', 'lib', 'pages', 'index-app.js'), 'utf8');
+  const HTML = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
+  const DIAG = fs.readFileSync(path.join(__dirname, '..', 'public', 'lib', 'pages', 'diag.js'), 'utf8');
+  assert.match(HTML, /id="bugOverlay"/);
+  assert.match(SRC, /'Good enough'/);
+  assert.match(SRC, /w\.dataset\.tip = `Add \$\{left\} more character/);
+  assert.match(SRC, /body \+= '\\n\\nRecent errors\\n'/);
+  assert.match(DIAG, /window\.fetch = function/, 'failed requests are recorded');
+  assert.match(DIAG, /x\.host \+ x\.pathname|\+ x\.pathname\)/, 'no query strings kept');
+  assert.doesNotMatch(HTML, /Include these in the report/);
+});
+
+test('Tips: popover tips point at their feature; no Save Recipient tip (#4)', () => {
+  const TOUR = fs.readFileSync(path.join(__dirname, '..', 'public', 'lib', 'pages', 'tour.js'), 'utf8');
+  assert.match(TOUR, /anchor: missingRow/);
+  assert.match(TOUR, /anchor: \(\) => el\('calcBtn'\)/);
+  assert.match(TOUR, /fix your hours or raise a dispute/);
+  assert.match(TOUR, /action: \{ label: 'Turn On'/);
+  assert.doesNotMatch(TOUR, /id: 'saveRecipient'/);
+});

@@ -239,6 +239,12 @@
   function markSeen(id) { if (!seen(id)) saveCfg({ ...cfg(), tipsSeen: [...(cfg().tipsSeen || []), id] }); }
 
   const BULB = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/></svg>';
+  const ICON = {
+    calendar: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18M12 14v4M10 16h4"/></svg>',
+    keyboard: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M8 14h8"/></svg>',
+    clock: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
+    bell: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.9 1.9 0 0 0 3.4 0"/></svg>',
+  };
   const CLOSE = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>';
 
   // Per-device counters for the "3rd time" style triggers.
@@ -252,54 +258,86 @@
     return [mod, sc.shift && 'Shift', sc.key.length === 1 ? sc.key.toUpperCase() : sc.key].filter(Boolean).join('+');
   };
   const daysLogged = () => Object.values(Store.allDays()).filter(d => d?.hoursWorked > 0).length;
+  // The first past day with no entry that's actually in view in the week feed.
+  const missingRow = () => {
+    const feed = el('wkRows'); if (!feed) return null;
+    const fr = feed.getBoundingClientRect();
+    return [...feed.querySelectorAll('.wk-row.is-missing')].find(r => { const b = r.getBoundingClientRect(); return b.height && b.top >= fr.top - 1 && b.bottom <= fr.bottom + 1; }) || null;
+  };
   const emailOpen = () => el('emailModalOverlay')?.classList.contains('open');
   const emailType = () => typeof _emailP !== 'undefined' ? _emailP?.type : null;
 
   // Where each tip goes, when it shows, and its words. `place(tip)` puts the
   // card in its spot; `when()` is the trigger; `modal` tips live in a sheet.
+  // #4 tips: a popover tip floats next to `anchor()` with an arrow (nothing moves);
+  // an inline tip (`place`) sits at the top of a settings page and may carry one action.
   const TIPS = [
-    { id: 'penalties', name: 'Short on Hours?', where: 'Home › Action Center',
-      title: () => 'Short on Hours?',
-      text: v => `${v} a day to draft an email or fix your hours.`,
+    { id: 'penalties', name: 'Short on hours?', where: 'Home › Action Center', icon: 'clock',
+      title: () => 'Short on hours?',
+      text: v => `${v} a day to fix your hours or raise a dispute.`,
       when: () => !!el('penaltiesList')?.querySelector('.penalty-row'),
-      place: t => el('penaltiesList')?.before(t) },
-    { id: 'missedDay', name: 'Missed a Day?', where: 'Home › This Week',
-      title: () => 'Missed a Day?',
-      text: v => `${v} a day to add the hours you worked.`,
-      when: () => !!document.querySelector('#wkRows .wk-row.is-missing'),
-      place: t => el('wkRows')?.before(t) },
-    { id: 'startFaster', name: 'Start Faster', where: 'Home › today, under Start', desktopOnly: true,
-      title: () => 'Start Faster',
-      text: () => shortcutLabel() ? `Press ${shortcutLabel()} anywhere in 5pm to start your day.`
-        : 'Set a keyboard shortcut in Settings to start your day from anywhere in 5pm.',
-      when: () => !touch() && !!shortcutLabel() && count('mouseStarts') >= 3 && !!shown('#shiftInputRow'),
-      place: t => el('shiftInputRow')?.after(t) },
-    { id: 'notifications', name: 'Never Miss 5pm', where: 'Settings › Notifications',
-      title: () => 'Never Miss 5pm',
+      anchor: () => el('penaltiesList')?.querySelector('.penalty-row') },
+    { id: 'missedDay', name: 'Missed a day?', where: 'Home › Your Activity', icon: 'calendar',
+      title: () => 'Missed a day?',
+      text: v => `${v} this day to add the hours you worked.`,
+      when: () => !!missingRow(),
+      anchor: missingRow },
+    { id: 'startFaster', name: 'Start faster', where: 'Home › Today, Quick Start', desktopOnly: true, icon: 'keyboard',
+      title: () => 'Start faster',
+      text: () => `Press ${shortcutLabel()} anywhere in 5pm to start your day.`,
+      when: () => !touch() && !!shortcutLabel() && count('mouseStarts') >= 3 && el('calcBtn')?.dataset.state === 'start' && !!shown('#calcBtn'),
+      anchor: () => el('calcBtn') },
+    { id: 'notifications', name: 'Never miss 5pm', where: 'Settings › Notifications', icon: 'bell',
+      title: () => 'Never miss 5pm',
       text: () => "Turn on notifications to hear when it's time to head out.",
+      action: { label: 'Turn On', run: () => { const t = el('inpNotifOn'); if (t && !t.checked) t.click(); } },
       when: () => !cfg().notifOn && daysLogged() >= 2,
       place: t => { t.classList.add('is-panel'); el('setPanelNotifications')?.prepend(t); } },
-    { id: 'saveRecipient', name: 'Save Recipient', where: 'Email Draft sheet', modal: true,
-      title: () => 'Save Recipient',
-      text: () => 'Customise once and the address is filled in every time.',
-      when: () => emailOpen() && ['daily', 'weekly'].includes(emailType()) && !el('emailTo')?.value.trim()
-        && count('drafts') >= 2,
-      place: t => document.querySelector('#emailPreviewPane .email-actions')?.before(t) },
   ];
   const tipById = id => TIPS.find(t => t.id === id);
   const verb = () => touch() ? 'Tap' : 'Click';
 
   function card(tip, onClose) {
     const n = document.createElement('div');
-    n.className = 'fivepm-inline-tip'; n.setAttribute('role', 'note'); n.dataset.tip = tip.id;
-    n.innerHTML = `<span class="fivepm-tip-icon">${BULB}</span>
+    n.className = 'fivepm-inline-tip' + (tip.anchor ? ' is-pop' : ''); n.setAttribute('role', 'note'); n.dataset.tip = tip.id;
+    n.innerHTML = `<span class="fivepm-tip-icon">${ICON[tip.icon] || BULB}</span>
       <div class="fivepm-inline-tip-text"><div class="fivepm-inline-tip-title"></div><div class="fivepm-inline-tip-body"></div></div>
       <button type="button" class="fivepm-inline-tip-close" aria-label="Close tip">${CLOSE}</button>`;
     n.querySelector('.fivepm-inline-tip-title').textContent = tip.title();
     n.querySelector('.fivepm-inline-tip-body').textContent = tip.text(verb());
-    n.querySelector('button').addEventListener('click', () => { n.remove(); onClose(); });
+    if (tip.action) {
+      const a = document.createElement('button');
+      a.type = 'button'; a.className = 'fivepm-tip-action'; a.textContent = tip.action.label;
+      a.addEventListener('click', () => { tip.action.run(); drop(n); onClose(); });
+      n.querySelector('.fivepm-inline-tip-text').appendChild(a);
+    }
+    n.querySelector('.fivepm-inline-tip-close').addEventListener('click', () => { drop(n); onClose(); });
     return n;
   }
+  // Popover tips live on <body>, under their anchor, and follow it on scroll/resize.
+  function drop(n) { n?._anchor?.classList.remove('tip-target'); n?.remove(); }
+  function placePop(n) {
+    const a = n._anchor;
+    if (!a || !a.isConnected || !a.getBoundingClientRect().height) { n.style.visibility = 'hidden'; return; }
+    const r = a.getBoundingClientRect(), w = Math.min(300, innerWidth - 24);
+    // Hidden while the anchor is scrolled out of its list (the week feed).
+    const feed = a.closest('#wkRows');
+    if (feed) { const f = feed.getBoundingClientRect(); if (r.bottom < f.top || r.top > f.bottom) { n.style.visibility = 'hidden'; return; } }
+    n.style.visibility = '';
+    n.style.width = w + 'px';
+    const left = Math.max(12, Math.min(r.left + 8, innerWidth - w - 12));
+    const h = n.offsetHeight, below = r.bottom + 10 + h < innerHeight - 8 || r.top - h - 10 < 8;
+    n.classList.toggle('up', !below);
+    n.style.left = (left + scrollX) + 'px';
+    n.style.top = ((below ? r.bottom + 10 : r.top - h - 10) + scrollY) + 'px';
+    n.style.setProperty('--ax', Math.max(14, Math.min(r.left + Math.min(r.width, 60) / 2 - left, w - 26)) + 'px');
+  }
+  function showPop(n, anchor) {
+    n._anchor = anchor; anchor.classList.add('tip-target');
+    document.body.appendChild(n); placePop(n);
+  }
+  addEventListener('scroll', () => { const n = document.querySelector('.fivepm-inline-tip.is-pop'); if (n) placePop(n); }, { capture: true, passive: true });
+  addEventListener('resize', () => { const n = document.querySelector('.fivepm-inline-tip.is-pop'); if (n) placePop(n); });
   const onScreen = () => document.querySelector('.fivepm-inline-tip');
 
   let previewing = false;
@@ -315,9 +353,11 @@
       const met = (c.tipsIntroduced || []).includes(t.id);
       return met || !(c.tipIntro?.day === today && c.tipIntro?.id !== t.id);
     });
-    if (current && current.dataset.tip !== pick?.id) current.remove();
+    if (current && current.dataset.tip !== pick?.id) drop(current);
+    if (current && current.isConnected && current._anchor) placePop(current);
     if (!pick || onScreen()) return;
-    pick.place(card(pick, () => markSeen(pick.id)));
+    const n = card(pick, () => markSeen(pick.id));
+    if (pick.anchor) { const a = pick.anchor(); if (!a) return; showPop(n, a); } else pick.place(n);
     if (!(c.tipsIntroduced || []).includes(pick.id)) {
       saveCfg({ ...cfg(), tipsIntroduced: [...(cfg().tipsIntroduced || []), pick.id], tipIntro: { day: today, id: pick.id } });
     }
@@ -333,7 +373,6 @@
       if (row && row.classList.contains('is-missing')) markSeen('missedDay');
       // A real mouse click on Start (not the shortcut, which clicks it for you).
       if (t.closest?.('#calcBtn') && e.detail > 0 && el('calcBtn').dataset.state === 'start' && !touch()) bump('mouseStarts');
-      if (t.closest?.('#emailEditSave')) markSeen('saveRecipient');
       setTimeout(evaluate, 300);
     }, true);
     document.addEventListener('keydown', e => {
@@ -343,14 +382,6 @@
       const ok = mod === 'alt' ? e.altKey : (e.ctrlKey || e.metaKey);
       if (ok && (!sc.shift || e.shiftKey)) markSeen('startFaster');
     }, true);
-    // Each time an email draft opens (not a bug report), for "the 2nd draft".
-    const ov = el('emailModalOverlay');
-    if (ov) new MutationObserver(() => {
-      const open = ov.classList.contains('open');
-      if (open && !ov._tipWasOpen && !previewing && ['daily', 'weekly'].includes(emailType())) bump('drafts');
-      ov._tipWasOpen = open;
-      setTimeout(evaluate, 350);
-    }).observe(ov, { attributes: true, attributeFilter: ['class'] });
     // Notifications switched on: that tip is done.
     setInterval(() => { if (cfg().notifOn && !seen('notifications')) markSeen('notifications'); evaluate(); }, 1500);
   }
@@ -377,16 +408,6 @@
     let restore = () => {};
     if (id === 'notifications') {
       await openSettingsTab('Notifications');
-    } else if (id === 'saveRecipient') {
-      switchTab('home');
-      await new Promise(r => setTimeout(r, 350));
-      if (!el('penaltiesList')?.querySelector('.penalty-row') && el('devSamplePenalties') && !el('devSamplePenalties').checked) {
-        el('devSamplePenalties').click();
-        await new Promise(r => setTimeout(r, 300));
-      }
-      el('penaltiesList')?.querySelector('.penalty-row')?.click();
-      await new Promise(r => setTimeout(r, 450));
-      restore = () => { if (emailOpen()) closeEmailModal(); };
     } else {
       switchTab('home');
       await new Promise(r => setTimeout(r, 350));
@@ -402,7 +423,11 @@
     }
     const n = card(tip, () => { previewing = false; restore(); backToDev(); });
     n.classList.add('is-preview');
-    tip.place(n);
+    if (tip.anchor) {
+      // Missed a day: in a preview, any day with no entry will do.
+      const a = tip.anchor() || (id === 'missedDay' && el('wkRows')?.querySelector('.wk-row.is-missing, .wk-row:not(.today)'));
+      if (a) { a.scrollIntoView({ block: 'center' }); showPop(n, a); }
+    } else tip.place(n);
     if (!n.isConnected) { previewing = false; restore(); return; }
     n.scrollIntoView({ block: 'center', behavior: reduce.matches ? 'auto' : 'smooth' });
   }
@@ -425,7 +450,7 @@
     });
     el('devResetTips')?.addEventListener('click', () => {
       saveCfg({ ...cfg(), tipsSeen: [], tipsIntroduced: [], tipIntro: null });
-      ['mouseStarts', 'drafts'].forEach(k => { try { localStorage.removeItem('wh_tipc_' + k); } catch {} });
+      ['mouseStarts'].forEach(k => { try { localStorage.removeItem('wh_tipc_' + k); } catch {} });
       showToast?.('Tips reset. Each shows again when its moment comes.', 'none');
     });
   }

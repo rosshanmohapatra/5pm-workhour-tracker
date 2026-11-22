@@ -20,7 +20,8 @@ module.exports = [
       'public/lib/supabase.umd.js',
       'public/lib/driver.js',
       'public/lib/floating-ui.js',
-      'public/lib/use-gesture.js'
+      'public/lib/use-gesture.js',
+      'public/lib/sentry.min.js'
     ]
   },
   js.configs.recommended,

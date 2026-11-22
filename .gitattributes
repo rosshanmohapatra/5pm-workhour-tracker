@@ -2,3 +2,4 @@
 # as committed (no CRLF conversion on Windows checkouts or Windows CI), or the
 # hash stops matching and the browser refuses to run it.
 public/lib/number-flow.js -text
+public/lib/sentry.min.js -text

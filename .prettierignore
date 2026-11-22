@@ -10,3 +10,5 @@ public/lib/driver.css
 public/lib/floating-ui.js
 public/lib/use-gesture.js
 .claude/
+public/lib/sentry.min.js
+CLAUDE.md

@@ -3523,3 +3523,29 @@ test('Weekend card adds a worked Saturday/Sunday outside the work week as an ext
   assert.equal(fn(six, '2026-11-22').length, 0); // 6-day week: Saturday is already a bar
   assert.match(SRC, /_wkndWeekChip\(total, adjustedWeeklyTarget\(base\)\)/); // target stays the workdays'
 });
+
+test('Sentry: pinned SDK, same version as the app, errors only, no personal data', () => {
+  const crypto = require('node:crypto');
+  const init = fs.readFileSync(path.join(WEB, 'lib', 'sentry-init.js'), 'utf8');
+  const HTML = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
+  const LHTML = fs.readFileSync(path.join(WEB, 'login.html'), 'utf8');
+  // The release tag follows the app version.
+  const appVer = SRC.match(/const APP_VERSION = '([\d.]+)'/)[1];
+  assert.equal(init.match(/var VERSION = '([\d.]+)'/)[1], appVer, 'sentry-init.js VERSION = APP_VERSION');
+  // The self-hosted SDK still matches the integrity hash both pages load it with.
+  const sdk = fs.readFileSync(path.join(WEB, 'lib', 'sentry.min.js'));
+  const sri = 'sha384-' + crypto.createHash('sha384').update(sdk).digest('base64');
+  for (const page of [HTML, LHTML]) {
+    assert.ok(_wsNorm(page).includes(`src="/lib/sentry.min.js" integrity="${sri}"`), 'pinned SDK with its hash');
+    assert.ok(page.indexOf('/lib/sentry-init.js') > page.indexOf('/lib/sentry.min.js'), 'init after the SDK');
+  }
+  // Privacy: no personal data, no replay, no tracing; emails and query strings scrubbed.
+  assert.match(init, /sendDefaultPii: false/);
+  assert.doesNotMatch(init, /replaysSessionSampleRate|replayIntegration|tracesSampleRate|browserTracingIntegration/);
+  assert.match(init, /delete event\.user;/);
+  assert.match(init, /allowUrls: \[location\.origin\]/);
+  // Only Sentry's ingest address is added to the security policy.
+  const csp = fs.readFileSync(path.join(ROOT, 'vercel.json'), 'utf8');
+  assert.match(csp, /connect-src [^;]*https:\/\/o4512474129629184\.ingest\.us\.sentry\.io/);
+  assert.doesNotMatch(csp, /script-src [^;]*sentry/);
+});

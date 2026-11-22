@@ -1,7 +1,8 @@
 name: Desktop release
 
-# Tag a commit on the desktop branch to build it:
-#   git tag v1.2.1 && git push origin v1.2.1
+# Manual only (user 2026-11-23: GitHub desktop releases only when asked; version
+# tags exist for the Microsoft Store workflow). To build: Actions > Desktop release >
+# Run workflow, and pick the version TAG (e.g. v1.2.37) under "Use workflow from".
 # The release is created as a DRAFT. Nothing reaches users until it is published
 # by hand in the GitHub UI.
 #
@@ -10,9 +11,7 @@ name: Desktop release
 # in-app updater picks its own from latest.json.
 
 on:
-  push:
-    tags:
-      - 'v*'
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -21,6 +20,13 @@ jobs:
   release:
     runs-on: windows-latest
     steps:
+      # Only from a version tag: the release, file names and updater feed take its name.
+      - name: Check that a version tag was picked
+        if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
+        run: |
+          echo "::error::Pick a version tag (e.g. v1.2.37) under 'Use workflow from', not a branch."
+          exit 1
+
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4

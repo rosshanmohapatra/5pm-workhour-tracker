@@ -33,5 +33,8 @@
   "lint-staged": {
     "*.{js,html,css,json,md,yml}": "prettier --write",
     "*.js": "eslint"
+  },
+  "overrides": {
+    "minimatch@<11": "11.0.5"
   }
 }

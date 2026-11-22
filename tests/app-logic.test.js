@@ -3568,13 +3568,15 @@ test('Authenticator apps list the account as 5pm, not the site address', () => {
 });
 
 // ── Weekend scenes (#74) ───────────────────────────────────────────────────
-test('Weekend scenes follow the time of day; greetings use the name; last working day allows three', () => {
+test('Weekend scenes follow the time of day; greetings never use a name; last working day allows three', () => {
   const f = load(
     extract('var _WSC_IDS =') +
       '\n' +
       extract('var _WSC_WHEN =') +
       '\n' +
       extract('var _WSC_COPY =') +
+      '\n' +
+      extract('var _WSC_TIMES =') +
       '\n' +
       extract('function _wscBucket(') +
       '\n' +
@@ -3587,7 +3589,9 @@ test('Weekend scenes follow the time of day; greetings use the name; last workin
     '({ pick: _weekendScene, copy: _wscCopy, bucket: _wscBucket, reset: () => { _wscPicks = {} } })'
   );
   assert.equal(f.bucket(8), 'morning');
-  assert.equal(f.bucket(15), 'evening');
+  assert.equal(f.bucket(13), 'afternoon');
+  assert.equal(f.bucket(15), 'afternoon');
+  assert.equal(f.bucket(17), 'evening');
   assert.equal(f.bucket(21), 'night');
   assert.equal(f.bucket(3), 'night');
   const at = (d, h) => new Date(2026, 10, d, h);
@@ -3595,26 +3599,29 @@ test('Weekend scenes follow the time of day; greetings use the name; last workin
   for (let d = 21; d < 42; d++) {
     const night = f.pick(at(d, 22), false),
       morning = f.pick(at(d, 8), false),
-      evening = f.pick(at(d, 16), false);
+      afternoon = f.pick(at(d, 14), false),
+      evening = f.pick(at(d, 17), false);
     assert.ok(['ml', 'cw'].includes(night), night);
     assert.ok(['gh', 'dl', 'pv', 'rv'].includes(morning), morning);
+    assert.ok(['gh', 'pv', 'rv'].includes(afternoon), afternoon);
     assert.ok(['gh', 'pv', 'rv'].includes(evening), evening);
     // Last working day: only Golden Hour, Moonlit and City of Stars.
     assert.ok(['gh', 'ml', 'cw'].includes(f.pick(at(d, 16), true)));
     assert.ok(['gh', 'ml', 'cw'].includes(f.pick(at(d, 22), true)));
-    [night, morning, evening].forEach(x => seen.add(x));
+    [night, morning, afternoon, evening].forEach(x => seen.add(x));
     // Steady through the part of the day.
     assert.equal(f.pick(at(d, 9), false), f.pick(at(d, 11), false));
   }
   assert.equal(seen.size, 6);
-  // Greetings: the picked copy, with the first name or without it.
+  // Greetings: the picked copy, never with a name (user 2026-11-22).
   f.reset();
-  const c = f.copy('dl', 'Roshan Mahapatra', () => 0);
-  assert.deepEqual([c.t, c.s], ['Slow Morning, Roshan.', 'No rush! Begin your day slowly.']);
+  const c = f.copy('dl', () => 0);
+  assert.deepEqual([c.t, c.s], ['Slow Morning.', 'No rush! Begin your day slowly.']);
   f.reset();
-  assert.equal(f.copy('pv', '', () => 0).t, 'Staying In!');
+  assert.equal(f.copy('pv', () => 0).t, 'Staying In!');
   f.reset();
-  assert.equal(f.copy('rv', 'Roshan', () => 0.5).t, 'Hello, Roshan.');
+  assert.equal(f.copy('rv', () => 0.5).t, 'Hello.');
+  assert.doesNotMatch(extract('var _WSC_COPY ='), /\{n\}/);
 });
 
 test('Weekend scenes: styles are scoped, themed for both modes, and their animations prefixed', () => {
@@ -3682,7 +3689,7 @@ test('Weekend scenes: every scene has motion; Rooftops glow only on the tall roo
   for (const k of [
     'wsc-whiff',
     'wsc-flap',
-    'wsc-sweep',
+    'wsc-glim',
     'wsc-stir',
     'wsc-mote',
     'wsc-steam',
@@ -3691,7 +3698,9 @@ test('Weekend scenes: every scene has motion; Rooftops glow only on the tall roo
     'wsc-leafy'
   ])
     assert.ok(HTML.includes(`@keyframes ${k} {`), k);
-  assert.match(SRC, /class="beam k2"/); // Moonlit searchlights
+  assert.doesNotMatch(SRC, /class="beam/); // Moonlit: the loud searchlights are gone
+  assert.match(SRC, /class="outpost"/); // a tiny shelter, dish and mast light instead
+  assert.ok(!HTML.includes('wsc-sweep'));
   assert.match(SRC, /class="cup"/); // Slow Morning coffee cup
   assert.doesNotMatch(SRC, /class="planter"/);
   assert.match(SRC, /function _wscGusts\(/); // short curved gusts at random spots

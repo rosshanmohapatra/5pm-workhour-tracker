@@ -5296,33 +5296,30 @@
       html:not(.dark) #homeCard.sc-gh {
         --gust: rgba(255, 255, 255, 0.8);
       }
-      /* Moonlit: searchlights sweeping up from the town, and a plane passing far off. */
-      #homeCard.sc-ml .wsc .beam {
+      /* Moonlit: a plane passing far off, and a tiny outpost in the corner (user 2026-11-22:
+         the three searchlights were too loud). */
+      #homeCard.sc-ml .wsc .outpost {
         position: absolute;
-        top: -20px;
-        width: 42px;
-        height: 160px;
-        margin-left: -21px;
-        background: linear-gradient(to top, var(--beam), transparent 85%);
-        clip-path: polygon(46% 100%, 54% 100%, 100% 0, 0 0);
-        transform-origin: 50% 100%;
-        filter: blur(1.5px);
-        animation: wsc-sweep 9s ease-in-out infinite alternate;
+        right: 18px;
+        top: 80px;
+        width: 44px;
+        height: 26px;
+        fill: var(--outpost);
+        stroke: var(--outpost);
+        stroke-width: 0;
       }
-      #homeCard.sc-ml .wsc .beam.k2 {
-        animation-duration: 11s;
-        animation-delay: -4s;
+      #homeCard.sc-ml .wsc .outpost .olt {
+        fill: var(--olt);
+        filter: drop-shadow(0 0 2px var(--olt));
+        animation: wsc-glim 3.2s ease-in-out infinite;
       }
-      #homeCard.sc-ml .wsc .beam.k3 {
-        animation-duration: 7.5s;
-        animation-delay: -2s;
-      }
-      @keyframes wsc-sweep {
-        from {
-          transform: rotate(-28deg);
+      @keyframes wsc-glim {
+        0%,
+        100% {
+          opacity: 0.25;
         }
-        to {
-          transform: rotate(26deg);
+        50% {
+          opacity: 0.9;
         }
       }
       #homeCard.sc-ml .wsc .plane {
@@ -5339,11 +5336,13 @@
           wsc-beacon 1.6s steps(1) infinite;
       }
       .dark #homeCard.sc-ml {
-        --beam: rgba(210, 222, 255, 0.36);
+        --outpost: #080d22;
+        --olt: #ff7b6b;
         --plane: #ff8a8a;
       }
       html:not(.dark) #homeCard.sc-ml {
-        --beam: rgba(255, 255, 255, 0.38);
+        --outpost: #333d82;
+        --olt: #ffb3a8;
         --plane: #ffd1d1;
       }
       /* Slow Morning: leaf shadows stir, dust drifts in the light. */

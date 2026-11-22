@@ -6262,7 +6262,7 @@ function _paintTodayHead() {
   // Weekends: no day-type menu; the day's scene sets the greeting (#74).
   const wk = _weekendMode();
   const sc = wk ? _weekendScene(nowTz(), !isWeekend()) : null;
-  const copy = sc ? _wscCopy(sc, cfg().name) : null;
+  const copy = sc ? _wscCopy(sc) : null;
   if (copy) t.title = copy.t;
   _paintWeekendScene(sc);
   const dsc = el('tdDesc');
@@ -6285,14 +6285,14 @@ function _paintTodayHead() {
 var _WSC_IDS = ['gh', 'ml', 'dl', 'cw', 'pv', 'rv'];
 // When each scene can show: lwd = also on the last working day; b = times of day.
 var _WSC_WHEN = {
-  gh: { lwd: true, b: ['morning', 'evening'] },
+  gh: { lwd: true, b: ['morning', 'afternoon', 'evening'] },
   ml: { lwd: true, b: ['night'] },
   dl: { lwd: false, b: ['morning'] },
   cw: { lwd: true, b: ['night'] },
-  pv: { lwd: false, b: ['morning', 'evening'] },
-  rv: { lwd: false, b: ['morning', 'evening'] }
+  pv: { lwd: false, b: ['morning', 'afternoon', 'evening'] },
+  rv: { lwd: false, b: ['morning', 'afternoon', 'evening'] }
 };
-// The user's words (2026-11-22). {n} = ", Name", or nothing when no name is set.
+// The user's words (2026-11-22). No names in the titles (user 2026-11-22).
 var _WSC_COPY = {
   gh: {
     t: ['Happy Weekend!', 'Hello, Weekend!', 'Enjoy Your Weekend!'],
@@ -6303,19 +6303,19 @@ var _WSC_COPY = {
     ]
   },
   ml: {
-    t: ['Sleep in{n}.', 'Good Night{n}.', 'Take It Easy{n}.'],
+    t: ['Sleep In.', 'Good Night.', 'Take It Easy.'],
     s: ['Nothing to chase. Nowhere to be.', 'Let tomorrow take care of itself.', 'Tonight, even time can slow down.']
   },
   dl: {
-    t: ['Slow Morning{n}.', 'Take Your Time{n}.', 'Rise Easy{n}.'],
+    t: ['Slow Morning.', 'Take Your Time.', 'Rise Easy.'],
     s: ['No rush! Begin your day slowly.', "It's okay to skip the alarm sometimes.", "Relax! You ain't Peter Parker."]
   },
   cw: {
-    t: ['Good Night{n}.', 'Good Evening{n}.', 'Enjoy Your Night{n}.'],
+    t: ['Good Night.', 'Good Evening.', 'Enjoy Your Night.'],
     s: ['Any plans for a dinner date?', 'The city never sleeps. You can.', 'Boredom gets you ideas. Sleep!']
   },
   pv: {
-    t: ['Staying In{n}!', 'Enjoy the View{n}.', 'A Little Time In{n}!'],
+    t: ['Staying In!', 'Enjoy the View.', 'A Little Time In!'],
     s: [
       'Get comfy & do nothing at all.',
       'Sometimes, staying in is the best plan.',
@@ -6323,7 +6323,7 @@ var _WSC_COPY = {
     ]
   },
   rv: {
-    t: ['Happy Weekend!', 'Hello{n}.', 'Take It All In{n}.'],
+    t: ['Happy Weekend!', 'Hello.', 'Take It All In.'],
     s: [
       'Watching skyscrapers? Good plan.',
       'Somewhere between the sky and the city.',
@@ -6331,9 +6331,10 @@ var _WSC_COPY = {
     ]
   }
 };
-// Morning 5:00–11:59 · evening 12:00–18:59 · night 19:00–4:59.
+// Morning 5:00–11:59 · afternoon 12:00–15:59 · evening 16:00–18:59 · night 19:00–4:59.
+var _WSC_TIMES = ['morning', 'afternoon', 'evening', 'night'];
 function _wscBucket(h) {
-  return h >= 5 && h < 12 ? 'morning' : h >= 12 && h < 19 ? 'evening' : 'night';
+  return h >= 5 && h < 12 ? 'morning' : h < 16 && h >= 12 ? 'afternoon' : h >= 16 && h < 19 ? 'evening' : 'night';
 }
 // The scene for this moment: the ones allowed now (time of day, weekend or last working
 // day), then one of them by the date, so it holds steady through each part of the day.
@@ -6341,15 +6342,14 @@ function _weekendScene(d, lwd) {
   const bucket = _wscBucket(d.getHours());
   const ok = _WSC_IDS.filter(id => _WSC_WHEN[id].b.includes(bucket) && (!lwd || _WSC_WHEN[id].lwd));
   const day = Math.floor(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / 864e5);
-  return ok[(day * 7 + ['morning', 'evening', 'night'].indexOf(bucket)) % ok.length];
+  return ok[(day * 7 + _WSC_TIMES.indexOf(bucket)) % ok.length];
 }
 // A title and a line for a scene, picked at random once per opening of 5pm.
 var _wscPicks = {};
-function _wscCopy(id, name, rnd = Math.random) {
+function _wscCopy(id, rnd = Math.random) {
   if (!_wscPicks[id]) _wscPicks[id] = [Math.floor(rnd() * 3), Math.floor(rnd() * 3)];
-  const first = (name || '').trim().split(/\s+/)[0],
-    [ti, si] = _wscPicks[id];
-  return { t: _WSC_COPY[id].t[ti].replace('{n}', first ? `, ${first}` : ''), s: _WSC_COPY[id].s[si] };
+  const [ti, si] = _wscPicks[id];
+  return { t: _WSC_COPY[id].t[ti], s: _WSC_COPY[id].s[si] };
 }
 document.addEventListener('visibilitychange', () => {
   if (!document.hidden) _wscPicks = {}; // opened again: a fresh greeting
@@ -6398,6 +6398,9 @@ function _wscGusts(n, x0, y0, w, h) {
 }
 var _WSC_BIRD =
   '<svg viewBox="0 0 24 10" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M1 6q5-5 11 1q6-6 11-1"/></svg>';
+// Moonlit's corner: a tiny shelter, a satellite dish and a mast light, all in shadow.
+var _WSC_OUTPOST =
+  '<svg class="outpost" viewBox="0 0 44 26" aria-hidden="true"><path d="M3 26V16.5L9.5 12l6.5 4.5V26Z"/><rect x="24" y="13" width="1.4" height="13"/><path d="M18 7.6C18.6 13.4 23.8 16.6 30 15Z"/><path d="M24 11.2 20.6 8.4" stroke-width="1"/><rect x="36" y="6.5" width="1" height="19.5"/><circle class="olt" cx="36.5" cy="5.6" r="1.1"/></svg>';
 var _wscHills = (a, b) =>
   `<svg class="sil" viewBox="0 0 500 70" preserveAspectRatio="none" style="height:70px;top:64px"><path d="M0 50 Q80 10 160 38 T320 30 T500 40 V70 H0Z" fill="var(${a})"/><path d="M0 62 Q110 30 220 52 T500 50 V70 H0Z" fill="var(${b})"/></svg>`;
 // A large window that runs off the top and right edges: only its left edge, the cross
@@ -6523,7 +6526,7 @@ var _WSC_HTML = {
       ([x, y], i) =>
         (s += `<span class="star" style="left:${x}%;top:${y}px;animation-delay:${(i * 0.37) % 5}s"></span>`)
     );
-    return `${s}<span class="shoot"></span><div class="moon"></div><div class="blob b1"></div><div class="blob b2"></div><span class="beam" style="left:24%"></span><span class="beam k2" style="left:57%"></span><span class="beam k3" style="left:83%"></span><span class="plane"></span>${_wscHills('--hill1', '--hill2')}<div class="grain"></div>`;
+    return `${s}<span class="shoot"></span><div class="moon"></div><div class="blob b1"></div><div class="blob b2"></div><span class="plane"></span>${_wscHills('--hill1', '--hill2')}${_WSC_OUTPOST}<div class="grain"></div>`;
   },
   dl: () => {
     let l = '';

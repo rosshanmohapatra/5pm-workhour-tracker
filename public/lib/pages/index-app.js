@@ -3740,7 +3740,7 @@ function _infoNoteTitle(type) {
   if (type === 'holiday') return 'What was it?';
   if (type === 'leave') return 'What made you take a leave?';
   if (type === 'halfday') return 'Any notes?';
-  return 'What did you do?'; // weekend
+  return "What're your plans?"; // weekend
 }
 // Auto-grow the note field: one line by default, up to 5 lines, then scroll.
 function _wkndNoteAutoGrow(ta) {
@@ -6304,9 +6304,93 @@ function _wscTitle(id, name) {
 var _WSC_BIRD =
   '<svg viewBox="0 0 24 10" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M1 6q5-5 11 1q6-6 11-1"/></svg>';
 var _wscHills = (a, b) =>
-  `<svg class="sil" viewBox="0 0 500 70" preserveAspectRatio="none" style="height:70px;bottom:70px"><path d="M0 50 Q80 10 160 38 T320 30 T500 40 V70 H0Z" fill="var(${a})"/><path d="M0 62 Q110 30 220 52 T500 50 V70 H0Z" fill="var(${b})"/></svg>`;
+  `<svg class="sil" viewBox="0 0 500 70" preserveAspectRatio="none" style="height:70px;top:64px"><path d="M0 50 Q80 10 160 38 T320 30 T500 40 V70 H0Z" fill="var(${a})"/><path d="M0 62 Q110 30 220 52 T500 50 V70 H0Z" fill="var(${b})"/></svg>`;
+// A large window that runs off the top and right edges: only its left edge, the cross
+// bars and the sill show, and the view fills the rest (user 2026-11-22).
 var _wscWindow = (cid, gid, inside, plant) =>
-  `<svg class="full" viewBox="0 0 400 204" preserveAspectRatio="xMaxYMin slice"><defs><clipPath id="${cid}"><rect x="176" y="6" width="212" height="150" rx="3"/></clipPath><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--sky1)"/><stop offset="1" stop-color="var(--sky2)"/></linearGradient></defs><g clip-path="url(#${cid})"><rect x="176" y="6" width="212" height="150" fill="url(#${gid})"/>${inside}</g><rect class="frame" x="176" y="6" width="212" height="150" rx="3"/><line class="mull" x1="282" y1="6" x2="282" y2="156"/><line class="mull" x1="176" y1="62" x2="388" y2="62"/><rect class="sill" x="166" y="156" width="232" height="10" rx="2"/>${plant}</svg>`;
+  `<svg class="full" viewBox="0 0 400 204" preserveAspectRatio="xMaxYMin meet" style="height:200px"><defs><clipPath id="${cid}"><rect x="168" y="-20" width="260" height="172"/></clipPath><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--sky1)"/><stop offset="1" stop-color="var(--sky2)"/></linearGradient></defs><g clip-path="url(#${cid})"><rect x="168" y="-20" width="260" height="172" fill="url(#${gid})"/>${inside}</g><path class="frame" d="M168 -20 V152"/><line class="mull" x1="290" y1="-20" x2="290" y2="152"/><line class="mull" x1="168" y1="56" x2="428" y2="56"/><rect class="sill" x="158" y="150" width="270" height="10" rx="2"/>${plant}</svg>`;
+function _wscPark() {
+  // Stars (dark) and slow clouds (light) in the sky.
+  let sky = '';
+  [
+    [182, 6],
+    [204, 22],
+    [226, 4],
+    [250, 30],
+    [272, 12],
+    [306, 8],
+    [330, 26],
+    [352, 4],
+    [374, 18],
+    [396, 34],
+    [214, 40],
+    [318, 42],
+    [388, 2]
+  ].forEach(
+    ([x, y], i) =>
+      (sky += `<circle class="star" cx="${x}" cy="${y}" r="${i % 3 ? 0.9 : 1.3}" style="animation-delay:${-i * 0.7}s"/>`)
+  );
+  sky +=
+    '<ellipse class="cloud" cx="236" cy="16" rx="26" ry="7"/><ellipse class="cloud" cx="252" cy="12" rx="16" ry="7"/><ellipse class="cloud" cx="352" cy="30" rx="30" ry="7"/><ellipse class="cloud" cx="372" cy="25" rx="16" ry="6"/>';
+  // The far side of the park: a row of buildings with lit windows.
+  const bl = [
+    [168, 70, 22],
+    [192, 58, 18],
+    [212, 74, 26],
+    [240, 50, 20],
+    [262, 66, 24],
+    [288, 46, 22],
+    [312, 62, 26],
+    [340, 54, 20],
+    [362, 70, 24],
+    [388, 60, 40]
+  ];
+  let city = '',
+    k = 0;
+  bl.forEach(([x, y, w]) => {
+    city += `<rect class="bld" x="${x}" y="${y}" width="${w}" height="${112 - y}"/>`;
+    for (let yy = y + 5; yy < 104; yy += 7)
+      for (let xx = x + 4; xx < x + w - 3; xx += 6) {
+        k++;
+        if ((k * 7 + yy) % 5 < 2)
+          city += `<rect class="bwin${k % 23 === 0 ? ' blink' : ''}" x="${xx}" y="${yy}" width="2.4" height="3"/>`;
+      }
+  });
+  const park =
+    '<rect x="168" y="104" width="260" height="48" fill="var(--grass)"/><path d="M222 152 C244 128 304 118 428 114 V124 C330 128 266 138 244 152Z" fill="var(--path)"/><g class="canopy"><ellipse cx="200" cy="104" rx="26" ry="21" fill="var(--tree1)"/><ellipse cx="220" cy="95" rx="21" ry="18" fill="var(--tree2)"/></g><g class="canopy k2"><ellipse cx="326" cy="100" rx="28" ry="22" fill="var(--tree1)"/><ellipse cx="348" cy="91" rx="22" ry="18" fill="var(--tree2)"/><ellipse cx="384" cy="104" rx="22" ry="19" fill="var(--tree1)"/></g><circle class="glow" cx="270" cy="116" r="15"/><rect x="269" y="116" width="2" height="26" fill="var(--city)"/><circle class="lamp" cx="270" cy="116" r="2.6"/>';
+  return (
+    _wscWindow(
+      'wscPw',
+      'wscPs',
+      sky + city + park,
+      '<path d="M190 150 l4 -16 h18 l4 16Z" fill="var(--pot)"/><path d="M203 134 C194 120 188 116 184 118 C190 122 196 128 201 135Z M203 134 C208 118 216 112 222 114 C216 120 210 126 205 135Z M203 134 C202 120 204 110 207 106 C208 116 206 126 204 135Z" fill="var(--leaf)"/>'
+    ) + '<div class="grain"></div>'
+  );
+}
+function _wscRooftops() {
+  const back = 'M168 104 h38 l10 -8 h26 v-14 h6 v14 h30 l12 -10 h28 v10 h40 v-20 h8 v20 h62',
+    front = 'M168 124 h48 l20 -16 l20 16 h24 v-6 h10 v6 h40 l14 -10 h86';
+  const inside =
+    // The sun low behind the roofs, its glow spilling over them.
+    '<circle class="halo" cx="368" cy="104" r="40"/><circle class="sunc" cx="368" cy="106" r="15"/>' +
+    `<path class="roof2" d="${back} V152 H168Z"/>` +
+    '<g class="roof2"><rect x="300" y="56" width="22" height="20" rx="2"/><rect x="302" y="76" width="2" height="10"/><rect x="318" y="76" width="2" height="10"/><path d="M298 56 L311 48 L324 56Z"/></g>' +
+    `<path class="rim" d="${back}"/><path class="rim" d="M298 56 L311 48 L324 56 M322 57 V75"/>` +
+    `<path class="roof" d="${front} V152 H168Z"/><rect class="roof" x="252" y="94" width="8" height="16"/>` +
+    `<path class="rim" d="${front}"/><path class="rim" d="M252 108 V94 h8"/>` +
+    '<rect class="rwin" x="184" y="132" width="5" height="6"/><rect class="rwin" x="196" y="132" width="5" height="6" opacity=".6"/><rect class="rwin" x="296" y="132" width="5" height="6"/><rect class="rwin" x="352" y="128" width="5" height="6"/><rect class="rwin" x="364" y="128" width="5" height="6" opacity=".7"/>' +
+    // The air: chimney smoke drifting downwind and a few streaks of wind.
+    '<circle class="puff" cx="256" cy="88" r="5"/><circle class="puff" cx="256" cy="88" r="5" style="animation-delay:-2s"/><circle class="puff" cx="256" cy="88" r="5" style="animation-delay:-4s"/>' +
+    '<line class="wind" x1="200" y1="26" x2="248" y2="26"/><line class="wind" x1="240" y1="40" x2="300" y2="40" style="animation-delay:-2.4s"/><line class="wind" x1="180" y1="70" x2="222" y2="70" style="animation-delay:-4.8s"/>';
+  return (
+    _wscWindow(
+      'wscRw',
+      'wscRs',
+      inside,
+      '<path d="M360 150 l3 -12 h16 l3 12Z" fill="var(--pot)"/><path d="M371 138 C364 126 358 124 355 126 C360 129 365 133 369 139Z M371 138 C375 124 381 120 386 122 C381 126 376 132 373 139Z" fill="var(--leaf)"/>'
+    ) + '<div class="grain"></div>'
+  );
+}
 var _WSC_HTML = {
   gh: () =>
     `<div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div><div class="sun"></div>${_wscHills('--hill1', '--hill2')}<span class="bird">${_WSC_BIRD}</span><span class="bird k2">${_WSC_BIRD}</span><div class="grain"></div>`,
@@ -6414,23 +6498,10 @@ var _WSC_HTML = {
       ([x, y, big], i) =>
         (st += `<span class="star${big ? ' big' : ''}" style="left:${x}%;top:${y}px;animation-delay:${(-i * 0.61) % 4.5}s"></span>`)
     );
-    return `${st}<div class="haze"></div><svg class="full" viewBox="0 0 400 204" preserveAspectRatio="xMidYMax slice"><g transform="translate(0 44)">${b}${wins}</g></svg><span class="plane"></span><div class="grain"></div>`;
+    return `${st}<div class="haze"></div><svg class="full" viewBox="0 0 400 204" preserveAspectRatio="xMidYMax slice"><g transform="translate(0 24)">${b}${wins}</g></svg><span class="plane"></span><div class="grain"></div>`;
   },
-  pv: () =>
-    _wscWindow(
-      'wscPw',
-      'wscPs',
-      '<path fill="var(--city)" d="M176 92 h14 v-18 h10 v10 h12 v-26 h14 v20 h10 v-12 h16 v22 h12 v-30 h12 v18 h14 v-8 h16 v16 h12 v-22 h14 v14 h20 v10 h14 V156 H176Z"/><rect x="176" y="106" width="212" height="50" fill="var(--grass)"/><path d="M228 156 C246 132 300 122 388 118 V128 C320 132 266 140 248 156Z" fill="var(--path)"/><g class="canopy"><ellipse cx="204" cy="104" rx="24" ry="20" fill="var(--tree1)"/><ellipse cx="222" cy="96" rx="20" ry="18" fill="var(--tree2)"/></g><g class="canopy k2"><ellipse cx="318" cy="100" rx="28" ry="22" fill="var(--tree1)"/><ellipse cx="340" cy="92" rx="22" ry="18" fill="var(--tree2)"/><ellipse cx="372" cy="104" rx="20" ry="18" fill="var(--tree1)"/></g><circle class="glow" cx="268" cy="118" r="14"/><rect x="267" y="118" width="2" height="24" fill="var(--city)"/><circle class="lamp" cx="268" cy="118" r="2.6"/>',
-      '<path d="M196 156 l4 -16 h18 l4 16Z" fill="var(--pot)"/><path d="M209 140 C200 126 194 122 190 124 C196 128 202 134 207 141Z M209 140 C214 124 222 118 228 120 C222 126 216 132 211 141Z M209 140 C208 126 210 116 213 112 C214 122 212 132 210 141Z" fill="var(--leaf)"/>'
-    ) + '<div class="grain"></div>',
-  rv: () =>
-    _wscWindow(
-      'wscRw',
-      'wscRs',
-      '<path class="roof2" d="M176 104 h30 l10 -8 h26 v-14 h6 v14 h30 l12 -10 h28 v10 h40 v-20 h8 v20 h22 V156 H176Z"/><g class="roof2"><rect x="300" y="60" width="22" height="20" rx="2"/><rect x="302" y="80" width="2" height="10"/><rect x="318" y="80" width="2" height="10"/><path d="M298 60 L311 52 L324 60Z"/></g><path class="roof" d="M176 156 V124 h40 l20 -16 l20 16 h24 v-6 h10 v6 h40 l14 -10 h44 V156Z"/><rect class="roof" x="252" y="96" width="8" height="14"/><rect x="188" y="134" width="5" height="6" fill="var(--lit)"/><rect x="200" y="134" width="5" height="6" fill="var(--lit)" opacity=".6"/><rect x="296" y="134" width="5" height="6" fill="var(--lit)"/><rect x="350" y="130" width="5" height="6" fill="var(--lit)"/><rect x="362" y="130" width="5" height="6" fill="var(--lit)" opacity=".7"/>',
-      '<path d="M352 156 l3 -12 h16 l3 12Z" fill="var(--pot)"/><path d="M363 144 C356 132 350 130 347 132 C352 135 357 139 361 145Z M363 144 C367 130 373 126 378 128 C373 132 368 138 365 145Z" fill="var(--leaf)"/>'
-    ) +
-    '<span class="smoke" style="right:22%;top:84px"></span><span class="smoke" style="right:22%;top:84px;animation-delay:-3.5s"></span><div class="grain"></div>'
+  pv: () => _wscPark(),
+  rv: () => _wscRooftops()
 };
 var _wscIO = null;
 // Puts the day's scene in the Today card (or takes it out). Rebuilt only when the scene changes.
@@ -10940,7 +11011,7 @@ function openDayEditModal(key, focusNote = false, wkndNote = false) {
     }
     if (_deNoteWrap) _deNoteWrap.classList.add('visible');
     if (_deNoteLabel) {
-      _deNoteLabel.textContent = 'What did you do?';
+      _deNoteLabel.textContent = "What're your plans?";
       _deNoteLabel.style.display = '';
     }
   } else {

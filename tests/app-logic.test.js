@@ -3648,3 +3648,14 @@ test('Running elsewhere: the other device running today, by its latest check-in'
   assert.match(SRC, /window\.__beforeShutdown = \(\) =>/);
   assert.match(extract('function _startSession('), /_markRunHere\(\)/);
 });
+
+test('Weekend scenes: one soft fade ending above "This week"; window views on their own walls', () => {
+  const HTML = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
+  assert.ok(HTML.includes('mask-image: linear-gradient(180deg, #000 45%, transparent 100%);'));
+  assert.ok(!HTML.includes('--keep')); // the same fade in both themes
+  assert.match(SRC, /function _wscPark\(/);
+  assert.match(SRC, /function _wscRooftops\(/);
+  assert.ok(HTML.includes('.dark #homeCard.sc-pv {') && HTML.includes('--room: #201a2e;')); // purple wall
+  assert.ok(HTML.includes('.dark #homeCard.sc-rv {') && HTML.includes('--room: #2a1e17;')); // faded orange wall
+  assert.match(extract('function _infoNoteTitle('), /What're your plans\?/);
+});

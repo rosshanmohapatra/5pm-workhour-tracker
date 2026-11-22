@@ -4600,15 +4600,14 @@
       #homeCard .wsc {
         position: absolute;
         inset: 0 0 auto 0;
-        height: 204px;
+        height: 140px;
         z-index: -1;
         overflow: hidden;
         pointer-events: none;
-        -webkit-mask-image: linear-gradient(180deg, #000 var(--keep, 58%), transparent 82%);
-        mask-image: linear-gradient(180deg, #000 var(--keep, 58%), transparent 82%);
-      }
-      .dark #homeCard .wsc {
-        --keep: 52%;
+        /* One soft fade for every scene (user 2026-11-22): solid at the top, fully
+         gone just above "This week", so no scene shows a hard bottom edge. */
+        -webkit-mask-image: linear-gradient(180deg, #000 45%, transparent 100%);
+        mask-image: linear-gradient(180deg, #000 45%, transparent 100%);
       }
       #homeCard .wsc .grain {
         position: absolute;
@@ -4623,6 +4622,9 @@
         width: 100%;
         height: 100%;
         display: block;
+      }
+      #homeCard.sc-cw .wsc svg.full {
+        height: 204px;
       }
       #homeCard.has-scene .td-hd {
         min-height: 128px;
@@ -5063,12 +5065,8 @@
         --hd-sub: #e7eeff;
       }
       /* E · PARK VIEW — from inside your flat: the window looks out over a city park; the trees move a little in the wind */
-      #homeCard.sc-pv .wsc {
-        background: var(--room);
-      }
-      #homeCard .wsc svg.full .wall {
-        fill: var(--room-solid);
-      }
+      /* Window views v2 (#74, user 2026-11-22): a large window that runs off the top and
+       right edges, so only its left edge, one cross bar and the sill show. */
       #homeCard .wsc .frame {
         fill: none;
         stroke: var(--frame);
@@ -5080,6 +5078,34 @@
       }
       #homeCard .wsc .sill {
         fill: var(--sill);
+      }
+      /* Park View: evening stars and lit windows in the dark; clouds by day. */
+      #homeCard.sc-pv .wsc {
+        background: var(--room);
+      }
+      #homeCard.sc-pv .wsc .star {
+        fill: #fff;
+        opacity: var(--star-o);
+        animation: wsc-tw 5s ease-in-out infinite;
+      }
+      #homeCard.sc-pv .wsc .cloud {
+        fill: #fff;
+        opacity: var(--cloud-o);
+        animation: wsc-drift 40s linear infinite alternate;
+      }
+      @keyframes wsc-drift {
+        to {
+          transform: translateX(-26px);
+        }
+      }
+      #homeCard.sc-pv .wsc .bld {
+        fill: var(--city);
+      }
+      #homeCard.sc-pv .wsc .bwin {
+        fill: var(--win);
+      }
+      #homeCard.sc-pv .wsc .bwin.blink {
+        animation: wsc-winb 11s steps(1) infinite;
       }
       #homeCard.sc-pv .wsc .canopy {
         transform-box: fill-box;
@@ -5102,30 +5128,34 @@
         fill: var(--lamp-glow);
       }
       .dark #homeCard.sc-pv {
-        --room: #1a1714;
-        --room-solid: #1a1714;
-        --sky1: #1e2a4a;
-        --sky2: #4a4268;
-        --city: #202640;
-        --grass: #1d2b22;
-        --tree1: #22382a;
-        --tree2: #2d4a35;
-        --path: #3a3a40;
+        --room: #201a2e;
+        --sky1: #0f1730;
+        --sky2: #3c3a63;
+        --star-o: 0.9;
+        --cloud-o: 0;
+        --city: #1d2340;
+        --win: #ffcf86;
+        --grass: #1b2a21;
+        --tree1: #21372a;
+        --tree2: #2c4934;
+        --path: #383840;
         --lamp: #ffd28a;
-        --lamp-glow: rgba(255, 200, 120, 0.22);
-        --frame: #2a2622;
-        --sill: #2f2a25;
+        --lamp-glow: rgba(255, 200, 120, 0.24);
+        --frame: #2c2440;
+        --sill: #332a48;
         --pot: #8a5a3c;
         --leaf: #3f6a46;
         --hd-fg: #f5efe8;
         --hd-sub: #cbbfb2;
       }
       html:not(.dark) #homeCard.sc-pv {
-        --room: #e9e1d6;
-        --room-solid: #e9e1d6;
-        --sky1: #7fb4e6;
+        --room: #e7def2;
+        --sky1: #6aa7e2;
         --sky2: #cfe4f5;
-        --city: #a9b8cc;
+        --star-o: 0;
+        --cloud-o: 0.85;
+        --city: #a3b3c9;
+        --win: #e8f1fb;
         --grass: #7fb067;
         --tree1: #4f8a4a;
         --tree2: #6fa85e;
@@ -5133,13 +5163,13 @@
         --lamp: #5a5f66;
         --lamp-glow: transparent;
         --frame: #ffffff;
-        --sill: #f6f1ea;
+        --sill: #f4effa;
         --pot: #c4774e;
         --leaf: #4f8a4a;
-        --hd-fg: #2c241b;
-        --hd-sub: #5d5142;
+        --hd-fg: #2a2238;
+        --hd-sub: #574b6b;
       }
-      /* F · ROOFTOPS — the window looks over rooftops at sunset: water tanks, chimneys, a wisp of smoke rising */
+      /* Rooftops: golden-hour light catches every roof edge; the air moves. */
       #homeCard.sc-rv .wsc {
         background: var(--room);
       }
@@ -5149,55 +5179,95 @@
       #homeCard.sc-rv .wsc .roof2 {
         fill: var(--roof2);
       }
-      #homeCard.sc-rv .wsc .smoke {
-        position: absolute;
-        width: 18px;
-        height: 18px;
-        border-radius: 50%;
-        background: var(--smoke);
-        filter: blur(5px);
-        animation: wsc-smoke 7s ease-out infinite;
+      #homeCard.sc-rv .wsc .rim {
+        fill: none;
+        stroke: var(--rim);
+        stroke-width: 1.6;
+        stroke-linejoin: round;
+        filter: drop-shadow(0 0 2.5px var(--rim));
       }
-      @keyframes wsc-smoke {
+      #homeCard.sc-rv .wsc .sunc {
+        fill: var(--sunc);
+      }
+      #homeCard.sc-rv .wsc .halo {
+        fill: var(--halo);
+      }
+      #homeCard.sc-rv .wsc .rwin {
+        fill: var(--lit);
+      }
+      #homeCard.sc-rv .wsc .wind {
+        stroke: var(--wind);
+        stroke-width: 1.2;
+        stroke-linecap: round;
+        animation: wsc-wind 7s linear infinite;
+      }
+      @keyframes wsc-wind {
+        0% {
+          transform: translateX(-90px);
+          opacity: 0;
+        }
+        20%,
+        70% {
+          opacity: 1;
+        }
+        100% {
+          transform: translateX(150px);
+          opacity: 0;
+        }
+      }
+      #homeCard.sc-rv .wsc .puff {
+        fill: var(--smoke);
+        filter: blur(4px);
+        transform-box: fill-box;
+        transform-origin: center;
+        animation: wsc-puff 6s ease-out infinite;
+      }
+      @keyframes wsc-puff {
         0% {
           transform: translate(0, 0) scale(0.5);
           opacity: 0;
         }
         25% {
-          opacity: 0.8;
+          opacity: 0.85;
         }
         100% {
-          transform: translate(14px, -46px) scale(1.8);
+          transform: translate(34px, -30px) scale(1.9);
           opacity: 0;
         }
       }
       .dark #homeCard.sc-rv {
-        --room: #16141a;
-        --room-solid: #16141a;
-        --sky1: #3b2a5a;
-        --sky2: #d9805e;
+        --room: #2a1e17;
+        --sky1: #2e2150;
+        --sky2: #e2875c;
+        --sunc: #ffd19a;
+        --halo: rgba(255, 170, 100, 0.35);
         --roof: #1c1a24;
         --roof2: #2b2433;
+        --rim: #ffb35c;
         --lit: #ffc978;
-        --smoke: rgba(220, 200, 210, 0.35);
-        --frame: #25222b;
-        --sill: #2c2832;
+        --wind: rgba(255, 220, 190, 0.45);
+        --smoke: rgba(220, 200, 210, 0.4);
+        --frame: #36271e;
+        --sill: #3d2d23;
         --pot: #7d5a8a;
         --leaf: #4d7a55;
         --hd-fg: #f4eff8;
         --hd-sub: #cbc2d6;
       }
       html:not(.dark) #homeCard.sc-rv {
-        --room: #ece4da;
-        --room-solid: #ece4da;
-        --sky1: #f39a6b;
-        --sky2: #ffd9a0;
-        --roof: #7a5a5a;
-        --roof2: #9c7470;
+        --room: #f3e1d0;
+        --sky1: #f08c62;
+        --sky2: #ffd79c;
+        --sunc: #fff3d1;
+        --halo: rgba(255, 236, 190, 0.7);
+        --roof: #6f4f52;
+        --roof2: #93706c;
+        --rim: #ffc76a;
         --lit: #fff2c2;
-        --smoke: rgba(255, 255, 255, 0.8);
+        --wind: rgba(255, 255, 255, 0.7);
+        --smoke: rgba(255, 255, 255, 0.85);
         --frame: #ffffff;
-        --sill: #f6f0e8;
+        --sill: #fbf2e9;
         --pot: #c4774e;
         --leaf: #4f8a4a;
         --hd-fg: #2c221a;
@@ -18345,7 +18415,7 @@
                     </div>
                     <!-- Optional note: a short reminder of what this day was -->
                     <div id="wkndNoteWrap" style="margin-bottom: 16px">
-                      <div class="form-label" id="wkndNoteTitle" style="margin-bottom: 8px">What did you do?</div>
+                      <div class="form-label" id="wkndNoteTitle" style="margin-bottom: 8px">What're your plans?</div>
                       <div class="wknd-note-field">
                         <textarea
                           id="wkndNote"

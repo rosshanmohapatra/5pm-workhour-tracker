@@ -1,0 +1,10 @@
+# Known, reviewed findings in old commits (2026-11-22): the Supabase anon key (public by design,
+# protected by Row-Level Security) and the Tauri updater PUBLIC key. Fingerprints only match these exact commits.
+d27489851e18d49c8fa55be09e0e230529f65101:src-tauri/tauri.conf.json:generic-api-key:36
+a9d2735fd5bafb90f40283d5c0231cab2322291c:login.js:jwt:23
+a9d2735fd5bafb90f40283d5c0231cab2322291c:index.html:jwt:12
+a9d2735fd5bafb90f40283d5c0231cab2322291c:lib/supabase.js:jwt:16
+a9d2735fd5bafb90f40283d5c0231cab2322291c:oauth/consent/index.html:jwt:64
+68d160808e33cd3ec39266d78f7ceb068df14b3a:login.html:generic-api-key:501
+68d160808e33cd3ec39266d78f7ceb068df14b3a:oauth/consent/index.html:generic-api-key:64
+ff1f5eb7dbf5fd07f4420e987b5f08322993fed4:lib/supabase.js:generic-api-key:16

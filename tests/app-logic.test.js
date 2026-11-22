@@ -9,6 +9,52 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
+// Source checks don't depend on how the code is laid out (it's formatted by
+// Prettier): a pattern written for one-line code also matches the same code
+// spread over several lines, and a "must not appear" check fails if the text
+// appears in either form. Prettier writes 0.5 for .5; the collapsed text
+// reads it back as .5 so older patterns still match.
+const _wsNorm = s => (typeof s === 'string' ? s.replace(/\s+/g, ' ').replace(/([^\w.]|^)0\.(\d)/g, '$1.$2') : s);
+// HTML as Prettier lays it out: tags split over lines, style="a: b" spacing.
+const _htmlNorm = n =>
+  n
+    .replace(/\s*>\s*/g, '>')
+    .replace(/\s*<\s*/g, '<')
+    .replace(/\s*\/>/g, '>')
+    .replace(/style="([^"]*)"/g, (m, v) => 'style="' + v.replace(/\s*([:;])\s*/g, '$1').replace(/;$/, '') + '"');
+// A pattern's "\n" (+ indentation) reads as "any spacing" against collapsed text.
+const _flat = re => new RegExp(re.source.replace(/\\n(\\s[*+])?/g, '\\s*'), re.flags.replace('g', ''));
+// Code as Prettier lays out long calls: f(\n  a,\n  b\n) collapses to f( a, b ).
+const _codeNorm = n =>
+  n
+    .replace(/\(\s+/g, '(')
+    .replace(/,?\s+\)/g, ')')
+    .replace(/\s+\/\//g, ' //');
+{
+  const _match = assert.match.bind(assert),
+    _noMatch = assert.doesNotMatch.bind(assert);
+  const _test = (re, s) => {
+    re.lastIndex = 0;
+    const r = re.test(s);
+    re.lastIndex = 0;
+    return r;
+  };
+  assert.match = (s, re, msg) => {
+    if (typeof s === 'string' && !_test(re, s)) {
+      const n = _wsNorm(s);
+      if (_test(re, n) || _test(_flat(re), n)) return;
+      const h = _htmlNorm(n);
+      if (_test(re, h) || _test(_flat(re), h)) return;
+      const c = _codeNorm(n);
+      if (_test(re, c) || _test(_flat(re), c)) return;
+    }
+    return _match(s, re, msg);
+  };
+  assert.doesNotMatch = (s, re, msg) => {
+    _noMatch(s, re, msg);
+    if (typeof s === 'string') _noMatch(_wsNorm(s), re, msg);
+  };
+}
 const vm = require('node:vm');
 const { execFileSync } = require('node:child_process');
 
@@ -25,16 +71,57 @@ const ROOT = path.join(__dirname, '..');
 const WEB = path.join(ROOT, 'public'); // the website
 const SRC = fs.readFileSync(path.join(WEB, 'lib', 'pages', 'index-app.js'), 'utf8');
 
-// Source from `start` up to the first `end` after it (functions in index-app.js
-// are indented four spaces, so their closing brace is "\n    }").
+// Source from `start` up to the first `end` after it; with no `end` (or one
+// Prettier no longer writes), the whole statement that starts there.
 function extractFrom(src, name, start, end) {
-  const i = src.indexOf(start);
+  // Markers were written when the code was indented by 4 spaces; Prettier put it
+  // at the top level. Try the marker as written, then without that indentation.
+  const dedent = m => m.replace(/(^|\n) {4}/g, '$1');
+  const find = (m, from) => {
+    let k = src.indexOf(m, from);
+    if (k < 0) k = src.indexOf(dedent(m), from);
+    return k < 0 ? [-1, 0] : [k, (src.startsWith(m, k) ? m : dedent(m)).length];
+  };
+  const [i] = find(start, 0);
   if (i < 0) throw new Error(`Not found in ${name}: ${start}`);
-  const j = src.indexOf(end, i);
-  if (j < 0) throw new Error('No end for: ' + start);
-  return src.slice(i, j + end.length);
+  // No end given: up to the next top-level closing brace (the end of the
+  // function that starts or follows there), as long as that cut is whole code.
+  if (!end) end = '\n}';
+  {
+    const [j, len] = find(end, i);
+    // Found: as written, as long as that cut is whole code. Not found (Prettier
+    // split that line) or a broken cut: the statement itself.
+    if (j >= 0 && (/^\s*[A-Za-z_]/.test(end) || _parses(src.slice(i, j + len)))) return src.slice(i, j + len);
+  }
+  return src.slice(i, stmtEnd(src, i));
 }
-const extract = (start, end = '\n    }') => extractFrom(SRC, 'index-app.js', start, end);
+function _parses(code) {
+  try {
+    new (require('node:vm').Script)(code);
+    return true;
+  } catch {
+    return false;
+  }
+}
+// Where the statement that starts at i ends, read from Prettier's layout: the
+// first later line indented no deeper than the start line ends it (a closing
+// } ) ] line at that depth is still part of it).
+function stmtEnd(src, i) {
+  const ls = src.lastIndexOf('\n', i - 1) + 1;
+  const base = (src.slice(ls, i).match(/^ */) || [''])[0].length;
+  let k = src.indexOf('\n', i);
+  while (k >= 0) {
+    const n = src.indexOf('\n', k + 1),
+      line = src.slice(k + 1, n < 0 ? src.length : n);
+    if (line.trim()) {
+      const ind = line.match(/^ */)[0].length;
+      if (ind <= base) return /^\s*[\]})]/.test(line) ? (n < 0 ? src.length : n) : k;
+    }
+    k = n;
+  }
+  return src.length;
+}
+const extract = (start, end) => extractFrom(SRC, 'index-app.js', start, end);
 const LOGIN = fs.readFileSync(path.join(WEB, 'login.js'), 'utf8');
 // Runs code in a fresh sandbox and returns the value of `expr` afterwards.
 function load(code, sandbox, expr) {
@@ -715,7 +802,7 @@ test('Stats Day column names the weekday from the date (30-day names are "14 Tue
 test('No looping animation runs where nobody can see it', () => {
   const HTML = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
   // The progress shine moves with transform (GPU only), never left (re-layout every frame).
-  const shimmer = HTML.match(/@keyframes rc-shimmer \{[^\n]*\}/)[0];
+  const shimmer = _wsNorm(HTML).match(/@keyframes rc-shimmer \{.*?\} \}/)[0];
   assert.match(shimmer, /transform: translateX/);
   assert.doesNotMatch(shimmer, /left:/);
   // Spinners inside panels that fade to opacity 0 stop while those panels are closed.
@@ -796,7 +883,7 @@ test('Sample data: today is always a running session, never auto-stopped', () =>
 test('Sample data never syncs and never touches saved data', () => {
   // Every saved-data read/write goes to the in-memory sandbox while it's on.
   const store = extract('const Store = {', '\n    };');
-  for (const fn of ['get(key, fb=null) {', 'set(key, val) {', 'remove(key) {', 'keys(prefix) {']) {
+  for (const fn of ['get(key, fb = null) {', 'set(key, val) {', 'remove(key) {', 'keys(prefix) {']) {
     const i = store.indexOf(fn);
     assert.ok(i >= 0, fn);
     assert.ok(store.slice(i, i + 60).includes('if (_inSandbox('), `Store.${fn} checks the sandbox first`);
@@ -838,19 +925,18 @@ test('Notification center (#59): All | Unread, read state, rows that open, Clear
   const render = extract('function renderNotifs(');
   // Every row has a title, a preview, a time; opening shows the CTA + Mark as Read/Unread + Dismiss.
   assert.match(render, /const title = n\.title \|\| n\.text, pv = n\.pv \|\| '', more = n\.more \|\| pv;/);
-  assert.match(render, /\$\{isRead \? dot \+ 'Mark as Unread' : check \+ 'Mark as Read'\}/);
-  assert.match(render, /data-nc="dismiss">\$\{x\}Dismiss/);
+  // Rows no longer expand: a tap slides the row left to show Dismiss; swipe right = Read/Unread.
+  assert.match(render, /\$\{isRead \? mailDot \+ 'Unread' : mailOpen \+ 'Read'\}/);
+  assert.match(render, /class="nc-lay trail"[^`]*\$\{x\}Dismiss/);
+  assert.doesNotMatch(render, /nc-det/, 'no expanding details');
+  assert.match(SRC, /_ncSwSet\(sw, -_NC_ACT, true\); _ncSwOpen = sw;/, 'tap reveals Dismiss');
   assert.match(render, /const hasBadge = un > 0;/, 'the bell dot means unread');
   assert.match(render, /el\('ncFoot'\)\.hidden = !un;/, 'Mark All as Read only while something is unread');
   assert.match(render, /clr\.classList\.toggle\('nc-gone', !rd\)/, 'Clear Read only when something is read');
   assert.match(render, /Nothing unread/);
   assert.match(render, /All clear/);
   const init = extract('function _ncInit(');
-  assert.match(
-    init,
-    /if \(_ncOpen === id && !isRead && _ncView === 'all'\) _ncSetRead\(\[id\], true\);/,
-    'opening reads it'
-  );
+  assert.doesNotMatch(init, /_ncOpen = _ncOpen === id/, 'a tap no longer expands the row');
   assert.match(init, /ids\.forEach\(addDismissed\)/, 'Clear Read dismisses the read ones');
   assert.match(
     extract('function _ncSetRead('),
@@ -1123,7 +1209,7 @@ test('Ending a session keeps its end time (the live-log rewrite waits)', () => {
     }
   };
   const f = load(
-    extract('    let _sessionEnding = false;', '\n    }\n'),
+    extract('let _sessionEnding = false;', '\n}\n'),
     ctx,
     '({ run: () => _flushLiveLog(), set: v => { _sessionEnding = v; } })'
   );
@@ -1340,11 +1426,11 @@ test('Today card: Clock = Started | Done at, Hours = Worked | Target, one chip o
   // once outside the tab branches, so both tabs show the same thing.
   assert.equal((paint.match(/_rcSetLead\(c, live\);/g) || []).length, 1);
   const lead = extract('function _rcSetLead(');
-  assert.match(lead, /if \(!c\.chipHms\) \{ box\.hidden = true; return; \}/);
+  assert.match(lead, /if \(!c\.chipHms && !headOut\) \{ box\.hidden = true; return; \}/);
   assert.match(lead, /box\.classList\.toggle\('over', !!c\.chipOver\)/);
-  const cap = load(extract('function _rcLeadCap(', '}'), {}, '_rcLeadCap');
-  assert.equal(cap(false), 'left until you can head out');
-  assert.equal(cap(true), 'over your target');
+  // #68: no caption while counting down; only "over your target" once over.
+  assert.match(lead, /const cap = c\.chipOver \? \(live \|\| ''\) \+ 'over your target' : '';/);
+  assert.doesNotMatch(SRC, /left until you can head out/);
   assert.doesNotMatch(SRC, /_rcSetDesc|rcDescRow|rcDescRight/);
   assert.doesNotMatch(SRC, /'You can leave at ' \+ _logoutStr/);
   assert.doesNotMatch(SRC, /el\('rcTarget'\)\.title = eff > 0/);
@@ -1353,7 +1439,15 @@ test('Today card: Clock = Started | Done at, Hours = Worked | Target, one chip o
   assert.match(HTML, />Hours<\/button>/);
   const group = HTML.slice(HTML.indexOf('id="rcKpiGroup"'), HTML.indexOf('id="rcProgressTrack"'));
   assert.match(group, /id="rcLead"[\s\S]*<div class="rc-numbers">/, 'the headline sits above the KPI row');
-  assert.match(HTML, /\.rc-lead-n \{ font: 400 40px\/1 var\(--font-display\);/);
+  // #68: the uiarc countdown, digit wheels at 40px display with unit names.
+  assert.match(
+    HTML,
+    /\.rc-lead-n \{ display: inline-flex; align-items: flex-start; white-space: nowrap; font: 400 40px\/1 var\(--font-display\);/
+  );
+  assert.match(
+    HTML,
+    /<span class="cd-done" aria-hidden="true"><span class="cd-pulse"><\/span>Time to head out<\/span>/
+  );
   assert.match(HTML, /\.rc-lead\.over \.rc-lead-n, \.rc-lead\.over \.rc-lead-c \{ color: var\(--warning\); \}/);
 });
 
@@ -1555,7 +1649,7 @@ test('Store rating: try 1 at "Almost done", try 2 on the next open, never after 
   // Fires even with the Wrap-Up Reminder off: scheduled before the notifications check.
   assert.match(
     extract('function scheduleNotifications('),
-    /_rateSchedule\(loginTimestamp\);  \/\/ its own timer[^\n]*\n\s*if \(!c\.notifOn/
+    /_rateSchedule\(loginTimestamp\); +\/\/ its own timer[^\n]*\n\s*if \(!c\.notifOn/
   );
   assert.match(extract('function _rateSchedule('), /\(targetSecs - 300\) \* 1000/);
 });
@@ -1708,7 +1802,7 @@ test('Weekend card: no icons on bars, chart container with target line, one vari
   const r = extract('function _renderWkndSummary(');
   assert.doesNotMatch(r, /wkSvg\(|ws-ic/); // no icons on the bars
   assert.match(r, /<div class="ws-chart">[\s\S]*<span class="ws-target"/); // its own container, the target dashed
-  assert.doesNotMatch(r, /This week, \$\{first\}|ws-cap/); // no date line
+  assert.doesNotMatch(r, /This week, \$\{first\}/); // B (2026-11-22): a 'This week' caption that names the hovered day
   assert.match(
     r,
     /'Half Day': \['Half Day', 'teal'\], 'Leave': \['On Leave', 'blue'\], 'Holiday': \['Holiday', 'orchid'\]/
@@ -1726,7 +1820,7 @@ test('Weekend card: no icons on bars, chart container with target line, one vari
 test("Weekend bars: Leave and Holiday are thin striped bars at a half day's height", () => {
   const r = extract('function _renderWkndSummary(');
   assert.match(r, /const cls = rest \? 'rest' : off \? 'off' : '';/);
-  assert.match(r, /const h = rest \? Math\.min\(100, Math\.round\(daily \/ 2 \/ top \* 100\)\)/);
+  assert.match(r, /const h = rest \? Math\.min\(100, Math\.round\(\(daily \/ 2 \/ top\) \* 100\)\)/);
   const HTML = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
   assert.match(HTML, /#wsHatch path \{ stroke:/); // thin lines from one SVG tile: every line the same weight
   assert.match(HTML, /<pattern id="wsHatch" width="6" height="6" patternUnits="userSpaceOnUse">/); // shared defs on Home (weekend + Statistics)
@@ -1740,7 +1834,7 @@ test('Weekend total rolls (NumberFlow) to the hovered day and back', () => {
     /const rollTo = v => \{ if \(v === hero\._secs\) return; hero\._secs = v; _odoSet\(hero, heroText\(v\)\); \};/
   );
   const heroText = load(
-    'const p2 = n => String(n).padStart(2, "0");\n' + r.match(/const heroText = v => \{[^\n]*\};/)[0],
+    'const p2 = n => String(n).padStart(2, "0");\n' + r.match(/const heroText = v => \{[\s\S]*?\n {2}\};/)[0],
     { Math },
     'heroText'
   );
@@ -1748,7 +1842,7 @@ test('Weekend total rolls (NumberFlow) to the hovered day and back', () => {
   assert.equal(heroText(45 * 60), '0h 45m');
   assert.equal(heroText(77520), '21h 32m'); // one shape, so it always rolls
   assert.match(r, /_loadLib\('numberflow'\)/);
-  assert.match(r, /vary\.innerHTML = typeChip \+ times \+ verdict;\n\s*rollTo\(secs\[i\]\);/); // hover → that day's hours
+  assert.match(r, /vary\.innerHTML = typeChip \+ times \+ verdict;\n[^\n]*\n\s*rollTo\(secs\[i\]\);/); // hover → that day's hours
   assert.match(r, /rollTo\(heroSecs\);/); // leave → the week again
 });
 
@@ -1765,7 +1859,7 @@ test("Weekend chart: the dashed line is this week's longest day, not a fixed 9h"
   assert.match(r, /const best = Math\.max\(0, \.\.\.secs\);\n\s*const top = best > 0 \? best \* 1\.12 : daily;/);
   assert.match(
     r,
-    /best > 0 \? `<span class="ws-target" style="bottom:\$\{Math\.round\(best \/ top \* 100\)\}%"><em>\$\{_rcRemainingFmt\(best\)\}<\/em><\/span>` : ''/
+    /best > 0 \? `<span class="ws-target" style="bottom:\$\{Math\.round\(\(best \/ top\) \* 100\)\}%"><em>\$\{_rcRemainingFmt\(best\)\}<\/em><\/span>` : ''/
   );
   assert.doesNotMatch(r, /<em>\$\{_rcRemainingFmt\(daily\)\}<\/em>/);
 });
@@ -1817,7 +1911,7 @@ test('No text under 12px anywhere in 5pm (user rule, 2026-11-14)', () => {
 
 test('Dark status colours are the soft set, and day types use theme tokens', () => {
   const HTML = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
-  const dark = HTML.match(/\n    \.dark \{[\s\S]*?\n    \}/)[0];
+  const dark = HTML.match(/\n( *)\.dark \{[\s\S]*?\n\1\}/)[0];
   for (const tok of [
     '--success: #74c7a0',
     '--warning: #deb97f',
@@ -1927,19 +2021,21 @@ test('Destructive button: one red component, Primary / Secondary / Tertiary (#43
   assert.match(HTML, /--danger-solid: #c42b33; --danger-solid-hover: #b4232b; --danger-solid-press: #9f1f26;/); // light
   assert.match(HTML, /--danger-solid: #d2373d; --danger-solid-hover: #c9323a; --danger-solid-press: #b4232b;/); // dark
   assert.match(HTML, /\.btn-danger \{ background: var\(--danger-solid\); color: #fff; \}/);
-  assert.match(HTML, /\.btn-danger-2 \{ background: var\(--btn-secondary-bg\); color: var\(--danger-text\); \}/);
+  // #71: outlined Danger (uiarc) is the default; solid red only where it's final or a hold.
   assert.match(
     HTML,
-    /\.btn-danger-2:hover:not\(:disabled\) \{ background: var\(--danger-solid-hover\); color: #fff; \}/
+    /\.btn-danger-2 \{ background: var\(--btn-surface, var\(--card\)\); color: var\(--danger-text\); box-shadow: inset 0 0 0 1px var\(--btn-line, var\(--border\)\); \}/
+  );
+  assert.match(
+    HTML,
+    /\.btn-danger-2:hover:not\(:disabled\) \{ background: var\(--muted\); box-shadow: inset 0 0 0 1px var\(--danger-text\); \}/
   );
   assert.match(HTML, /\.btn-danger-3:hover:not\(:disabled\) \{ background: var\(--danger-tint\); \}/);
-  assert.doesNotMatch(
-    HTML.slice(HTML.indexOf('.btn-danger, .btn-danger-2, .btn-danger-3 {'), HTML.indexOf('@keyframes btn-danger-spin')),
-    /border: 1px/
-  ); // borderless
-  // Confirms in destructive dialogs are solid red; the loading state keeps the label.
-  for (const id of ['pkRemoveBtn', 'delPwdContinueBtn', 'mfaDisableBtn', 'cancelPlanConfirmBtn'])
-    assert.match(HTML, new RegExp(`class="btn-danger"[^>]*id="${id}"|id="${id}"[^>]*class="btn-danger"`));
+  for (const id of ['delPwdContinueBtn']) assert.match(HTML, new RegExp(`class="btn-danger"[^>]*id="${id}"`));
+  assert.match(HTML, /class="btn-danger bk-done" id="bkRegenBtn">Make New Codes/);
+  for (const id of ['pkRemoveBtn', 'mfaDisableBtn', 'cancelPlanConfirmBtn', 'endSessionConfirmBtn'])
+    assert.match(HTML, new RegExp(`class="btn-danger-2"[^>]*id="${id}"|id="${id}"[^>]*class="btn-danger-2"`));
+  assert.match(SRC, /class="btn-danger-2 sm" data-ac="cf-yes">Clear All/);
   const busy = load(
     extract('function _btnBusy(', '}') + '\n' + extract('function _btnIdle(', '}'),
     {},
@@ -2434,7 +2530,7 @@ test('Action Center: read rows show only while Show Read Items is on (muted, lab
   const all = extract('function _acMarkAllRead(');
   assert.doesNotMatch(all, /_dismissPenaltyRow/);
   assert.match(all, /_acKeepRead\.add\(r\.key\)/);
-  assert.match(extract('function _acRowHtml('), /\$\{read \? ' · Read' : ''\}/);
+  assert.match(extract('function _acRowHtml('), /\(read \? '<span class="ac-chip">Read<\/span>' : ''\)/);
   assert.match(extract('function _renderPenaltyCard('), /const shown = _acShowRead \? rows : un;/);
 });
 
@@ -2442,8 +2538,8 @@ test('Action Center: read rows show only while Show Read Items is on (muted, lab
 test('Geist: titles and big numbers use the display font, body text stays on --font', () => {
   const HTML = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
   assert.match(HTML, /fonts\.googleapis\.com\/css2\?family=Geist:wght@400\.\.700&family=Inter/);
-  assert.match(HTML, /--font-display: 'Geist',/);
-  const rule = HTML.match(/\n([^\n]*\n){0,3}[^\n]*\{ font-family: var\(--font-display\); \}/)[0];
+  assert.match(HTML, /--font-display: ['"]Geist['"],/);
+  const rule = _wsNorm(HTML).match(/\}[^{}]*\{ font-family: var\(--font-display\); \}/)[0];
   for (const c of [
     '.dialog-title',
     '.settings-title',
@@ -2476,7 +2572,7 @@ test('Login: screens, copy and the signed-in page', () => {
     'newpw',
     'noAccount'
   ])
-    assert.match(LOGIN, new RegExp(`\\n  ${id}: \\{ h: `), id);
+    assert.match(LOGIN, new RegExp(`\\n\\s*${id}: \\{\\s*h: `), id);
   assert.match(LOGIN, /done: \{ h: \(\) => big\.ok \+ heading\('You’re in', 'Letting you in\.\.\.'\) \}/); // user, 2026-11-15
   assert.match(LOGIN, /'That email and password don’t match\.'/); // one message, never says which emails exist
   assert.match(LOGIN, /resetPasswordForEmail\(email, \{ redirectTo: resetTo \}\)/); // code first; the link goes to the public app
@@ -2611,9 +2707,10 @@ test('Update Entry panel: close button, note field and time picker', () => {
   );
   assert.match(HTML, /#dayEditOverlay \.sheet-close:hover \{ background: var\(--muted\); \}/);
   // Note: reads as a field; focus outline is a lighter grey, not white.
+  // Same look as the start-time sheet's field (user 2026-11-20: the grey mix looked odd).
   assert.match(
     HTML,
-    /#dayEditOverlay \.de-note-wrap textarea \{ background: color-mix\(in srgb, var\(--foreground\) 7%, var\(--surface-lift\)\); box-shadow: inset 0 0 0 1px var\(--input\); caret-color: var\(--foreground\); \}/
+    /#dayEditOverlay \.de-note-wrap textarea \{ background: var\(--surface-lift\); box-shadow: inset 0 0 0 1px var\(--border\); caret-color: var\(--foreground\); transition: box-shadow \.15s; \}/
   );
   // Picker titles match the rows, and the picker is measured so it stays on screen.
   assert.match(H, /openTpModal\('deStart',event,'Started'\)/);
@@ -2764,7 +2861,7 @@ test('Page loader (#63): 5pm logo + Apple-style spinner, no clock, glides home, 
   assert.match(HTML, /flex-direction: column; align-items: center; justify-content: center; gap: 16px;/);
   assert.match(HTML, /\.al-pm \{ font: 600 12px\/1/, 'PM at the 12px minimum');
   assert.match(HTML, /<div class="al-spin" aria-hidden="true">(<i><\/i>){8}<\/div>/, 'eight bars');
-  assert.match(HTML, /\.al-spin i:nth-child\(8\) \{ transform: rotate\(315deg\); opacity: 0\.23; \}/);
+  assert.match(HTML, /\.al-spin i:nth-child\(8\) \{ transform: rotate\(315deg\); opacity: 0?\.23; \}/);
   assert.match(
     HTML,
     /\.al-spin \{ position: relative; width: 28px; height: 28px; animation: al-spin \.8s steps\(8\) infinite; \}/
@@ -2866,7 +2963,7 @@ test('A session can never start later than now', () => {
   const sync = extract('function _syncFutureTip(');
   assert.match(sync, /if \(!msg \|\| !input\.offsetParent\) \{ tip\?\.classList\.remove\('show'\); return; \}/);
   assert.match(sync, /x = _caretX\(input\)/);
-  assert.match(sync, /tip\.style\.setProperty\('--ax', \(x - left\) \+ 'px'\)/);
+  assert.match(sync, /tip\.style\.setProperty\('--ax', \(?x - left\)? \+ 'px'\)/);
   assert.doesNotMatch(SRC, /_futureTipTimer|_hideFutureTip/);
   assert.match(extract('(function _futureTipInit('), /\['input', 'keyup', 'click', 'focus', 'select'\]/);
   assert.match(extract('function tickHeader('), /_syncFutureTip\(\)/);
@@ -2884,16 +2981,19 @@ test('A session can never start later than now', () => {
   assert.equal(typed(''), null); // removed: the tooltip goes
   assert.equal(typed('4:4'), null); // half typed: nothing yet
   const HTML7 = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
-  assert.match(HTML7, /\.future-tip::after \{ content: ''; position: absolute; left: var\(--ax, 50%\);/);
+  assert.match(HTML7, /\.future-tip::after \{ content: (''|""); position: absolute; left: var\(--ax, 50%\);/);
   assert.match(extract('function _tpLive('), /set\.disabled = !!future;/);
   const conf = extract('function confirmTpModal(');
   assert.match(conf, /if \(el\('tpSetBtn'\)\?\.disabled\) return;/);
   assert.match(conf, /if \(_futureStartMsg\(newLogin\)\) \{ _tpSwitchTab\('login'\); return; \}/);
 });
 
-test('Update Entry and the dispute email show times with seconds; the end time saves its seconds', () => {
+test('Update Entry shows seconds only when you typed them (user 2026-11-20)', () => {
   const fns = load(
-    extract('function clockHms(') + '\n' + extract('function _logHms('),
+    'const short = d => { let h = d.getHours(); const m = d.getMinutes(), ap = h >= 12 ? "PM" : "AM"; h = h % 12 || 12; return `${p2(h)}:${p2(m)} ${ap}`; };\n' +
+      extract('function clockHms(') +
+      '\n' +
+      extract('function _logHms('),
     {
       cfg: () => ({}),
       p2: n => String(n).padStart(2, '0'),
@@ -2910,21 +3010,18 @@ test('Update Entry and the dispute email show times with seconds; the end time s
     checkoutDisplay: '06:44 PM',
     hoursWorked: 9.6
   };
-  assert.equal(fns._logHms(log, 'start'), '09:05:23 AM');
-  assert.equal(fns._logHms(log, 'end'), '06:44:02 PM');
-  assert.equal(fns._logHms({ loginTime: '9:0:0', hoursWorked: 1.5 }, 'end'), '10:30:00 AM'); // end from start + hours
+  assert.equal(fns._logHms(log, 'start'), '09:05 AM', 'a recorded session: hh:mm');
+  assert.equal(fns._logHms(log, 'end'), '06:44 PM');
+  assert.equal(fns._logHms({ ...log, withSecs: true }, 'start'), '09:05:23 AM', 'seconds you typed are shown');
+  assert.equal(fns._logHms({ ...log, withSecs: true }, 'end'), '06:44:02 PM');
+  assert.equal(fns._logHms({ loginTime: '9:0:0', hoursWorked: 1.5 }, 'end'), '10:30 AM'); // end from start + hours
   assert.equal(fns._logHms({}, 'start'), '');
-  const open = extract('function openDayEditModal(');
-  assert.match(open, /el\('deStart'\)\.value = _logHms\(log, 'start'\);/);
-  assert.match(SRC, /inp\.value = \/\^de\(Start\|End\)\$\/\.test\(_tpTargetId\) \? clockHms\(d\) : short\(d\);/);
-  assert.match(
-    extract('function saveDayEditModal('),
-    /checkoutTime:   `\$\{p2\(eAdj\.getHours\(\)\)\}:\$\{p2\(eAdj\.getMinutes\(\)\)\}:\$\{p2\(eAdj\.getSeconds\(\)\)\}`/
-  );
-  assert.match(extract('function _deFillRecorded('), /_logHms\(l, 'start'\), _logHms\(l, 'end'\)/);
-  assert.match(extract('function _emailVars('), /start: p\.log\?\.loginTime \? _logHms\(p\.log, 'start'\) : ''/);
-  // Nowhere else: the card, week list and Done modal keep hh:mm.
-  assert.equal((SRC.match(/clockHms\(/g) || []).length, 5); // definition + _logHms (3 uses) + the picker
+  const save = SRC; // saveDayEditModal is long; extract() stops at an inner block
+  assert.ok(save.includes(String.raw`const withSecs = /\d:\d\d:\d\d/.test(`), 'seconds only when typed');
+  assert.match(save, /if \(!withSecs\) \{ s\?\.setSeconds\(0, 0\); e\?\.setSeconds\(0, 0\); \}/);
+  assert.match(save, /checkoutDisplay: short\(eAdj\), withSecs: withSecs \|\| undefined,/);
+  assert.match(SRC, /inp\.value = short\(d\);/, 'the wheel writes hh:mm');
+  assert.match(extract('function openDayEditModal('), /el\('deStart'\)\.value = _logHms\(log, 'start'\);/);
 });
 
 test('Raise Dispute: own reason is the same field as the Update Entry note', () => {
@@ -3102,7 +3199,7 @@ test('Start: the fading copy of the empty state stays centred (no slide to the l
   // Every rule that lays out #rcEmptyState also covers the id-less copy.
   const rules = html
     .split('}')
-    .map(c => c.slice(Math.max(0, c.lastIndexOf('\n', c.lastIndexOf('{'))), c.lastIndexOf('{')))
+    .map(c => c.slice(0, c.lastIndexOf('{')))
     .filter(s => /#rcEmptyState\b/.test(s) && !/weekend-mode/.test(s));
   assert.ok(rules.length >= 3);
   rules.forEach(s => assert.match(s, /\.es-ghost/, s.trim()));
@@ -3143,35 +3240,23 @@ test('Start-time field: AM or PM follows the time now', () => {
   assert.equal(ap(1, 30, at1040am), 'AM', 'the most recent past reading, never 3 hours ahead');
 });
 
-test('Start-time sheet opens on a good guess', () => {
-  const _g = load(extract('function _stGuess('), {}, '_stGuess');
-  const guess = (...a) => ({ ..._g(...a) }); // plain object from this realm
-  const shift = [9 * 60, 18 * 60];
-  assert.deepEqual(guess(10 * 60 + 40, ...shift), { m: 540, why: 'Filled in with your shift start.' });
-  assert.deepEqual(
-    guess(9 * 60 + 10, ...shift),
-    { m: 550, why: 'Filled in with the time now.' },
-    'under 15 minutes into the shift: now'
-  );
-  assert.deepEqual(
-    guess(21 * 60 + 58, ...shift),
-    { m: 1315, why: 'Filled in with the time now.' },
-    'after the shift: now, rounded down to 5'
-  );
-  assert.deepEqual(
-    guess(23 * 60, 22 * 60, 7 * 60),
-    { m: 1380, why: 'Filled in with the time now.' },
-    'overnight shift: now'
-  );
+test('Already working? opens empty and says when you can leave (user 2026-11-20)', () => {
+  const up = extract('function _stUpdate(');
+  assert.match(up, /out\.textContent = 'Fill the time to know when to leave\.';/);
+  assert.match(up, /out\.innerHTML = `You can leave by <b>\$\{_stLeave\(at\)\}<\/b>\.`;/);
+  assert.match(extract('function _stSetOpen('), /_st\.tf\.reset\(\);/);
+  assert.doesNotMatch(SRC, /_stGuess|Filled in with/, 'no pre-filled guess');
 });
 
-test('Not started: Quick Start + "Already working?"; the sheet starts through the same path (#64)', () => {
+test('Not started: Quick Start + "Already working?" opens in place (#64, #67)', () => {
   const HTML = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
   assert.match(HTML, /<div class="shift-cta" id="todayLoginSection" data-mode="start">/);
   assert.match(
     HTML,
-    /<button type="button" class="qs-link" id="qsLink" aria-haspopup="dialog">Already working\?<\/button>/
+    /<button type="button" class="qs-link" id="qsLink" aria-expanded="false" aria-controls="qsSlot">Already working\?<\/button>/
   );
+  assert.match(HTML, /<div class="qs-slot" id="qsSlot">/);
+  assert.doesNotMatch(HTML, /id="startTimeOverlay"/, 'no modal for it any more');
   assert.match(
     HTML,
     /<input id="stInput" type="text" inputmode="numeric" pattern="\[0-9\]\*" enterkeyhint="go" maxlength="5"/
@@ -3183,8 +3268,14 @@ test('Not started: Quick Start + "Already working?"; the sheet starts through th
   const st = extract('function setCalcBtnState(');
   assert.match(st, /sec\.dataset\.mode = state;/);
   assert.match(st, /btn\.textContent = 'Quick Start';/);
-  // The sheet hands an exact Date to calculate(), which keeps the shift / continue checks.
+  // Open: Quick Start names the time and starts from it, with the same shift / continue checks.
   assert.match(extract('function _stGo('), /calculate\(at\);/);
+  assert.match(SRC, /\} else if \(_st\.open\) _stGo\(\);/);
+  assert.match(
+    extract('function _stUpdate('),
+    /go\.textContent = _st\.mode === 'at' \? `Start at \$\{short\(at\)\}` : _st\.mode === 'now' \? 'Start Now' : 'Start';/
+  );
+  assert.match(extract('function _stSetOpen('), /link\.textContent = open \? 'Cancel' : 'Already working\?';/);
   assert.match(extract('function calculate('), /if \(exact\) \{\n\s+p = at;/);
   // AM/PM stays neutral: one primary per view.
   assert.match(
@@ -3197,4 +3288,268 @@ test('Light mode primary is Ink graphite (#65)', () => {
   const HTML = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
   const root = HTML.slice(HTML.indexOf(':root {'), HTML.indexOf('.dark {'));
   assert.match(root, /--btn-primary-bg: #232733;/);
+});
+
+test('Update Login Time uses the same smart field as the sheet; sheets slide before the backdrop fades', () => {
+  const HTML = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
+  assert.match(
+    HTML,
+    /<input class="tp-free-input" id="tpFreeInput" type="text" inputmode="numeric" pattern="\[0-9\]\*" enterkeyhint="go"\s+placeholder="Enter Login Time" maxlength="5"/
+  );
+  assert.match(HTML, /<span class="st-ap tp-ap" id="tpAp" role="group" aria-label="AM or PM" hidden>/);
+  assert.match(
+    extract('function _tpSegInit('),
+    /_loginTf = _timeInput\(input, el\('tpAp'\), \{ onUpdate: _loginTfSync, onEnter: \(\) => calculate\(\) \}\);/
+  );
+  assert.match(
+    SRC,
+    /_st\.tf = _timeInput\(inp, el\('stAp'\), \{ onUpdate: at => _stUpdate\(at\), onEnter: _stGo \}\);/
+  );
+  // The hidden field gets an exact time with AM/PM, so calculate() reads what was meant.
+  assert.match(extract('function _loginTfSync('), /hidden\.value = at \? short\(at\) : '';/);
+  // Phones: the backdrop waits for the sheet's slide before fading.
+  assert.match(
+    HTML,
+    /\.overlay\.am-host \{ align-items: flex-end; padding: 0; transition: opacity \.2s ease \.26s; \}\n\s+\.overlay\.am-host\.open \{ transition-delay: 0s; \}/
+  );
+});
+
+test('Action Center rows: the date, then only what needs resolving (#66 D)', () => {
+  const row = extract('function _acRowHtml(');
+  assert.match(row, /<span class="ac-chip w">\$\{_acDur\(r\.deficit\)\} short<\/span>/);
+  assert.match(row, /\(r\.half \? '<span class="ac-chip half">Half Day<\/span>' : ''\)/);
+  assert.doesNotMatch(row, /_acDur\(r\.worked\)|_acDur\(r\.tgt\)/, 'worked / target live in the Update Entry panel');
+});
+
+test('A session under 5 minutes is discarded on End, with Undo (#69 A)', () => {
+  assert.match(SRC, /const _TINY_SESSION_SECS = 300;/);
+  assert.match(
+    extract('function confirmEndSession('),
+    /if \(loginDate && workedSecs < _TINY_SESSION_SECS\) \{ _discardTinySession\(workedSecs\); return; \}/
+  );
+  const d = extract('function _discardTinySession(');
+  assert.match(d, /Store\.remove\(KEY\.day \+ tk\);/);
+  assert.match(d, /showUndoToast\('The session was too short\. Discarded\.', \(\) => \{/);
+  assert.match(d, /saveDayLogAndSync\(tk, \{ \.\.\.ended, lastUpdated: new Date\(\)\.toISOString\(\) \}\);/);
+});
+
+test('Toasts are one uiarc-style stack at the bottom centre (#70)', () => {
+  const HTML = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
+  assert.match(
+    HTML,
+    /<section class="ts-vp" id="toastStack" aria-label="Notifications"><ol class="ts-list" id="toastList" aria-live="polite"><\/ol><\/section>/
+  );
+  assert.doesNotMatch(HTML, /id="appToast"|id="ieToast"|\.wh-toast/, 'the two old toasts are gone');
+  assert.match(
+    HTML,
+    /\.ts-vp \{ position: fixed; z-index: 9999; left: 0; right: 0; bottom: 24px; margin-inline: auto;/
+  );
+  assert.match(
+    SRC,
+    /const _TS = \{ items: \[\], open: false, PEEK: 14, GAP: 12, STEP: \.05, MAX: 3, inited: false \};/
+  );
+  // Both old entry points go through the stack; titles are text, never HTML.
+  assert.match(
+    extract('function showToast('),
+    /_tsPush\(\{ type, title, desc, action: action\?\.label \? action : null \}\);/
+  );
+  assert.match(
+    extract('function showUndoToast('),
+    /_tsPush\(\{ type: 'info', title: msg, action: undoFn \? \{ label: 'Undo', onClick: undoFn \} : null, ms: durationMs \}\);/
+  );
+  assert.match(extract('function _tsPush('), /t\.textContent = title;/);
+  assert.doesNotMatch(SRC, /_toastUndoFn|appToastUndo/);
+});
+
+test('Buttons follow the uiarc layout at 5pm sizes (#71)', () => {
+  const HTML = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
+  assert.match(
+    HTML,
+    /\.btn-secondary, \.btn-cancel, \.btn-sm \{ background: var\(--btn-surface, var\(--card\)\); color: var\(--foreground\); box-shadow: inset 0 0 0 1px var\(--btn-line, var\(--border\)\);/
+  );
+  assert.match(
+    HTML,
+    /#dayEditOverlay, \.ac-confirm, #notifPanel, \.sc-host, \.imp-choice \{ --btn-surface: var\(--surface-lift\); --btn-line: var\(--border-strong\); \}/,
+    'never sinks on raised panels'
+  );
+  assert.match(HTML, /\.btn-primary:active:not\(:disabled\) \{ opacity: \.84; transform: scale\(\.985\); \}/);
+  assert.match(HTML, /\.btn-secondary:height|\.btn-secondary \{ height: 36px;/, 'sizes kept');
+});
+
+test('Import merges by default: adds the backup, keeps yours, newer day wins (#72)', () => {
+  const method = extract('importSnap(snap, mode', '\n      },');
+  const mk = loginDate =>
+    load(
+      `const KEY = { day: 'day_', cfg: 'cfg' }; let loginDate = ${loginDate}; const todayKey = () => '2026-11-20';
+    const Store = { m: {}, get(k) { return this.m[k] ?? null; }, set(k, v) { this.m[k] = v; }, remove(k) { delete this.m[k]; },
+      keys(p) { return Object.keys(this.m).filter(k => k.startsWith(p)); }, setCfg() {}, _touch() {}, ${method} };`,
+      {},
+      'Store'
+    );
+  const backup = {
+    days: {
+      '2026-11-10': { hoursWorked: 9, lastUpdated: '2026-11-10T18:00:00Z' }, // only in the backup
+      '2026-11-11': { hoursWorked: 1, lastUpdated: '2026-11-11T09:00:00Z' }, // older than yours
+      '2026-11-12': { hoursWorked: 8, lastUpdated: '2026-11-13T09:00:00Z' }, // newer than yours
+      '2026-11-20': { hoursWorked: 2, lastUpdated: '2026-11-20T23:00:00Z' } // today
+    }
+  };
+  const s = mk('new Date()');
+  s.m['day_2026-11-11'] = { hoursWorked: 7, lastUpdated: '2026-11-12T09:00:00Z' };
+  s.m['day_2026-11-12'] = { hoursWorked: 5, lastUpdated: '2026-11-12T09:00:00Z' };
+  s.m['day_2026-11-20'] = { hoursWorked: 4, lastUpdated: '2026-11-20T10:00:00Z' };
+  s.m['day_2026-11-05'] = { hoursWorked: 6 };
+  assert.equal(s.importSnap(backup, 'merge'), 4);
+  assert.equal(s.m['day_2026-11-10'].hoursWorked, 9, 'added');
+  assert.equal(s.m['day_2026-11-11'].hoursWorked, 7, 'yours was newer: kept');
+  assert.equal(s.m['day_2026-11-12'].hoursWorked, 8, 'backup was newer: taken');
+  assert.equal(s.m['day_2026-11-20'].hoursWorked, 4, 'today stays while a session runs');
+  assert.equal(s.m['day_2026-11-05'].hoursWorked, 6, 'days only you have stay');
+  const o = mk('null');
+  o.m['day_2026-11-05'] = { hoursWorked: 6 };
+  assert.equal(o.importSnap(backup, 'overwrite'), 4);
+  assert.equal(o.m['day_2026-11-05'], undefined, 'overwrite replaces the whole log');
+  // UI: the in-row drop field, Merge as primary, optional copy first, and the Export toast.
+  const HTML = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
+  assert.match(
+    HTML,
+    /<button type="button" class="btn-secondary" id="impBtn"[^>]*aria-expanded="false" aria-controls="impSlot">/
+  );
+  assert.match(HTML, /<div class="imp-slot" id="impSlot">/);
+  assert.doesNotMatch(HTML, /id="importConfirmOverlay"|id="importModal"/);
+  assert.match(
+    SRC,
+    /class="btn-danger-2" id="impOver">Overwrite<\/button><button type="button" class="btn btn-primary" id="impMerge">Merge<\/button>/
+  );
+  assert.match(SRC, /<input type="checkbox" id="impKeep" checked>/);
+  assert.match(
+    extract('function exportBackup('),
+    /showToast\('Exported', 'success', `\$\{file\} is saved in your Downloads folder\.`\)/
+  );
+});
+
+test('Tooltips: one theme-matched tooltip that only fades, no browser title boxes (#7)', () => {
+  const SRC = fs.readFileSync(path.join(__dirname, '..', 'public', 'lib', 'pages', 'index-app.js'), 'utf8');
+  const HTML = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
+  assert.match(SRC, /function _appTipInit\(\)/);
+  assert.match(SRC, /n\.removeAttribute\('title'\)/, 'titles move to data-tip so the native box never shows');
+  assert.match(HTML, /\.app-tip \{[^}]*padding: 8px;/);
+  const rule = HTML.match(/\.app-tip \{[^}]*\}/)[0] + HTML.match(/\.app-tip\.show \{[^}]*\}/)[0];
+  assert.doesNotMatch(rule, /transition:[^;]*transform/, 'no travel towards the button, just a fade');
+  assert.match(HTML, /\.dark \{ --tip-bg: #262a33; --tip-line: #3b414d; \}/);
+  assert.doesNotMatch(HTML, /\.sc-item\[data-tip\]:hover::after/, 'old pseudo tooltip removed');
+});
+
+test('Notification swipe actions: right = Read/Unread, left = Dismiss, neutral, full height (#8)', () => {
+  const SRC = fs.readFileSync(path.join(__dirname, '..', 'public', 'lib', 'pages', 'index-app.js'), 'utf8');
+  const HTML = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
+  assert.match(SRC, /class="nc-lay lead"/);
+  assert.match(SRC, /class="nc-lay trail"/);
+  assert.match(SRC, /list\.addEventListener\('pointerdown'/, 'mouse and touch, not touch only');
+  const lay = HTML.match(/\.nc-lay \{[^}]*\}/)[0];
+  assert.match(lay, /height: 100%/);
+  assert.doesNotMatch(lay, /destructive|danger|--red/, 'Dismiss is not red');
+});
+
+test('Import field is the uiarc file dropzone and never crops while dragging (#9)', () => {
+  const SRC = fs.readFileSync(path.join(__dirname, '..', 'public', 'lib', 'pages', 'index-app.js'), 'utf8');
+  const HTML = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
+  assert.match(HTML, /<rect id="impEdge"/);
+  assert.match(HTML, /class="imp-sheets"/);
+  assert.match(
+    HTML,
+    /\.imp-slot > div \{ overflow: hidden; min-height: 0; margin: 0 -6px; padding: 0 6px; \}/,
+    'room for the breathing edge inside the clipped slot'
+  );
+  assert.match(SRC, /function _impCompact\(on\)/);
+  assert.match(SRC, /'Choose another file'/);
+});
+
+test('Report a Bug: own form, ring counter, tooltip on the disabled send, recent errors (#13)', () => {
+  const SRC = fs.readFileSync(path.join(__dirname, '..', 'public', 'lib', 'pages', 'index-app.js'), 'utf8');
+  const HTML = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
+  const DIAG = fs.readFileSync(path.join(__dirname, '..', 'public', 'lib', 'pages', 'diag.js'), 'utf8');
+  assert.match(HTML, /id="bugOverlay"/);
+  assert.match(SRC, /'Good enough'/);
+  assert.match(SRC, /w\.dataset\.tip = `Add \$\{left\} more character/);
+  assert.match(SRC, /body \+= '\\n\\nRecent errors\\n'/);
+  assert.match(DIAG, /window\.fetch = function/, 'failed requests are recorded');
+  assert.match(DIAG, /x\.host \+ x\.pathname|\+ x\.pathname\)/, 'no query strings kept');
+  assert.doesNotMatch(HTML, /Include these in the report/);
+});
+
+test('Tips: popover tips point at their feature; no Save Recipient tip (#4)', () => {
+  const TOUR = fs.readFileSync(path.join(__dirname, '..', 'public', 'lib', 'pages', 'tour.js'), 'utf8');
+  assert.match(TOUR, /anchor: missingRow/);
+  assert.match(TOUR, /anchor: \(\) => el\('calcBtn'\)/);
+  assert.match(TOUR, /fix your hours or raise a dispute/);
+  assert.match(TOUR, /action: \{ label: 'Turn On'/);
+  assert.doesNotMatch(TOUR, /id: 'saveRecipient'/);
+});
+
+test('Weekend Today card is layout B: greeting left, armchair tile, no Weekend label (2026-11-22)', () => {
+  const HTML = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
+  const SRC = fs.readFileSync(path.join(__dirname, '..', 'public', 'lib', 'pages', 'index-app.js'), 'utf8');
+  assert.match(HTML, /class="td-wk-ill"/);
+  assert.doesNotMatch(HTML, /\.td-hd\.td-wknd \{ justify-content: center/);
+  assert.match(SRC, /<div class="ws-cap">This week<\/div>/);
+  assert.doesNotMatch(SRC, /<span class="dt-pill">\$\{_WKND_SVG\(WK_ICON\[DAY_TYPES\.weekend\.icon\]\)\}/);
+});
+
+test('Weekend card adds a worked Saturday/Sunday outside the work week as an extra bar (2026-11-22)', () => {
+  const SRC = fs.readFileSync(path.join(__dirname, '..', 'public', 'lib', 'pages', 'index-app.js'), 'utf8');
+  const body = SRC.slice(SRC.indexOf('function _wkndExtraDays('), SRC.indexOf('function _renderWkndSummary('));
+  const logs = { '2026-11-21': { hoursWorked: 3 }, '2026-11-22': { hoursWorked: 0 } };
+  const dateKey = d =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const fn = new Function('dateKey', 'dayLog', 'FULL_DAYS_EN', body + '; return _wkndExtraDays;')(
+    dateKey,
+    k => logs[k],
+    ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+  );
+  const mon = new Date(2026, 10, 16);
+  const base = [0, 1, 2, 3, 4].map(i => {
+    const d = new Date(mon);
+    d.setDate(16 + i);
+    return { key: dateKey(d), date: d };
+  });
+  const out = fn(base, '2026-11-22');
+  assert.deepEqual(
+    out.map(d => [d.key, d.extra]),
+    [['2026-11-21', true]]
+  ); // Saturday worked; Sunday empty
+  assert.equal(fn(base, '2026-11-20').length, 0); // not yet happened
+  const six = [...base, { key: '2026-11-21', date: new Date(2026, 10, 21) }];
+  assert.equal(fn(six, '2026-11-22').length, 0); // 6-day week: Saturday is already a bar
+  assert.match(SRC, /_wkndWeekChip\(total, adjustedWeeklyTarget\(base\)\)/); // target stays the workdays'
+});
+
+test('Sentry: pinned SDK, same version as the app, errors only, no personal data', () => {
+  const crypto = require('node:crypto');
+  const init = fs.readFileSync(path.join(WEB, 'lib', 'sentry-init.js'), 'utf8');
+  const HTML = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
+  const LHTML = fs.readFileSync(path.join(WEB, 'login.html'), 'utf8');
+  // The release tag follows the app version.
+  const appVer = SRC.match(/const APP_VERSION = '([\d.]+)'/)[1];
+  assert.equal(init.match(/var VERSION = '([\d.]+)'/)[1], appVer, 'sentry-init.js VERSION = APP_VERSION');
+  // The self-hosted SDK still matches the integrity hash both pages load it with.
+  const sdk = fs.readFileSync(path.join(WEB, 'lib', 'sentry.min.js'));
+  const sri = 'sha384-' + crypto.createHash('sha384').update(sdk).digest('base64');
+  for (const page of [HTML, LHTML]) {
+    assert.ok(_wsNorm(page).includes(`src="/lib/sentry.min.js" integrity="${sri}"`), 'pinned SDK with its hash');
+    assert.ok(page.indexOf('/lib/sentry-init.js') > page.indexOf('/lib/sentry.min.js'), 'init after the SDK');
+  }
+  // Privacy: no personal data, no replay, no tracing; emails and query strings scrubbed.
+  assert.match(init, /sendDefaultPii: false/);
+  assert.doesNotMatch(init, /replaysSessionSampleRate|replayIntegration|tracesSampleRate|browserTracingIntegration/);
+  assert.match(init, /delete event\.user;/);
+  assert.match(init, /allowUrls: \[location\.origin\]/);
+  // Only Sentry's ingest address is added to the security policy.
+  const csp = fs.readFileSync(path.join(ROOT, 'vercel.json'), 'utf8');
+  assert.match(csp, /connect-src [^;]*https:\/\/o4512474129629184\.ingest\.us\.sentry\.io/);
+  assert.doesNotMatch(csp, /script-src [^;]*sentry/);
+});
+
+test('Authenticator apps list the account as 5pm, not the site address', () => {
+  assert.match(SRC, /mfa\.enroll\(\{ factorType: 'totp', issuer: '5pm' \}\)/);
 });

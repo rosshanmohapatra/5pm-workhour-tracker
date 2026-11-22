@@ -1,4 +1,4 @@
-const APP_VERSION = '1.2.34';
+const APP_VERSION = '1.2.35';
 localStorage.setItem('wh_ver', APP_VERSION);
 
 // ── HELPERS ─────────────────────────────────────────
@@ -1360,6 +1360,9 @@ function renderNotifs() {
   const infoSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>`;
   const check = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>`;
   const dot = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="1"/></svg>`;
+  // Lucide mail-open (mark read) and mail-dot (mark unread) for the swipe actions.
+  const mailOpen = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21.2 8.4c.5.38.8.97.8 1.6v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V10a2 2 0 0 1 .8-1.6l8-6a2 2 0 0 1 2.4 0l8 6Z"/><path d="m22 10-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 10"/></svg>`;
+  const mailDot = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.674 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-4.675"/><path d="m2 7 9 5.701a2 2 0 0 0 2 0l1.084-.686"/><circle cx="19" cy="7" r="3"/></svg>`;
   const x = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>`;
 
   list.innerHTML = shown
@@ -1371,21 +1374,18 @@ function renderNotifs() {
       const title = n.title || n.text,
         pv = n.pv || '',
         more = n.more || pv;
-      const cta = n.cta
-        ? `<button type="button" class="nc-pri" data-on-click="h837093f811" data-click-a0="${safeId}" data-click-a1="${_escHtml(n.ctaWeekKey || '')}">${_escHtml(n.cta)}</button>`
-        : '';
-      const surplus = n.surplus ? `<span class="notif-surplus">${_escHtml(n.surplus)} saved</span>` : '';
-      return `<div class="notif-item nc-row${isRead ? ' read' : ''}${open ? ' open' : ''}" id="ni-${safeId}" data-id="${safeId}" role="listitem">
+      // #8 swipe actions: right = Read/Unread, left = Dismiss. Both sit under the row, full height.
+      return `<div class="nc-sw" id="ni-${safeId}" role="listitem">
+          <div class="nc-lay lead" aria-hidden="true"><span class="nc-gl">${isRead ? mailDot + 'Unread' : mailOpen + 'Read'}</span></div>
+          <button type="button" class="nc-lay trail" tabindex="-1" aria-label="Dismiss ${_escHtml(title)}"><span class="nc-gl">${x}Dismiss</span></button>
+          <div class="notif-item nc-row${isRead ? ' read' : ''}" data-id="${safeId}">
           <div class="notif-icon ${n.type}">${icon}</div>
-          <button type="button" class="nc-tog" aria-expanded="${open}" aria-label="${_escHtml(title)}${isRead ? '' : ', unread'}. ${open ? 'Hide details' : 'Show details'}">
+          <button type="button" class="nc-tog" aria-label="${_escHtml(title)}${isRead ? '' : ', unread'}. Show Dismiss">
             <span class="nc-t"><strong>${_escHtml(title)}</strong><span class="nc-dot" aria-hidden="true"></span></span>
-            <span class="nc-pv">${_escHtml(open ? more : pv)}</span>
+            <span class="nc-pv">${_escHtml(pv)}</span>
           </button>
           <time class="nc-time">${_escHtml(n.time || '')}</time>
-          <div class="nc-det"><div><div class="nc-acts">${surplus}${cta}
-            <button type="button" data-nc="read">${isRead ? dot + 'Mark as Unread' : check + 'Mark as Read'}</button>
-            <button type="button" data-nc="dismiss">${x}Dismiss</button></div></div></div>
-        </div>`;
+        </div></div>`;
     })
     .join('');
 }
@@ -1437,15 +1437,17 @@ function _ncInit() {
       return;
     } // the CTA's own handler opens it
     if (e.target.closest('.nc-tog')) {
-      // Opening a notification reads it (in All). Closing keeps its state.
-      _ncOpen = _ncOpen === id ? null : id;
-      if (_ncOpen === id && !isRead && _ncView === 'all') _ncSetRead([id], true);
-      renderNotifs();
-      requestAnimationFrame(() =>
-        el('ni-' + id)
-          ?.querySelector('.nc-tog')
-          ?.focus({ focusVisible: false, preventScroll: true })
-      );
+      // A tap no longer expands the row: it slides it left a little to show Dismiss.
+      const sw = row.closest('.nc-sw');
+      if (!sw) return;
+      if (_ncSwOpen && _ncSwOpen !== sw) _ncSwClose(_ncSwOpen);
+      _ncSwSet(sw, -_NC_ACT, true);
+      _ncSwOpen = sw;
+      const lay = sw.querySelector('.nc-lay.trail');
+      if (lay) {
+        lay.tabIndex = 0;
+        if (e.detail === 0) setTimeout(() => lay.focus({ preventScroll: true }), 60);
+      } // keyboard: Enter, then Enter again dismisses
     }
   });
   el('ncView')?.addEventListener('click', e => {
@@ -1479,91 +1481,177 @@ function _ncInit() {
   });
 }
 
-// Shared exit animation, used by the swipe and by Clear All so every
-// dismissal looks the same. dir is -1 or 1 so the card leaves the way the
-// finger sent it. Animates from wherever it currently sits, so a
-// half-finished drag continues rather than snapping back to 0 first.
-function _dismissNotifItem(item, id, dir) {
-  if (!item || item.dataset.dismissing) return;
-  item.dataset.dismissing = '1';
-  item.classList.remove('swiping'); // re-enable the eased transition
-  item.classList.add('dismissing'); // stop it swallowing further taps
-  void item.offsetWidth; // lock in the current position first
-  item.style.transform = `translateX(${dir < 0 ? -110 : 110}%)`;
-  item.style.opacity = '0';
-  let fired = false;
-  const finish = () => {
-    if (fired) return;
-    fired = true;
-    addDismissed(id);
-    renderNotifs();
-  };
-  item.addEventListener('transitionend', finish, { once: true });
-  setTimeout(finish, 420); // fallback if transitionend never lands
+// #8 Swipe actions (uiarc swipe-actions): drag a row with a finger or the mouse.
+// Right = Mark as Read / Unread (the row springs back). Left = Dismiss: a short swipe
+// leaves the Dismiss button showing, past half the row or a flick dismisses it.
+// One row open at a time; tap elsewhere or Esc puts it away. The same actions are in
+// each opened row, so keyboards never need the gesture.
+let _notifSwipe = null,
+  _ncSwOpen = null,
+  _ncSwJustDragged = false;
+const _NC_ACT = 76,
+  _NC_SLOP = 8;
+const _ncRubber = (o, d) => (1 - 1 / ((o * 0.55) / d + 1)) * d;
+function _ncSwSet(sw, x, anim) {
+  const row = sw?.querySelector('.nc-row');
+  if (!row) return;
+  row.style.transition = anim ? 'transform .42s cubic-bezier(.16,1,.3,1), background .12s' : 'background .12s';
+  row.style.transform = x ? `translateX(${x}px)` : '';
+  sw._x = x;
+  sw.classList.toggle('sw-lead', x > 0);
+  sw.classList.toggle('sw-trail', x < 0);
 }
-
-// Swipe either direction to dismiss. Touch only, so it simply never engages
-// on a desktop pointer — there, Clear All is the way.
-let _notifSwipe = null;
+function _ncSwClose(sw) {
+  if (!sw) return;
+  _ncSwSet(sw, 0, true);
+  sw.classList.remove('sw-commit');
+  const lay = sw.querySelector('.nc-lay.trail');
+  if (lay) lay.tabIndex = -1;
+  if (_ncSwOpen === sw) _ncSwOpen = null;
+}
+function _ncSwDismiss(sw) {
+  const id = sw.querySelector('.nc-row')?.dataset.id;
+  if (!id || sw.dataset.dismissing) return;
+  sw.dataset.dismissing = '1';
+  const row = sw.querySelector('.nc-row');
+  row.style.transition = 'transform .26s cubic-bezier(.4,0,1,1)';
+  row.style.transform = 'translateX(-110%)';
+  if (_ncOpen === id) _ncOpen = null;
+  setTimeout(
+    () =>
+      _ncCollapse([id], () => {
+        addDismissed(id);
+        renderNotifs();
+      }),
+    200
+  );
+}
+function _ncSwRead(sw) {
+  const id = sw.querySelector('.nc-row')?.dataset.id;
+  if (!id) return;
+  const isRead = _ncRead().has(id);
+  _ncSwClose(sw);
+  setTimeout(() => {
+    if (!isRead && _ncView === 'unread') {
+      _ncSetRead([id], true);
+      _ncCollapse([id], renderNotifs);
+      return;
+    }
+    _ncSetRead([id], !isRead);
+    renderNotifs();
+  }, 260);
+}
 function _initNotifSwipe() {
   const list = el('notifList');
   if (!list || list.dataset.swipeInit) return;
-  list.dataset.swipeInit = '1'; // delegated once — survives list re-renders
+  list.dataset.swipeInit = '1'; // delegated once, survives list re-renders
 
-  list.addEventListener(
-    'touchstart',
-    e => {
-      const item = e.target.closest('.notif-item');
-      if (!item || item.dataset.dismissing || e.touches.length !== 1) return;
-      const t = e.touches[0];
-      _notifSwipe = { item, x0: t.clientX, y0: t.clientY, dx: 0, axis: null };
-    },
-    { passive: true }
-  );
-
-  list.addEventListener(
-    'touchmove',
-    e => {
-      if (!_notifSwipe) return;
-      const t = e.touches[0];
-      const dx = t.clientX - _notifSwipe.x0,
-        dy = t.clientY - _notifSwipe.y0;
-      // Decide once whether this is a horizontal swipe or a vertical scroll,
-      // then stick with it, otherwise the card jitters mid-scroll.
-      if (!_notifSwipe.axis) {
-        if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
-        if (Math.abs(dy) >= Math.abs(dx)) {
-          _notifSwipe = null;
-          return;
-        } // let the page scroll
-        _notifSwipe.axis = 'x';
-        _notifSwipe.item.classList.add('swiping');
-      }
-      _notifSwipe.dx = dx; // either direction, unlike the right-only penalty rows
-      const w = _notifSwipe.item.offsetWidth || 320;
-      _notifSwipe.item.style.transform = `translateX(${dx}px)`;
-      _notifSwipe.item.style.opacity = String(Math.max(0.15, 1 - Math.abs(dx) / w));
-      e.preventDefault(); // we own this gesture now
-    },
-    { passive: false }
-  );
-
-  const endSwipe = () => {
-    if (!_notifSwipe) return;
-    const { item, dx, axis } = _notifSwipe;
-    _notifSwipe = null;
-    if (axis !== 'x') return;
-    const w = item.offsetWidth || 320;
-    if (Math.abs(dx) > Math.min(120, w * 0.3)) {
-      _dismissNotifItem(item, item.id.replace(/^ni-/, ''), dx < 0 ? -1 : 1);
-    } else {
-      item.classList.remove('swiping'); // spring back under the eased transition
-      item.style.transform = '';
-      item.style.opacity = '';
+  list.addEventListener('pointerdown', e => {
+    const sw = e.target.closest('.nc-sw');
+    if (!sw || sw.dataset.dismissing || e.button > 0) return;
+    if (e.target.closest('.nc-lay.trail') && _ncSwOpen === sw) return; // tap on the revealed Dismiss
+    if (e.target.closest('.nc-acts, .nc-pri')) return; // buttons inside an opened row
+    if (_ncSwOpen && _ncSwOpen !== sw) _ncSwClose(_ncSwOpen);
+    _notifSwipe = {
+      sw,
+      id: e.pointerId,
+      x0: e.clientX,
+      y0: e.clientY,
+      o: sw._x || 0,
+      axis: null,
+      w: sw.offsetWidth || 320,
+      s: [[e.timeStamp, e.clientX]]
+    };
+  });
+  list.addEventListener('pointermove', e => {
+    const d = _notifSwipe;
+    if (!d || e.pointerId !== d.id) return;
+    const dx = e.clientX - d.x0,
+      dy = e.clientY - d.y0;
+    if (!d.axis) {
+      if (Math.abs(dx) < _NC_SLOP && Math.abs(dy) < _NC_SLOP) return;
+      if (Math.abs(dy) >= Math.abs(dx)) {
+        _notifSwipe = null;
+        return;
+      } // let the list scroll
+      d.axis = 'x';
+      d.sw.classList.add('swiping');
+      try {
+        d.sw.setPointerCapture(e.pointerId);
+      } catch (_) {}
     }
+    let x = d.o + dx;
+    if (x > _NC_ACT) x = _NC_ACT + _ncRubber(x - _NC_ACT, d.w);
+    if (x < -d.w * 0.5) x = -d.w * 0.5 - _ncRubber(-x - d.w * 0.5, d.w);
+    d.sw.classList.toggle('sw-commit', x < -d.w * 0.5 || x >= _NC_ACT * 0.6);
+    _ncSwSet(d.sw, x, false);
+    d.s.push([e.timeStamp, e.clientX]);
+    if (d.s.length > 5) d.s.shift();
+    e.preventDefault();
+  });
+  const end = e => {
+    const d = _notifSwipe;
+    if (!d || e.pointerId !== d.id) return;
+    _notifSwipe = null;
+    if (d.axis !== 'x') return;
+    d.sw.classList.remove('swiping', 'sw-commit');
+    _ncSwJustDragged = true;
+    setTimeout(() => {
+      _ncSwJustDragged = false;
+    }, 0);
+    const s = d.s,
+      v = s.length > 1 ? ((s[s.length - 1][1] - s[0][1]) / Math.max(1, s[s.length - 1][0] - s[0][0])) * 1000 : 0;
+    const x = d.sw._x || 0,
+      proj = x + v * 0.1;
+    if (proj <= -d.w * 0.5 || (v < -900 && x < 0)) {
+      _ncSwDismiss(d.sw);
+      return;
+    }
+    if (x >= _NC_ACT * 0.6 || (v > 900 && x > 0)) {
+      _ncSwRead(d.sw);
+      return;
+    }
+    if (proj < -_NC_ACT * 0.5) {
+      _ncSwSet(d.sw, -_NC_ACT, true);
+      _ncSwOpen = d.sw;
+      return;
+    }
+    _ncSwClose(d.sw);
   };
-  list.addEventListener('touchend', endSwipe);
-  list.addEventListener('touchcancel', endSwipe);
+  list.addEventListener('pointerup', end);
+  list.addEventListener('pointercancel', end);
+  // A drag never also opens the row; a tap on the revealed Dismiss dismisses.
+  list.addEventListener(
+    'click',
+    e => {
+      if (_ncSwJustDragged) {
+        e.stopPropagation();
+        e.preventDefault();
+        return;
+      }
+      const lay = e.target.closest('.nc-lay.trail');
+      if (lay) {
+        e.stopPropagation();
+        _ncSwDismiss(lay.closest('.nc-sw'));
+        return;
+      }
+      if (_ncSwOpen && _ncSwOpen.contains(e.target)) {
+        e.stopPropagation();
+        _ncSwClose(_ncSwOpen);
+      }
+    },
+    true
+  );
+  document.addEventListener(
+    'pointerdown',
+    e => {
+      if (_ncSwOpen && !_ncSwOpen.contains(e.target)) _ncSwClose(_ncSwOpen);
+    },
+    true
+  );
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && _ncSwOpen) _ncSwClose(_ncSwOpen);
+  });
 }
 
 // Penalty notification tapped: open the email draft when the week has one
@@ -1645,18 +1733,21 @@ function _loginDisplayFromLog(log) {
 // that to login + hoursWorked, which is what the server row was derived from
 // anyway. Login already had this fallback; exit never did, which is why a day
 // could show its start but not its end.
+// Seconds only when you typed them into Update Entry yourself (log.withSecs);
+// otherwise hh:mm, like everywhere else (user, 2026-11-20).
 function _logHms(log, which) {
   if (!log) return '';
+  const fmt = log.withSecs ? clockHms : short;
   const at = hms => {
     const p = String(hms).split(':').map(Number);
     const d = new Date();
     d.setHours(p[0] || 0, p[1] || 0, p[2] || 0, 0);
     return d;
   };
-  if (which === 'start') return log.loginTime ? clockHms(at(log.loginTime)) : log.loginDisplay || '';
-  if (log.checkoutTime) return clockHms(at(log.checkoutTime));
+  if (which === 'start') return log.loginTime ? fmt(at(log.loginTime)) : log.loginDisplay || '';
+  if (log.checkoutTime) return fmt(at(log.checkoutTime));
   if (log.loginTime && log.hoursWorked)
-    return clockHms(new Date(at(log.loginTime).getTime() + Math.round(log.hoursWorked * 3600) * 1000));
+    return fmt(new Date(at(log.loginTime).getTime() + Math.round(log.hoursWorked * 3600) * 1000));
   return log.checkoutDisplay || '';
 }
 function _checkoutDisplayFromLog(log) {
@@ -1897,7 +1988,8 @@ let _tpSegSyncing = false;
 function _tpSegClear() {
   const input = el('tpFreeInput'),
     inp = el('tc-r7m2');
-  if (input) input.value = '';
+  if (_loginTf) _loginTf.reset();
+  else if (input) input.value = '';
   if (inp) inp.value = '';
 }
 function _tpSegInit() {
@@ -1905,34 +1997,16 @@ function _tpSegInit() {
     hidden = el('tc-r7m2');
   if (!input) return;
 
-  function _syncHidden() {
-    hidden.value = input.value;
-    hidden.dispatchEvent(new Event('input', { bubbles: true }));
-  }
+  // Same smart field as the "Already working?" sheet (digits only, AM/PM from the
+  // time now); it keeps #tc-r7m2 in step with an exact time for calculate().
+  _loginTf = _timeInput(input, el('tpAp'), { onUpdate: _loginTfSync, onEnter: () => calculate() });
 
-  input.addEventListener('input', () => {
-    // Collapse any newlines/tabs from a pasted timestamp (e.g. Keka) into one clean line
-    if (/[\n\r\t]/.test(input.value)) {
-      input.value = input.value
-        .replace(/[\n\r\t]+/g, ' ')
-        .replace(/\s+/g, ' ')
-        .trim();
-    }
-    _syncHidden();
-  });
-
-  input.addEventListener('keydown', e => {
-    if (e.key === 'Enter') {
-      calculate();
-    }
-  });
-
-  // Wheel picker result → fill input (AM/PM already resolved by the picker)
+  // Wheel picker result → fill the field (AM/PM already resolved by the picker)
   if (hidden) {
     hidden.addEventListener('change', () => {
       if (!hidden.value) return;
       const p = parse(hidden.value.trim());
-      if (p) input.value = short(p); // short() honors the 24h setting
+      if (p) _loginTf.fill(p.getHours() * 60 + p.getMinutes());
     });
   }
 }
@@ -2237,8 +2311,8 @@ function _tdToggle(event) {
       const s = _tdItemState(k, cur, has),
         t = DAY_TYPES[k];
       return (
-        `<button type="button" class="ac-mi dt-mi" role="menuitemradio" aria-checked="${k === cur}" data-plan="${k}"${s.off ? ' disabled aria-disabled="true"' : ''} style="--dt:${t.tone ? `var(--${t.tone})` : 'var(--muted-fg)'}">` +
-        `<i class="dt-mi-ic">${wkSvg(t.icon)}</i><span><b>${_TD_PLAN_LABELS[k]}</b>${s.sub ? `<small>${s.sub}</small>` : ''}</span><i class="dt-mi-ck">${wkSvg('check')}</i></button>`
+        `<button type="button" class="ac-mi dt-mi" role="menuitemradio" aria-checked="${k === cur}" data-plan="${k}"${s.off ? ` disabled aria-disabled="true" title="${s.sub}"` : ''} style="--dt:${t.tone ? `var(--${t.tone})` : 'var(--muted-fg)'}">` +
+        `<i class="dt-mi-ic">${wkSvg(t.icon)}</i><span><b>${_TD_PLAN_LABELS[k]}</b></span><i class="dt-mi-ck">${wkSvg('check')}</i></button>`
       );
     })
     .join('');
@@ -2521,7 +2595,7 @@ function confirmTpModal() {
     }
     const d = new Date();
     d.setHours(h24, _tpMIdx, 0, 0);
-    inp.value = /^de(Start|End)$/.test(_tpTargetId) ? clockHms(d) : short(d);
+    inp.value = short(d);
     inp.dispatchEvent(new Event('input', { bubbles: true }));
     inp.dispatchEvent(new Event('change', { bubbles: true }));
   }
@@ -2598,58 +2672,211 @@ function clearOutTarget() {
   else renderEmptyState();
 }
 
-// ── TOAST ─────────────────────────────────────────
-let _toastTimer = null,
-  _toastUndoFn = null;
-const _toastIcons = {
-  success: '<polyline points="20 6 9 17 4 12"/>',
-  error:
-    '<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>',
-  info: '<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>'
+// ── TOASTS (#70, uiarc "toast-stack") ─────────────
+// Bottom centre. The newest toast is in front; up to 3 older ones tuck behind it
+// (14px peek, 5% smaller per step). Hovering or focusing the stack fans it out and
+// pauses every timer. Swipe a toast sideways or press × to dismiss it.
+const _TS = { items: [], open: false, PEEK: 14, GAP: 12, STEP: 0.05, MAX: 3, inited: false };
+const _TS_COLOR = {
+  success: 'var(--success)',
+  info: 'var(--blue)',
+  warning: 'var(--warning)',
+  error: 'var(--destructive)'
 };
-const _toastColors = { success: 'var(--success)', error: 'var(--destructive)', info: 'var(--blue)' };
-// showToast(title, type, desc, action)
-//   action: undefined → default "Close" button
-//           null       → no button
-//           {label, onClick} → labeled action button (runs onClick, then dismisses)
-function showToast(title, type = 'info', desc = '', action) {
-  const t = el('ieToast');
-  if (!t) return;
-  t.className = `wh-toast ${type}`;
-  el('toastTitle').textContent = title;
-  const d = el('toastDesc');
-  d.textContent = desc;
-  d.classList.toggle('visible', !!desc);
-  const icon = el('toastIcon');
-  if (type === 'none') {
-    icon.style.display = 'none';
-  } else {
-    icon.style.display = '';
-    icon.innerHTML = _toastIcons[type] || _toastIcons.info;
-    icon.style.color = _toastColors[type] || _toastColors.info;
-  }
-
-  const dismiss = () => t.classList.remove('show');
-  const btn = el('toastActionBtn');
-  if (btn) {
-    if (action === null) {
-      btn.style.display = 'none';
+const _TS_ICON = {
+  success: '<circle cx="12" cy="12" r="9"/><path class="ts-check" d="m8.5 12.5 2.5 2.5 4.5-5"/>',
+  info: '<circle cx="12" cy="12" r="9"/><path d="M12 16v-4M12 8h.01"/>',
+  warning:
+    '<path d="m21.7 18-8-14a2 2 0 0 0-3.4 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.7-3Z"/><path d="M12 9v4M12 17h.01"/>',
+  error: '<circle cx="12" cy="12" r="9"/><path d="m15 9-6 6M9 9l6 6"/>'
+};
+const _tsSvg = p =>
+  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${p}</svg>`;
+function _tsLayout() {
+  const list = el('toastList');
+  if (!list) return;
+  const { items, open, PEEK, GAP, STEP, MAX } = _TS;
+  const hs = items.map(it => it.ct.offsetHeight + 2),
+    front = hs[0] || 0;
+  let acc = 0;
+  items.forEach((it, k) => {
+    const vis = k < MAX,
+      d = Math.min(k, MAX);
+    it.li.dataset.front = String(k === 0);
+    it.li.dataset.open = String(open);
+    it.li.style.zIndex = String(100 - k);
+    it.li.style.pointerEvents = vis ? '' : 'none';
+    it.li.style.opacity = vis ? '' : '0';
+    if (open) {
+      it.li.style.transform = `translateY(${-acc}px)`;
+      it.card.style.height = hs[k] + 'px';
+      acc += hs[k] + GAP;
     } else {
-      btn.style.display = '';
-      btn.textContent = action?.label || 'Close';
-      btn.onclick = () => {
-        try {
-          action?.onClick?.();
-        } finally {
-          dismiss();
-        }
-      };
+      it.li.style.transform = `translateY(${-PEEK * d}px) scale(${1 - STEP * d})`;
+      it.card.style.height = front + 'px';
     }
+  });
+  list.style.height = !items.length
+    ? '0px'
+    : open
+      ? acc - GAP + 'px'
+      : front + PEEK * (Math.min(items.length, MAX) - 1) + 'px';
+}
+function _tsArm(it) {
+  clearTimeout(it.timer);
+  if (_TS.open || it.ms === Infinity) return;
+  it.timer = setTimeout(() => _tsDrop(it), it.ms);
+}
+function _tsDrop(it, swiped) {
+  clearTimeout(it.timer);
+  const k = _TS.items.indexOf(it);
+  if (k < 0) return;
+  _TS.items.splice(k, 1);
+  if (!swiped) it.li.classList.add('leave');
+  setTimeout(() => it.li.remove(), 260);
+  if (!_TS.items.length) _TS.open = false;
+  _tsLayout();
+}
+// Sideways swipe: past 80px or a flick dismisses; a short one springs back.
+function _tsSwipe(it) {
+  const n = it.card;
+  let x0 = null,
+    dx = 0,
+    t0 = 0;
+  n.addEventListener('pointerdown', e => {
+    if (e.target.closest('button')) return;
+    x0 = e.clientX;
+    dx = 0;
+    t0 = performance.now();
+    n.setPointerCapture(e.pointerId);
+    n.style.transition = 'none';
+  });
+  n.addEventListener('pointermove', e => {
+    if (x0 == null) return;
+    dx = e.clientX - x0;
+    n.style.transform = `translateX(${dx}px)`;
+    n.style.opacity = String(Math.max(0, 1 - Math.abs(dx) / 280));
+  });
+  const end = () => {
+    if (x0 == null) return;
+    const v = (Math.abs(dx) / Math.max(1, performance.now() - t0)) * 1000;
+    x0 = null;
+    n.style.transition = '';
+    if (Math.abs(dx) > 80 || v > 480) {
+      n.style.transform = `translateX(${Math.sign(dx || 1) * 420}px)`;
+      n.style.opacity = '0';
+      setTimeout(() => _tsDrop(it, true), 220);
+    } else {
+      n.style.transform = '';
+      n.style.opacity = '';
+    }
+  };
+  n.addEventListener('pointerup', end);
+  n.addEventListener('pointercancel', end);
+}
+function _tsInit() {
+  const list = el('toastList');
+  if (!list || _TS.inited) return list;
+  _TS.inited = true;
+  const fan = o => {
+    if (_TS.open === o) return;
+    _TS.open = o;
+    _TS.items.forEach(_tsArm);
+    _tsLayout();
+  };
+  list.addEventListener('pointerenter', e => {
+    if (e.pointerType === 'mouse') fan(true);
+  });
+  list.addEventListener('pointerleave', e => {
+    if (e.pointerType === 'mouse') fan(false);
+  });
+  list.addEventListener('focusin', () => fan(true));
+  list.addEventListener('focusout', e => {
+    if (!list.contains(e.relatedTarget)) fan(false);
+  });
+  return list;
+}
+// { type: success | info | warning | error | none, title, desc, action: {label, onClick} | null, ms }
+function _tsPush({ type = 'info', title, desc = '', action = null, ms }) {
+  const list = _tsInit();
+  if (!list) return;
+  const li = document.createElement('li');
+  li.className = 'ts-item enter';
+  li.setAttribute('role', type === 'error' ? 'alert' : 'status');
+  const card = document.createElement('div');
+  card.className = 'ts-card';
+  const ct = document.createElement('div');
+  ct.className = 'ts-ct';
+  if (_TS_ICON[type]) {
+    li.style.setProperty('--c', _TS_COLOR[type]);
+    const ic = document.createElement('span');
+    ic.className = 'ts-ic';
+    ic.innerHTML = _tsSvg(_TS_ICON[type]);
+    ct.appendChild(ic);
   }
-
-  t.classList.add('show');
-  if (_toastTimer) clearTimeout(_toastTimer);
-  _toastTimer = setTimeout(dismiss, 3800);
+  const copy = document.createElement('div');
+  copy.className = 'ts-copy';
+  const t = document.createElement('span');
+  t.className = 'ts-t';
+  t.textContent = title;
+  copy.appendChild(t);
+  if (desc) {
+    const d = document.createElement('span');
+    d.className = 'ts-d';
+    d.textContent = desc;
+    copy.appendChild(d);
+  }
+  ct.appendChild(copy);
+  const it = {
+    li,
+    card,
+    ct,
+    timer: 0,
+    ms: ms ?? (type === 'error' || type === 'warning' ? 1.6 : 1) * (action ? 6000 : 4500)
+  };
+  if (action?.label) {
+    const a = document.createElement('button');
+    a.type = 'button';
+    a.className = 'ts-act';
+    a.textContent = action.label;
+    a.onclick = () => {
+      try {
+        action.onClick?.();
+      } finally {
+        _tsDrop(it);
+      }
+    };
+    ct.appendChild(a);
+  }
+  const x = document.createElement('button');
+  x.type = 'button';
+  x.className = 'ts-x';
+  x.setAttribute('aria-label', 'Dismiss');
+  x.innerHTML = _tsSvg('<path d="M18 6 6 18M6 6l12 12"/>');
+  x.onclick = () => _tsDrop(it);
+  ct.appendChild(x);
+  card.appendChild(ct);
+  li.appendChild(card);
+  list.appendChild(li);
+  _TS.items.unshift(it);
+  // Beyond the 3 on show plus one waiting, the oldest goes.
+  while (_TS.items.length > _TS.MAX + 1) _tsDrop(_TS.items[_TS.items.length - 1]);
+  _tsSwipe(it);
+  _tsLayout();
+  requestAnimationFrame(() =>
+    requestAnimationFrame(() => {
+      li.classList.remove('enter');
+      _tsLayout();
+    })
+  );
+  _tsArm(it);
+}
+// showToast(title, type, desc, action)
+//   type:   success | info | warning | error | none (no icon)
+//   action: {label, onClick} → an action pill (runs onClick, then dismisses);
+//           undefined / null → none (every toast has its own × to dismiss)
+function showToast(title, type = 'info', desc = '', action) {
+  _tsPush({ type, title, desc, action: action?.label ? action : null });
 }
 
 // ── STAY HINT (Recommended action for target day) ──
@@ -3005,23 +3232,101 @@ function _pbTipText(frac, effSecs, workedSecs, startMs) {
   track.addEventListener('pointercancel', hide);
 })();
 
-// The headline: the time left counted by the second, or (amber) the time past the
-// target after its first minute. Only the digits change each second.
-function _rcLeadCap(over) {
-  return over ? 'over your target' : 'left until you can head out';
+// The headline (#68, uiarc "countdown"): hours : minutes : seconds on digit wheels that
+// roll down the short way and fade at the edge. No caption while counting down; in the
+// first minute after the target it morphs into "Time to head out" with a live mark;
+// after that the same digits count up in amber, "over your target".
+const _CD_NAMES = ['Hours', 'Minutes', 'Seconds'];
+let _cdWheels = null;
+function _cdWheel(base) {
+  const w = document.createElement('span');
+  w.className = 'cd-wheel';
+  w.innerHTML =
+    '<span class="cd-sizer">0</span>' +
+    Array.from({ length: base }, (_, d) => `<span class="cd-g">${d}</span>`).join('');
+  const gs = [...w.querySelectorAll('.cd-g')];
+  let pos = 0,
+    digit = 0,
+    raf = 0;
+  const paint = p =>
+    gs.forEach((g, d) => {
+      const off = ((((d - p) % base) + base * 1.5) % base) - base / 2,
+        a = Math.abs(off);
+      g.style.visibility = a >= 1 ? 'hidden' : 'visible';
+      g.style.transform = `translateY(${off}em)`;
+      g.style.opacity = Math.max(0, 1 - a);
+      g.style.filter = a < 0.02 || a >= 1 ? 'none' : `blur(${(a * 2).toFixed(2)}px)`;
+    });
+  paint(0);
+  return {
+    el: w,
+    set(next, first) {
+      if (next === digit) return;
+      const up = (next - digit + base) % base,
+        down = base - up,
+        from = pos,
+        to = pos + (down <= up ? -down : up);
+      digit = next;
+      pos = to;
+      cancelAnimationFrame(raf);
+      if (matchMedia('(prefers-reduced-motion: reduce)').matches || document.hidden) {
+        paint(to);
+        return;
+      }
+      const t0 = performance.now(),
+        dur = first ? 700 : 420;
+      const ease = t => 1 - Math.pow(1 - t, 3) + Math.sin(t * Math.PI) * 0.04; // quick out, soft settle
+      const step = now => {
+        const t = Math.min(1, (now - t0) / dur);
+        paint(from + (to - from) * ease(t));
+        if (t < 1) raf = requestAnimationFrame(step);
+      };
+      raf = requestAnimationFrame(step);
+    }
+  };
+}
+function _cdSet(hms) {
+  const box = el('rcLeadNum');
+  if (!box) return;
+  const first = !_cdWheels;
+  if (first) {
+    box.innerHTML = _CD_NAMES
+      .map(
+        (n, i) =>
+          `${i ? '<span class="cd-colon">:</span>' : ''}<span class="cd-group"><span class="cd-num"></span><span class="cd-name">${n}</span></span>`
+      )
+      .join('');
+    _cdWheels = [...box.querySelectorAll('.cd-num')].map((num, i) => {
+      const pair = [_cdWheel(i === 0 ? 10 : 6), _cdWheel(10)];
+      pair.forEach(w => num.appendChild(w.el));
+      return pair;
+    });
+  }
+  String(hms)
+    .split(':')
+    .slice(0, 3)
+    .forEach((part, i) => {
+      const t = part.padStart(2, '0').slice(-2);
+      _cdWheels[i][0].set(+t[0], first);
+      _cdWheels[i][1].set(+t[1], first);
+    });
 }
 function _rcSetLead(c, live) {
   const box = el('rcLead');
   if (!box) return;
-  if (!c.chipHms) {
+  // The first minute past the target: the digits give way to "Time to head out".
+  const headOut = !c.chipHms && !!loginDate && !c.paused && !!c.isDone;
+  if (!c.chipHms && !headOut) {
     box.hidden = true;
     return;
   }
   box.hidden = false;
   box.classList.toggle('over', !!c.chipOver);
-  const n = el('rcLeadNum');
-  if (n.textContent !== c.chipHms) n.textContent = c.chipHms;
-  const cap = (live || '') + _rcLeadCap(c.chipOver);
+  box.classList.toggle('complete', headOut);
+  if (c.chipHms) _cdSet(c.chipHms);
+  const sr = c.chipHms ? `${c.chipHms} ${c.chipOver ? 'over your target' : 'left'}` : 'Time to head out';
+  box.setAttribute('aria-label', sr);
+  const cap = c.chipOver ? (live || '') + 'over your target' : '';
   if (box._cap !== cap) {
     el('rcLeadCap').innerHTML = cap;
     box._cap = cap;
@@ -3759,17 +4064,37 @@ function _chartTapAway(chart, cb) {
   };
   document.addEventListener('pointerdown', h, true);
 }
+// Saturday / Sunday of the same week that aren't workdays but have hours logged
+// (up to today). Pure, so it can be tested.
+function _wkndExtraDays(base, tk) {
+  if (!base.length) return [];
+  const mon = base[0].date,
+    have = new Set(base.map(d => d.key)),
+    out = [];
+  for (const i of [5, 6]) {
+    const d = new Date(mon);
+    d.setDate(mon.getDate() + i);
+    const key = dateKey(d);
+    if (have.has(key) || key > tk) continue;
+    if ((dayLog(key)?.hoursWorked || 0) > 0) out.push({ key, name: FULL_DAYS_EN[d.getDay()], date: d, extra: true });
+  }
+  return out;
+}
 function _renderWkndSummary(noteKey, ti, when) {
   const box = el('wkndSum');
   if (!box) return;
-  const wk = week(daySelectorWeekOffset),
+  // The week's workdays, plus any weekend day (outside the work week) that has
+  // hours: worked anyway, it gets its own bar and counts in the total as extra.
+  // The weekly target stays the workdays' target.
+  const base = week(daySelectorWeekOffset),
+    tk = todayKey();
+  const wk = [...base, ..._wkndExtraDays(base, tk)],
     rows = _wkndDayData(wk);
   const c = cfg(),
     daily = c.dailyH * 3600;
-  const tk = todayKey(); // days still ahead count as 0, whatever is stored for them
   const secs = wk.map(d => (d.key > tk ? 0 : Math.round((dayLog(d.key)?.hoursWorked || 0) * 3600)));
   const total = secs.reduce((a, b) => a + b, 0);
-  const weekChip = _wkndWeekChip(total, adjustedWeeklyTarget(wk));
+  const weekChip = _wkndWeekChip(total, adjustedWeeklyTarget(base));
   const FULL = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
   const mon = d => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   // Plot: the dashed line marks this week's longest day (not a fixed target or a
@@ -3801,9 +4126,8 @@ function _renderWkndSummary(noteKey, ti, when) {
     `<span class="rc-desc-chip pill${tone ? ' ' + tone : ''} ws-chip">${check ? _WKND_SVG(_WKND_ICON.check) : ''}${text}</span>`;
   const weekRow = weekChip ? chipHtml(weekChip.text, weekChip.tone, weekChip.tone === 'ok') : '';
   box.innerHTML = `<div class="ws-card">
-          <span class="dt-pill">${_WKND_SVG(WK_ICON[DAY_TYPES.weekend.icon])}${ti.title}</span>
-          <div class="ws-total"></div>
-          <div class="ws-vary" aria-live="polite">${weekRow}</div>
+          <div class="ws-cap">This week</div>
+          <div class="ws-sumrow"><div class="ws-total"></div><div class="ws-vary" aria-live="polite">${weekRow}</div></div>
           <div class="ws-chart">
             <div class="ws-plot">
               <span class="ws-grid" style="bottom:50%"></span>
@@ -3848,8 +4172,10 @@ function _renderWkndSummary(noteKey, ti, when) {
     noteBtn.innerHTML = _WKND_SVG(has ? _WKND_ICON.note : _WKND_ICON.plus) + '<span></span>';
     noteBtn.querySelector('span').textContent = text;
   };
+  const cap = box.querySelector('.ws-cap');
   const rest = () => {
     vary.innerHTML = weekRow;
+    if (cap) cap.textContent = 'This week';
     paintNote(note || _infoNoteTitle('weekend'), !!note);
     rollTo(heroSecs);
     barsEl.querySelectorAll('.ws-bar').forEach(b => b.classList.remove('hot'));
@@ -3858,14 +4184,15 @@ function _renderWkndSummary(noteKey, ti, when) {
     const r = rows[i],
       att = r.attendance,
       log = dayLog(wk[i].key) || {};
-    const [label, tone] = TYPE[att] || [secs[i] ? 'Full Day' : 'No entry', ''];
+    const [label, tone] = wk[i].extra ? ['Weekend', ''] : TYPE[att] || [secs[i] ? 'Full Day' : 'No entry', ''];
     const typeChip = `<span class="dt-chip"${tone ? ` style="--dt:var(--${tone})"` : ''}>${label}</span>`;
     // Start and end of that day, when it has both.
     const inT = secs[i] ? _loginDisplayFromLog(log) : '',
       outT = secs[i] ? _checkoutDisplayFromLog(log) : '';
     const times = inT && outT && outT !== '—' ? chipHtml(`${inT} – ${outT}`, '') : '';
     let verdict = '';
-    if (att === 'Leave' || att === 'Holiday') verdict = chipHtml('No hours', '');
+    if (wk[i].extra) verdict = chipHtml('All extra', '');
+    else if (att === 'Leave' || att === 'Holiday') verdict = chipHtml('No hours', '');
     else if (secs[i]) {
       const tgt = att === 'Half Day' ? daily / 2 : daily,
         d = secs[i] - tgt;
@@ -3877,6 +4204,7 @@ function _renderWkndSummary(noteKey, ti, when) {
             : chipHtml(`${_wsGap(_minsGap(secs[i], tgt))} over`, 'warn');
     }
     vary.innerHTML = typeChip + times + verdict;
+    if (cap) cap.textContent = `${FULL[wk[i].date.getDay()]}, ${mon(wk[i].date)}`;
     rollTo(secs[i]);
     // That day's note, if it has one; otherwise the weekend note stays.
     const dn = (log.note || '').trim();
@@ -4871,8 +5199,8 @@ function _reportContext() {
     const end = daysArr.length ? daysArr[daysArr.length - 1].date : now;
     const sameMonth = start.getMonth() === end.getMonth() && start.getFullYear() === end.getFullYear();
     const label = sameMonth
-      ? `${MONTHS[start.getMonth()]} ${start.getDate()} – ${end.getDate()}, ${end.getFullYear()}`
-      : `${MONTHS[start.getMonth()]} ${start.getDate()} – ${MONTHS[end.getMonth()]} ${end.getDate()}, ${end.getFullYear()}`;
+      ? `${MONTHS[start.getMonth()].slice(0, 3)} ${start.getDate()} – ${end.getDate()}, ${end.getFullYear()}`
+      : `${MONTHS[start.getMonth()].slice(0, 3)} ${start.getDate()} – ${MONTHS[end.getMonth()].slice(0, 3)} ${end.getDate()}, ${end.getFullYear()}`;
     return {
       daysArr,
       grouped: true,
@@ -4889,7 +5217,10 @@ function _reportContext() {
   return {
     daysArr: wk,
     grouped: false,
-    label: `${MONTHS[mon.getMonth()]} ${mon.getDate()} to ${MONTHS[fri.getMonth()]} ${fri.getDate()}, ${fri.getFullYear()}`,
+    label:
+      mon.getMonth() === fri.getMonth()
+        ? `${MONTHS[mon.getMonth()].slice(0, 3)} ${mon.getDate()} – ${fri.getDate()}, ${fri.getFullYear()}`
+        : `${MONTHS[mon.getMonth()].slice(0, 3)} ${mon.getDate()} – ${MONTHS[fri.getMonth()].slice(0, 3)} ${fri.getDate()}, ${fri.getFullYear()}`,
     pdfRange: `${MONTHS[mon.getMonth()]} ${mon.getDate()} – ${MONTHS[fri.getMonth()]} ${fri.getDate()}, ${fri.getFullYear()}`,
     pdfPeriod: '7 DAYS',
     totalLabel: 'Weekly Work Hours',
@@ -5040,7 +5371,8 @@ function _renderReport(animate) {
   if (count) {
     const col = _RPT_COLS.find(c => c.key === sort.key);
     count.textContent =
-      `${rows.length} days` + (col ? ` · sorted by ${(col.label || _surplusLabel()).toLowerCase()}` : '');
+      `${rows.length} workday${rows.length === 1 ? '' : 's'} in this report` +
+      (col ? ` · sorted by ${(col.label || _surplusLabel()).toLowerCase()}` : '');
   }
 }
 
@@ -5863,6 +6195,11 @@ function _todayHeadText(d, name) {
 }
 function _paintTodayHead() {
   const t = _todayHeadText(nowTz(), cfg().name);
+  // Weekends: no day-type menu, and the greeting says so, centred.
+  const wk = isWeekendKey(todayKey()) && !loginDate;
+  if (wk) t.title = 'Happy Weekend!';
+  document.querySelector('.td-hd')?.classList.toggle('td-wknd', wk);
+  if (wk && _tdMenuOpen()) _tdCloseMenu();
   const g = el('tdGreet'),
     dt = el('tdDate');
   if (g && g.textContent !== t.title) g.textContent = t.title;
@@ -6748,6 +7085,7 @@ function setCalcBtnState(state) {
   // #64: before a session the row is just Quick Start + "Already working?" (CSS keys off this).
   const sec = el('todayLoginSection');
   if (sec) sec.dataset.mode = state;
+  if (state !== 'start' && _st?.open) _stSetOpen(false);
   if (dd) dd.style.display = 'none';
   const _svgPlay =
     '<svg width="12" height="12" viewBox="0 0 24 24" style="flex-shrink:0"><path fill="currentColor" d="M7 4v16l13-8z"/></svg>';
@@ -6923,8 +7261,9 @@ function _futureTypedMsg(raw) {
   return p ? _futureStartMsg(p) : null;
 }
 function _syncFutureTip() {
+  // The hidden field holds the exact time (with AM/PM) the smart field worked out.
   const input = el('tpFreeInput'),
-    msg = input ? _futureTypedMsg(input.value) : null;
+    msg = input ? _futureTypedMsg(el('tc-r7m2')?.value) : null;
   let tip = el('futureTip');
   if (!msg || !input.offsetParent) {
     tip?.classList.remove('show');
@@ -7046,60 +7385,162 @@ function _stClosestAp(h, m, now) {
   if (near(am) && ahead(am) < ago(pm)) return 'AM';
   return ago(pm) < ago(am) ? 'PM' : 'AM';
 }
-// The time the sheet opens on (minutes): your shift start when you're 15+ minutes
-// into today's shift, otherwise now rounded down to 5 minutes.
-function _stGuess(now, shiftStart, shiftEnd) {
-  if (shiftStart != null && shiftEnd > shiftStart && now >= shiftStart + 15 && now <= shiftEnd)
-    return { m: shiftStart, why: 'Filled in with your shift start.' };
-  return { m: Math.floor(now / 5) * 5, why: 'Filled in with the time now.' };
-}
-const _st = { ap: 'AM', apSet: false, why: '', mode: 'none', at: null };
-const _stMinsOf = d => d.getHours() * 60 + d.getMinutes();
-const _stDigits = () => el('stInput').value.replace(/\D/g, '');
-const _stMask = ds =>
-  !ds ? '' : ds.length <= 2 ? ds + (ds.length === 2 ? ':' : '') : `${ds.slice(0, 2)}:${ds.slice(2)}`;
-const _stLeave = from => short(new Date(from.getTime() + effSecs() * 1000));
-function _stSetAp(v, user) {
-  _st.ap = v;
-  if (user) _st.apSet = true;
-  document.querySelectorAll('#stAp [data-ap]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.ap === v)));
-}
-function _stShake() {
-  const f = el('stField');
-  if (!f) return;
-  f.classList.remove('p12-shaking');
-  void f.offsetWidth;
-  f.classList.add('p12-shaking');
-  f.addEventListener('animationend', () => f.classList.remove('p12-shaking'), { once: true });
-}
-// Reads the field, picks AM/PM if you haven't, and redraws the line + button.
-function _stUpdate(filling) {
-  if (!filling) _st.why = ''; // once you edit it, it's your time, not our guess
-  const ds = _stDigits(),
-    h24 = cfg().use24h === true,
-    now = new Date();
-  if (!h24 && !_st.apSet && ds.length >= 2)
-    _stSetAp(_stClosestAp(+ds.slice(0, 2), +(ds.slice(2) + '00').slice(0, 2), _stMinsOf(now)));
-  let at = null;
-  if (ds.length === 4) {
+
+// One time field, used by the "Already working?" sheet and the Update Login Time
+// field on the Today card: digits only (hh:mm, the colon fills itself), AM/PM picked
+// from the time now until you choose, 24-hour typing converts, paste keeps the time,
+// Enter after just the hour means hh:00. onUpdate(at, digits) runs on every change.
+function _timeInput(inp, apEl, { onUpdate, onEnter }) {
+  const s = { ap: 'AM', apSet: false };
+  const h24 = () => cfg().use24h === true;
+  const digits = () => inp.value.replace(/\D/g, '');
+  const mask = ds =>
+    !ds ? '' : ds.length <= 2 ? ds + (ds.length === 2 ? ':' : '') : `${ds.slice(0, 2)}:${ds.slice(2)}`;
+  const setAp = (v, user) => {
+    s.ap = v;
+    if (user) s.apSet = true;
+    apEl?.querySelectorAll('[data-ap]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.ap === v)));
+  };
+  const shake = () => {
+    const f = inp.closest('.st-field, .shift-combo');
+    if (!f) return;
+    f.classList.remove('p12-shaking');
+    void f.offsetWidth;
+    f.classList.add('p12-shaking');
+    f.addEventListener('animationend', () => f.classList.remove('p12-shaking'), { once: true });
+  };
+  // The time in the field as today's Date (null until hh:mm is complete).
+  function read() {
+    const ds = digits(),
+      now = new Date();
+    if (!h24() && !s.apSet && ds.length >= 2)
+      setAp(_stClosestAp(+ds.slice(0, 2), +(ds.slice(2) + '00').slice(0, 2), now.getHours() * 60 + now.getMinutes()));
+    if (ds.length !== 4) return null;
     const h = +ds.slice(0, 2),
-      m = +ds.slice(2);
-    at = new Date(now);
-    at.setHours(h24 ? h : (h % 12) + (_st.ap === 'PM' ? 12 : 0), m, 0, 0);
+      m = +ds.slice(2),
+      at = new Date(now);
+    at.setHours(h24() ? h : (h % 12) + (s.ap === 'PM' ? 12 : 0), m, 0, 0);
+    return at;
   }
+  const update = () => onUpdate(read(), digits());
+  // Fill with minutes since midnight (exact AM/PM: it's a known time, not a guess).
+  function fill(mins) {
+    const h = Math.floor(mins / 60),
+      mi = mins % 60;
+    if (h24()) inp.value = `${p2(h)}:${p2(mi)}`;
+    else {
+      setAp(h >= 12 ? 'PM' : 'AM', true);
+      inp.value = `${p2(h % 12 || 12)}:${p2(mi)}`;
+    }
+    update();
+  }
+  function reset() {
+    inp.value = '';
+    s.apSet = false;
+    update();
+  }
+  if (apEl) {
+    apEl.addEventListener('mousedown', e => e.preventDefault()); // keep the caret in the field
+    apEl.addEventListener('click', e => {
+      const b = e.target.closest('[data-ap]');
+      if (b) {
+        setAp(b.dataset.ap, true);
+        update();
+      }
+    });
+  }
+  inp.addEventListener('beforeinput', e => {
+    const t = e.inputType || '';
+    if (t === 'insertFromPaste') return; // handled by 'paste'
+    if (t.startsWith('delete')) {
+      e.preventDefault();
+      const all = inp.selectionStart === 0 && inp.selectionEnd === inp.value.length;
+      inp.value = all ? '' : mask(digits().slice(0, -1));
+      if (digits().length < 2) s.apSet = false;
+      update();
+      return;
+    }
+    if (t !== 'insertText' || e.data == null) return;
+    e.preventDefault();
+    // Typing over a selected time starts fresh, and AM/PM works itself out again.
+    if (inp.value && inp.selectionStart === 0 && inp.selectionEnd === inp.value.length) {
+      inp.value = '';
+      s.apSet = false;
+    }
+    for (const ch of e.data) {
+      const ds = digits();
+      if (/\d/.test(ch)) {
+        const nx = _stAccept(ds, ch, h24());
+        if (!nx) {
+          shake();
+          continue;
+        }
+        if (nx.ap) setAp(nx.ap, true);
+        inp.value = mask(nx.ds);
+      } else if (!h24() && /[aA]/.test(ch)) setAp('AM', true);
+      else if (!h24() && /[pP]/.test(ch)) setAp('PM', true);
+      else if (/[:.\s]/.test(ch) && ds.length === 1) inp.value = mask('0' + ds);
+      else shake();
+    }
+    update();
+  });
+  // Paste any text with a time in it ("Punched in 9.31 pm", a Keka line): only the time is kept.
+  inp.addEventListener('paste', e => {
+    e.preventDefault();
+    const m = (e.clipboardData?.getData('text') || '').match(/(\d{1,2})[:.](\d{2})(?::\d{2})?\s*([ap])?/i);
+    if (!m || +m[1] > 23 || +m[2] > 59) {
+      shake();
+      return;
+    }
+    let h = +m[1];
+    s.apSet = false;
+    if (h24()) {
+      if (m[3] && /p/i.test(m[3]) && h < 12) h += 12;
+      inp.value = `${p2(h)}:${m[2]}`;
+    } else {
+      if (m[3]) setAp(/p/i.test(m[3]) ? 'PM' : 'AM', true);
+      if (h > 12) {
+        setAp('PM', true);
+        h -= 12;
+      }
+      inp.value = `${p2(h || 12)}:${m[2]}`;
+    }
+    update();
+  });
+  inp.addEventListener('keydown', e => {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    const ds = digits();
+    if (ds.length === 2) {
+      inp.value = mask(ds + '00');
+      update();
+    } // "10" + Enter = 10:00
+    onEnter?.();
+  });
+  return { read, fill, reset };
+}
+
+// ── "Already working?" in place (#67 Expand in place) ──
+// The link opens an empty field under Quick Start. While it's
+// open, Quick Start is the one primary button and names the time ("Start at 09:00 AM");
+// the link turns into Cancel. No modal: it's not a blocker, just another way to start.
+var _st = { mode: 'none', at: null, tf: null, open: false }; // var: setCalcBtnState reads it early
+const _stLeave = from => short(new Date(from.getTime() + effSecs() * 1000));
+// What the time in the field means, as one line + the button's label.
+function _stUpdate(at) {
+  const now = new Date();
   const ahead = at ? at - now : 0,
     bad = ahead > 59000,
     mins = Math.ceil(ahead / 60000);
   const away = mins >= 60 ? durWorked(mins * 60) : `${mins} min${mins === 1 ? '' : 's'}`;
   const why = 'and 5pm only counts time that has already passed.';
-  const out = el('stOut'),
-    go = el('stGo');
+  const out = el('stOut');
   if (!at) {
     _st.mode = 'none';
-    out.textContent = `Type the time you began, like ${h24 ? '09:30' : '9:30'}.`;
+    out.textContent = 'Fill the time to know when to leave.';
   } else if (!bad) {
     _st.mode = 'at';
-    out.innerHTML = `${_st.why ? _st.why + ' ' : ''}You can leave at <b>${_stLeave(at)}</b>.`;
+    out.innerHTML = `You can leave by <b>${_stLeave(at)}</b>.`;
   } else if (mins <= 10) {
     _st.mode = 'now';
     out.innerHTML = `${short(at)} is ${away} away, ${why} Start now and you can leave at <b>${_stLeave(now)}</b>.`;
@@ -7110,142 +7551,71 @@ function _stUpdate(filling) {
   _st.at = at;
   out.classList.toggle('warn', bad);
   el('stField').classList.toggle('bad', bad);
+  if (!_st.open) return;
+  const go = el('calcBtn');
+  if (go.dataset.state !== 'start') return;
   go.disabled = _st.mode === 'none';
   go.textContent = _st.mode === 'at' ? `Start at ${short(at)}` : _st.mode === 'now' ? 'Start Now' : 'Start';
 }
-function _stFill(m) {
-  const h = Math.floor(m / 60),
-    mi = m % 60,
-    inp = el('stInput');
-  if (cfg().use24h) inp.value = `${p2(h)}:${p2(mi)}`;
-  else {
-    _stSetAp(h >= 12 ? 'PM' : 'AM', true);
-    inp.value = `${p2(h % 12 || 12)}:${p2(mi)}`;
+// Opens (true) or folds (false) the field. Folding gives Quick Start its name back.
+function _stSetOpen(open, focusLink) {
+  const slot = el('qsSlot'),
+    link = el('qsLink');
+  if (!slot || !link) return;
+  // Only before a session: never relabel Pause / End / Resume.
+  if (open && el('calcBtn')?.dataset.state !== 'start') return;
+  _st.open = open;
+  slot.classList.toggle('open', open);
+  link.textContent = open ? 'Cancel' : 'Already working?';
+  link.setAttribute('aria-expanded', String(open));
+  // Hidden controls stay out of the tab order while folded.
+  slot.querySelectorAll('input, button').forEach(n => (n.tabIndex = open ? 0 : -1));
+  if (open) {
+    // Empty: you type the time you started (user 2026-11-20: no pre-filled guess).
+    el('stAp').hidden = cfg().use24h === true;
+    _st.tf.reset();
+    setTimeout(() => el('stInput').focus({ preventScroll: true }), 60);
+  } else {
+    const go = el('calcBtn');
+    if (go?.dataset.state === 'start') {
+      go.textContent = 'Quick Start';
+      go.disabled = false;
+    }
+    if (focusLink) link.focus();
   }
-  _stUpdate(true);
-}
-function openStartSheet() {
-  const c = cfg(),
-    now = _stMinsOf(new Date());
-  const s = parse(c.shiftStart || '09:00 AM'),
-    e = parse(c.shiftEnd || '06:00 PM');
-  const g = _stGuess(now, s ? _stMinsOf(s) : null, e ? _stMinsOf(e) : -1);
-  el('stAp').hidden = c.use24h === true;
-  _st.apSet = false;
-  _st.why = g.why;
-  _stFill(g.m);
-  el('startTimeOverlay').classList.add('open');
-  // Selected, so typing replaces the guess.
-  setTimeout(() => {
-    const i = el('stInput');
-    i.focus({ preventScroll: true });
-    i.select();
-  }, 60);
-}
-function closeStartSheet() {
-  el('startTimeOverlay')?.classList.remove('open');
 }
 function _stGo() {
-  if (_st.mode === 'none') return;
+  if (!_st.open || _st.mode === 'none') return;
   const at = _st.mode === 'now' ? new Date() : _st.at;
-  closeStartSheet();
+  _stSetOpen(false);
   el('tc-r7m2').value = '';
   calculate(at);
 }
 (function _stInit() {
-  const inp = el('stInput'),
-    ov = el('startTimeOverlay');
-  if (!inp || !ov) return;
-  el('qsLink')?.addEventListener('click', openStartSheet);
-  el('stCancel').addEventListener('click', closeStartSheet);
-  el('stGo').addEventListener('click', _stGo);
-  ov.addEventListener('click', e => {
-    if (e.target === ov) closeStartSheet();
-  });
-  ov.addEventListener('keydown', e => {
+  const inp = el('stInput');
+  if (!inp) return;
+  _st.tf = _timeInput(inp, el('stAp'), { onUpdate: at => _stUpdate(at), onEnter: _stGo });
+  el('qsLink')?.addEventListener('click', () => _stSetOpen(!_st.open, !_st.open ? false : true));
+  inp.addEventListener('keydown', e => {
     if (e.key === 'Escape') {
       e.stopPropagation();
-      closeStartSheet();
+      _stSetOpen(false, true);
     }
-  });
-  el('stAp').addEventListener('mousedown', e => e.preventDefault()); // keep the caret in the field
-  el('stAp').addEventListener('click', e => {
-    const b = e.target.closest('[data-ap]');
-    if (b) {
-      _stSetAp(b.dataset.ap, true);
-      _stUpdate();
-    }
-  });
-  inp.addEventListener('beforeinput', e => {
-    const t = e.inputType || '';
-    if (t === 'insertFromPaste') return; // handled by 'paste'
-    if (t.startsWith('delete')) {
-      e.preventDefault();
-      const all = inp.selectionStart === 0 && inp.selectionEnd === inp.value.length;
-      inp.value = all ? '' : _stMask(_stDigits().slice(0, -1));
-      if (_stDigits().length < 2) _st.apSet = false;
-      _stUpdate();
-      return;
-    }
-    if (t !== 'insertText' || e.data == null) return;
-    e.preventDefault();
-    // Typing over the selected guess starts fresh, and AM/PM works itself out again.
-    if (inp.value && inp.selectionStart === 0 && inp.selectionEnd === inp.value.length) {
-      inp.value = '';
-      _st.apSet = false;
-    }
-    const h24 = cfg().use24h === true;
-    for (const ch of e.data) {
-      const ds = _stDigits();
-      if (/\d/.test(ch)) {
-        const nx = _stAccept(ds, ch, h24);
-        if (!nx) {
-          _stShake();
-          continue;
-        }
-        if (nx.ap) _stSetAp(nx.ap, true);
-        inp.value = _stMask(nx.ds);
-      } else if (!h24 && /[aA]/.test(ch)) _stSetAp('AM', true);
-      else if (!h24 && /[pP]/.test(ch)) _stSetAp('PM', true);
-      else if (/[:.\s]/.test(ch) && ds.length === 1) inp.value = _stMask('0' + ds);
-      else _stShake();
-    }
-    _stUpdate();
-  });
-  // Paste any text with a time in it ("Punched in 9.31 pm", a Keka line): only the time is kept.
-  inp.addEventListener('paste', e => {
-    e.preventDefault();
-    const m = (e.clipboardData?.getData('text') || '').match(/(\d{1,2})[:.](\d{2})(?::\d{2})?\s*([ap])?/i);
-    if (!m || +m[1] > 23 || +m[2] > 59) {
-      _stShake();
-      return;
-    }
-    let h = +m[1];
-    _st.apSet = false;
-    if (cfg().use24h) {
-      if (m[3] && /p/i.test(m[3]) && h < 12) h += 12;
-      inp.value = `${p2(h)}:${m[2]}`;
-    } else {
-      if (m[3]) _stSetAp(/p/i.test(m[3]) ? 'PM' : 'AM', true);
-      if (h > 12) {
-        _stSetAp('PM', true);
-        h -= 12;
-      }
-      inp.value = `${p2(h || 12)}:${m[2]}`;
-    }
-    _stUpdate();
-  });
-  inp.addEventListener('keydown', e => {
-    if (e.key !== 'Enter') return;
-    e.preventDefault();
-    const ds = _stDigits();
-    if (ds.length === 2) {
-      inp.value = _stMask(ds + '00');
-      _stUpdate();
-    } // "10" + Enter = 10:00
-    _stGo();
   });
 })();
+
+// ── Update Login Time (the field beside Pause / Resume) ──
+// Same field as the sheet. It keeps the hidden #tc-r7m2 in step with an exact
+// "09:30 PM", so the existing Enter -> calculate() path reads the time you meant.
+var _loginTf = null; // var: setCalcBtnState can clear the field before this line runs
+function _loginTfSync(at, ds) {
+  const hidden = el('tc-r7m2');
+  if (!hidden) return;
+  hidden.value = at ? short(at) : '';
+  const ap = el('tpAp');
+  if (ap) ap.hidden = cfg().use24h === true || ds.length < 2;
+  _syncFutureTip();
+}
 
 // ── ONE MODAL AT A TIME ─────────────────────────────
 // Modals that open by themselves (Done for the Day, Auto-Stopped, the Monday
@@ -8696,15 +9066,24 @@ const _AC_I = {
   trash:
     '<path d="M3 6h18"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"/>'
 };
+// A row (#66 D · Chips): the date as the title, then only what needs resolving:
+// the amber gap and, when it isn't a Full Day, the day type. Worked / target lives in
+// the Update Entry panel the row opens.
 function _acRowHtml(r, read) {
   const d = r.date,
-    wd = FULL_DAYS_EN[d.getDay()].slice(0, 3);
-  const sub = `${_acDur(r.worked)} of ${_acDur(r.tgt)}${r.half ? ' · Half day' : ''}${r.sample ? ' · Sample' : ''}${read ? ' · Read' : ''}`;
-  return `<div class="penalty-row ac-row${read ? ' read' : ''}" data-penalty-key="${r.key}" tabindex="0" role="button" aria-label="Raise a dispute for ${FULL_DAYS_EN[d.getDay()]}, ${MONTHS[d.getMonth()]} ${d.getDate()}: ${_acDur(r.deficit)} short">
-          <div class="wk-tile ac-tile"><span class="wk-tile-n">${wd}</span><span class="wk-tile-d">${d.getDate()}</span></div>
-          <div class="ac-txt"><div class="ac-gap"><b>${_acDur(r.deficit)}</b> <span>short</span></div><div class="ac-sub">${sub}</div></div>
+    wd = FULL_DAYS_EN[d.getDay()];
+  const chips =
+    `<span class="ac-chip w">${_acDur(r.deficit)} short</span>` +
+    (r.half ? '<span class="ac-chip half">Half Day</span>' : '') +
+    (r.sample ? '<span class="ac-chip">Sample</span>' : '') +
+    (read ? '<span class="ac-chip">Read</span>' : '');
+  return `<div class="penalty-row ac-row${read ? ' read' : ''}" data-penalty-key="${r.key}" tabindex="0" role="button" aria-label="Raise a dispute for ${wd}, ${MONTHS[d.getMonth()]} ${d.getDate()}: ${_acDur(r.deficit)} short">
+          <div class="wk-tile ac-tile"><span class="wk-tile-n">${wd.slice(0, 3)}</span><span class="wk-tile-d">${d.getDate()}</span></div>
+          <div class="ac-txt"><div class="ac-day">${wd}, ${MONTHS[d.getMonth()].slice(0, 3)} ${d.getDate()}</div><div class="ac-chips">${chips}</div></div>
+          <svg class="ac-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
         </div>`;
 }
+
 // Rows with a month label each time the list crosses into a new month.
 function _acListHtml(rows, read) {
   const months = new Set(rows.map(r => r.date.getMonth()));
@@ -8754,7 +9133,7 @@ function _renderPenaltyCard() {
   if (_acConfirm && rows.length) {
     list.innerHTML = `<div class="ac-confirm" role="alertdialog" aria-labelledby="acCfT"><p class="ac-cf-t" id="acCfT">Clear all ${rows.length} ${rows.length === 1 ? 'penalty' : 'penalties'}?</p>
           <p class="ac-cf-d">They leave the Action Center for good, read or not. Your hours stay as they are.</p>
-          <div class="ac-cf-a"><button type="button" class="btn-secondary" data-ac="cf-no">Cancel</button><button type="button" class="btn-danger sm" data-ac="cf-yes">Clear All</button></div></div>`;
+          <div class="ac-cf-a"><button type="button" class="btn-secondary" data-ac="cf-no">Cancel</button><button type="button" class="btn-danger-2 sm" data-ac="cf-yes">Clear All</button></div></div>`;
   } else if (!rows.length) {
     list.innerHTML = `<div class="ac-empty"><div class="ac-tray" aria-hidden="true">
             <svg viewBox="0 0 64 56" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 34 14 12a4 4 0 0 1 3.8-2.8h28.4A4 4 0 0 1 50 12l8 22v12a4 4 0 0 1-4 4H10a4 4 0 0 1-4-4Z"/><path d="M6 34h14l3 6h18l3-6h14"/></svg>
@@ -9451,13 +9830,172 @@ function _dePageReset() {
   _deEmailMoveOut();
 }
 
+// #13 Report a Bug: its own small form. The email keeps the full diagnostics
+// (_diagLines) plus the recent errors 5pm recorded itself (diag.js).
+let _bg = { area: '', url: '' };
+const _bgDesktop = () => matchMedia('(hover: hover) and (pointer: fine)').matches;
+function _bgErrText(r) {
+  const t = new Date(r.at).toTimeString().slice(0, 5),
+    n = r.n > 1 ? ` · ${r.n} times` : '';
+  return r.kind === 'net'
+    ? `${r.status} ${r.what} (network, ${t}${n})`
+    : `${r.what}${r.where ? ' · ' + r.where : ''} (console, ${t}${n})`;
+}
+function _bgErrors() {
+  const D = window.__diag || {};
+  return [...(D.net || []), ...(D.cons || [])].sort((a, b) => b.at - a.at).slice(0, 10);
+}
+function _bgCompose() {
+  const desc = el('bgDesc').value.trim();
+  const errs = _bgErrors();
+  const v = { ..._bugDevice(), description: (_bg.area ? `[${_bg.area}] ` : '') + desc };
+  const subject = _fillTpl(EMAIL_TPL.bug.concise.subject, v);
+  let body = _fillTpl(EMAIL_TPL.bug.concise.body, v);
+  if (errs.length) body += '\n\nRecent errors\n' + errs.map(_bgErrText).join('\n');
+  return { subject, body };
+}
+function _bgUpdate() {
+  const n = el('bgDesc').value.trim().length,
+    left = Math.max(0, BUG_MIN_CHARS - n);
+  el('bgRing').style.strokeDashoffset = String(37.7 * (1 - Math.min(1, n / BUG_MIN_CHARS)));
+  el('bgCnt').classList.toggle('ok', !left);
+  el('bgCntT').textContent = left ? `${left} more character${left === 1 ? '' : 's'}` : 'Good enough';
+  el('bgSend').disabled = !!left;
+  const w = el('bgSendW');
+  if (left) w.dataset.tip = `Add ${left} more character${left === 1 ? '' : 's'} to the description first.`;
+  else delete w.dataset.tip;
+}
+function _bgPaintDetails() {
+  const lines = _diagLines()
+    .split('\n')
+    .filter(l => /^[A-Z][\w ]+: /.test(l))
+    .slice(0, 8);
+  const dl = el('bgDevList');
+  dl.innerHTML = '';
+  lines.forEach(l => {
+    const i = l.indexOf(': '),
+      dt = document.createElement('dt'),
+      dd = document.createElement('dd');
+    dt.textContent = l.slice(0, i);
+    dd.textContent = l.slice(i + 2);
+    dl.append(dt, dd);
+  });
+  const [, browser] = _diagSystem();
+  el('bgDevSum').textContent = `5pm ${APP_VERSION} · ${browser.split(' ')[0]} on ${_diagSystem()[0].split(' ')[0]}`;
+  const errs = _bgErrors(),
+    D = window.__diag || {};
+  el('bgErr').hidden = !errs.length;
+  if (errs.length) {
+    const net = (D.net || []).length,
+      con = (D.cons || []).length;
+    el('bgErrSum').textContent = [
+      net && `${net} failed request${net === 1 ? '' : 's'}`,
+      con && `${con} console error${con === 1 ? '' : 's'}`
+    ]
+      .filter(Boolean)
+      .join(' · ');
+    const ul = el('bgErrList');
+    ul.innerHTML = '';
+    errs.forEach(r => {
+      const li = document.createElement('li'),
+        tag = document.createElement('span'),
+        b = document.createElement('b'),
+        m = document.createElement('span');
+      tag.className = 'bg-tag' + (r.kind === 'net' ? ' bad' : '');
+      tag.textContent = r.status;
+      b.textContent = r.what;
+      m.className = 'm';
+      m.textContent = `${r.kind === 'net' ? 'Network' : 'Console'}${r.where ? ' · ' + r.where : ''} · ${short(new Date(r.at))}${r.n > 1 ? ` · ${r.n} times` : ''}`;
+      li.append(tag, b, m);
+      ul.appendChild(li);
+    });
+  }
+}
 function openBugReport() {
   _diagStepsAtOpen = (window.__diag?.steps.length || 1) - 1; // minus the Report tap itself
-  _openEmailFor({ type: 'bug' });
+  _bg = { area: '', url: '' };
+  el('bgDesc').value = '';
+  el('bgChips')
+    .querySelectorAll('.bg-chip')
+    .forEach(c => c.setAttribute('aria-pressed', 'false'));
+  el('bugOverlay')
+    .querySelectorAll('.bg-det')
+    .forEach(d => {
+      d.classList.remove('open');
+      d.querySelector('.bg-dh').setAttribute('aria-expanded', 'false');
+    });
+  el('bgMain').hidden = false;
+  el('bgSent').hidden = true;
+  el('bgSendT').textContent = _bgDesktop() ? 'Open Gmail' : 'Open Mail';
+  _bgUpdate();
+  _bgPaintDetails();
+  el('bugOverlay').classList.add('open');
+  setTimeout(() => el('bgDesc')?.focus({ preventScroll: true }), 200);
   _diagRefresh().then(() => {
-    if (_emailP?.type === 'bug') _emailUpdate();
+    if (el('bugOverlay').classList.contains('open')) _bgPaintDetails();
   });
 }
+function closeBugReport() {
+  el('bugOverlay').classList.remove('open');
+}
+(function _bgInit() {
+  const ov = el('bugOverlay');
+  if (!ov) return;
+  el('bugClose').addEventListener('click', closeBugReport);
+  el('bgDone').addEventListener('click', closeBugReport);
+  ov.addEventListener('click', e => {
+    if (e.target === ov) closeBugReport();
+  });
+  ov.addEventListener('keydown', e => {
+    if (e.key === 'Escape') {
+      e.stopPropagation();
+      closeBugReport();
+    }
+  });
+  el('bgDesc').addEventListener('input', _bgUpdate);
+  el('bgChips').addEventListener('click', e => {
+    const c = e.target.closest('.bg-chip');
+    if (!c) return;
+    const on = c.getAttribute('aria-pressed') !== 'true';
+    el('bgChips')
+      .querySelectorAll('.bg-chip')
+      .forEach(x => x.setAttribute('aria-pressed', 'false'));
+    c.setAttribute('aria-pressed', String(on));
+    _bg.area = on ? c.textContent : '';
+  });
+  ov.querySelectorAll('.bg-dh').forEach(h =>
+    h.addEventListener('click', () => {
+      const d = h.closest('.bg-det'),
+        o = !d.classList.contains('open');
+      d.classList.toggle('open', o);
+      h.setAttribute('aria-expanded', String(o));
+    })
+  );
+  el('bgCopy').addEventListener('click', () => {
+    const { subject, body } = _bgCompose();
+    navigator.clipboard?.writeText(`To: ${BUG_REPORT_TO}\nSubject: ${subject}\n\n${body}`);
+    el('bgCopyT').textContent = 'Copied';
+    setTimeout(() => {
+      el('bgCopyT').textContent = 'Copy Report';
+    }, 1600);
+  });
+  el('bgSend').addEventListener('click', () => {
+    const { subject, body } = _bgCompose(),
+      enc = encodeURIComponent;
+    const a = document.createElement('a');
+    if (_bgDesktop()) {
+      a.href = `https://mail.google.com/mail/?view=cm&fs=1&to=${enc(BUG_REPORT_TO)}&su=${enc(subject)}&body=${enc(body)}`;
+      a.target = '_blank';
+      a.rel = 'noopener';
+    } else a.href = `mailto:${BUG_REPORT_TO}?subject=${enc(subject)}&body=${enc(body.replace(/\n/g, '\r\n'))}`;
+    a.click();
+    el('bgSentP').textContent = _bgDesktop()
+      ? 'Gmail opened in a new tab with your report. Press Send there to reach Roshan.'
+      : 'Your mail app opened with your report. Press Send there to reach Roshan.';
+    el('bgMain').hidden = true;
+    el('bgSent').hidden = false;
+  });
+})();
 
 // ── What's New ──
 // The notes live in lib/whats-new.js (also the source for the GitHub and
@@ -9738,8 +10276,13 @@ function confirmEndSession() {
   const halfSecs = dailySecs / 2;
   let workedSecs = _sessionAccSecs;
   if (loginDate) workedSecs += Math.max(0, Math.floor((new Date() - loginDate) / 1000));
-  const isHalfDay = workedSecs > 0 && workedSecs <= halfSecs;
   el('endSessionOverlay').classList.remove('open');
+  // Under 5 minutes in total today is almost always a mis-tap: it isn't saved (#69).
+  if (loginDate && workedSecs < _TINY_SESSION_SECS) {
+    _discardTinySession(workedSecs);
+    return;
+  }
+  const isHalfDay = workedSecs > 0 && workedSecs <= halfSecs;
   // Mark half day in log before checkout
   if (isHalfDay) {
     const tk = todayKey(),
@@ -9749,27 +10292,69 @@ function confirmEndSession() {
   checkout();
 }
 
-// ── UNDO TOAST SYSTEM ─────────────────────────────
-function showUndoToast(msg, undoFn, durationMs = 4000) {
-  const toast = el('appToast');
-  const msgEl = el('appToastMsg');
-  const undoBtn = el('appToastUndo');
-  if (!toast) return;
-  if (_toastTimer) {
-    clearTimeout(_toastTimer);
-    toast.classList.remove('toast-show');
+// ── TOO-SHORT SESSION (#69 A) ─────────────────────
+// Ending a day with under 5 minutes logged discards it, so the week never shows a
+// "2m" or "0h 00m" day. Undo saves it back exactly as End would have.
+const _TINY_SESSION_SECS = 300;
+function _discardTinySession(workedSecs) {
+  const tk = todayKey(),
+    ex = dayLog(tk) || {},
+    now = new Date(),
+    firstStart = loginDate;
+  const ended = {
+    ...ex,
+    loginTime: ex.loginTime || `${firstStart.getHours()}:${firstStart.getMinutes()}:${firstStart.getSeconds()}`,
+    loginDisplay: ex.loginDisplay || short(firstStart),
+    checkoutTime: `${p2(now.getHours())}:${p2(now.getMinutes())}:${p2(now.getSeconds())}`,
+    checkoutDisplay: short(now),
+    hoursWorked: workedSecs / 3600,
+    lastUpdated: now.toISOString(),
+    sessionTag: ex.sessionTag || 'realtime'
+  };
+  // Same clean-up as deleting today's entry in Update Entry.
+  cancelScheduledNotifications();
+  if (ticker) {
+    clearInterval(ticker);
+    ticker = null;
   }
-  msgEl.textContent = msg;
-  _toastUndoFn = undoFn || null;
-  undoBtn.style.display = undoFn ? '' : 'none';
-  requestAnimationFrame(() => {
-    toast.classList.add('toast-show');
-    _toastTimer = setTimeout(() => {
-      toast.classList.remove('toast-show');
-      _toastTimer = null;
-      _toastUndoFn = null;
-    }, durationMs);
-  });
+  _stopCheckpoint();
+  loginDate = null;
+  _sessionAccSecs = 0;
+  _sessionCheckoutTime = null;
+  autoStopped = false;
+  wasDone = false;
+  notifSent = false;
+  Store.clearSession();
+  setCalcBtnState('start');
+  el('shiftInputRow').classList.remove('active-state', 'hidden');
+  el('shiftActiveLabel').textContent = '—';
+  el('autostopBanner').classList.remove('show');
+  _setNoteDirty(tk);
+  Store.remove(KEY.day + tk);
+  _markDirty(tk);
+  _syncNow();
+  renderHistory();
+  renderPenalties();
+  renderSurplusCircles();
+  renderEmptyState();
+  showUndoToast(
+    'The session was too short. Discarded.',
+    () => {
+      // Undo: keep it after all, as an ended session.
+      saveDayLogAndSync(tk, { ...ended, lastUpdated: new Date().toISOString() });
+      persist();
+      renderHistory();
+      renderPenalties();
+      renderSurplusCircles();
+      selectDay(tk);
+    },
+    6000
+  );
+}
+
+// ── UNDO TOAST SYSTEM ─────────────────────────────
+function showUndoToast(msg, undoFn, durationMs = 6000) {
+  _tsPush({ type: 'info', title: msg, action: undoFn ? { label: 'Undo', onClick: undoFn } : null, ms: durationMs });
 }
 
 // ── DELETE DAY ENTRY ───────────────────────────────
@@ -10361,7 +10946,10 @@ const Store = {
   },
 
   // import: validate schema, replace everything
-  importSnap(snap) {
+  // mode 'overwrite' replaces every day + settings; 'merge' (#72) adds the backup's days
+  // and keeps what's here: for a day in both, the newer one (lastUpdated) stays, and
+  // today stays as is while a session runs. Returns how many days the backup had.
+  importSnap(snap, mode = 'overwrite') {
     // Accept both v2 structured and legacy flat formats
     const days = snap.tracking?.days || snap.days || snap;
     if (typeof days !== 'object' || Array.isArray(days)) return false;
@@ -10377,6 +10965,18 @@ const Store = {
     // No recognisable days means this is not a backup we should act on. The
     // old code fell through here and wiped every existing log.
     if (!entries.length) return false;
+    if (mode === 'merge') {
+      const keepToday = loginDate ? todayKey() : null;
+      entries.forEach(([dk, v]) => {
+        if (dk === keepToday) return;
+        const cur = this.get(KEY.day + dk);
+        const curT = Date.parse(cur?.lastUpdated || 0) || 0,
+          newT = Date.parse(v.lastUpdated || 0) || 0;
+        if (!cur || newT > curT) this.set(KEY.day + dk, v);
+      });
+      this._touch();
+      return entries.length;
+    }
     // Wipe existing day logs
     this.keys(KEY.day).forEach(k => this.remove(k));
     entries.forEach(([dk, v]) => this.set(KEY.day + dk, v));
@@ -10405,7 +11005,7 @@ const Store = {
       this.setCfg(legacyCfg);
     }
     this._touch();
-    return true;
+    return entries.length;
   }
 };
 
@@ -10692,17 +11292,15 @@ const SbSync = {
         this._lastErr = 'No active session';
         return false;
       }
-      const { error } = await window._sbClient
-        .from('user_kv')
-        .upsert(
-          {
-            user_id: uid,
-            key: 'config',
-            value: { cfg: cfgObj, src: this._clientId },
-            updated_at: new Date().toISOString()
-          },
-          { onConflict: 'user_id,key' }
-        );
+      const { error } = await window._sbClient.from('user_kv').upsert(
+        {
+          user_id: uid,
+          key: 'config',
+          value: { cfg: cfgObj, src: this._clientId },
+          updated_at: new Date().toISOString()
+        },
+        { onConflict: 'user_id,key' }
+      );
       if (error) {
         this._lastErr = error.code || error.message;
         console.warn('[SbSync] pushSettings:', error.message);
@@ -11405,165 +12003,257 @@ function restoreSession() {
   }
 }
 
-// ── Import Modal (Settings) ───────────────────────
-function openImportModal() {
-  _setPage('pageImport', 'Import Backup', 'Restore your data from a .json backup file.', page => {
-    const card = document.createElement('div');
-    card.className = 'set-card';
-    card.append(...el('importModal').querySelector('.dialog-body').children);
-    page.appendChild(card);
-    el('importModal').remove();
-  });
-  const zoneText = el('importModalZoneText');
-  if (zoneText) zoneText.innerHTML = '<strong>Choose a file or drag &amp; drop here</strong><br>Supports .json files';
-  const status = el('importModalStatus');
-  if (status) {
-    status.style.display = 'none';
-    status.textContent = '';
-  }
-  const fileInp = el('importModalFile');
-  if (fileInp) fileInp.value = '';
-}
-function closeImportModal() {
-  closeSetPage();
-}
-
 // Export Backup — structured v2 JSON with user-friendly filename
-function exportBackup() {
+// Returns the file name. The browser picks the folder (5pm can't see it); its default
+// is the Downloads folder, which the toast names (#72).
+function exportBackup(silent) {
   const snap = Store.snapshot();
   const c = cfg();
   const name = (c.name || '').trim().replace(/\s+/g, '_') || 'log';
   const date = new Date().toISOString().slice(0, 10);
+  const file = `wh_${name}_${date}.json`;
   const blob = new Blob([JSON.stringify(snap, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `wh_${name}_${date}.json`;
+  a.download = file;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
-  showToast('Exporting', 'success', 'Your data is ready to download.');
+  if (silent !== true) showToast('Exported', 'success', `${file} is saved in your Downloads folder.`);
+  return file;
 }
 
+// ── Backup & Restore: Import in place (#72, uiarc "file-upload") ──
+// Import opens a drop field inside the row. A good file asks Merge (default: adds the
+// backup's days, keeps yours) or Overwrite (replaces your log), with an optional copy of
+// the current log downloaded first.
+const _IMP_MAX = 5 * 1048576;
+let _impSnap = null;
+const _impSize = n =>
+  n < 1024 ? `${n} B` : n < 1048576 ? `${(n / 1024).toFixed(1)} KB` : `${(n / 1048576).toFixed(1)} MB`;
+const _IMP_X =
+  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>';
+const _IMP_FILE =
+  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>';
+function _impReset() {
+  _impSnap = null;
+  const f = el('impFiles'),
+    st = el('impStatus'),
+    inp = el('logFileInput');
+  if (f) f.innerHTML = '';
+  if (st) {
+    st.textContent = '';
+    st.classList.remove('err');
+  }
+  if (inp) inp.value = '';
+  _impCompact(false);
+}
+// Once a good file is in, the field folds into a slim "Choose another file" strip.
+function _impCompact(on) {
+  const d = el('impDrop');
+  if (!d) return;
+  d.classList.toggle('compact', on);
+  el('impDropT').textContent = on ? 'Choose another file' : 'Import a backup';
+  _impFitEdge();
+}
+// The dashed edge is an SVG rect sized to the field, so a drag can close its dashes.
+function _impFitEdge() {
+  const d = el('impDrop'),
+    r = el('impEdge');
+  if (!d || !r || !d.offsetWidth) return;
+  const rad = d.classList.contains('compact') ? 12 : 16;
+  r.setAttribute('width', d.offsetWidth - 1);
+  r.setAttribute('height', d.offsetHeight - 1);
+  r.setAttribute('rx', rad);
+  r.setAttribute('ry', rad);
+}
+function _impSetOpen(open) {
+  const slot = el('impSlot'),
+    btn = el('impBtn');
+  if (!slot || !btn) return;
+  slot.classList.toggle('open', open);
+  btn.setAttribute('aria-expanded', String(open));
+  el('impDrop').tabIndex = open ? 0 : -1;
+  if (!open) _impReset();
+}
+// A file row: name, size and what's happening ("Reading…" with a bar, "Ready", "Not accepted").
+function _impFileRow(file, state) {
+  const f = el('impFiles');
+  f.innerHTML = `<div class="imp-file">${_IMP_FILE}<div class="imp-fc"><strong></strong><span class="${state === 'bad' ? 'err' : ''}" id="impFm"></span>${state === 'reading' ? '<div class="imp-trk"><i id="impBar"></i></div>' : ''}</div><span id="impOkSlot"></span><button type="button" class="imp-x">${_IMP_X}</button></div>`;
+  f.querySelector('strong').textContent = file.name;
+  f.querySelector('.imp-x').setAttribute('aria-label', `Remove ${file.name}`);
+  f.querySelector('.imp-x').onclick = () => {
+    _impReset();
+    el('impDrop')?.focus();
+  };
+  el('impFm').textContent = `${_impSize(file.size)} · ${state === 'bad' ? 'Not accepted' : 'Reading…'}`;
+  if (state === 'reading')
+    requestAnimationFrame(() => {
+      const b = el('impBar');
+      if (b) b.style.width = '100%';
+    });
+}
+function _impFail(file, msg) {
+  _impSnap = null;
+  _impFileRow(file, 'bad');
+  const st = el('impStatus');
+  st.textContent = msg;
+  st.classList.add('err');
+  el('logFileInput').value = '';
+}
 function importLogFile(file) {
   if (!file) return;
+  _impReset();
+  if (!/\.json$/i.test(file.name))
+    return _impFail(file, "That isn't a 5pm backup. Pick a .json file you exported from 5pm.");
+  if (file.size > _IMP_MAX) return _impFail(file, 'That file is larger than 5 MB.');
+  _impFileRow(file, 'reading');
   const r = new FileReader();
   r.onload = ev => {
+    let snap, days;
     try {
-      const raw = ev.target.result;
-      const snap = JSON.parse(raw);
-
-      // ── Structural validation ──
-      if (typeof snap !== 'object' || Array.isArray(snap) || snap === null)
-        throw new Error('Root must be a JSON object');
-
-      const days = snap.tracking?.days || snap.days || snap;
-      if (typeof days !== 'object' || Array.isArray(days)) throw new Error('No valid day-log data found');
-
-      // Warn if schema version is newer than we know about
-      const schemaVer = snap.meta?.schemaVersion || snap.schema || 1;
-
-      // Count restorable days for the confirmation dialog
-      const dayCount = Object.keys(days).length;
-      const userName = snap.user?.name || snap.cfg?.name || '';
-      const exportedAt = snap.exportedAt
-        ? new Date(snap.exportedAt).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
-        : null;
-
-      // Populate info card
-      const infoUser = el('importInfoUser');
-      const infoMeta = el('importInfoMeta');
-      if (infoUser) infoUser.textContent = userName || 'Unknown user';
-      if (infoMeta) {
-        const parts = [];
-        if (exportedAt) parts.push(`Exported ${exportedAt}`);
-        parts.push(`${dayCount} day${dayCount !== 1 ? 's' : ''} of data`);
-        infoMeta.textContent = parts.join(' · ');
-      }
-
-      // The Import Backup page stays behind the confirm; Cancel returns to it.
-      el('importConfirmOverlay').classList.add('open');
-      el('importConfirmOverlay')._pendingSnap = snap;
-    } catch (err) {
-      showToast(`Import failed: ${err.message || 'Invalid backup file'}`, 'error');
-      ['logFileInput', 'importModalFile'].forEach(id => {
-        const inp = el(id);
-        if (inp) inp.value = '';
-      });
+      snap = JSON.parse(ev.target.result);
+      if (typeof snap !== 'object' || Array.isArray(snap) || snap === null) throw new Error('root');
+      days = snap.tracking?.days || snap.days || snap;
+      if (typeof days !== 'object' || Array.isArray(days)) throw new Error('days');
+    } catch {
+      return _impFail(file, "This file can't be read as a 5pm backup.");
     }
+    const count = Object.keys(days).filter(k => /^\d{4}-\d{2}-\d{2}$/.test(k)).length;
+    if (!count) return _impFail(file, 'This backup has no days in it.');
+    _impSnap = snap;
+    const userName = snap.user?.name || snap.cfg?.name || '';
+    const exportedAt = snap.exportedAt
+      ? new Date(snap.exportedAt).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
+      : '';
+    setTimeout(() => {
+      if (_impSnap !== snap) return;
+      el('impFm').textContent = `${_impSize(file.size)} · Ready`;
+      el('impBar')?.parentElement.remove();
+      el('impOkSlot').innerHTML =
+        '<span class="imp-ok"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12.5l5 5L20 6.5"/></svg></span>';
+      const card = document.createElement('div');
+      _impCompact(true);
+      card.className = 'imp-choice';
+      card.setAttribute('role', 'group');
+      card.setAttribute('aria-labelledby', 'impChT');
+      card.innerHTML = `<b id="impChT">Merge or overwrite?</b><p></p>
+            <label class="imp-keep"><input type="checkbox" id="impKeep" checked><span class="imp-cb" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span><span><b>Download my current log first</b><small>A copy of what's on this device now, just in case.</small></span></label>
+            <div class="imp-acts"><button type="button" class="btn-danger-2" id="impOver">Overwrite</button><button type="button" class="btn btn-primary" id="impMerge">Merge</button></div>`;
+      const who = userName ? `${userName}'s backup` : 'This backup';
+      card.querySelector('p').innerHTML =
+        `${_escHtml(who)} has ${count} day${count === 1 ? '' : 's'}${exportedAt ? `, exported ${_escHtml(exportedAt)}` : ''}. <b>Merge</b> adds them to your log and keeps what's already here; for a day in both, the newer one stays. <b>Overwrite</b> replaces your whole log with the backup.`;
+      el('impFiles').appendChild(card);
+      el('impMerge').onclick = () => _impApply('merge');
+      el('impOver').onclick = () => _impApply('overwrite');
+    }, 600);
   };
-  r.onerror = () => {
-    showToast('Could not read file', 'error', 'Upload in json format');
-    ['logFileInput', 'importModalFile'].forEach(id => {
-      const inp = el(id);
-      if (inp) inp.value = '';
-    });
-  };
+  r.onerror = () => _impFail(file, "This file couldn't be read.");
   r.readAsText(file);
 }
-
-function confirmImport() {
-  const snap = el('importConfirmOverlay')._pendingSnap;
+function _impApply(mode) {
+  const snap = _impSnap;
   if (!snap) return;
-
-  const ok = Store.importSnap(snap);
-  if (!ok) {
-    showToast('Import Failed', 'error', "Couldn't merge data");
-    el('importConfirmOverlay').classList.remove('open');
-    ['logFileInput', 'importModalFile'].forEach(id => {
-      const inp = el(id);
-      if (inp) inp.value = '';
-    });
+  const saved = el('impKeep')?.checked ? exportBackup(true) : null;
+  const count = Store.importSnap(snap, mode);
+  if (!count) {
+    showToast("Couldn't import", 'error', 'No days in this backup could be read.');
     return;
   }
-
-  SbSync.pushAll(); // sync imported history to Supabase (fire-and-forget)
-  Store.clearSession();
-  loginDate = null;
-  _sessionAccSecs = 0;
-  _sessionCheckoutTime = null;
-  autoStopped = false;
-  wasDone = false;
-  notifSent = false;
-  if (ticker) {
-    clearInterval(ticker);
-    ticker = null;
-  }
-
-  el('importConfirmOverlay').classList.remove('open');
-  ['logFileInput', 'importModalFile'].forEach(id => {
-    const inp = el(id);
-    if (inp) inp.value = '';
-  });
-  closeImportModal(); // done: back to Settings
-
-  // Full UI refresh
-  selectedDayKey = todayKey();
-  renderEmptyState();
-  populateSettings();
-
-  // Navigate analytics to the most recent week with data
-  const days = snap.tracking?.days || snap.days || {};
-  const count = Object.keys(days).length;
-  if (count > 0) {
-    const latestKey = Object.keys(days).sort().pop();
-    const latestDate = new Date(latestKey + 'T12:00:00');
-    const today = new Date();
-    const msPerWeek = 7 * 24 * 60 * 60 * 1000;
-    const weeksDiff = Math.round((today - latestDate) / msPerWeek);
-    analyticsWeekOffset = -Math.max(0, weeksDiff);
-  }
+  SbSync.pushAll(); // sync the imported history (fire-and-forget)
+  if (mode === 'overwrite') {
+    Store.clearSession();
+    loginDate = null;
+    _sessionAccSecs = 0;
+    _sessionCheckoutTime = null;
+    autoStopped = false;
+    wasDone = false;
+    notifSent = false;
+    if (ticker) {
+      clearInterval(ticker);
+      ticker = null;
+    }
+    selectedDayKey = todayKey();
+    renderEmptyState();
+    populateSettings();
+  } else selectDay(todayKey());
+  _impSetOpen(false);
   renderAnalytics();
-  if (count > 0) _wfGoTo(new Date(Object.keys(days).sort().pop() + 'T00:00'), false);
-
-  const name = snap.user?.name || snap.cfg?.name || '';
-  showToast(
-    'Import Successful',
-    'success',
-    `${count} day${count !== 1 ? 's' : ''} restored${name ? ` · Welcome back, ${name}!` : '.'}`
-  );
+  renderHistory();
+  renderPenalties();
+  renderSurplusCircles();
+  const days = snap.tracking?.days || snap.days || {};
+  const latest = Object.keys(days)
+    .filter(k => /^\d{4}-\d{2}-\d{2}$/.test(k))
+    .sort()
+    .pop();
+  if (latest) _wfGoTo(new Date(latest + 'T00:00'), false);
+  const old = saved ? ` Your old log is saved as ${saved} in your Downloads folder.` : '';
+  if (mode === 'merge')
+    showToast('Merged', 'success', `${count} day${count === 1 ? '' : 's'} from your backup are in your log.${old}`);
+  else showToast('Overwritten', 'success', `Your log now matches the backup.${old}`);
 }
+(function _impInit() {
+  const btn = el('impBtn'),
+    drop = el('impDrop'),
+    inp = el('logFileInput');
+  if (!btn || !drop || !inp) return;
+  btn.addEventListener('click', () => _impSetOpen(btn.getAttribute('aria-expanded') !== 'true'));
+  drop.addEventListener('click', () => inp.click());
+  drop.addEventListener('keydown', e => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      inp.click();
+    }
+  });
+  inp.addEventListener('change', () => importLogFile(inp.files[0]));
+  let depth = 0;
+  const drag = on => {
+    drop.classList.toggle('dragging', on);
+    el('impDropT').textContent = on
+      ? 'Drop to add a file'
+      : drop.classList.contains('compact')
+        ? 'Choose another file'
+        : 'Import a backup';
+  };
+  const at = e => {
+    const r = drop.getBoundingClientRect();
+    drop.style.setProperty('--mx', `${e.clientX - r.left}px`);
+    drop.style.setProperty('--my', `${e.clientY - r.top}px`);
+  };
+  if (window.ResizeObserver) new ResizeObserver(_impFitEdge).observe(drop);
+  drop.addEventListener('dragenter', e => {
+    e.preventDefault();
+    depth++;
+    drag(true);
+    at(e);
+  });
+  drop.addEventListener('dragleave', () => {
+    if (--depth <= 0) {
+      depth = 0;
+      drag(false);
+    }
+  });
+  drop.addEventListener('dragover', e => {
+    e.preventDefault();
+    at(e);
+  });
+  drop.addEventListener('drop', e => {
+    e.preventDefault();
+    depth = 0;
+    drag(false);
+    importLogFile(e.dataTransfer?.files?.[0]);
+  });
+  el('impSlot').addEventListener('keydown', e => {
+    if (e.key === 'Escape') {
+      e.stopPropagation();
+      _impSetOpen(false);
+      btn.focus();
+    }
+  });
+})();
 
 function saveDayEditModal() {
   const key = _dayEditKey;
@@ -11587,6 +12277,12 @@ function saveDayEditModal() {
   }
   const s = parse(el('deStart').value),
     e = parse(el('deEnd').value);
+  // Seconds are kept only when you typed them ("09:02:37 AM"); otherwise :00.
+  const withSecs = /\d:\d\d:\d\d/.test(`${el('deStart').value} ${el('deEnd').value}`);
+  if (!withSecs) {
+    s?.setSeconds(0, 0);
+    e?.setSeconds(0, 0);
+  }
   const c = cfg();
   const ex = dayLog(key) || {};
   const isToday = key === todayKey();
@@ -11668,6 +12364,7 @@ function saveDayEditModal() {
       loginTime: `${s.getHours()}:${s.getMinutes()}:${s.getSeconds()}`,
       loginDisplay: short(s),
       sessionTag: 'edited',
+      withSecs: withSecs || undefined,
       lastUpdated: new Date().toISOString(),
       override: null,
       ...(_deNoteVal ? { note: _deNoteVal } : { note: null })
@@ -11701,6 +12398,7 @@ function saveDayEditModal() {
       loginDisplay: short(s),
       checkoutTime: `${p2(eAdj.getHours())}:${p2(eAdj.getMinutes())}:${p2(eAdj.getSeconds())}`,
       checkoutDisplay: short(eAdj),
+      withSecs: withSecs || undefined,
       hoursWorked: worked / 3600,
       lastUpdated: new Date().toISOString(),
       sessionTag: 'edited',
@@ -12381,7 +13079,9 @@ el('calcBtn').addEventListener('click', () => {
     else confirmEndSession(); // Direct End Session (no break time)
   } else if (state === 'done') {
     confirmEndSession(); // Target done — End ends the session
-  } else calculate();
+  } else if (_st.open)
+    _stGo(); // "Already working?" is open: start from that time
+  else calculate();
 });
 
 // Split button: chevron toggles End Session dropdown
@@ -12867,18 +13567,6 @@ el('endSessionOverlay').addEventListener('click', e => {
 });
 
 // Toast undo button
-el('appToastUndo').addEventListener('click', () => {
-  if (_toastUndoFn) {
-    const fn = _toastUndoFn;
-    _toastUndoFn = null;
-    fn();
-  }
-  if (_toastTimer) {
-    clearTimeout(_toastTimer);
-    _toastTimer = null;
-  }
-  el('appToast').classList.remove('toast-show');
-});
 
 // Week plan modal
 el('weekPlanSave').addEventListener('click', saveWeekPlan);
@@ -12981,60 +13669,6 @@ el('newPlanOverlay').addEventListener('click', e => {
 el('npStartTime').addEventListener('input', updateNpCalc);
 el('npEndTime').addEventListener('input', updateNpCalc);
 el('manualExportBtn').addEventListener('click', exportBackup);
-el('logFileInput').addEventListener('change', ev => importLogFile(ev.target.files[0]));
-el('importConfirmBtn').addEventListener('click', confirmImport);
-el('importCancelBtn').addEventListener('click', () => {
-  el('importConfirmOverlay').classList.remove('open');
-  ['logFileInput', 'importModalFile'].forEach(id => {
-    const inp = el(id);
-    if (inp) inp.value = '';
-  });
-});
-el('importSaveLogBtn').addEventListener('click', exportBackup);
-el('importConfirmOverlay').addEventListener('click', ev => {
-  if (ev.target === el('importConfirmOverlay')) {
-    el('importConfirmOverlay').classList.remove('open');
-    ['logFileInput', 'importModalFile'].forEach(id => {
-      const inp = el(id);
-      if (inp) inp.value = '';
-    });
-  }
-});
-
-// Import Modal — file input + drag & drop
-el('importModalFile').addEventListener('change', ev => importLogFile(ev.target.files[0]));
-(function _initImportModalDnd() {
-  const zone = el('importModalZone');
-  if (!zone) return;
-  let _dc = 0;
-  const _setActive = active => {
-    zone.classList.toggle('drag-over', active);
-    const txt = el('importModalZoneText');
-    if (txt)
-      txt.innerHTML = active
-        ? '<strong>Release to import</strong><br>Drop your .json backup here'
-        : '<strong>Choose a file or drag &amp; drop here</strong><br>Supports .json files';
-  };
-  zone.addEventListener('dragenter', e => {
-    e.preventDefault();
-    _dc++;
-    _setActive(true);
-  });
-  zone.addEventListener('dragleave', () => {
-    if (--_dc <= 0) {
-      _dc = 0;
-      _setActive(false);
-    }
-  });
-  zone.addEventListener('dragover', e => e.preventDefault());
-  zone.addEventListener('drop', e => {
-    e.preventDefault();
-    _dc = 0;
-    _setActive(false);
-    const file = e.dataTransfer?.files?.[0];
-    if (file) importLogFile(file);
-  });
-})();
 
 // Inline edit Enter-key handlers (delegated — elements are created dynamically)
 document.addEventListener('keydown', ev => {
@@ -13085,13 +13719,11 @@ document.addEventListener('keydown', e => {
     closeDeleteModal();
     closeUpwdModal?.();
     closeSupportModal?.();
-    closeImportModal?.();
     closeAutoStopRecovery?.();
     el('weekPlanOverlay')?.classList.remove('open');
     el('endSessionOverlay')?.classList.remove('open');
     el('logoutOverlay')?.classList.remove('open');
     el('newPlanOverlay')?.classList.remove('open');
-    el('importConfirmOverlay')?.classList.remove('open');
     el('inTimeEditWrap')?.classList.remove('open');
     el('outTargetEditWrap')?.classList.remove('open');
   }
@@ -14091,7 +14723,8 @@ async function openMfaSetup() {
         await mfa.unenroll({ factorId: s.id });
       } catch (_) {}
     }
-    const { data, error } = await mfa.enroll({ factorType: 'totp' });
+    // issuer = the name authenticator apps show (default was the Supabase site address)
+    const { data, error } = await mfa.enroll({ factorType: 'totp', issuer: '5pm' });
     if (error) throw error;
     _mfaFactorId = data.id;
     el('mfaQrImg').src = data.totp.qr_code;
@@ -14825,17 +15458,15 @@ const Devices = {
   // that stops being true.
   async _write(uid, map) {
     if (DEV_SAMPLE) return; // Sample Data: the device list isn't touched either
-    const { error } = await window._sbClient
-      .from('user_kv')
-      .upsert(
-        {
-          user_id: uid,
-          key: DEV_KV_KEY,
-          value: { d: map, src: SbSync._clientId },
-          updated_at: new Date().toISOString()
-        },
-        { onConflict: 'user_id,key' }
-      );
+    const { error } = await window._sbClient.from('user_kv').upsert(
+      {
+        user_id: uid,
+        key: DEV_KV_KEY,
+        value: { d: map, src: SbSync._clientId },
+        updated_at: new Date().toISOString()
+      },
+      { onConflict: 'user_id,key' }
+    );
     if (error) throw error;
   },
 
@@ -16608,12 +17239,21 @@ window.addEventListener('resize', function () {
   Object.entries(panels).forEach(([tab, p]) =>
     p.querySelectorAll('.form-label').forEach(l => {
       if (l.closest('#notifTestCard')) return; // developer tools stay hidden
-      const label = l.textContent.trim();
+      const label = _srchText(l);
       if (!label) return;
       const row =
         l.closest('.tile-sub > div, .tile-list > div, #notifSubGroup > div > div, .settings-card-merged') || l;
-      const sub = l.parentElement.querySelector('.form-sub')?.textContent.trim() || '';
-      entries.push({ label, sub, tab, row, hay: (label + ' ' + sub + ' ' + (KEYWORDS[label] || '')).toLowerCase() });
+      const subEl = l.parentElement.querySelector('.form-sub');
+      const sub = subEl && !subEl.closest('[role="tooltip"], .tip, .sc-tip') ? _srchText(subEl) : '';
+      entries.push({
+        label,
+        sub,
+        tab,
+        row,
+        l: label.toLowerCase(),
+        s: sub.toLowerCase(),
+        k: (KEYWORDS[label] || '').toLowerCase()
+      });
     })
   );
 
@@ -16673,7 +17313,7 @@ window.addEventListener('resize', function () {
       close();
       return;
     }
-    hits = entries.filter(e => words.every(w => e.hay.includes(w))).slice(0, 8);
+    hits = _srchRank(entries, words).slice(0, 8);
     cur = 0;
     paint();
   });
@@ -16697,6 +17337,36 @@ window.addEventListener('resize', function () {
   q.addEventListener('blur', () => setTimeout(close, 120));
 })();
 
+// Settings search reads only what the row shows: tooltips, info buttons and
+// hidden helper text are left out, so their words never make a match.
+function _srchText(node) {
+  const c = node.cloneNode(true);
+  c.querySelectorAll('[role="tooltip"], .tip, .sc-tip, button, [hidden], [aria-hidden="true"]').forEach(n =>
+    n.remove()
+  );
+  return c.textContent.replace(/\s+/g, ' ').trim();
+}
+// Every word must start a word somewhere (no matches in the middle of a word).
+// Title matches rank first, then the description, then extra keywords.
+function _srchRank(entries, words) {
+  const starts = (txt, w) => (' ' + txt).includes(' ' + w) || txt.split(/[^a-z0-9]+/).some(t => t.startsWith(w));
+  const score = e => {
+    let sc = 0;
+    for (const w of words) {
+      if (starts(e.l, w)) sc += e.l.startsWith(w) ? 4 : 3;
+      else if (starts(e.s, w)) sc += 2;
+      else if (starts(e.k, w)) sc += 1;
+      else return 0;
+    }
+    return sc;
+  };
+  return entries
+    .map(e => [e, score(e)])
+    .filter(x => x[1])
+    .sort((a, b) => b[1] - a[1])
+    .map(x => x[0]);
+}
+
 // The desktop app's Add Passkey opens the web app here, on Settings › Passkeys.
 if (location.hash === '#passkeys') {
   history.replaceState(null, '', location.pathname + location.search);
@@ -16705,3 +17375,125 @@ if (location.hash === '#passkeys') {
   else switchTab('settings');
   openPasskeysPage();
 }
+
+// Tooltips (#7): every title="" (and data-tip) shows one theme-matched tooltip
+// instead of the browser's grey box. Mouse/trackpad only; it just fades in and out.
+(function _appTipInit() {
+  if (!window.matchMedia || !matchMedia('(hover: hover) and (pointer: fine)').matches) return;
+  const tip = document.createElement('div');
+  tip.className = 'app-tip';
+  tip.id = 'appTip';
+  tip.setAttribute('role', 'tooltip');
+  document.body.appendChild(tip);
+  let cur = null,
+    timer = 0,
+    warm = false,
+    cool = 0;
+  const GAP = 8,
+    EDGE = 8;
+  // Move a title into data-tip so the browser's own box never shows.
+  const take = n => {
+    const t = n.getAttribute('title');
+    if (t != null) {
+      n.removeAttribute('title');
+      if (t) {
+        n.dataset.tip = t;
+        if (!n.hasAttribute('aria-label') && !n.textContent.trim()) n.setAttribute('aria-label', t);
+      }
+    }
+    return n.dataset.tip || '';
+  };
+  const target = e => {
+    const n =
+      e.target instanceof Element ? e.target.closest('[title]:not(svg *):not(html):not(head *), [data-tip]') : null;
+    return n && n !== document.documentElement ? n : null;
+  };
+  function place(n) {
+    const r = n.getBoundingClientRect(),
+      w = tip.offsetWidth,
+      h = tip.offsetHeight;
+    let side = r.left < 90 && r.width < 80 ? 'right' : 'top';
+    if (side === 'top' && r.top - h - GAP < EDGE) side = 'bottom';
+    let x, y;
+    if (side === 'right') {
+      x = r.right + GAP;
+      y = r.top + r.height / 2 - h / 2;
+    } else {
+      x = r.left + r.width / 2 - w / 2;
+      y = side === 'top' ? r.top - h - GAP : r.bottom + GAP;
+    }
+    x = Math.max(EDGE, Math.min(x, innerWidth - w - EDGE));
+    y = Math.max(EDGE, Math.min(y, innerHeight - h - EDGE));
+    tip.style.transform = `translate(${Math.round(x)}px, ${Math.round(y)}px)`;
+  }
+  function open(n) {
+    const text = take(n);
+    if (!text) return;
+    cur = n;
+    clearTimeout(cool);
+    tip.textContent = text;
+    tip.classList.toggle('instant', warm);
+    place(n);
+    n.setAttribute('aria-describedby', 'appTip');
+    tip.classList.add('show');
+    warm = true;
+  }
+  function close() {
+    clearTimeout(timer);
+    if (!cur) return;
+    cur.removeAttribute('aria-describedby');
+    cur = null;
+    tip.classList.remove('instant', 'show');
+    cool = setTimeout(() => {
+      warm = false;
+    }, 300);
+  }
+  document.addEventListener('pointerover', e => {
+    if (e.pointerType && e.pointerType !== 'mouse') return;
+    const n = target(e);
+    if (!n) return;
+    take(n);
+    if (n === cur) return;
+    clearTimeout(timer);
+    if (warm) open(n);
+    else timer = setTimeout(() => open(n), 250);
+  });
+  document.addEventListener('pointerout', e => {
+    const n = target(e);
+    if (!n) return;
+    if (e.relatedTarget instanceof Node && n.contains(e.relatedTarget)) return;
+    if (n === cur) close();
+    else clearTimeout(timer);
+  });
+  document.addEventListener('focusin', e => {
+    const n =
+      e.target instanceof Element && e.target.matches(':focus-visible')
+        ? e.target.closest('[title], [data-tip]')
+        : null;
+    if (n) open(n);
+  });
+  document.addEventListener('focusout', () => close());
+  // A click can change the label (Switch to Dark → Switch to Light, Copy → Copied).
+  document.addEventListener(
+    'click',
+    () => {
+      const n = cur;
+      if (!n) return;
+      setTimeout(() => {
+        if (cur === n) {
+          const t = take(n);
+          if (t) {
+            tip.textContent = t;
+            place(n);
+          } else close();
+        }
+      }, 0);
+    },
+    true
+  );
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') close();
+  });
+  addEventListener('scroll', close, true);
+  addEventListener('blur', close);
+})();

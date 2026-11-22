@@ -3,6 +3,12 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
     <script src="/lib/pages/diag.js"></script>
+    <script
+      src="/lib/sentry.min.js"
+      integrity="sha384-huZ65ZrgOvFuGsb4vEi+gbCE6coM4rRNiGLVNS4Hp6YF/6RamkiN0G0oj4E06ewB"
+      crossorigin="anonymous"
+    ></script>
+    <script src="/lib/sentry-init.js"></script>
     <script src="/lib/csp-handlers.js"></script>
     <script src="/lib/pages/index-handlers.js"></script>
     <!-- Auth gate — hide the page immediately; onAuthStateChange below reveals it -->
@@ -914,15 +920,19 @@
         transition:
           background 0.14s,
           color 0.14s,
-          box-shadow 0.14s;
+          box-shadow 0.14s,
+          transform 0.12s cubic-bezier(0.2, 0, 0, 1);
       }
       .btn-danger {
         background: var(--danger-solid);
         color: #fff;
       }
+      /* #71: .btn-danger-2 = uiarc Danger, the DEFAULT destructive button (outlined, red text).
+       .btn-danger (solid) only for Hold to Log Out, Delete Forever, Make New Codes. */
       .btn-danger-2 {
-        background: var(--btn-secondary-bg);
+        background: var(--btn-surface, var(--card));
         color: var(--danger-text);
+        box-shadow: inset 0 0 0 1px var(--btn-line, var(--border));
       }
       .btn-danger-3 {
         background: transparent;
@@ -933,17 +943,25 @@
           background: var(--danger-solid-hover);
         }
         .btn-danger-2:hover:not(:disabled) {
-          background: var(--danger-solid-hover);
-          color: #fff;
+          background: var(--muted);
+          box-shadow: inset 0 0 0 1px var(--danger-text);
         }
         .btn-danger-3:hover:not(:disabled) {
           background: var(--danger-tint);
         }
       }
-      .btn-danger:active:not(:disabled),
-      .btn-danger-2:active:not(:disabled) {
+      .btn-danger:active:not(:disabled) {
         background: var(--danger-solid-press);
         color: #fff;
+      }
+      .btn-danger-2:active:not(:disabled) {
+        background: var(--muted);
+        box-shadow: inset 0 0 0 1px var(--danger-text);
+      }
+      .btn-danger:active:not(:disabled),
+      .btn-danger-2:active:not(:disabled),
+      .btn-danger-3:active:not(:disabled) {
+        transform: scale(0.97);
       }
       .btn-danger-3:active:not(:disabled) {
         background: var(--danger-tint);
@@ -966,9 +984,10 @@
       .btn-danger-3:disabled:not([aria-busy="true"]) {
         background: transparent;
       }
-      .btn-danger-2[aria-busy="true"] {
-        background: var(--danger-solid);
-        color: #fff;
+      /* Disabled outlined keeps its shape: muted fill, faded red label. */
+      .btn-danger-2:disabled:not([aria-busy="true"]) {
+        color: color-mix(in srgb, var(--danger-text) 55%, var(--muted));
+        box-shadow: inset 0 0 0 1px var(--btn-line, var(--border));
       }
       .btn-danger.sm,
       .btn-danger-2.sm,
@@ -1010,6 +1029,127 @@
         .btn-danger-2,
         .btn-danger-3 {
           transition: none;
+        }
+      }
+      /* ── Buttons (#71, uiarc "button" layout; 5pm's sizes kept) ──
+       Primary = filled; Secondary (.btn-secondary / .btn-cancel / .btn-sm) = the surface + a 1px border;
+       Ghost (.am-quiet) = transparent until hover. Press = a slight scale; focus = 2px ring with a gap.
+       --btn-surface is the card colour, or one step up on raised panels (never sinks in dark mode). */
+      #dayEditOverlay,
+      .ac-confirm,
+      #notifPanel,
+      .sc-host,
+      .imp-choice {
+        --btn-surface: var(--surface-lift);
+        --btn-line: var(--border-strong);
+      }
+      .btn-primary {
+        border: 1px solid var(--btn-primary-bg);
+        transition:
+          background 0.14s,
+          opacity 0.14s,
+          box-shadow 0.14s,
+          transform 0.12s cubic-bezier(0.2, 0, 0, 1);
+      }
+      .btn-primary:hover:not(:disabled) {
+        filter: none;
+        opacity: 0.91;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.18);
+      }
+      .btn-primary:active:not(:disabled) {
+        opacity: 0.84;
+        transform: scale(0.985);
+      }
+      .btn-primary:disabled {
+        opacity: 0.52;
+      }
+      .btn-secondary,
+      .btn-cancel,
+      .btn-sm {
+        background: var(--btn-surface, var(--card));
+        color: var(--foreground);
+        box-shadow: inset 0 0 0 1px var(--btn-line, var(--border));
+        transition:
+          background 0.14s,
+          color 0.14s,
+          box-shadow 0.14s,
+          transform 0.12s cubic-bezier(0.2, 0, 0, 1);
+      }
+      @media (hover: hover) and (pointer: fine) {
+        .btn-secondary:hover:not(:disabled),
+        .btn-cancel:hover:not(:disabled),
+        .btn-sm:hover:not(:disabled) {
+          background: var(--muted);
+          box-shadow:
+            inset 0 0 0 1px var(--btn-line, var(--border)),
+            0 1px 2px rgba(0, 0, 0, 0.12);
+        }
+        .am-quiet:hover:not(:disabled) {
+          color: var(--foreground);
+          background: var(--muted);
+        }
+      }
+      .btn-secondary:active:not(:disabled),
+      .btn-sm:active:not(:disabled) {
+        background: var(--muted);
+        transform: scale(0.97);
+      }
+      .btn-cancel:active:not(:disabled) {
+        background: var(--muted);
+        transform: scale(0.985);
+      }
+      .am-quiet {
+        transition:
+          background 0.14s,
+          color 0.14s,
+          transform 0.12s cubic-bezier(0.2, 0, 0, 1);
+      }
+      .am-quiet:active:not(:disabled) {
+        color: var(--foreground);
+        background: var(--muted);
+        transform: scale(0.97);
+      }
+      .btn-secondary:disabled,
+      .btn-cancel:disabled,
+      .btn-sm:disabled {
+        color: var(--text-muted);
+        background: var(--muted);
+        cursor: not-allowed;
+      }
+      .btn-primary:focus-visible,
+      .btn-secondary:focus-visible,
+      .btn-cancel:focus-visible,
+      .btn-sm:focus-visible,
+      .am-quiet:focus-visible {
+        outline: none;
+        box-shadow:
+          0 0 0 2px var(--card),
+          0 0 0 4px var(--ring);
+      }
+      /* In the Apple-style dialogs the outlined Danger fills the row like the primary (End for today). */
+      .am-btns .btn-danger-2 {
+        width: 100%;
+        height: 46px;
+        font-size: 14.5px;
+        border-radius: 13px;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .btn-primary,
+        .btn-secondary,
+        .btn-cancel,
+        .btn-sm,
+        .am-quiet {
+          transition: none;
+        }
+        .btn-primary:active,
+        .btn-secondary:active,
+        .btn-cancel:active,
+        .btn-sm:active,
+        .am-quiet:active,
+        .btn-danger:active,
+        .btn-danger-2:active,
+        .btn-danger-3:active {
+          transform: none;
         }
       }
       .theme-icon-wrap {
@@ -2161,9 +2301,6 @@
         body.shell-new .page {
           padding-bottom: calc(32px + env(safe-area-inset-bottom));
         }
-        body.shell-new .wh-toast {
-          bottom: calc(16px + env(safe-area-inset-bottom));
-        }
       }
 
       .notif-panel {
@@ -2629,6 +2766,93 @@
         width: 14px;
         height: 14px;
       }
+      /* #8 swipe actions: the row slides over two neutral actions that fill its full height. */
+      .nc-sw {
+        position: relative;
+        isolation: isolate;
+        border-radius: 14px;
+        overflow: hidden;
+        flex: none;
+      }
+      .nc-sw > .nc-row {
+        position: relative;
+        z-index: 1;
+        background: var(--card);
+        touch-action: pan-y;
+        user-select: none;
+        -webkit-user-select: none;
+      }
+      @media (hover: hover) and (pointer: fine) {
+        .nc-sw > .nc-row {
+          cursor: default;
+        }
+        .nc-sw.swiping > .nc-row {
+          cursor: grabbing;
+        }
+      }
+      .nc-lay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        visibility: hidden;
+        border-radius: inherit;
+        background: var(--border-strong);
+        color: var(--foreground);
+        cursor: pointer;
+      }
+      .nc-lay.lead {
+        justify-content: flex-start;
+      }
+      .nc-lay.trail {
+        justify-content: flex-end;
+      }
+      button.nc-lay {
+        border: 0;
+        padding: 0;
+        font: inherit;
+      }
+      .nc-lay.trail:focus-visible {
+        outline: 2px solid var(--ring);
+        outline-offset: -2px;
+      }
+      .nc-sw.sw-lead .nc-lay.lead,
+      .nc-sw.sw-trail .nc-lay.trail {
+        visibility: visible;
+      }
+      .nc-gl {
+        width: 76px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 3px;
+        font-size: 12px;
+        font-weight: 500;
+        transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+      }
+      .nc-gl svg {
+        width: 18px;
+        height: 18px;
+      }
+      .nc-sw.sw-commit .nc-gl {
+        transform: scale(1.12);
+      }
+      .nc-sw.nc-out {
+        height: 0 !important;
+        opacity: 0;
+        transition:
+          height 0.3s var(--ease-sheet),
+          opacity 0.2s;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .nc-gl,
+        .nc-sw.nc-out {
+          transition: none;
+        }
+      }
       .nc-row.nc-out {
         height: 0 !important;
         padding-top: 0;
@@ -2904,7 +3128,7 @@
         display: none;
       }
       /* #64 Not started: Quick Start fills the row, "Already working?" sits under it, and the
-       time field lives in the sheet (#startTimeOverlay). Running/paused keep the combo. */
+       time field opens in place under Quick Start (#qsSlot). Running/paused keep the combo. */
       #todayLoginSection[data-mode="start"] .shift-combo {
         height: auto;
         padding: 0;
@@ -2914,8 +3138,20 @@
       }
       #todayLoginSection[data-mode="start"] .tp-seg-clock,
       #todayLoginSection[data-mode="start"] .tp-free-input,
-      #todayLoginSection[data-mode="start"] .shift-combo-active-label {
+      #todayLoginSection[data-mode="start"] .shift-combo-active-label,
+      #todayLoginSection[data-mode="start"] .tp-ap {
         display: none;
+      }
+      /* AM/PM inside the Update Login Time field: smaller, so Pause keeps its room. */
+      .tp-ap button {
+        height: 30px;
+        padding: 0 8px;
+      }
+      .shift-combo .tp-ap button[aria-pressed="true"] {
+        background: var(--muted);
+      }
+      .dark .shift-combo .tp-ap button[aria-pressed="true"] {
+        background: var(--border-strong);
       }
       #todayLoginSection[data-mode="start"] #calcBtnWrap {
         flex: 1;
@@ -2946,13 +3182,40 @@
       #todayLoginSection[data-mode="start"] .qs-link {
         display: block;
       }
-      /* The sheet: one question, the field, what the answer means. */
+      .qs-slot {
+        display: none;
+        grid-template-rows: 0fr;
+        transition: grid-template-rows 0.32s var(--ease-sheet);
+      }
+      #todayLoginSection[data-mode="start"] .qs-slot {
+        display: grid;
+      }
+      .qs-slot.open {
+        grid-template-rows: 1fr;
+      }
+      .qs-slot > div {
+        overflow: hidden;
+        min-height: 0;
+      }
+      .qs-slot-in {
+        padding-top: 2px;
+      }
+      .qs-slot:not(.open) .qs-slot-in {
+        visibility: hidden;
+        transition: visibility 0s 0.32s;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .qs-slot {
+          transition: none;
+        }
+      }
+      /* The start-time field (in the Today card): the field, then what the answer means. */
       .st-field {
         display: flex;
         align-items: center;
         gap: 10px;
         height: 54px;
-        margin-top: 18px;
+        margin-top: 0;
         padding: 0 6px 0 14px;
         border-radius: 14px;
         background: var(--input-bg);
@@ -4218,6 +4481,44 @@
         font-size: 13px;
         color: var(--muted-fg);
       }
+      /* Weekend (B, 2026-11-22): greeting left, an armchair tile where the day-type menu sits on weekdays. */
+      .td-hd.td-wknd .dt-wrap {
+        display: none;
+      }
+      .td-wk-ill {
+        display: none;
+        width: 48px;
+        height: 48px;
+        flex: none;
+        border-radius: 14px;
+        background: var(--muted);
+        color: var(--foreground);
+        place-items: center;
+      }
+      .td-wk-ill svg {
+        width: 24px;
+        height: 24px;
+      }
+      .td-hd.td-wknd .td-wk-ill {
+        display: grid;
+      }
+      .ws-cap {
+        font-size: 12px;
+        color: var(--text-muted);
+        margin-top: 4px;
+      }
+      .ws-sumrow {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 6px 10px;
+      }
+      .ws-sumrow .ws-total {
+        margin-top: 0;
+      }
+      .ws-sumrow .ws-vary {
+        margin-top: 0;
+      }
       .dt-wrap {
         position: relative;
         flex: none;
@@ -4474,30 +4775,167 @@
       .rc-lead[hidden] {
         display: none;
       }
+      /* #68 Countdown (uiarc "countdown", large): digit wheels + Hours / Minutes / Seconds. */
+      .rc-lead-w {
+        position: relative;
+        display: flex;
+        justify-content: center;
+      }
       .rc-lead-n {
+        display: inline-flex;
+        align-items: flex-start;
+        white-space: nowrap;
         font: 400 40px/1 var(--font-display);
-        font-variant-numeric: tabular-nums;
         letter-spacing: -0.01em;
         color: var(--foreground);
+        transition:
+          opacity 0.25s,
+          transform 0.4s var(--ease-sheet),
+          filter 0.4s;
+      }
+      .cd-group {
+        display: inline-grid;
+        justify-items: center;
+        gap: 6px;
+        min-width: 2.3ch;
+      }
+      .cd-num {
+        display: inline-flex;
+        font-variant-numeric: tabular-nums;
+      }
+      .cd-name {
+        font: 500 12px/1 var(--font);
+        letter-spacing: 0;
+        color: var(--text-muted);
+      }
+      .cd-colon {
+        color: var(--text-muted);
+        opacity: 0.6;
+        padding-inline: 0.12em;
+        transform: translateY(-0.06em);
+      }
+      /* Each digit is a clipped wheel whose window feathers out, so a turning digit fades at the edge. */
+      .cd-wheel {
+        --f: 0.16em;
+        position: relative;
+        display: inline-block;
+        overflow: hidden;
+        margin-block: calc(var(--f) * -1);
+        padding-block: var(--f);
+        -webkit-mask-image: linear-gradient(
+          to bottom,
+          transparent,
+          #000 calc(var(--f) * 1.5),
+          #000 calc(100% - var(--f) * 1.5),
+          transparent
+        );
+        mask-image: linear-gradient(
+          to bottom,
+          transparent,
+          #000 calc(var(--f) * 1.5),
+          #000 calc(100% - var(--f) * 1.5),
+          transparent
+        );
+      }
+      .cd-sizer {
+        visibility: hidden;
+      }
+      .cd-g {
+        position: absolute;
+        inset: var(--f) 0;
+        text-align: center;
+      }
+      /* At the target the digits give way to the label and a live mark. */
+      .cd-done {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.4em;
+        white-space: nowrap;
+        font: 400 30px/1.1 var(--font-display);
+        letter-spacing: -0.01em;
+        color: var(--foreground);
+        opacity: 0;
+        transform: scale(0.92);
+        filter: blur(6px);
+        pointer-events: none;
+        transition:
+          opacity 0.3s,
+          transform 0.45s var(--ease-sheet),
+          filter 0.45s;
+      }
+      .rc-lead.complete .rc-lead-n {
+        opacity: 0;
+        transform: scale(0.92);
+        filter: blur(6px);
+      }
+      .rc-lead.complete .cd-done {
+        opacity: 1;
+        transform: none;
+        filter: none;
+      }
+      .cd-pulse {
+        position: relative;
+        width: 10px;
+        height: 10px;
+        flex: none;
+        border-radius: 50%;
+        background: var(--success);
+      }
+      .cd-pulse::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        border-radius: inherit;
+        background: var(--success);
+        animation: cd-pulse 2s ease infinite;
+      }
+      @keyframes cd-pulse {
+        from {
+          opacity: 0.5;
+          transform: scale(1);
+        }
+        70%,
+        to {
+          opacity: 0;
+          transform: scale(2.6);
+        }
       }
       .rc-lead-c {
         display: inline-flex;
         align-items: center;
         gap: 6px;
-        margin-top: 8px;
+        margin-top: 10px;
         font-size: 13px;
         color: var(--muted-fg);
+      }
+      .rc-lead-c:empty {
+        display: none;
       }
       .rc-lead.over .rc-lead-n,
       .rc-lead.over .rc-lead-c {
         color: var(--warning);
       }
-      #rcKpiGroup.rc-finished:not(.rc-over) .rc-lead {
+      #rcKpiGroup.rc-finished:not(.rc-over) .rc-lead:not(.complete) {
         display: none;
       }
       @media (max-width: 640px) {
         .rc-lead-n {
           font-size: 34px;
+        }
+        .cd-done {
+          font-size: 26px;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .cd-pulse::after {
+          animation: none;
+        }
+        .rc-lead-n,
+        .cd-done {
+          transition: none;
         }
       }
       /* Not started → Running: the drawing lifts out, the card glides to its new
@@ -7685,9 +8123,414 @@
 
       /* ── Support modal QR + UPI sizing ── */
       /* Contribute (#57): 5pm dialog spacing (head 22/22/16, body 16 22, foot 0 22 22). */
+      /* #13 Report a Bug */
+      .bg-dialog {
+        max-width: 440px;
+        padding: 0 !important;
+        position: relative;
+        --btn-surface: var(--surface-lift);
+        --btn-line: var(--border-strong);
+      }
+      .bg-hd {
+        display: flex;
+        gap: 12px;
+        align-items: flex-start;
+        padding: 20px 60px 4px 20px;
+      }
+      .bg-bub {
+        width: 40px;
+        height: 40px;
+        flex: none;
+        border-radius: 12px;
+        background: var(--muted);
+        color: var(--foreground);
+        display: grid;
+        place-items: center;
+      }
+      .bg-bub svg {
+        width: 20px;
+        height: 20px;
+      }
+      .bg-title {
+        margin: 0;
+        font-size: 17px;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+        color: var(--foreground);
+      }
+      .bg-sub {
+        margin: 2px 0 0;
+        font-size: 13px;
+        color: var(--muted-fg);
+      }
+      .bg-x {
+        position: absolute;
+        top: 14px;
+        right: 14px;
+        width: 32px;
+        height: 32px;
+        border: 0;
+        border-radius: 50%;
+        background: var(--surface-lift);
+        box-shadow: inset 0 0 0 1px var(--border-strong);
+        color: var(--muted-fg);
+        display: grid;
+        place-items: center;
+        cursor: pointer;
+      }
+      .bg-x:hover {
+        background: var(--muted);
+        color: var(--foreground);
+      }
+      .bg-x svg {
+        width: 14px;
+        height: 14px;
+      }
+      .bg-bd {
+        padding: 16px 20px 4px;
+      }
+      .bg-lbl {
+        display: block;
+        margin-bottom: 8px;
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--foreground);
+      }
+      .bg-opt {
+        font-weight: 400;
+        color: var(--text-muted);
+      }
+      .bg-chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-bottom: 16px;
+      }
+      .bg-chip {
+        height: 30px;
+        padding: 0 12px;
+        border: 0;
+        border-radius: 999px;
+        background: var(--surface-lift);
+        box-shadow: inset 0 0 0 1px var(--border-strong);
+        color: var(--muted-fg);
+        font: 500 12px var(--font);
+        cursor: pointer;
+        transition:
+          background 0.15s,
+          color 0.15s;
+      }
+      .bg-chip:hover {
+        background: var(--muted);
+        color: var(--foreground);
+      }
+      .bg-chip[aria-pressed="true"] {
+        background: var(--foreground);
+        color: var(--background);
+        box-shadow: none;
+      }
+      .bg-fld {
+        position: relative;
+        border-radius: 12px;
+        background: var(--surface-lift);
+        box-shadow: inset 0 0 0 1px var(--border);
+        transition: box-shadow 0.15s;
+      }
+      .bg-fld:focus-within {
+        box-shadow: inset 0 0 0 1.5px var(--border-strong);
+      }
+      .bg-fld textarea {
+        display: block;
+        width: 100%;
+        min-height: 112px;
+        resize: none;
+        border: 0;
+        background: none;
+        color: var(--foreground);
+        font: 400 14px/1.5 var(--font);
+        padding: 12px 12px 30px;
+        outline: none;
+        caret-color: var(--foreground);
+      }
+      .bg-fld textarea::placeholder {
+        color: var(--text-muted);
+      }
+      .bg-cnt {
+        position: absolute;
+        left: 12px;
+        bottom: 9px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 12px;
+        color: var(--text-muted);
+        pointer-events: none;
+      }
+      .bg-ring {
+        width: 14px;
+        height: 14px;
+        transform: rotate(-90deg);
+      }
+      .bg-ring circle {
+        fill: none;
+        stroke-width: 2.5;
+      }
+      .bg-ring .tr {
+        stroke: var(--border-strong);
+      }
+      .bg-ring .pr {
+        stroke: var(--foreground);
+        stroke-linecap: round;
+        transition:
+          stroke-dashoffset 0.2s,
+          stroke 0.2s;
+      }
+      .bg-cnt.ok {
+        color: var(--success);
+      }
+      .bg-cnt.ok .pr {
+        stroke: var(--success);
+      }
+      .bg-det {
+        margin-top: 12px;
+        border-radius: 12px;
+        background: var(--surface-lift);
+        box-shadow: inset 0 0 0 1px var(--border);
+        overflow: hidden;
+      }
+      .bg-det + .bg-det {
+        margin-top: 8px;
+      }
+      .bg-dh {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        width: 100%;
+        padding: 11px 12px;
+        border: 0;
+        background: none;
+        color: var(--foreground);
+        font: inherit;
+        text-align: left;
+        cursor: pointer;
+      }
+      .bg-dh:hover {
+        background: var(--muted);
+      }
+      .bg-ic {
+        width: 28px;
+        height: 28px;
+        flex: none;
+        border-radius: 8px;
+        background: var(--muted);
+        color: var(--muted-fg);
+        display: grid;
+        place-items: center;
+      }
+      .bg-ic svg {
+        width: 15px;
+        height: 15px;
+      }
+      .bg-ic.warn {
+        background: var(--warning-bg, var(--muted));
+        color: var(--warning);
+      }
+      .bg-dt {
+        min-width: 0;
+      }
+      .bg-dt b {
+        display: block;
+        font-size: 13px;
+        font-weight: 500;
+      }
+      .bg-dt small {
+        display: block;
+        font-size: 12px;
+        color: var(--muted-fg);
+      }
+      .bg-chev {
+        width: 16px;
+        height: 16px;
+        margin-left: auto;
+        flex: none;
+        color: var(--text-muted);
+        transition: transform 0.3s var(--ease-sheet);
+      }
+      .bg-det.open .bg-chev {
+        transform: rotate(180deg);
+      }
+      .bg-slot {
+        display: grid;
+        grid-template-rows: 0fr;
+        transition: grid-template-rows 0.32s var(--ease-sheet);
+      }
+      .bg-det.open .bg-slot {
+        grid-template-rows: 1fr;
+      }
+      .bg-slot > div {
+        overflow: hidden;
+        min-height: 0;
+      }
+      .bg-dl {
+        margin: 0;
+        padding: 12px;
+        border-top: 1px solid var(--border);
+        display: grid;
+        grid-template-columns: auto 1fr;
+        gap: 6px 16px;
+        font-size: 12px;
+      }
+      .bg-dl dt {
+        color: var(--text-muted);
+      }
+      .bg-dl dd {
+        margin: 0;
+        text-align: right;
+        color: var(--foreground);
+        font-variant-numeric: tabular-nums;
+        overflow-wrap: anywhere;
+      }
+      .bg-errs {
+        list-style: none;
+        margin: 0;
+        padding: 12px;
+        border-top: 1px solid var(--border);
+        display: grid;
+        gap: 10px;
+      }
+      .bg-errs li {
+        display: grid;
+        grid-template-columns: auto 1fr;
+        gap: 2px 10px;
+        font-size: 12px;
+      }
+      .bg-tag {
+        grid-row: span 2;
+        align-self: start;
+        height: 20px;
+        padding: 0 7px;
+        border-radius: 6px;
+        background: var(--muted);
+        color: var(--muted-fg);
+        font-size: 12px;
+        font-weight: 600;
+        line-height: 20px;
+        font-variant-numeric: tabular-nums;
+      }
+      .bg-tag.bad {
+        background: var(--destructive-bg, var(--muted));
+        color: var(--destructive);
+      }
+      .bg-errs b {
+        font-weight: 500;
+        color: var(--foreground);
+        overflow-wrap: anywhere;
+      }
+      .bg-errs .m {
+        color: var(--text-muted);
+      }
+      .bg-priv {
+        display: flex;
+        gap: 6px;
+        align-items: flex-start;
+        margin: 10px 2px 0;
+        font-size: 12px;
+        color: var(--text-muted);
+      }
+      .bg-priv svg {
+        width: 13px;
+        height: 13px;
+        flex: none;
+        margin-top: 2px;
+      }
+      .bg-ft {
+        display: flex;
+        gap: 8px;
+        padding: 16px 20px 20px;
+      }
+      .bg-btn {
+        flex: 1;
+        height: 40px;
+        gap: 8px;
+      }
+      .bg-btn svg {
+        width: 16px;
+        height: 16px;
+      }
+      .bg-sendw {
+        flex: 1;
+        display: flex;
+      }
+      .bg-sendw .bg-btn:disabled {
+        pointer-events: none;
+      }
+      .bg-sent {
+        padding: 32px 20px 24px;
+        text-align: center;
+      }
+      .bg-sent h3 {
+        margin: 0;
+        font-size: 17px;
+        color: var(--foreground);
+      }
+      .bg-sent p {
+        margin: 4px auto 18px;
+        max-width: 30ch;
+        font-size: 13px;
+        color: var(--muted-fg);
+      }
+      .bg-sent .bg-btn {
+        max-width: 160px;
+        margin: 0 auto;
+        display: flex;
+      }
+      .bg-okb {
+        width: 52px;
+        height: 52px;
+        margin: 0 auto 12px;
+        border-radius: 50%;
+        background: color-mix(in oklab, var(--success) 16%, var(--surface-raised));
+        color: var(--success);
+        display: grid;
+        place-items: center;
+      }
+      .bg-okb svg {
+        width: 24px;
+        height: 24px;
+      }
+      .bg-okb path {
+        stroke-dasharray: 24;
+        stroke-dashoffset: 24;
+        animation: bg-draw 0.5s 0.1s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+      }
+      @keyframes bg-draw {
+        to {
+          stroke-dashoffset: 0;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .bg-slot,
+        .bg-chev,
+        .bg-ring .pr {
+          transition: none;
+        }
+        .bg-okb path {
+          animation: none;
+          stroke-dashoffset: 0;
+        }
+      }
       .dialog.ct-dialog {
         max-width: 400px;
         padding: 0;
+        position: relative;
+      }
+      .ct-dialog .ct-x {
+        position: absolute;
+        top: 14px;
+        right: 14px;
+      }
+      .ct-dialog .ct-head {
+        padding-right: 60px;
       }
       .ct-head {
         display: flex;
@@ -8333,9 +9176,15 @@
         background: var(--danger-tint);
       }
       @media (max-width: 640px) {
+        /* Closing: the sheet slides down first; the dimmed backdrop fades only as it lands
+         (it used to fade in .2s and take the sheet with it, so it looked like it vanished). */
         .overlay.am-host {
           align-items: flex-end;
           padding: 0;
+          transition: opacity 0.2s ease 0.26s;
+        }
+        .overlay.am-host.open {
+          transition-delay: 0s;
         }
         .overlay.am-host > .dialog.am {
           max-width: none;
@@ -8365,24 +9214,6 @@
       .dialog-head {
         padding: 22px 22px 16px;
         position: relative;
-      }
-      /* Toast */
-      #appToast.toast-show {
-        opacity: 1 !important;
-        pointer-events: all !important;
-        transform: translateX(-50%) translateY(0) !important;
-      }
-      @media (max-width: 640px) {
-        #appToast {
-          left: 16px !important;
-          right: 16px !important;
-          width: auto !important;
-          white-space: normal !important;
-          transform: translateY(20px) !important;
-        }
-        #appToast.toast-show {
-          transform: translateY(0) !important;
-        }
       }
       /* About Project card */
       .about-dev-pic {
@@ -8699,33 +9530,6 @@
         gap: 6px;
         flex: 1;
         position: relative;
-      }
-      .sc-item[data-tip]:hover::after {
-        content: attr(data-tip);
-        position: absolute;
-        bottom: calc(100% + 6px);
-        left: 50%;
-        transform: translateX(-50%);
-        background: var(--foreground);
-        color: var(--background);
-        font-size: 12px;
-        font-weight: 500;
-        white-space: nowrap;
-        padding: 4px 8px;
-        border-radius: 6px;
-        pointer-events: none;
-        z-index: 100;
-      }
-      .sc-item[data-tip]:hover::before {
-        content: "";
-        position: absolute;
-        bottom: calc(100% + 1px);
-        left: 50%;
-        transform: translateX(-50%);
-        border: 5px solid transparent;
-        border-top-color: var(--foreground);
-        pointer-events: none;
-        z-index: 100;
       }
       .sc-day-label {
         font-size: 12px;
@@ -9089,21 +9893,48 @@
         flex: 1;
         min-width: 0;
       }
-      .ac-gap b {
+      /* Row (#66 D): the date, then chips for what needs resolving; a chevron says it opens. */
+      .ac-day {
         font-size: 14px;
         font-weight: 600;
-        color: var(--warning);
-        font-variant-numeric: tabular-nums;
+        color: var(--foreground);
       }
-      .ac-gap span {
+      .ac-chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-top: 5px;
+      }
+      .ac-chip {
+        display: inline-flex;
+        align-items: center;
+        height: 22px;
+        padding: 0 8px;
+        border-radius: 6px;
         font-size: 12px;
+        font-weight: 600;
+        font-variant-numeric: tabular-nums;
+        background: var(--muted);
+        color: var(--muted-fg);
+      }
+      .ac-chip.w {
+        background: var(--warning-bg);
+        color: var(--warning);
+        box-shadow: inset 0 0 0 1px var(--warning-border);
+      }
+      .ac-chip.half {
+        background: color-mix(in srgb, var(--teal) 12%, var(--card));
+        color: var(--teal);
+      }
+      .ac-chev {
+        width: 16px;
+        height: 16px;
+        flex: none;
+        margin-left: auto;
         color: var(--text-muted);
       }
-      .ac-sub {
-        font-size: 12px;
-        color: var(--muted-fg);
-        margin-top: 2px;
-        font-variant-numeric: tabular-nums;
+      .ac-row:hover .ac-chev {
+        color: var(--foreground);
       }
       @media (hover: hover) and (pointer: fine) {
         .ac-row:hover {
@@ -9114,8 +9945,10 @@
           color: var(--foreground);
         }
       }
-      .ac-row.read .ac-gap b {
+      .ac-row.read .ac-chip.w {
+        background: var(--muted);
         color: var(--muted-fg);
+        box-shadow: none;
       }
       .ac-row.read {
         opacity: 0.7;
@@ -10103,14 +10936,17 @@
         box-shadow: inset 0 0 0 2.5px rgba(250, 250, 250, 0.1);
       }
       /* Update Entry note: a lighter fill and a visible outline so it reads as a field; focus lifts the outline to a lighter grey (not white); the caret blinks in the text colour. */
+      /* Note + "Or write your own reason": the same field as the start-time sheet (#stField):
+       a plain surface one step up from the panel, a 1px border, a stronger border on focus. */
       #dayEditOverlay .de-note-wrap textarea {
-        background: color-mix(in srgb, var(--foreground) 7%, var(--surface-lift));
-        box-shadow: inset 0 0 0 1px var(--input);
+        background: var(--surface-lift);
+        box-shadow: inset 0 0 0 1px var(--border);
         caret-color: var(--foreground);
+        transition: box-shadow 0.15s;
       }
       #dayEditOverlay .de-note-wrap textarea:focus,
       .dark #dayEditOverlay .de-note-wrap textarea:focus {
-        box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--input) 55%, var(--foreground));
+        box-shadow: inset 0 0 0 1.5px var(--border-strong);
       }
       /* Future plan CTA — slides in when a chip is selected */
       .future-plan-cta {
@@ -10751,7 +11587,7 @@
         flex: 1;
         min-height: 0;
         display: flex;
-        padding: 0 14px 4px;
+        padding: 4px 14px 8px;
       }
       .rpt-wrap {
         flex: 1;
@@ -11688,74 +12524,223 @@
         background: var(--blue-border);
       }
 
-      /* ── Toast (shadcn-style) ── */
-      /* ── Toast — bottom-center dark pill (shadcn/mynaui style) ── */
-      .wh-toast {
+      /* ── Toasts (#70, uiarc "toast-stack") ──
+       Bottom centre. The newest toast is in front; up to 3 older ones tuck behind it,
+       14px of each peeking above, 5% smaller per step. Hover or focus fans them out. */
+      /* Tooltip (#7): one for the whole app, in the theme's own colours. It only fades in and out. */
+      .app-tip {
         position: fixed;
-        bottom: 24px;
-        left: 50%;
-        transform: translateX(-50%) translateY(14px);
-        min-width: 220px;
-        max-width: 380px;
-        background: var(--background);
-        border: 1px solid var(--border);
-        border-radius: 12px;
-        padding: 4px 4px 4px 14px;
-        box-shadow: var(--shadow-lg);
-        transition:
-          transform 0.32s cubic-bezier(0.32, 1, 0.54, 1),
-          opacity 0.22s;
-        opacity: 0;
+        z-index: 10000;
+        left: 0;
+        top: 0;
+        max-width: 240px;
+        padding: 8px;
+        border-radius: 8px;
+        background: var(--tip-bg, #fff);
+        color: var(--foreground);
+        box-shadow:
+          inset 0 0 0 1px var(--tip-line, var(--border)),
+          0 6px 20px rgba(12, 14, 19, 0.12),
+          0 1px 3px rgba(12, 14, 19, 0.08);
+        font-size: 12px;
+        font-weight: 500;
+        line-height: 16px;
         pointer-events: none;
+        opacity: 0;
+        visibility: hidden;
+        transition:
+          opacity 0.12s linear,
+          visibility 0s linear 0.12s;
+      }
+      .app-tip.show {
+        opacity: 1;
+        visibility: visible;
+        transition: opacity 0.12s linear;
+      }
+      .app-tip.instant {
+        transition: none;
+      }
+      :root {
+        --tip-bg: #ffffff;
+        --tip-line: #dde1e8;
+      }
+      .dark {
+        --tip-bg: #262a33;
+        --tip-line: #3b414d;
+      }
+      .dark .app-tip {
+        box-shadow:
+          inset 0 0 0 1px var(--tip-line),
+          0 8px 24px rgba(0, 0, 0, 0.45),
+          0 1px 3px rgba(0, 0, 0, 0.4);
+      }
+      .ts-vp {
+        position: fixed;
         z-index: 9999;
+        left: 0;
+        right: 0;
+        bottom: 24px;
+        margin-inline: auto;
+        width: min(360px, calc(100% - 32px));
+        pointer-events: none;
+      }
+      .ts-list {
+        position: relative;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+        pointer-events: auto;
+        transition: height 0.45s var(--ease-sheet);
+      }
+      .ts-item {
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        transform-origin: 50% 0;
+        transition:
+          transform 0.45s var(--ease-sheet),
+          opacity 0.3s;
+      }
+      .ts-item.enter {
+        transform: translateY(24px) scale(0.96) !important;
+        opacity: 0 !important;
+      }
+      .ts-item.leave {
+        opacity: 0 !important;
+        transition:
+          transform 0.3s var(--ease-sheet),
+          opacity 0.2s;
+      }
+      .ts-card {
+        position: relative;
+        overflow: hidden;
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        background: var(--surface-raised);
+        box-shadow: var(--shadow-lg);
+        touch-action: pan-y;
+        transition:
+          height 0.45s var(--ease-sheet),
+          background 0.3s;
+      }
+      .ts-item[data-front="false"][data-open="false"] .ts-card {
+        background: var(--muted);
+      }
+      .ts-ct {
         display: flex;
         align-items: center;
-        gap: 10px;
+        gap: 12px;
+        padding: 10px 10px 10px 16px;
+        transition: opacity 0.25s;
       }
-      .wh-toast.show {
-        transform: translateX(-50%) translateY(0);
-        opacity: 1;
-        pointer-events: auto;
+      .ts-item[data-front="false"][data-open="false"] .ts-ct {
+        opacity: 0;
       }
-      @media (max-width: 640px) {
-        .wh-toast {
-          bottom: calc(max(4px, env(safe-area-inset-bottom) * 0.5) + 65px);
-          width: max-content;
-          max-width: calc(100% - 32px);
+      .ts-ic {
+        width: 18px;
+        height: 20px;
+        flex: none;
+        display: grid;
+        place-items: center;
+        color: var(--c, var(--muted-fg));
+      }
+      .ts-ic svg {
+        width: 18px;
+        height: 18px;
+      }
+      .ts-ic .ts-check {
+        stroke-dasharray: 24;
+        stroke-dashoffset: 24;
+        animation: ts-draw 0.4s cubic-bezier(0.16, 1, 0.3, 1) 0.12s forwards;
+      }
+      @keyframes ts-draw {
+        to {
+          stroke-dashoffset: 0;
         }
       }
-      .wh-toast-icon {
-        width: 15px;
-        height: 15px;
-        flex-shrink: 0;
-      }
-      .wh-toast-body {
+      .ts-copy {
         flex: 1;
         min-width: 0;
+        font-size: 14px;
+        line-height: 20px;
       }
-      .wh-toast-title {
-        font-size: 13px;
+      .ts-t {
+        display: block;
         font-weight: 500;
         color: var(--foreground);
       }
-      .wh-toast-desc {
-        font-size: 12px;
-        color: var(--muted-fg);
-        margin-top: 2px;
-        line-height: 1.4;
-        display: none;
-      }
-      .wh-toast-desc.visible {
+      .ts-d {
         display: block;
+        margin-top: 2px;
+        font-size: 13px;
+        line-height: 19px;
+        color: var(--muted-fg);
       }
-      .wh-toast.success .wh-toast-icon {
-        color: var(--success);
+      .ts-act {
+        height: 28px;
+        padding: 0 12px;
+        flex: none;
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        background: var(--card);
+        color: var(--foreground);
+        font: 500 13px var(--font);
+        white-space: nowrap;
+        cursor: pointer;
+        transition:
+          background 0.14s,
+          border-color 0.14s;
       }
-      .wh-toast.error .wh-toast-icon {
-        color: var(--destructive);
+      .ts-x {
+        width: 28px;
+        height: 28px;
+        flex: none;
+        margin: 0;
+        display: grid;
+        place-items: center;
+        border: 0;
+        border-radius: 50%;
+        background: none;
+        color: var(--text-muted);
+        cursor: pointer;
+        transition:
+          background 0.14s,
+          color 0.14s;
       }
-      .wh-toast.info .wh-toast-icon {
-        color: var(--blue);
+      .ts-x svg {
+        width: 16px;
+        height: 16px;
+      }
+      @media (hover: hover) and (pointer: fine) {
+        .ts-act:hover {
+          border-color: var(--border-strong);
+          background: var(--muted);
+        }
+        .ts-x:hover {
+          background: var(--muted);
+          color: var(--foreground);
+        }
+      }
+      .ts-act:active,
+      .ts-x:active {
+        transform: scale(0.96);
+      }
+      @media (max-width: 640px) {
+        .ts-vp {
+          bottom: calc(16px + env(safe-area-inset-bottom));
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .ts-item,
+        .ts-card,
+        .ts-list {
+          transition: opacity 0.15s;
+        }
+        .ts-ic .ts-check {
+          animation: none;
+          stroke-dashoffset: 0;
+        }
       }
 
       /* ── Footer label ── */
@@ -13043,6 +14028,478 @@
       .dark .ob-panel input[type="text"]:focus {
         box-shadow: inset 0 0 0 3px rgba(250, 250, 250, 0.08);
       }
+      /* ── Backup & Restore: Import in place (#72, uiarc "file-upload") ── */
+      .imp-slot {
+        display: grid;
+        grid-template-rows: 0fr;
+        transition: grid-template-rows 0.36s var(--ease-sheet);
+      }
+      .imp-slot.open {
+        grid-template-rows: 1fr;
+      }
+      .imp-slot > div {
+        overflow: hidden;
+        min-height: 0;
+        margin: 0 -6px;
+        padding: 0 6px;
+      } /* 6px of room so the breathing edge is never cropped */
+      .imp-in {
+        padding: 14px 0 6px;
+        opacity: 0;
+        transform: translateY(-4px);
+        transition:
+          opacity 0.2s,
+          transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      }
+      .imp-slot.open .imp-in {
+        opacity: 1;
+        transform: none;
+        transition-delay: 0.08s;
+      }
+      .imp-slot:not(.open) .imp-in {
+        visibility: hidden;
+        transition:
+          opacity 0.15s,
+          transform 0.2s,
+          visibility 0s 0.36s;
+      }
+      #impBtn[aria-expanded="true"] {
+        background: var(--muted);
+        box-shadow: inset 0 0 0 1px var(--border-strong);
+      }
+      .imp-input {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip-path: inset(50%);
+      }
+      /* #9 uiarc file dropzone: drawn dashed edge that closes into a line under a file, light that
+       follows the file, three paper sheets that fan out. Folds to a slim strip once a file is in. */
+      .imp-drop {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        padding: 24px 20px;
+        border-radius: 16px;
+        background: var(--surface-raised);
+        cursor: pointer;
+        outline: none;
+        transition:
+          background 0.2s,
+          padding 0.36s var(--ease-sheet),
+          border-radius 0.4s cubic-bezier(0.34, 1.3, 0.64, 1);
+      }
+      .imp-drop > * {
+        pointer-events: none;
+      }
+      .imp-edge {
+        position: absolute;
+        top: 0.5px;
+        left: 0.5px;
+        width: calc(100% - 1px);
+        height: calc(100% - 1px);
+        overflow: visible;
+      }
+      .imp-edge rect {
+        fill: none;
+        stroke: var(--border-strong);
+        stroke-width: 1;
+        stroke-dasharray: 3.5 3.5;
+        transition:
+          stroke 0.15s,
+          stroke-dasharray 0.3s,
+          stroke-dashoffset 0.3s;
+      }
+      @media (hover: hover) and (pointer: fine) {
+        .imp-drop:hover {
+          background: var(--muted);
+        }
+        .imp-drop:hover .imp-edge rect {
+          stroke: var(--text-muted);
+        }
+      }
+      .imp-drop:active {
+        background: var(--muted);
+      }
+      .imp-drop:focus-visible {
+        box-shadow:
+          0 0 0 2px var(--card),
+          0 0 0 4px var(--ring);
+      }
+      .imp-drop.dragging {
+        background: color-mix(in oklab, var(--blue) 4%, var(--surface-raised));
+        animation: imp-breathe 2.2s ease-in-out infinite;
+      }
+      @keyframes imp-breathe {
+        50% {
+          transform: scale(1.01);
+        }
+      }
+      .imp-drop.dragging .imp-edge rect {
+        stroke: color-mix(in oklab, var(--blue) 55%, var(--border));
+        stroke-dasharray: 7 0;
+      }
+      .imp-wash,
+      .imp-glow {
+        position: absolute;
+        inset: 0;
+        border-radius: inherit;
+        opacity: 0;
+        transition: opacity 0.2s;
+      }
+      .imp-wash {
+        background: radial-gradient(
+          220px circle at var(--mx, 50%) var(--my, 50%),
+          color-mix(in oklab, var(--blue) 10%, transparent),
+          transparent 70%
+        );
+      }
+      .imp-glow {
+        padding: 1.5px;
+        background: radial-gradient(140px circle at var(--mx, 50%) var(--my, 50%), var(--blue), transparent 70%);
+        -webkit-mask:
+          linear-gradient(#000 0 0) content-box,
+          linear-gradient(#000 0 0);
+        -webkit-mask-composite: xor;
+        mask:
+          linear-gradient(#000 0 0) content-box exclude,
+          linear-gradient(#000 0 0);
+      }
+      .imp-drop.dragging .imp-wash,
+      .imp-drop.dragging .imp-glow {
+        opacity: 1;
+      }
+      .imp-ics {
+        display: grid;
+        width: 100%;
+        grid-template-rows: 1fr;
+        transition:
+          grid-template-rows 0.36s var(--ease-sheet),
+          opacity 0.2s;
+      }
+      .imp-ics > span {
+        display: block;
+        overflow: hidden;
+        min-height: 0;
+      }
+      .imp-sheets {
+        display: block;
+        position: relative;
+        width: 36px;
+        height: 44px;
+        margin: 10px auto 12px;
+      }
+      .imp-sheet {
+        --r: 0deg;
+        --x: 0px;
+        --y: 0px;
+        display: grid;
+        place-items: center;
+        position: absolute;
+        inset: 0;
+        border-radius: 7px;
+        background: var(--surface-lift);
+        box-shadow:
+          inset 0 0 0 1px var(--border-strong),
+          0 2px 6px rgba(0, 0, 0, 0.08);
+        color: var(--text-muted);
+        font-size: 12px;
+        font-weight: 600;
+        transform: translate(var(--x), var(--y)) rotate(var(--r));
+        transition: transform 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
+      }
+      .imp-sheet:nth-child(3) {
+        font-size: 12px;
+        transform: translate(var(--x), var(--y)) rotate(var(--r)) scale(0.75);
+      }
+      .imp-sheet:nth-child(1) {
+        --r: -12deg;
+        --x: -9px;
+        --y: 3px;
+      }
+      .imp-sheet:nth-child(2) {
+        --r: 10deg;
+        --x: 9px;
+        --y: 3px;
+      }
+      .imp-drop:hover .imp-sheet:nth-child(1) {
+        --r: -16deg;
+        --x: -12px;
+        --y: 1px;
+      }
+      .imp-drop:hover .imp-sheet:nth-child(2) {
+        --r: 14deg;
+        --x: 12px;
+        --y: 1px;
+      }
+      .imp-drop:hover .imp-sheet:nth-child(3) {
+        --y: -3px;
+      }
+      .imp-drop.dragging .imp-sheet:nth-child(1) {
+        --r: -20deg;
+        --x: -15px;
+        --y: -2px;
+      }
+      .imp-drop.dragging .imp-sheet:nth-child(2) {
+        --r: 18deg;
+        --x: 15px;
+        --y: -2px;
+      }
+      .imp-drop.dragging .imp-sheet:nth-child(3) {
+        --y: -7px;
+      }
+      .imp-t {
+        display: block;
+        font-size: 14px;
+        font-weight: 500;
+        color: var(--foreground);
+      }
+      .imp-d {
+        display: block;
+        max-width: 36ch;
+        margin-top: 2px;
+        font-size: 12px;
+        color: var(--muted-fg);
+      }
+      .imp-drop.compact {
+        padding: 12px 16px;
+        border-radius: 12px;
+      }
+      .imp-drop.compact .imp-ics {
+        grid-template-rows: 0fr;
+        opacity: 0;
+      }
+      .imp-drop.compact .imp-d {
+        display: none;
+      }
+      .imp-status {
+        margin: 8px 2px 0;
+        font-size: 12px;
+        color: var(--text-muted);
+      }
+      .imp-status:empty {
+        display: none;
+      }
+      .imp-status.err {
+        color: var(--danger-text);
+      }
+      .imp-file {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-top: 8px;
+        padding: 10px 10px 10px 12px;
+        border: 1px solid var(--border-subtle);
+        border-radius: 10px;
+        background: var(--muted);
+        animation: imp-rise 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      }
+      @keyframes imp-rise {
+        from {
+          opacity: 0;
+          transform: translateY(6px);
+        }
+      }
+      .imp-file > svg {
+        width: 22px;
+        height: 22px;
+        flex: none;
+        color: var(--muted-fg);
+      }
+      .imp-fc {
+        flex: 1;
+        min-width: 0;
+      }
+      .imp-fc strong {
+        display: block;
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--foreground);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .imp-fc span {
+        display: block;
+        font-size: 12px;
+        color: var(--text-muted);
+        font-variant-numeric: tabular-nums;
+      }
+      .imp-fc span.err {
+        color: var(--danger-text);
+      }
+      .imp-trk {
+        height: 3px;
+        margin: 5px 0 1px;
+        border-radius: 99px;
+        background: var(--border);
+        overflow: hidden;
+      }
+      .imp-trk i {
+        display: block;
+        height: 100%;
+        width: 0;
+        background: var(--accent);
+        border-radius: inherit;
+        transition: width 0.6s var(--ease-sheet);
+      }
+      .imp-ok {
+        width: 22px;
+        height: 22px;
+        display: grid;
+        place-items: center;
+        color: var(--success);
+      }
+      .imp-ok path {
+        stroke-dasharray: 22;
+        stroke-dashoffset: 22;
+        animation: imp-draw 0.35s cubic-bezier(0.16, 1, 0.3, 1) 0.05s forwards;
+      }
+      @keyframes imp-draw {
+        to {
+          stroke-dashoffset: 0;
+        }
+      }
+      .imp-x {
+        width: 26px;
+        height: 26px;
+        flex: none;
+        border: 0;
+        border-radius: 50%;
+        background: none;
+        color: var(--text-muted);
+        display: grid;
+        place-items: center;
+        cursor: pointer;
+      }
+      .imp-x:hover {
+        background: var(--card);
+        color: var(--foreground);
+      }
+      .imp-x svg {
+        width: 15px;
+        height: 15px;
+      }
+      .imp-choice {
+        margin-top: 10px;
+        padding: 12px 14px;
+        border-radius: 12px;
+        background: var(--surface-raised);
+        border: 1px solid var(--border);
+        animation: imp-rise 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        --btn-surface: var(--surface-lift);
+        --btn-line: var(--border-strong);
+      }
+      .imp-choice > b {
+        display: block;
+        font-size: 14px;
+        color: var(--foreground);
+      }
+      .imp-choice > p {
+        margin: 3px 0 12px;
+        font-size: 13px;
+        line-height: 1.45;
+        color: var(--muted-fg);
+      }
+      .imp-choice p b {
+        font-weight: 600;
+        color: var(--foreground);
+      }
+      .imp-keep {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        margin: 0 0 12px;
+        padding: 10px 12px;
+        border-radius: 10px;
+        background: var(--surface-lift);
+        box-shadow: inset 0 0 0 1px var(--border-strong);
+        cursor: pointer;
+      }
+      .imp-keep input {
+        position: absolute;
+        opacity: 0;
+        width: 1px;
+        height: 1px;
+      }
+      .imp-cb {
+        width: 18px;
+        height: 18px;
+        flex: none;
+        margin-top: 1px;
+        border-radius: 5px;
+        box-shadow: inset 0 0 0 1.5px var(--border-strong);
+        display: grid;
+        place-items: center;
+        color: transparent;
+        transition:
+          background 0.14s,
+          color 0.14s,
+          box-shadow 0.14s;
+      }
+      .imp-cb svg {
+        width: 12px;
+        height: 12px;
+      }
+      .imp-keep input:checked + .imp-cb {
+        background: var(--btn-primary-bg);
+        color: var(--card);
+        box-shadow: none;
+      }
+      .imp-keep input:focus-visible + .imp-cb {
+        box-shadow:
+          0 0 0 2px var(--surface-lift),
+          0 0 0 4px var(--ring);
+      }
+      .imp-keep b {
+        display: block;
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--foreground);
+      }
+      .imp-keep small {
+        display: block;
+        margin-top: 1px;
+        font-size: 12px;
+        color: var(--text-muted);
+      }
+      .imp-acts {
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+      }
+      /* The Security tab uses the compact 30px scale (shell-new rule); Merge matches it. */
+      .imp-acts .btn-primary {
+        width: auto;
+        height: 30px;
+        padding: 0 12px;
+        font-size: 12px;
+        border-radius: 8px;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .imp-drop.dragging {
+          animation: none;
+        }
+        .imp-sheet,
+        .imp-ics,
+        .imp-slot,
+        .imp-in,
+        .imp-drop,
+        .imp-trk i {
+          transition: none;
+        }
+        .imp-file,
+        .imp-choice {
+          animation: none;
+        }
+        .imp-ok path {
+          animation: none;
+          stroke-dashoffset: 0;
+        }
+      }
       .ob-import-zone {
         border: 2px dashed var(--border);
         border-radius: 12px;
@@ -13756,43 +15213,78 @@
       }
       /* Inline tips (TipKit style): a small card inside the feature's own card.
        Icon, 14px/600 title, 13px muted line, close. */
+      /* Tips (#4): one card, inline (settings page) or a popover with an arrow at its feature. Fade only. */
       .fivepm-inline-tip {
         display: flex;
         align-items: flex-start;
-        gap: 10px;
-        padding: 12px 10px 12px 14px;
+        gap: 12px;
+        padding: 12px 10px 12px 12px;
         margin: 10px 14px 4px;
-        background: var(--muted);
-        border-radius: var(--radius-md);
+        background: var(--surface-lift);
+        border-radius: 14px;
+        box-shadow:
+          inset 0 0 0 1px var(--border-strong),
+          0 10px 28px rgba(0, 0, 0, 0.16),
+          0 1px 3px rgba(0, 0, 0, 0.1);
+        animation: tip-fade 0.2s linear;
+      }
+      @keyframes tip-fade {
+        from {
+          opacity: 0;
+        }
+      }
+      .fivepm-inline-tip.is-panel {
+        box-shadow: inset 0 0 0 1px var(--border-strong);
       }
       .fivepm-inline-tip .fivepm-tip-icon {
-        display: flex;
-        color: var(--muted-fg);
-        padding-top: 1px;
+        width: 32px;
+        height: 32px;
+        flex: none;
+        border-radius: 10px;
+        display: grid;
+        place-items: center;
+        background: var(--muted);
+        color: var(--foreground);
       }
       .fivepm-inline-tip-text {
         flex: 1;
         min-width: 0;
       }
       .fivepm-inline-tip-title {
-        font: 600 14px/1.3 var(--font);
+        font: 600 14px/20px var(--font);
         color: var(--foreground);
       }
       .fivepm-inline-tip-body {
-        font: 400 13px/1.5 var(--font);
+        font: 400 13px/18px var(--font);
         color: var(--muted-fg);
-        margin-top: 2px;
+        margin-top: 1px;
+      }
+      .fivepm-tip-action {
+        display: inline-flex;
+        align-items: center;
+        height: 28px;
+        margin-top: 8px;
+        padding: 0 10px;
+        border: 0;
+        border-radius: 8px;
+        background: var(--muted);
+        color: var(--foreground);
+        font: 500 12px var(--font);
+        cursor: pointer;
+      }
+      .fivepm-tip-action:hover {
+        background: var(--border-strong);
       }
       .fivepm-inline-tip-close {
-        width: 24px;
-        height: 24px;
+        width: 26px;
+        height: 26px;
         display: grid;
         place-items: center;
         flex-shrink: 0;
         border: none;
-        border-radius: var(--radius-md);
+        border-radius: 7px;
         background: transparent;
-        color: var(--muted-fg);
+        color: var(--text-muted);
         cursor: pointer;
         transition:
           background 0.14s,
@@ -13800,13 +15292,44 @@
       }
       @media (hover: hover) and (pointer: fine) {
         .fivepm-inline-tip-close:hover {
-          background: var(--border);
+          background: var(--muted);
           color: var(--foreground);
         }
       }
-      .fivepm-inline-tip-close:focus-visible {
-        outline: 2px solid #6b97ff;
+      .fivepm-inline-tip-close:focus-visible,
+      .fivepm-tip-action:focus-visible {
+        outline: 2px solid var(--ring);
         outline-offset: 2px;
+      }
+      .fivepm-inline-tip.is-pop {
+        position: absolute;
+        z-index: 900;
+        margin: 0;
+      }
+      .fivepm-inline-tip.is-pop::before {
+        content: "";
+        position: absolute;
+        top: -6px;
+        left: var(--ax, 24px);
+        width: 12px;
+        height: 12px;
+        background: var(--surface-lift);
+        box-shadow: inset 1px 1px 0 0 var(--border-strong);
+        border-radius: 3px 0 0 0;
+        transform: rotate(45deg);
+      }
+      .fivepm-inline-tip.is-pop.up::before {
+        top: auto;
+        bottom: -6px;
+        transform: rotate(225deg);
+      }
+      .tip-target {
+        background: var(--muted) !important;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .fivepm-inline-tip {
+          animation: none;
+        }
       }
       @media (prefers-reduced-motion: reduce) {
         .driver-popover,
@@ -14574,9 +16097,9 @@
         font-weight: 600;
         border-radius: 11px;
       }
-      .sc-acts .btn-primary {
+      .sc-acts .btn {
         min-width: 76px;
-      }
+      } /* both buttons the same size; only the look differs */
       @media (max-width: 640px) {
         .overlay.sc-host {
           align-items: flex-end;
@@ -14680,7 +16203,7 @@
         gap: 8px;
         height: 34px;
         padding: 0 10px;
-        margin-right: -6px;
+        margin-right: 0;
         border: 0;
         border-radius: 10px;
         background: transparent;
@@ -14742,12 +16265,14 @@
         display: none;
       }
       /* Week break (#62): not sticky (the calendar button names the week); the date range and a hairline. */
+      /* Week title centred between two hairlines, so it's clear where one week ends. */
       .wf-wh {
         display: flex;
         align-items: center;
         gap: 10px;
         padding: 14px 16px 6px 12px;
       }
+      .wf-wh::before,
       .wf-wh::after {
         content: "";
         flex: 1;
@@ -14758,7 +16283,7 @@
         font-size: 12px;
         font-weight: 600;
         letter-spacing: 0.02em;
-        color: var(--text-muted);
+        color: var(--foreground);
         font-variant-numeric: tabular-nums;
         white-space: nowrap;
       }
@@ -14822,8 +16347,10 @@
         position: absolute;
         z-index: 20;
         top: calc(100% + 6px);
-        left: 8px;
+        right: 12px;
+        left: auto;
         width: 288px;
+        transform-origin: top right;
         padding: 10px;
         border-radius: 18px;
         background: var(--surface-raised);
@@ -15070,8 +16597,10 @@
           transform 0.32s var(--ease-sheet),
           width 0.32s var(--ease-sheet);
       }
+      /* Dark: no ring (the border colour is darker than the pill and read as a black stroke). */
       .dark .de-type .de-type-pill {
         background: var(--btn-secondary-hover);
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
       }
       .de-type .modal-override-btn {
         position: relative;
@@ -15374,19 +16903,6 @@
         width: 13px;
         height: 13px;
       }
-      /* Toasts: bottom-right on desktop, sliding up with the sheet easing. */
-      body.rail-on .wh-toast {
-        left: auto;
-        right: 24px;
-        bottom: 24px;
-        transform: translateY(14px);
-        transition:
-          transform 0.48s var(--ease-sheet),
-          opacity 0.32s var(--ease-sheet);
-      }
-      body.rail-on .wh-toast.show {
-        transform: translateY(0);
-      }
       @media (prefers-reduced-motion: reduce) {
         body.rail-on .notif-panel,
         body.rail-on .notif-panel.open {
@@ -15397,11 +16913,6 @@
         body.rail-on #dayEditOverlay.open > .dialog {
           transform: none;
           transition: none;
-        }
-        body.rail-on .wh-toast,
-        body.rail-on .wh-toast.show {
-          transform: none;
-          transition: opacity 0.2s;
         }
       }
     </style>
@@ -15760,6 +17271,21 @@
                     </button>
                     <div class="ac-menu dt-menu" id="dtMenu" role="menu" aria-label="Today is a"></div>
                   </div>
+                  <span class="td-wk-ill" aria-hidden="true"
+                    ><svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.7"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    >
+                      <path d="M19 9V6a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v3" />
+                      <path
+                        d="M3 16a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-5a2 2 0 0 0-4 0v1.5a.5.5 0 0 1-.5.5h-9a.5.5 0 0 1-.5-.5V11a2 2 0 0 0-4 0z"
+                      />
+                      <path d="M5 18v2M19 18v2" /></svg
+                  ></span>
                 </div>
                 <div class="dt-confirm" id="dtConfirm" role="group" aria-labelledby="dtcTitle" hidden>
                   <div class="dtc-h">
@@ -15814,8 +17340,13 @@
                     style="display: flex; flex-direction: column; align-items: center; width: 100%; gap: 8px"
                   >
                     <!-- Time left (#61, "Headline above"): the number to watch, counted by the second. -->
-                    <div class="rc-lead" id="rcLead" aria-live="off" hidden>
-                      <b class="rc-lead-n" id="rcLeadNum"></b><span class="rc-lead-c" id="rcLeadCap"></span>
+                    <div class="rc-lead" id="rcLead" role="timer" aria-live="off" hidden>
+                      <span class="rc-lead-w"
+                        ><b class="rc-lead-n" id="rcLeadNum" aria-hidden="true"></b
+                        ><span class="cd-done" aria-hidden="true"
+                          ><span class="cd-pulse"></span>Time to head out</span
+                        ></span
+                      ><span class="rc-lead-c" id="rcLeadCap"></span>
                     </div>
                     <div class="rc-numbers">
                       <div class="rc-left-col">
@@ -15906,14 +17437,21 @@
                         class="tp-free-input"
                         id="tpFreeInput"
                         type="text"
-                        inputmode="text"
+                        inputmode="numeric"
+                        pattern="[0-9]*"
+                        enterkeyhint="go"
                         placeholder="Enter Login Time"
-                        maxlength="14"
+                        maxlength="5"
+                        aria-label="Login time"
                         autocomplete="off"
                         spellcheck="false"
                         data-lpignore="true"
                         data-1p-ignore="true"
                       />
+                      <span class="st-ap tp-ap" id="tpAp" role="group" aria-label="AM or PM" hidden
+                        ><button type="button" data-ap="AM" aria-pressed="true">AM</button
+                        ><button type="button" data-ap="PM" aria-pressed="false">PM</button></span
+                      >
                       <span class="shift-combo-active-label" id="shiftActiveLabel">—</span>
                       <div id="calcBtnWrap" style="position: relative; display: flex; align-items: stretch">
                         <button class="shift-combo-btn" id="calcBtn">Quick Start</button>
@@ -15943,8 +17481,52 @@
                         </div>
                       </div>
                     </div>
-                    <!-- #64: before a session, Quick Start fills the row and the time lives in this sheet. -->
-                    <button type="button" class="qs-link" id="qsLink" aria-haspopup="dialog">Already working?</button>
+                    <!-- #67 Expand in place: "Already working?" opens the start time right here, under
+                 Quick Start (which then reads "Start at 09:00 AM"); the link becomes Cancel. -->
+                    <div class="qs-slot" id="qsSlot">
+                      <div>
+                        <div class="qs-slot-in">
+                          <div class="st-field" id="stField">
+                            <svg
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              stroke-width="2"
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                              aria-hidden="true"
+                            >
+                              <circle cx="12" cy="12" r="9" />
+                              <path d="M12 7v5l3 2" />
+                            </svg>
+                            <input
+                              id="stInput"
+                              type="text"
+                              inputmode="numeric"
+                              pattern="[0-9]*"
+                              enterkeyhint="go"
+                              maxlength="5"
+                              placeholder="eg. 10:15"
+                              aria-label="When did you start work?"
+                              aria-describedby="stOut"
+                              autocomplete="off"
+                              spellcheck="false"
+                              data-lpignore="true"
+                              data-1p-ignore="true"
+                              tabindex="-1"
+                            />
+                            <span class="st-ap" id="stAp" role="group" aria-label="AM or PM"
+                              ><button type="button" data-ap="AM" aria-pressed="true" tabindex="-1">AM</button
+                              ><button type="button" data-ap="PM" aria-pressed="false" tabindex="-1">PM</button></span
+                            >
+                          </div>
+                          <p class="st-out" id="stOut" aria-live="polite"></p>
+                        </div>
+                      </div>
+                    </div>
+                    <button type="button" class="qs-link" id="qsLink" aria-expanded="false" aria-controls="qsSlot">
+                      Already working?
+                    </button>
                     <!-- Resume row (after End Session or auto-stop) -->
                     <div class="shift-resume-row" id="resumeRow" style="display: none">
                       <span
@@ -17289,7 +18871,14 @@
                         <div class="form-sub">Save a copy of your work log, or bring one back.</div>
                       </div>
                       <div style="display: flex; gap: 8px; flex-shrink: 0">
-                        <button class="btn-secondary" style="gap: 5px; padding: 0 12px" data-on-click="h52e490390c">
+                        <button
+                          type="button"
+                          class="btn-secondary"
+                          id="impBtn"
+                          style="gap: 5px; padding: 0 12px"
+                          aria-expanded="false"
+                          aria-controls="impSlot"
+                        >
                           <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
                             <path
                               d="M7.70711 13.7071L11 10.4142L11 21C11 21.5523 11.4477 22 12 22C12.5523 22 13 21.5523 13 21L13 10.4142L16.2929 13.7071C16.6834 14.0976 17.3166 14.0976 17.7071 13.7071C18.0976 13.3166 18.0976 12.6834 17.7071 12.2929L12.7071 7.29289C12.3166 6.90237 11.6834 6.90237 11.2929 7.29289L6.29289 12.2929C5.90237 12.6834 5.90237 13.3166 6.29289 13.7071C6.68342 14.0976 7.31658 14.0976 7.70711 13.7071Z"
@@ -17302,8 +18891,6 @@
                           </svg>
                           Import
                         </button>
-                        <!-- Hidden fallback input kept for backward-compat event listener -->
-                        <input type="file" id="logFileInput" accept=".json" style="display: none" />
                         <button class="btn-secondary" id="manualExportBtn" style="gap: 5px; padding: 0 12px">
                           <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
                             <path
@@ -17317,6 +18904,42 @@
                           </svg>
                           Export
                         </button>
+                      </div>
+                    </div>
+                    <!-- #72 Import in place (uiarc file-upload): opens right inside this row. -->
+                    <div class="imp-slot" id="impSlot">
+                      <div>
+                        <div class="imp-in">
+                          <input
+                            class="imp-input"
+                            type="file"
+                            id="logFileInput"
+                            accept=".json,application/json"
+                            tabindex="-1"
+                            aria-hidden="true"
+                          />
+                          <div class="imp-drop" id="impDrop" role="button" tabindex="-1" aria-describedby="impDropD">
+                            <svg class="imp-edge" aria-hidden="true">
+                              <rect id="impEdge" x="0" y="0" rx="16" ry="16" />
+                            </svg>
+                            <span class="imp-wash" aria-hidden="true"></span
+                            ><span class="imp-glow" aria-hidden="true"></span>
+                            <span class="imp-ics" aria-hidden="true"
+                              ><span
+                                ><span class="imp-sheets"
+                                  ><span class="imp-sheet"></span><span class="imp-sheet"></span
+                                  ><span class="imp-sheet">JSON</span></span
+                                ></span
+                              ></span
+                            >
+                            <strong class="imp-t" id="impDropT">Import a backup</strong>
+                            <span class="imp-d" id="impDropD"
+                              >Drop a .json file exported from 5pm here, or click to choose one. Up to 5 MB.</span
+                            >
+                          </div>
+                          <p class="imp-status" id="impStatus" aria-live="polite"></p>
+                          <div id="impFiles"></div>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -18310,7 +19933,7 @@
           padding: 4px 7px;
           border-radius: 100px;
         "
-        >v1.2.34</span
+        >v1.2.35</span
       >
     </a>
 
@@ -18335,7 +19958,7 @@
               <button type="button" class="st-tab active" id="reportTabWeek" data-on-click="h12b61196e3">7 Days</button>
               <button type="button" class="st-tab" id="reportTabMonth" data-on-click="h08d903c236">30 Days</button>
             </div>
-            <div class="dialog-desc" id="weekReportRange">—</div>
+            <div class="dialog-desc" id="weekReportRange" style="margin-top: 4px">—</div>
           </div>
           <button class="btn-icon" data-on-click="h106648fa62" title="Close" style="margin: 0; flex-shrink: 0">
             <svg
@@ -18363,6 +19986,7 @@
           style="
             flex-shrink: 0;
             padding-top: 12px;
+            padding-bottom: 14px;
             display: flex;
             flex-direction: row;
             justify-content: space-between;
@@ -18475,7 +20099,7 @@
         </div>
         <div style="padding: 0 14px 14px; display: flex; justify-content: flex-end; gap: 8px">
           <button class="btn-secondary" data-on-click="h60803b94db">Keep</button>
-          <button class="btn-danger" id="cancelPlanConfirmBtn">Cancel Plan</button>
+          <button class="btn-danger-2" id="cancelPlanConfirmBtn">Cancel Plan</button>
         </div>
       </div>
     </div>
@@ -18515,60 +20139,9 @@
         </div>
         <div class="am-btns">
           <button class="btn btn-primary" id="endSessionCancelBtn">Keep working</button>
-          <button type="button" class="am-quiet danger" id="endSessionConfirmBtn">End for today</button>
+          <button type="button" class="btn-danger-2" id="endSessionConfirmBtn">End for today</button>
         </div>
       </div>
-    </div>
-
-    <!-- ── Toast Notification ── -->
-    <div
-      id="appToast"
-      style="
-        position: fixed;
-        bottom: 24px;
-        left: 50%;
-        transform: translateX(-50%) translateY(20px);
-        background: var(--foreground);
-        color: var(--card);
-        border-radius: 10px;
-        padding: 4px 4px 4px 14px;
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        font-size: 13px;
-        font-weight: 500;
-        white-space: nowrap;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.22);
-        z-index: 9999;
-        opacity: 0;
-        pointer-events: none;
-        transition:
-          opacity 0.2s,
-          transform 0.2s;
-        font-family: var(--font);
-      "
-    >
-      <span id="appToastMsg">Entry deleted.</span>
-      <button
-        id="appToastUndo"
-        style="
-          background: none;
-          border: none;
-          cursor: pointer;
-          font-family: inherit;
-          font-size: 13px;
-          font-weight: 700;
-          color: var(--card);
-          opacity: 0.8;
-          padding: 6px;
-          border-radius: 7px;
-          letter-spacing: 0.03em;
-        "
-        data-on-mouseover="h14373a3cf1"
-        data-on-mouseout="hd75e357a3a"
-      >
-        UNDO
-      </button>
     </div>
 
     <!-- ── Logout Confirmation Modal ── -->
@@ -18602,7 +20175,7 @@
         </div>
         <div style="padding: 14px; display: flex; justify-content: flex-end; gap: 8px">
           <button class="btn-secondary" data-on-click="h3a488fe697">Stay Back</button>
-          <button class="btn-danger" data-on-click="hc1fb0c2186">Log Out</button>
+          <button class="btn-danger-2" data-on-click="hc1fb0c2186">Log Out</button>
         </div>
       </div>
     </div>
@@ -18638,7 +20211,7 @@
         </div>
         <div style="padding: 14px; display: flex; justify-content: flex-end; gap: 8px">
           <button class="btn-secondary" data-on-click="h8a0431c316">Cancel</button>
-          <button class="btn-danger" id="pkRemoveBtn" data-on-click="h69f23197dd">Remove</button>
+          <button class="btn-danger-2" id="pkRemoveBtn" data-on-click="h69f23197dd">Remove</button>
         </div>
       </div>
     </div>
@@ -18864,6 +20437,206 @@
     </div>
 
     <!-- ── Support Project Modal ── -->
+    <!-- #13 Report a Bug: a plain form; device details and recent errors fold away. -->
+    <div class="overlay am-host" id="bugOverlay" data-dismiss="bugClose">
+      <div class="dialog bg-dialog" role="dialog" aria-modal="true" aria-labelledby="bgTitle">
+        <div class="bg-main" id="bgMain">
+          <div class="bg-hd">
+            <span class="bg-bub" aria-hidden="true"
+              ><svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path d="m8 2 1.88 1.88M14.12 3.88 16 2M9 7.13v-1a3.003 3.003 0 1 1 6 0v1" />
+                <path
+                  d="M12 20c-3.3 0-6-2.7-6-6v-3a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v3c0 3.3-2.7 6-6 6M12 20v-9M6.53 9C4.6 8.8 3 7.1 3 5M6 13H2M3 21c0-2.1 1.7-3.9 3.8-4M20.97 5c0 2.1-1.6 3.8-3.5 4M22 13h-4M17.2 17c2.1.1 3.8 1.9 3.8 4"
+                /></svg
+            ></span>
+            <div>
+              <h2 class="bg-title" id="bgTitle">Report a bug</h2>
+              <p class="bg-sub">Tell us what went wrong. Your device details are added for you.</p>
+            </div>
+            <button type="button" class="bg-x" id="bugClose" aria-label="Close">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.5"
+                stroke-linecap="round"
+                aria-hidden="true"
+              >
+                <path d="M18 6 6 18M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+          <div class="bg-bd">
+            <span class="bg-lbl">What's it about? <span class="bg-opt">Optional</span></span>
+            <div class="bg-chips" id="bgChips" role="group" aria-label="What it's about">
+              <button type="button" class="bg-chip" aria-pressed="false">Timer</button
+              ><button type="button" class="bg-chip" aria-pressed="false">Sync</button
+              ><button type="button" class="bg-chip" aria-pressed="false">Notifications</button
+              ><button type="button" class="bg-chip" aria-pressed="false">Looks wrong</button
+              ><button type="button" class="bg-chip" aria-pressed="false">Something else</button>
+            </div>
+            <label class="bg-lbl" for="bgDesc">What happened?</label>
+            <div class="bg-fld">
+              <textarea
+                id="bgDesc"
+                maxlength="1200"
+                aria-describedby="bgCnt"
+                placeholder="e.g. The timer stopped when I locked my phone. I expected it to keep running."
+              ></textarea>
+              <span class="bg-cnt" id="bgCnt" aria-live="polite"
+                ><svg class="bg-ring" viewBox="0 0 16 16" aria-hidden="true">
+                  <circle class="tr" cx="8" cy="8" r="6" />
+                  <circle
+                    class="pr"
+                    id="bgRing"
+                    cx="8"
+                    cy="8"
+                    r="6"
+                    stroke-dasharray="37.7"
+                    stroke-dashoffset="37.7"
+                  /></svg
+                ><span id="bgCntT">30 more characters</span></span
+              >
+            </div>
+            <div class="bg-det" id="bgDev">
+              <button type="button" class="bg-dh" aria-expanded="false" aria-controls="bgDevSlot">
+                <span class="bg-ic"
+                  ><svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                  >
+                    <rect x="2" y="3" width="20" height="14" rx="2" />
+                    <path d="M8 21h8M12 17v4" /></svg
+                ></span>
+                <span class="bg-dt"><b>Device details</b><small id="bgDevSum"></small></span
+                ><svg
+                  class="bg-chev"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  aria-hidden="true"
+                >
+                  <path d="m6 9 6 6 6-6" />
+                </svg>
+              </button>
+              <div class="bg-slot" id="bgDevSlot">
+                <div><dl class="bg-dl" id="bgDevList"></dl></div>
+              </div>
+            </div>
+            <div class="bg-det" id="bgErr" hidden>
+              <button type="button" class="bg-dh" aria-expanded="false" aria-controls="bgErrSlot">
+                <span class="bg-ic warn"
+                  ><svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                  >
+                    <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3" />
+                    <path d="M12 9v4M12 17h.01" /></svg
+                ></span>
+                <span class="bg-dt"><b>Recent errors</b><small id="bgErrSum"></small></span
+                ><svg
+                  class="bg-chev"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  aria-hidden="true"
+                >
+                  <path d="m6 9 6 6 6-6" />
+                </svg>
+              </button>
+              <div class="bg-slot" id="bgErrSlot">
+                <div><ul class="bg-errs" id="bgErrList"></ul></div>
+              </div>
+            </div>
+            <p class="bg-priv">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <rect x="4" y="11" width="16" height="10" rx="2" />
+                <path d="M8 11V7a4 4 0 0 1 8 0v4" /></svg
+              >No passwords, tokens or full web addresses are included. You see the email before it's sent.
+            </p>
+          </div>
+          <div class="bg-ft">
+            <button type="button" class="btn btn-secondary bg-btn" id="bgCopy">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <rect x="9" y="9" width="13" height="13" rx="2" />
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></svg
+              ><span id="bgCopyT">Copy Report</span>
+            </button>
+            <span class="bg-sendw" id="bgSendW"
+              ><button type="button" class="btn btn-primary bg-btn" id="bgSend" disabled>
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="m22 2-7 20-4-9-9-4z" />
+                  <path d="M22 2 11 13" /></svg
+                ><span id="bgSendT">Open Gmail</span>
+              </button></span
+            >
+          </div>
+        </div>
+        <div class="bg-sent" id="bgSent" hidden>
+          <div class="bg-okb" aria-hidden="true">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.4"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M20 6 9 17l-5-5" />
+            </svg>
+          </div>
+          <h3>Your email is ready</h3>
+          <p id="bgSentP">Gmail opened in a new tab with your report. Press Send there to reach Roshan.</p>
+          <button type="button" class="btn btn-secondary bg-btn" id="bgDone">Done</button>
+        </div>
+      </div>
+    </div>
+
     <div class="overlay" id="supportOverlay" data-on-click="h033ffc86cc">
       <!-- Contribute (#57): pick an amount, then pay by UPI. -->
       <div class="dialog ct-dialog" role="dialog" aria-modal="true" aria-labelledby="ctName">
@@ -19466,7 +21239,7 @@
             <button class="btn-secondary" style="flex: 1; justify-content: center" data-on-click="hfa2eb79cc6">
               Cancel
             </button>
-            <button id="mfaDisableBtn" class="btn-danger" style="flex: 1" data-on-click="ha5880d0f8f">Disable</button>
+            <button id="mfaDisableBtn" class="btn-danger-2" style="flex: 1" data-on-click="ha5880d0f8f">Disable</button>
           </div>
         </div>
       </div>
@@ -19514,27 +21287,10 @@
       <span class="sync-pill-spin" aria-hidden="true"></span>Checking for updates from other devices
     </div>
 
-    <div class="wh-toast" id="ieToast">
-      <svg
-        class="wh-toast-icon"
-        id="toastIcon"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2"
-      ></svg>
-      <div class="wh-toast-body">
-        <div class="wh-toast-title" id="toastTitle"></div>
-        <div class="wh-toast-desc" id="toastDesc"></div>
-      </div>
-      <button
-        class="btn-secondary"
-        id="toastActionBtn"
-        style="font-size: 12px; height: auto; padding: 8px; flex-shrink: 0"
-      >
-        Close
-      </button>
-    </div>
+    <!-- Toasts (#70, uiarc toast-stack): bottom centre; new ones land in front, older ones tuck behind. -->
+    <section class="ts-vp" id="toastStack" aria-label="Notifications">
+      <ol class="ts-list" id="toastList" aria-live="polite"></ol>
+    </section>
 
     <!-- ── Wheel Time Picker Modal ── -->
     <div id="tpModal" class="tp-modal">
@@ -19703,148 +21459,6 @@
         <div class="dialog-foot-row">
           <button class="btn btn-cancel" id="npCancel">Cancel</button>
           <button class="btn btn-primary" id="npSave">Save Plan</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Import Confirm -->
-    <div class="overlay" id="importConfirmOverlay">
-      <div class="dialog" style="max-width: 380px">
-        <div class="dialog-head" style="display: flex; align-items: flex-start; justify-content: space-between">
-          <div>
-            <div class="dialog-title">Are you sure?</div>
-            <div class="dialog-desc">This will replace your existing data.</div>
-          </div>
-          <button
-            class="btn-icon"
-            data-on-click="heac8a99fb5"
-            title="Close"
-            style="margin: -4px -4px -4px 8px; flex-shrink: 0"
-          >
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2.5"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <line x1="18" y1="6" x2="6" y2="18" />
-              <line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
-          </button>
-        </div>
-        <div class="dialog-body">
-          <!-- File info card -->
-          <div
-            id="importInfoCard"
-            style="
-              background: var(--muted);
-              border-radius: 8px;
-              padding: 12px 14px;
-              display: flex;
-              flex-direction: column;
-              gap: 4px;
-            "
-          >
-            <div style="font-size: 13px; font-weight: 600; color: var(--foreground)" id="importInfoUser"></div>
-            <div style="font-size: 12px; color: var(--muted-fg)" id="importInfoMeta"></div>
-          </div>
-        </div>
-        <div class="dialog-foot">
-          <div style="display: flex; align-items: center; gap: 8px">
-            <button
-              class="btn-sm"
-              id="importSaveLogBtn"
-              style="height: 34px; font-size: 12px; padding: 0 12px; flex-shrink: 0"
-            >
-              <svg
-                width="11"
-                height="11"
-                viewBox="0 0 24 24"
-                fill="none"
-                style="vertical-align: middle; margin-right: 4px"
-              >
-                <path
-                  fill-rule="evenodd"
-                  clip-rule="evenodd"
-                  d="M5 2C4.20435 2 3.44129 2.31607 2.87868 2.87868C2.31607 3.44129 2 4.20435 2 5V19C2 19.7957 2.31607 20.5587 2.87868 21.1213C3.44129 21.6839 4.20435 22 5 22H19C19.7957 22 20.5587 21.6839 21.1213 21.1213C21.6839 20.5587 22 19.7957 22 19V8C22 7.73478 21.8946 7.48043 21.7071 7.29289L16.7071 2.29289C16.5196 2.10536 16.2652 2 16 2H5ZM5 4C4.73478 4 4.48043 4.10536 4.29289 4.29289C4.10536 4.48043 4 4.73478 4 5V19C4 19.2652 4.10536 19.5196 4.29289 19.7071C4.48043 19.8946 4.73478 20 5 20H6V13C6 12.4477 6.44772 12 7 12H17C17.5523 12 18 12.4477 18 13V20H19C19.2652 20 19.5196 19.8946 19.7071 19.7071C19.8946 19.5196 20 19.2652 20 19V8.41421L15.5858 4H9V7H16C16.5523 7 17 7.44772 17 8C17 8.55228 16.5523 9 16 9H8C7.44772 9 7 8.55228 7 8V4H5ZM8 14V20H16V14H8Z"
-                  fill="currentColor"
-                /></svg
-              >Save Log
-            </button>
-            <div style="flex: 1"></div>
-            <button
-              class="btn btn-cancel"
-              id="importCancelBtn"
-              style="width: auto; padding: 0 16px; height: 38px; font-size: 13px"
-            >
-              Cancel
-            </button>
-            <button
-              class="btn btn-primary"
-              id="importConfirmBtn"
-              style="width: auto; padding: 0 16px; height: 38px; font-size: 13px"
-            >
-              Import
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- ── Import Modal (Drag & Drop) ── -->
-    <div class="overlay" id="importModal" data-on-click="h36d7cea20b">
-      <div class="dialog" style="max-width: 420px">
-        <div class="dialog-head" style="display: flex; align-items: center; justify-content: space-between">
-          <div>
-            <div class="dialog-title">Import Backup</div>
-            <div class="dialog-desc">Restore your data from a .json backup file.</div>
-          </div>
-          <button
-            class="btn-icon"
-            data-on-click="h218e700fa8"
-            title="Close"
-            style="margin: -4px -4px -4px 0; flex-shrink: 0"
-          >
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2.5"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <line x1="18" y1="6" x2="6" y2="18" />
-              <line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
-          </button>
-        </div>
-        <div class="dialog-body" style="padding-bottom: 20px">
-          <label class="ob-import-zone" for="importModalFile" id="importModalZone">
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
-              <path
-                d="M11 4C8.37318 4 6.2324 5.99599 6.01793 8.51595C5.98608 8.89012 5.74729 9.21492 5.39963 9.35691C3.3976 10.1746 2 12.1199 2 14.3783C2 16.2952 3.00543 17.9848 4.53512 18.9537C5.00168 19.2493 5.14031 19.8671 4.84477 20.3336C4.54923 20.8002 3.93143 20.9388 3.46488 20.6433C1.38625 19.3266 0 17.0152 0 14.3783C0 11.4804 1.67256 8.9777 4.10178 7.75216C4.66997 4.47797 7.54913 2 11 2C13.8191 2 16.2533 3.65235 17.362 6.03971C19.4286 6.43792 21 8.24044 21 10.4206C21 10.7714 20.959 11.1133 20.8815 11.4415C22.7225 12.3197 24 14.186 24 16.3571C24 18.2066 23.0706 19.8374 21.6596 20.8205C21.2065 21.1362 20.5832 21.0248 20.2675 20.5717C19.9518 20.1185 20.0632 19.4952 20.5163 19.1795C21.4183 18.5511 22 17.5193 22 16.3571C22 14.7492 20.882 13.3863 19.3555 13.0085C19.056 12.9344 18.8075 12.7261 18.6821 12.4442C18.5567 12.1623 18.5684 11.8383 18.7139 11.5662C18.8965 11.2247 19 10.8359 19 10.4206C19 9.10788 17.9516 8.0197 16.6155 7.96031C16.2093 7.94225 15.8545 7.68006 15.7179 7.29708C15.0347 5.38045 13.1833 4 11 4Z"
-                fill="currentColor"
-              />
-              <path
-                d="M7.29289 16.7071C7.68342 17.0976 8.31658 17.0976 8.70711 16.7071L11 14.4142V22C11 22.5523 11.4477 23 12 23C12.5523 23 13 22.5523 13 22V14.4142L15.2929 16.7071C15.6834 17.0976 16.3166 17.0976 16.7071 16.7071C17.0976 16.3166 17.0976 15.6834 16.7071 15.2929L12.7071 11.2929C12.3166 10.9024 11.6834 10.9024 11.2929 11.2929L7.29289 15.2929C6.90237 15.6834 6.90237 16.3166 7.29289 16.7071Z"
-                fill="currentColor"
-              />
-            </svg>
-            <div class="ob-import-zone-text" id="importModalZoneText">
-              <strong>Choose a file or drag &amp; drop here</strong><br />Supports .json files
-            </div>
-            <input type="file" id="importModalFile" accept=".json" style="display: none" />
-          </label>
-          <div
-            id="importModalStatus"
-            style="font-size: 12px; color: var(--muted-fg); text-align: center; margin-top: 8px; display: none"
-          ></div>
         </div>
       </div>
     </div>
@@ -20258,50 +21872,6 @@
     <!-- Outside Shift Modal -->
     <!-- Start before your shift? (approved 2026-11-14, option A): Apple dialog on
        desktop, bottom sheet on phones. Shown when starting 60+ min before the shift. -->
-    <!-- "Already working?" (#64): when did you start? Opens already filled in with a good guess. -->
-    <div class="overlay am-host" id="startTimeOverlay" data-dismiss="stCancel">
-      <div class="dialog am st-sheet" role="dialog" aria-modal="true" aria-labelledby="stTitle">
-        <p class="am-t" id="stTitle">When did you start work?</p>
-        <div class="st-field" id="stField">
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            aria-hidden="true"
-          >
-            <circle cx="12" cy="12" r="9" />
-            <path d="M12 7v5l3 2" />
-          </svg>
-          <input
-            id="stInput"
-            type="text"
-            inputmode="numeric"
-            pattern="[0-9]*"
-            enterkeyhint="go"
-            maxlength="5"
-            placeholder="hh:mm"
-            aria-label="Start time"
-            aria-describedby="stOut"
-            autocomplete="off"
-            spellcheck="false"
-            data-lpignore="true"
-            data-1p-ignore="true"
-          />
-          <span class="st-ap" id="stAp" role="group" aria-label="AM or PM"
-            ><button type="button" data-ap="AM" aria-pressed="true">AM</button
-            ><button type="button" data-ap="PM" aria-pressed="false">PM</button></span
-          >
-        </div>
-        <p class="st-out" id="stOut" aria-live="polite"></p>
-        <div class="am-btns">
-          <button class="btn btn-primary" id="stGo" disabled>Start</button>
-          <button type="button" class="am-quiet" id="stCancel">Cancel</button>
-        </div>
-      </div>
-    </div>
     <div class="overlay am-host" id="outsideShiftOverlay" data-dismiss="osNotNow">
       <div class="dialog am" role="dialog" aria-modal="true" aria-labelledby="osTitle">
         <div class="am-hero">

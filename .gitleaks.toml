@@ -1,0 +1,14 @@
+# gitleaks: the default rules, minus two known false alarms (checked 2026-11-22).
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Supabase anon (publishable) key: public by design, data is protected by Row-Level Security"
+paths = ['''^public/lib/config\.js$''']
+regexTarget = "line"
+regexes = ['''__SB_ANON_KEY''', '''^\s*'eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+';\s*$''']
+
+[[allowlists]]
+description = "SELF_LOGOUT_KEY is the name of a browser storage slot, not a key"
+regexTarget = "line"
+regexes = ['''SELF_LOGOUT_KEY = '5pm_self_logout';''', '''SELF_LOGOUT_KEY = '5pm_self_logout'[,;]?''']

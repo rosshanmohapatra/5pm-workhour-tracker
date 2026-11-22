@@ -166,10 +166,6 @@ window.__H = Object.assign(window.__H || {}, {
   h91fe521014: function (event) {
     closeDevicesModal();
   },
-  // onclick: closeImportModal()
-  h218e700fa8: function (event) {
-    closeImportModal();
-  },
   // onclick: closeIosInstall(event)
   h75d44fd18b: function (event) {
     closeIosInstall(event);
@@ -229,10 +225,6 @@ window.__H = Object.assign(window.__H || {}, {
   // onclick: el('devModeToggle').click()
   hb03e1f492f: function (event) {
     el('devModeToggle').click();
-  },
-  // onclick: el('importConfirmOverlay').classList.remove('open')
-  heac8a99fb5: function (event) {
-    el('importConfirmOverlay').classList.remove('open');
   },
   // onclick: el('inp24h').click()
   h15fa1ca95e: function (event) {
@@ -305,9 +297,6 @@ window.__H = Object.assign(window.__H || {}, {
     goToDeletePwd();
   },
   // onclick: handleNotifCta(this.getAttribute('data-click-a0'),this.getAttribute('data-click-a1'))
-  h837093f811: function (event) {
-    handleNotifCta(this.getAttribute('data-click-a0'), this.getAttribute('data-click-a1'));
-  },
   // onclick: if(event.target===this)closeAutoStopRecovery()
   haef0170aaa: function (event) {
     if (event.target === this) closeAutoStopRecovery();
@@ -319,10 +308,6 @@ window.__H = Object.assign(window.__H || {}, {
   // onclick: if(event.target===this)closeDevicesModal()
   h48cd7bfcf4: function (event) {
     if (event.target === this) closeDevicesModal();
-  },
-  // onclick: if(event.target===this)closeImportModal()
-  h36d7cea20b: function (event) {
-    if (event.target === this) closeImportModal();
   },
   // onclick: if(event.target===this)closeMfaModal()
   h113e0028ba: function (event) {
@@ -400,10 +385,6 @@ window.__H = Object.assign(window.__H || {}, {
   // onclick: openDevicesModal()
   hc41b20f447: function (event) {
     openDevicesModal();
-  },
-  // onclick: openImportModal()
-  h52e490390c: function (event) {
-    openImportModal();
   },
   // onclick: openLogoutModal()
   ha5895024d2: function (event) {
@@ -563,17 +544,11 @@ window.__H = Object.assign(window.__H || {}, {
     _hideModalTip();
   },
   // onmouseout: this.style.opacity=.8
-  hd75e357a3a: function (event) {
-    this.style.opacity = 0.8;
-  },
   // onmouseout: this.style.textDecoration='none'
   h9ca1463baf: function (event) {
     this.style.textDecoration = 'none';
   },
   // onmouseover: this.style.opacity=1
-  h14373a3cf1: function (event) {
-    this.style.opacity = 1;
-  },
   // onmouseover: this.style.textDecoration='underline'
   h745d1ed038: function (event) {
     this.style.textDecoration = 'underline';

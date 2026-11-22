@@ -7,6 +7,27 @@
 // bug fixes as "Fixed <problem>". No em dashes.
 window.WHATS_NEW = [
   {
+    version: '1.2.36',
+    improvements: [
+      {
+        icon: 'palette',
+        title: 'Weekend scenes',
+        line: 'A calm scene for your weekend that follows the time of day.'
+      },
+      {
+        icon: 'calendar',
+        title: 'Plan ahead',
+        line: 'Mark a future day as Half Day, Leave or Holiday, with a note.'
+      },
+      {
+        icon: 'bell',
+        title: 'Another device',
+        line: 'If the device running your session goes quiet, end it at its last check-in.'
+      }
+    ],
+    fixes: ['Fixed future days asking for start and end times.']
+  },
+  {
     version: '1.2.35',
     improvements: [
       {

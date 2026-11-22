@@ -31,9 +31,7 @@
       }
     },
     "updater": {
-      "endpoints": [
-        "https://github.com/rosshanmohapatra/5pm-workhour-tracker/releases/latest/download/latest.json"
-      ],
+      "endpoints": ["https://github.com/rosshanmohapatra/5pm-workhour-tracker/releases/latest/download/latest.json"],
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IENCNjJBNUE3RDBFODFGNEQKUldSTkgralFwNlZpeTZUeEZ3aE1CMmhOYmdzcEtUd1JzQkI0M2wyaXhlejFQSFF1Ym9MdFBLbHQK",
       "windows": {
         "installMode": "quiet"
@@ -49,13 +47,7 @@
         "template": "installer/installer.nsi"
       }
     },
-    "icon": [
-      "icons/32x32.png",
-      "icons/128x128.png",
-      "icons/128x128@2x.png",
-      "icons/icon.icns",
-      "icons/icon.ico"
-    ],
+    "icon": ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png", "icons/icon.icns", "icons/icon.ico"],
     "android": {
       "debugApplicationIdSuffix": ".debug"
     }

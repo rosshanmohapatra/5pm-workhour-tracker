@@ -60,8 +60,11 @@
   function waitHint() {
     clearTimeout(hintTimer);
     hintTimer = setTimeout(() => {
-      if (!handled) say('Still waiting for your browser',
-        "If it can't get back to 5pm, this PC may be blocking it. Sign in with your email and password instead.");
+      if (!handled)
+        say(
+          'Still waiting for your browser',
+          "If it can't get back to 5pm, this PC may be blocking it. Sign in with your email and password instead."
+        );
     }, 30000);
   }
 
@@ -91,7 +94,8 @@
     handled = true;
     try {
       const { error } = await sb.auth.setSession({
-        access_token: p.get('access_token'), refresh_token: p.get('refresh_token')
+        access_token: p.get('access_token'),
+        refresh_token: p.get('refresh_token')
       });
       if (error) throw error;
       // Rotate at once: the tokens also sit in the browser's history entry for
@@ -122,11 +126,18 @@
       return;
     }
 
-    if (errorText) { console.error('[desktop-auth] provider returned:', errorText); say("Sign-in didn't finish", errorText); return; }
+    if (errorText) {
+      console.error('[desktop-auth] provider returned:', errorText);
+      say("Sign-in didn't finish", errorText);
+      return;
+    }
     if (!code) return;
 
     const sb = client();
-    if (!sb) { console.error('[desktop-auth] no Supabase client on this page'); return; }
+    if (!sb) {
+      console.error('[desktop-auth] no Supabase client on this page');
+      return;
+    }
 
     handled = true;
     try {
@@ -141,8 +152,11 @@
   }
 
   // Launched by clicking the link while the app was closed.
-  T.core.invoke('plugin:deep-link|get_current')
-    .then(urls => { if (urls && urls[0]) handleUrl(urls[0]); })
+  T.core
+    .invoke('plugin:deep-link|get_current')
+    .then(urls => {
+      if (urls && urls[0]) handleUrl(urls[0]);
+    })
     .catch(() => {});
 
   // Link opened while the app was already running.

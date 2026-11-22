@@ -8,17 +8,10 @@ const fs = require('fs');
 const path = require('path');
 
 const root = path.join(__dirname, '..');
-const web  = path.join(root, 'public');
+const web = path.join(root, 'public');
 const dist = path.join(root, 'src-tauri', 'dist');
 
-const FILES = [
-  'index.html',
-  'login.html',
-  'login.js',
-  'sw.js',
-  'manifest.json',
-  'apple-touch-icon.png',
-];
+const FILES = ['index.html', 'login.html', 'login.js', 'sw.js', 'manifest.json', 'apple-touch-icon.png'];
 
 // icons/: favicons, brand logos, social preview. lib/: scripts and styles.
 const DIRS = ['icons', 'lib'];

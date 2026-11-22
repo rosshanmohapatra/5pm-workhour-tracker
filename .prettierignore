@@ -12,3 +12,8 @@ public/lib/use-gesture.js
 .claude/
 public/lib/sentry.min.js
 CLAUDE.md
+
+# Desktop build output
+src-tauri/dist
+src-tauri/target
+src-tauri/gen

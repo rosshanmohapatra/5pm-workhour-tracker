@@ -32,6 +32,24 @@ jobs:
       - name: Known vulnerable dependencies
         run: npm audit --audit-level=high
 
+  # Static security scan (OWASP Top 10 rules). Vendored libraries are skipped.
+  # First runs report only; switched to blocking once the findings are reviewed.
+  semgrep:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install semgrep==1.184.0
+      - name: Semgrep (OWASP Top 10)
+        run: >
+          semgrep scan --config p/owasp-top-ten --metrics=off --error
+          --exclude public/lib/supabase.umd.js --exclude public/lib/driver.js
+          --exclude public/lib/floating-ui.js --exclude public/lib/use-gesture.js
+          --exclude public/lib/number-flow.js --exclude public/lib/sentry.min.js
+
   browser-tests:
     runs-on: ubuntu-latest
     needs: checks

@@ -3580,6 +3580,8 @@ test('Weekend scenes follow the time of day; greetings never use a name; last wo
       '\n' +
       extract('function _wscBucket(') +
       '\n' +
+      extract('var _WSC_LWD_TIMES =') +
+      '\n' +
       extract('function _weekendScene(') +
       '\n' +
       extract('var _wscPicks =') +
@@ -3607,6 +3609,9 @@ test('Weekend scenes follow the time of day; greetings never use a name; last wo
     assert.ok(['gh', 'pv', 'rv'].includes(evening), evening);
     // Last working day: only Golden Hour, Moonlit and City of Stars.
     assert.ok(['gh', 'ml', 'cw'].includes(f.pick(at(d, 16), true)));
+    // Last working day: evening and night only; a half day done earlier counts as evening.
+    assert.equal(f.pick(at(d, 9), true), 'gh');
+    assert.equal(f.pick(at(d, 13), true), f.pick(at(d, 17), true));
     assert.ok(['gh', 'ml', 'cw'].includes(f.pick(at(d, 22), true)));
     [night, morning, afternoon, evening].forEach(x => seen.add(x));
     // Steady through the part of the day.
@@ -3710,9 +3715,31 @@ test('Weekend scenes: every scene has motion; Rooftops glow only on the tall roo
 
 test('Last working day: the weekend card once the day is done (target met or past the shift)', () => {
   const src = extract('function _lwdDone(');
-  assert.match(src, /if \(loginDate \|\| !_isLastWorkday\(tk\)\) return false;/);
+  assert.match(src, /if \(_sessionOpen\(\) \|\| !_isLastWorkday\(tk\)\) return false;/);
   assert.match(src, /hoursWorked \|\| 0\) \* 3600 >= target - 60/);
-  assert.match(extract('function _weekendMode('), /\(isWeekend\(\) && !loginDate\) \|\| _lwdDone\(\)/);
+  // Never during a working session: running or paused keeps the normal Today card.
+  const g = load(
+    extract('function _sessionOpen(') + '\n' + extract('function _weekendMode('),
+    {
+      todayKey: () => '2026-11-21',
+      dayLog: () => ctx.log,
+      isWeekend: () => true,
+      _lwdDone: () => false,
+      get loginDate() {
+        return ctx.run;
+      }
+    },
+    '({ open: _sessionOpen, mode: _weekendMode })'
+  );
+  const ctx = { run: null, log: null };
+  assert.equal(g.mode(), true); // a quiet weekend day
+  ctx.run = new Date();
+  assert.equal(g.mode(), false); // running
+  ctx.run = null;
+  ctx.log = { sessionDate: '2026-11-21', hoursWorked: 1.5 };
+  assert.equal(g.mode(), false); // paused
+  ctx.log.checkoutTime = '13:30:00';
+  assert.equal(g.mode(), true); // ended
   assert.match(extract('function _isLastWorkday('), /!isWeekendKey\(key\) && isWeekendKey\(dateKey\(d\)\)/);
   const HTML = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
   assert.ok(HTML.includes('#homeCard.wk-arrive .wsc {')); // the arrival transition

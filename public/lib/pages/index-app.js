@@ -6338,8 +6338,12 @@ function _wscBucket(h) {
 }
 // The scene for this moment: the ones allowed now (time of day, weekend or last working
 // day), then one of them by the date, so it holds steady through each part of the day.
+// On the last working day the card turns over only once the day is done, so only
+// evening and night apply; a half day done earlier counts as evening (user 2026-11-22).
+var _WSC_LWD_TIMES = ['evening', 'night'];
 function _weekendScene(d, lwd) {
-  const bucket = _wscBucket(d.getHours());
+  const now = _wscBucket(d.getHours()),
+    bucket = lwd && !_WSC_LWD_TIMES.includes(now) ? 'evening' : now;
   const ok = _WSC_IDS.filter(id => _WSC_WHEN[id].b.includes(bucket) && (!lwd || _WSC_WHEN[id].lwd));
   const day = Math.floor(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / 864e5);
   return ok[(day * 7 + _WSC_TIMES.indexOf(bucket)) % ok.length];
@@ -6364,7 +6368,7 @@ function _isLastWorkday(key) {
 // session has ended and either the target was met or it ran past the shift.
 function _lwdDone() {
   const tk = todayKey();
-  if (loginDate || !_isLastWorkday(tk)) return false;
+  if (_sessionOpen() || !_isLastWorkday(tk)) return false;
   const log = dayLog(tk) || {};
   if (!(log.checkoutTime || log.checkoutDisplay) || log.override === 'holiday' || log.override === 'leave')
     return false;
@@ -6375,9 +6379,17 @@ function _lwdDone() {
     out = log.checkoutTime ? log.checkoutTime.split(':').map(Number) : null;
   return !!(end && out && out[0] * 60 + out[1] >= end.getHours() * 60 + end.getMinutes());
 }
-// Weekend card for today: a weekend day with nothing running, or a finished last working day.
+// A session is open while it runs or sits paused (hours, no end time, not auto-stopped).
+function _sessionOpen() {
+  if (loginDate) return true;
+  const tk = todayKey(),
+    log = dayLog(tk);
+  return !!(log && log.sessionDate === tk && !log.checkoutTime && (log.hoursWorked || 0) > 0 && !log.autostopped);
+}
+// Weekend card for today: a weekend day with no session open, or a finished last working
+// day. The scenes never show during a working session (user 2026-11-22).
 function _weekendMode() {
-  return (isWeekend() && !loginDate) || _lwdDone();
+  return (isWeekend() && !_sessionOpen()) || _lwdDone();
 }
 // Tiny gusts of wind: short curls drawn in and out at random spots and times (user
 // 2026-11-22: not straight lines, not across the whole sky, invisible now and then).

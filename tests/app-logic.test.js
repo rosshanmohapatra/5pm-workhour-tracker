@@ -592,6 +592,14 @@ test('week rows pick the right day type', () => {
   assert.equal(wkDayModel({ futurePlan: 'late', planEndTime: '7:30 PM' }, fut).label, 'Staying late');
   assert.equal(wkDayModel({ futurePlan: 'early', planEndTime: '4:00 PM' }, fut).line, 'Planned · out at 4:00 PM');
   assert.equal(wkDayModel(undefined, fut).kind, 'future');
+  // Plans show their type and note in Your Activity.
+  assert.equal(wkDayModel({ futurePlan: 'leave', futureReason: 'Trip to Goa' }, fut).line, 'Trip to Goa');
+  assert.equal(wkDayModel({ futurePlan: 'holiday' }, fut).line, 'Enjoy the day off');
+  assert.equal(wkDayModel({ futurePlan: 'halfday', futureReason: 'Doctor' }, fut).label, 'Half day');
+  assert.equal(wkDayModel({ futurePlan: 'halfday', futureReason: 'Doctor' }, fut).line, 'Doctor');
+  const fd = wkDayModel({ futurePlan: null, futureReason: 'Client visit' }, fut);
+  assert.deepEqual([fd.label, fd.line, fd.icon], ['Full Day', 'Client visit', 'fullday']);
+  assert.equal(wkDayModel({ override: 'leave', note: 'Sick' }, past).line, 'Sick');
   // Today: no ± chip while running or paused, only once the day has ended.
   const run = wkDayModel({}, { ...today, live: true, liveSecs: 4 * 3600 });
   assert.equal(run.kind, 'running');
@@ -2300,6 +2308,11 @@ test('Update Entry: live line, recorded card, synced day-type control, pinned fo
   assert.equal(f._deLiveLine('Friday', 'holiday', 3600, 9 * 3600), 'No hours for a day off. Your week adjusts.');
   assert.equal(f._deLiveLine('Monday', 'halfday', 0, 9 * 3600), 'Counts as 4h 30m toward your week.');
   assert.equal(f._deLiveLine('Monday', 'fullday', 0, 9 * 3600), '');
+  // A future day is planned, never timed (no Started / Left at rows).
+  assert.equal(f._deLiveLine('Monday', 'fullday', 0, 9 * 3600, true), "You'll track Monday's times on the day.");
+  assert.equal(f._deLiveLine('Monday', 'halfday', 0, 9 * 3600, true), 'Counts as 4h 30m toward your week.');
+  assert.match(extract('function _deSetType('), /toggle\('hidden', _deFuture \|\| type === 'leave'/);
+  assert.match(extract('function saveDayEditModal('), /key > todayKey\(\) && !activeOverride[\s\S]*?futurePlan: null/);
   assert.equal(f._deRecordedText('10:20 AM', '06:44 PM', 8 * 3600 + 24 * 60), '10:20 AM – 06:44 PM · 8h 24m');
   assert.equal(f._deRecordedText('', '—', 0), 'No times for this day');
   const HTML = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
@@ -3552,4 +3565,191 @@ test('Sentry: pinned SDK, same version as the app, errors only, no personal data
 
 test('Authenticator apps list the account as 5pm, not the site address', () => {
   assert.match(SRC, /mfa\.enroll\(\{ factorType: 'totp', issuer: '5pm' \}\)/);
+});
+
+// ── Weekend scenes (#74) ───────────────────────────────────────────────────
+test('Weekend scenes follow the time of day; greetings never use a name; last working day allows three', () => {
+  const f = load(
+    extract('var _WSC_IDS =') +
+      '\n' +
+      extract('var _WSC_WHEN =') +
+      '\n' +
+      extract('var _WSC_COPY =') +
+      '\n' +
+      extract('var _WSC_TIMES =') +
+      '\n' +
+      extract('function _wscBucket(') +
+      '\n' +
+      extract('var _WSC_LWD_TIMES =') +
+      '\n' +
+      extract('function _weekendScene(') +
+      '\n' +
+      extract('var _wscPicks =') +
+      '\n' +
+      extract('function _wscCopy('),
+    { Date, Math },
+    '({ pick: _weekendScene, copy: _wscCopy, bucket: _wscBucket, reset: () => { _wscPicks = {} } })'
+  );
+  assert.equal(f.bucket(8), 'morning');
+  assert.equal(f.bucket(13), 'afternoon');
+  assert.equal(f.bucket(15), 'afternoon');
+  assert.equal(f.bucket(17), 'evening');
+  assert.equal(f.bucket(21), 'night');
+  assert.equal(f.bucket(3), 'night');
+  const at = (d, h) => new Date(2026, 10, d, h);
+  const seen = new Set();
+  for (let d = 21; d < 42; d++) {
+    const night = f.pick(at(d, 22), false),
+      morning = f.pick(at(d, 8), false),
+      afternoon = f.pick(at(d, 14), false),
+      evening = f.pick(at(d, 17), false);
+    assert.ok(['ml', 'cw'].includes(night), night);
+    assert.ok(['gh', 'dl', 'pv', 'rv'].includes(morning), morning);
+    assert.ok(['gh', 'pv', 'rv'].includes(afternoon), afternoon);
+    assert.ok(['gh', 'pv', 'rv'].includes(evening), evening);
+    // Last working day: only Golden Hour, Moonlit and City of Stars.
+    assert.ok(['gh', 'ml', 'cw'].includes(f.pick(at(d, 16), true)));
+    // Last working day: evening and night only; a half day done earlier counts as evening.
+    assert.equal(f.pick(at(d, 9), true), 'gh');
+    assert.equal(f.pick(at(d, 13), true), f.pick(at(d, 17), true));
+    assert.ok(['gh', 'ml', 'cw'].includes(f.pick(at(d, 22), true)));
+    [night, morning, afternoon, evening].forEach(x => seen.add(x));
+    // Steady through the part of the day.
+    assert.equal(f.pick(at(d, 9), false), f.pick(at(d, 11), false));
+  }
+  assert.equal(seen.size, 6);
+  // Greetings: the picked copy, never with a name (user 2026-11-22).
+  f.reset();
+  const c = f.copy('dl', () => 0);
+  assert.deepEqual([c.t, c.s], ['Slow Morning.', 'No rush! Begin your day slowly.']);
+  f.reset();
+  assert.equal(f.copy('pv', () => 0).t, 'Staying In!');
+  f.reset();
+  assert.equal(f.copy('rv', () => 0.5).t, 'Hello.');
+  assert.doesNotMatch(extract('var _WSC_COPY ='), /\{n\}/);
+});
+
+test('Weekend scenes: styles are scoped, themed for both modes, and their animations prefixed', () => {
+  const HTML = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
+  for (const id of ['gh', 'ml', 'dl', 'cw', 'pv', 'rv']) {
+    assert.ok(HTML.includes(`.dark #homeCard.sc-${id} {`), id + ' dark');
+    assert.ok(HTML.includes(`html:not(.dark) #homeCard.sc-${id} {`), id + ' light');
+  }
+  // Every animation inside a scene uses a wsc- keyframe, so nothing collides with the app's names.
+  const rules = HTML.match(/#homeCard\.sc-\w+ \.wsc[^{]*\{[^}]*\}/g) || [];
+  assert.ok(rules.length > 20);
+  for (const r of rules) for (const m of r.matchAll(/animation:\s*([\w-]+)/g)) assert.match(m[1], /^wsc-/, r);
+  assert.doesNotMatch(HTML, /\.td-hd\.td-wknd \.td-wk-ill \{\s*display: grid/); // no sofa tile
+});
+
+test('Weekend card: Longest / Average / Shortest only when 2+ days differ by 30+ minutes', () => {
+  const k = load(extract('function _wkndKpis('), { Math }, '_wkndKpis');
+  const H = 3600;
+  assert.equal(k([1.4 * H, 0, 0, 0, 0], [0, 0, 0, 0, 0]), null); // one day
+  assert.equal(k([9 * H, 9.2 * H, 9.1 * H, 8.9 * H, 9 * H], [0, 0, 0, 0, 0]), null); // 18 min apart
+  const r = k([9.6 * H, 8.2 * H, 9.1 * H, 7.8 * H, 0], [0, 0, 0, 0, 0]);
+  assert.deepEqual([r.max.i, r.min.i, r.n], [0, 3, 4]);
+  assert.equal(r.avg, Math.round(((9.6 + 8.2 + 9.1 + 7.8) * H) / 4));
+  // Leave / Holiday / extra weekend days are left out.
+  assert.equal(k([9 * H, 4 * H, 0, 0, 0], [0, 1, 0, 0, 0]), null);
+});
+
+// ── Running on another device (#73) ─────────────────────────────────────────
+test('Running elsewhere: the other device running today, by its latest check-in', () => {
+  const pick = load(extract('function _runnerFrom('), { Object, Date, isNaN }, '_runnerFrom');
+  const map = {
+    me: { n: 'Phone', run: '2026-11-23', s: '2026-11-23T12:00:00Z' },
+    pc: { n: 'Office PC', run: '2026-11-23', s: '2026-11-23T11:50:00Z' },
+    old: { n: 'Laptop', run: '2026-11-22', s: '2026-11-23T11:59:00Z' },
+    gone: { n: 'Tablet', run: '2026-11-23', s: '2026-11-23T11:58:00Z', r: '2026-11-23T08:00:00Z' }
+  };
+  const r = pick(map, 'me', '2026-11-23');
+  assert.equal(r.name, 'Office PC');
+  assert.equal(r.seen, Date.parse('2026-11-23T11:50:00Z'));
+  assert.equal(pick({}, 'me', '2026-11-23'), null);
+  const ago = load(extract('function _elseAgo('), { Math, p2 }, '_elseAgo');
+  assert.equal(ago(60e3), 'just now');
+  assert.equal(ago(15 * 60e3), '15 min ago');
+  assert.equal(ago(130 * 60e3), '2h 10m ago');
+  // End at a time, never before the start; quiet after 15 minutes; a shutdown hook for the Windows app.
+  assert.match(extract('function checkout('), /Math\.max\(\+at, \+loginDate\)/);
+  assert.match(SRC, /_QUIET_MS = 15 \* 60 \* 1000/);
+  assert.match(SRC, /window\.__beforeShutdown = \(\) =>/);
+  assert.match(extract('function _startSession('), /_markRunHere\(\)/);
+});
+
+test('Weekend scenes: one soft fade ending above "This week"; window views on their own walls', () => {
+  const HTML = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
+  assert.ok(HTML.includes('mask-image: linear-gradient(180deg, #000 45%, transparent 100%);'));
+  assert.ok(!HTML.includes('--keep')); // the same fade in both themes
+  assert.match(SRC, /function _wscPark\(/);
+  assert.match(SRC, /function _wscRooftops\(/);
+  assert.ok(HTML.includes('.dark #homeCard.sc-pv {') && HTML.includes('--room: #201a2e;')); // purple wall
+  assert.ok(HTML.includes('.dark #homeCard.sc-rv {') && HTML.includes('--room: #2a1e17;')); // faded orange wall
+  assert.match(extract('function _infoNoteTitle('), /What're your plans\?/);
+});
+
+test('Weekend scenes: every scene has motion; Rooftops glow only on the tall roofs', () => {
+  const HTML = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
+  for (const k of [
+    'wsc-whiff',
+    'wsc-flap',
+    'wsc-glim',
+    'wsc-stir',
+    'wsc-mote',
+    'wsc-steam',
+    'wsc-neon',
+    'wsc-gale',
+    'wsc-leafy'
+  ])
+    assert.ok(HTML.includes(`@keyframes ${k} {`), k);
+  assert.doesNotMatch(SRC, /class="beam/); // Moonlit: the loud searchlights are gone
+  assert.match(SRC, /class="outpost"/); // a tiny shelter, dish and mast light instead
+  assert.ok(!HTML.includes('wsc-sweep'));
+  assert.match(SRC, /class="cup"/); // Slow Morning coffee cup
+  assert.doesNotMatch(SRC, /class="planter"/);
+  assert.match(SRC, /function _wscGusts\(/); // short curved gusts at random spots
+  assert.match(SRC, /var _WSC_CITY_TOPS =/); // City of Stars spires, crane, beacons, neon
+  assert.doesNotMatch(SRC, /class="rim" d="\$\{front\}"/); // the low front roofs don't glow
+});
+
+test('Last working day: the weekend card once the day is done (target met or past the shift)', () => {
+  const src = extract('function _lwdDone(');
+  assert.match(src, /if \(_sessionOpen\(\) \|\| !_isLastWorkday\(tk\)\) return false;/);
+  assert.match(src, /hoursWorked \|\| 0\) \* 3600 >= target - 60/);
+  // Never during a working session: running or paused keeps the normal Today card.
+  const g = load(
+    extract('function _sessionOpen(') + '\n' + extract('function _weekendMode('),
+    {
+      todayKey: () => '2026-11-21',
+      dayLog: () => ctx.log,
+      isWeekend: () => true,
+      _lwdDone: () => false,
+      get loginDate() {
+        return ctx.run;
+      }
+    },
+    '({ open: _sessionOpen, mode: _weekendMode })'
+  );
+  const ctx = { run: null, log: null };
+  assert.equal(g.mode(), true); // a quiet weekend day
+  ctx.run = new Date();
+  assert.equal(g.mode(), false); // running
+  ctx.run = null;
+  ctx.log = { sessionDate: '2026-11-21', hoursWorked: 1.5 };
+  assert.equal(g.mode(), false); // paused
+  ctx.log.checkoutTime = '13:30:00';
+  assert.equal(g.mode(), true); // ended
+  assert.match(extract('function _isLastWorkday('), /!isWeekendKey\(key\) && isWeekendKey\(dateKey\(d\)\)/);
+  const HTML = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
+  assert.ok(HTML.includes('#homeCard.wk-arrive .wsc {')); // the arrival transition
+  assert.ok(HTML.includes('id="tdDesc"'));
+});
+
+test("What's New: Explore 5pm sits in a bottom panel that never scrolls away (2026-11-22)", () => {
+  const HTML = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
+  assert.ok(HTML.includes('id="wnContinue">Explore 5pm</button>'));
+  assert.ok(HTML.includes('<div class="wn-foot">'));
+  assert.ok(HTML.includes('#whatsNewOverlay .wn-body {') && HTML.includes('overflow: hidden !important;'));
+  assert.match(SRC, /scroller: ov\.querySelector\('\.wn-body'\)/);
 });

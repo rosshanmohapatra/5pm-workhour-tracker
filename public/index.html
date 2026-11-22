@@ -4499,9 +4499,1138 @@
         width: 24px;
         height: 24px;
       }
-      .td-hd.td-wknd .td-wk-ill {
+      /* Running on another device (#73, approved 2026-11-22, option B "Quiet card"). */
+      .re-slot {
         display: grid;
+        grid-template-rows: 0fr;
+        transition: grid-template-rows 0.32s var(--ease-sheet, cubic-bezier(0.32, 0.72, 0, 1));
       }
+      .re-slot.open {
+        grid-template-rows: 1fr;
+      }
+      .re-slot > div {
+        overflow: hidden;
+        min-height: 0;
+      }
+      .re-line {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        margin: 10px 0 0;
+        font-size: 12px;
+        color: var(--text-muted);
+      }
+      .re-line svg {
+        width: 14px;
+        height: 14px;
+        flex: none;
+      }
+      .re-card {
+        margin-top: 16px;
+        padding: 14px;
+        border-radius: 14px;
+        background: var(--surface-raised);
+        box-shadow: inset 0 0 0 1px var(--border);
+        --btn-surface: var(--surface-lift);
+        --btn-line: var(--border-strong);
+        animation: re-in 0.32s cubic-bezier(0.32, 0.72, 0, 1);
+      }
+      @keyframes re-in {
+        from {
+          opacity: 0;
+          transform: translateY(4px);
+          filter: blur(4px);
+        }
+      }
+      .re-h {
+        display: flex;
+        gap: 10px;
+        align-items: flex-start;
+      }
+      .re-ic {
+        width: 32px;
+        height: 32px;
+        flex: none;
+        display: grid;
+        place-items: center;
+        border-radius: 10px;
+        background: var(--surface-lift);
+        box-shadow: inset 0 0 0 1px var(--border);
+        color: var(--muted-fg);
+      }
+      .re-ic svg {
+        width: 16px;
+        height: 16px;
+      }
+      .re-t {
+        margin: 0;
+        font-size: 14px;
+        font-weight: 600;
+        line-height: 1.3;
+        color: var(--foreground);
+      }
+      .re-d {
+        margin: 2px 0 0;
+        font-size: 13px;
+        color: var(--muted-fg);
+      }
+      .re-a {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+        margin-top: 12px;
+      }
+      .re-a .btn,
+      .re-a .btn-secondary {
+        height: 36px;
+        width: 100%;
+        justify-content: center;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .re-slot,
+        .re-card {
+          transition: none;
+          animation: none;
+        }
+      }
+      /* Weekend scenes (#74, approved 2026-11-22): the top of the Today card turns into a
+       quiet scene that fades into the card; one per weekend day (_weekendScene). The
+       sofa tile is gone. Light theme keeps the scene solid longer so it never washes out. */
+      #homeCard.has-scene {
+        position: relative;
+        isolation: isolate;
+      }
+      #homeCard .wsc {
+        position: absolute;
+        inset: 0 0 auto 0;
+        height: 140px;
+        z-index: -1;
+        overflow: hidden;
+        pointer-events: none;
+        /* One soft fade for every scene (user 2026-11-22): solid at the top, fully
+         gone just above "This week", so no scene shows a hard bottom edge. */
+        -webkit-mask-image: linear-gradient(180deg, #000 45%, transparent 100%);
+        mask-image: linear-gradient(180deg, #000 45%, transparent 100%);
+      }
+      #homeCard .wsc .grain {
+        position: absolute;
+        inset: 0;
+        opacity: 0.1;
+        mix-blend-mode: overlay;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+      }
+      #homeCard .wsc svg.full {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        display: block;
+      }
+      #homeCard.sc-cw .wsc svg.full {
+        height: 204px;
+      }
+      #homeCard.has-scene .td-hd {
+        min-height: 128px;
+      }
+      #homeCard.has-scene .td-hd-title {
+        color: var(--hd-fg);
+      }
+      #homeCard.has-scene .td-hd-date {
+        color: var(--hd-sub);
+      }
+      /* Off screen, or reduced motion: the scene holds still. */
+      #homeCard .wsc.still *,
+      #homeCard .wsc.still {
+        animation-play-state: paused !important;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        #homeCard .wsc * {
+          animation: none !important;
+        }
+      }
+      #homeCard .wsc .blob {
+        position: absolute;
+        border-radius: 50%;
+        filter: blur(var(--bl, 34px));
+        will-change: transform;
+      }
+      #homeCard .wsc .sil {
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        width: 100%;
+        display: block;
+      }
+      @keyframes wsc-drift1 {
+        to {
+          transform: translate(40px, 16px) scale(1.1);
+        }
+      }
+      @keyframes wsc-drift2 {
+        to {
+          transform: translate(-34px, 20px) scale(1.06);
+        }
+      }
+      @keyframes wsc-bob {
+        to {
+          transform: translateY(6px);
+        }
+      }
+      /* 1 · GOLDEN HOUR — blurred warm light, a haloed sun setting behind layered hills, two birds gliding */
+      #homeCard.sc-gh .wsc {
+        background: var(--sky);
+      }
+      #homeCard.sc-gh .wsc .b1 {
+        width: 240px;
+        height: 160px;
+        left: -50px;
+        top: -50px;
+        background: var(--c1);
+        opacity: 0.9;
+        animation: wsc-drift1 22s ease-in-out infinite alternate;
+      }
+      #homeCard.sc-gh .wsc .b2 {
+        width: 260px;
+        height: 170px;
+        right: -70px;
+        top: -40px;
+        background: var(--c2);
+        opacity: 0.9;
+        animation: wsc-drift2 26s ease-in-out infinite alternate;
+      }
+      #homeCard.sc-gh .wsc .b3 {
+        width: 220px;
+        height: 120px;
+        left: 30%;
+        top: 36px;
+        background: var(--c3);
+        opacity: 0.85;
+        animation: wsc-drift1 30s ease-in-out infinite alternate-reverse;
+      }
+      #homeCard.sc-gh .wsc .sun {
+        position: absolute;
+        right: 64px;
+        top: 50px;
+        width: 58px;
+        height: 58px;
+        border-radius: 50%;
+        background: var(--sun);
+        box-shadow:
+          0 0 0 14px var(--halo1),
+          0 0 0 32px var(--halo2),
+          0 0 60px 30px var(--glow);
+        animation: wsc-sink 20s ease-in-out infinite alternate;
+      }
+      @keyframes wsc-sink {
+        to {
+          transform: translateY(14px);
+        }
+      }
+      #homeCard.sc-gh .wsc .bird {
+        position: absolute;
+        top: 30px;
+        left: -30px;
+        width: 16px;
+        color: var(--bird);
+        animation: wsc-fly 26s linear infinite;
+      }
+      #homeCard.sc-gh .wsc .bird.k2 {
+        top: 44px;
+        width: 11px;
+        animation-delay: -4s;
+      }
+      @keyframes wsc-fly {
+        to {
+          transform: translate(560px, -20px);
+        }
+      }
+      .dark #homeCard.sc-gh {
+        --sky: linear-gradient(180deg, #2a1730, #43202a 55%, #13151a);
+        --c1: #8a2f5c;
+        --c2: #c2552c;
+        --c3: #e8923e;
+        --sun: radial-gradient(circle at 50% 40%, #fff0cf, #f4a35a 72%);
+        --halo1: rgba(255, 190, 120, 0.1);
+        --halo2: rgba(255, 170, 100, 0.06);
+        --glow: rgba(242, 150, 80, 0.38);
+        --hill1: #3a1f2c;
+        --hill2: #2a1823;
+        --bird: rgba(40, 18, 28, 0.8);
+        --hd-fg: #fff3e6;
+        --hd-sub: #efcdb8;
+      }
+      html:not(.dark) #homeCard.sc-gh {
+        --sky: linear-gradient(180deg, #ff8a6b, #ffb067 55%, #ffe2c4);
+        --c1: #ff5f87;
+        --c2: #ff8a3d;
+        --c3: #ffc65c;
+        --sun: radial-gradient(circle at 50% 40%, #fffbe8, #ffd27a 72%);
+        --halo1: rgba(255, 255, 255, 0.22);
+        --halo2: rgba(255, 255, 255, 0.12);
+        --glow: rgba(255, 220, 150, 0.6);
+        --hill1: #e8735f;
+        --hill2: #cf5a52;
+        --bird: rgba(110, 40, 40, 0.6);
+        --hd-fg: #3b120a;
+        --hd-sub: #6e2c1c;
+      }
+      /* 2 · MOONLIT — deep sky, glowing crescent, twinkling stars, a shooting star now and then, sleeping hills */
+      #homeCard.sc-ml .wsc {
+        background: var(--sky);
+      }
+      #homeCard.sc-ml .wsc .moon {
+        position: absolute;
+        right: 56px;
+        top: 24px;
+        width: 46px;
+        height: 46px;
+        border-radius: 50%;
+        box-shadow: inset 12px -6px 0 0 var(--moon);
+        filter: drop-shadow(0 0 16px var(--glow));
+        animation: wsc-bob 9s ease-in-out infinite alternate;
+      }
+      #homeCard.sc-ml .wsc .star {
+        position: absolute;
+        width: 2px;
+        height: 2px;
+        border-radius: 50%;
+        background: var(--star);
+        animation: wsc-tw 5s ease-in-out infinite;
+      }
+      @keyframes wsc-tw {
+        0%,
+        100% {
+          opacity: 0.15;
+        }
+        50% {
+          opacity: 1;
+        }
+      }
+      #homeCard.sc-ml .wsc .shoot {
+        position: absolute;
+        top: 18px;
+        left: 20%;
+        width: 90px;
+        height: 1.5px;
+        background: linear-gradient(90deg, transparent, var(--star));
+        transform: rotate(-18deg);
+        opacity: 0;
+        animation: wsc-shoot 11s ease-in infinite 2s;
+      }
+      @keyframes wsc-shoot {
+        0%,
+        88% {
+          opacity: 0;
+          transform: translate(0, 0) rotate(-18deg);
+        }
+        90% {
+          opacity: 1;
+        }
+        100% {
+          opacity: 0;
+          transform: translate(160px, -50px) rotate(-18deg);
+        }
+      }
+      #homeCard.sc-ml .wsc .b1 {
+        width: 200px;
+        height: 50px;
+        top: 70px;
+        left: -10%;
+        background: var(--cloud);
+        --bl: 16px;
+        animation: wsc-cross 44s linear infinite;
+      }
+      #homeCard.sc-ml .wsc .b2 {
+        width: 140px;
+        height: 36px;
+        top: 40px;
+        left: -10%;
+        background: var(--cloud);
+        --bl: 14px;
+        animation: wsc-cross 60s linear infinite -24s;
+      }
+      @keyframes wsc-cross {
+        to {
+          transform: translateX(560px);
+        }
+      }
+      .dark #homeCard.sc-ml {
+        --sky: linear-gradient(180deg, #0a1230, #18204a 60%, #13151a);
+        --moon: #f6efd2;
+        --glow: rgba(246, 239, 210, 0.5);
+        --star: #e4eaff;
+        --cloud: rgba(130, 150, 210, 0.2);
+        --hill1: #121a38;
+        --hill2: #0d1430;
+        --hd-fg: #eef1ff;
+        --hd-sub: #b3bde0;
+      }
+      html:not(.dark) #homeCard.sc-ml {
+        --sky: linear-gradient(180deg, #3d4fa8, #6f7fcf 55%, #c8cff2);
+        --moon: #fff8de;
+        --glow: rgba(255, 248, 222, 0.8);
+        --star: #ffffff;
+        --cloud: rgba(255, 255, 255, 0.35);
+        --hill1: #5664b5;
+        --hill2: #4552a0;
+        --hd-fg: #ffffff;
+        --hd-sub: #e3e7ff;
+      }
+      /* A · SUNDAY LIGHT — morning sun through a window onto a warm wall; leaf shadows sway a little */
+      #homeCard.sc-dl .wsc {
+        background: var(--wall);
+      }
+      #homeCard.sc-dl .wsc .shaft {
+        position: absolute;
+        right: -8%;
+        top: -20%;
+        width: 62%;
+        height: 150%;
+        background: linear-gradient(90deg, transparent, var(--sun) 30%, var(--sun) 70%, transparent);
+        transform: skewX(-28deg);
+        filter: blur(8px);
+        opacity: 0.9;
+      }
+      #homeCard.sc-dl .wsc .pane {
+        position: absolute;
+        right: 20%;
+        top: -20%;
+        width: 6px;
+        height: 150%;
+        background: var(--wall-shade);
+        transform: skewX(-28deg);
+        filter: blur(3px);
+        opacity: 0.55;
+      }
+      #homeCard.sc-dl .wsc .pane.h {
+        right: -8%;
+        top: 44%;
+        width: 62%;
+        height: 6px;
+        transform: skewX(-28deg);
+      }
+      #homeCard.sc-dl .wsc .leaves {
+        position: absolute;
+        right: 2%;
+        top: -16px;
+        width: 240px;
+        height: 170px;
+        filter: blur(7px);
+        opacity: var(--leaf-o);
+        transform-origin: 80% 0;
+        animation: wsc-sway 9s ease-in-out infinite alternate;
+      }
+      #homeCard.sc-dl .wsc .leaves i {
+        position: absolute;
+        width: 58px;
+        height: 26px;
+        border-radius: 0 100% 0 100%;
+        background: var(--leaf);
+      }
+      #homeCard.sc-dl .wsc .leaves b {
+        position: absolute;
+        height: 2px;
+        background: var(--leaf);
+        transform-origin: left;
+      }
+      @keyframes wsc-sway {
+        to {
+          transform: rotate(3deg) translateX(-4px);
+        }
+      }
+      .dark #homeCard.sc-dl {
+        --wall: linear-gradient(180deg, #2a211a, #211a15 70%, #13151a);
+        --sun: rgba(255, 190, 120, 0.32);
+        --wall-shade: #1a1410;
+        --leaf: #120d0a;
+        --leaf-o: 0.75;
+        --hd-fg: #fbefe2;
+        --hd-sub: #d9c3ad;
+      }
+      html:not(.dark) #homeCard.sc-dl {
+        --wall: linear-gradient(180deg, #d9b88f, #cfa979 70%);
+        --sun: rgba(255, 244, 214, 1);
+        --wall-shade: #b88f60;
+        --leaf: #7a5a37;
+        --leaf-o: 0.6;
+        --hd-fg: #2e1d0c;
+        --hd-sub: #5a3d1f;
+      }
+      html:not(.dark) #homeCard.sc-dl .wsc .shaft {
+        filter: blur(5px);
+      }
+      html:not(.dark) #homeCard.sc-dl .wsc .leaves {
+        filter: blur(5px);
+      }
+      /* C · CITY WINDOW — the skyline at blue hour; a few windows switch on and off, a plane's light blinks across */
+      #homeCard.sc-cw .wsc {
+        background: var(--sky);
+      }
+      #homeCard.sc-cw .wsc .city {
+        fill: var(--bld);
+      }
+      #homeCard.sc-cw .wsc .city2 {
+        fill: var(--bld2);
+      }
+      #homeCard.sc-cw .wsc .win {
+        fill: var(--lit);
+      }
+      #homeCard.sc-cw .wsc .win.blink {
+        animation: wsc-winb var(--t) steps(1) infinite;
+      }
+      @keyframes wsc-winb {
+        0%,
+        60% {
+          opacity: 1;
+        }
+        61%,
+        100% {
+          opacity: 0;
+        }
+      }
+      #homeCard.sc-cw .wsc .plane {
+        position: absolute;
+        top: 30px;
+        left: -10px;
+        width: 3px;
+        height: 3px;
+        border-radius: 50%;
+        background: var(--beacon);
+        box-shadow: 0 0 6px 2px var(--beacon);
+        animation:
+          wsc-planeX 40s linear infinite,
+          wsc-beacon 1.4s steps(1) infinite;
+      }
+      @keyframes wsc-planeX {
+        to {
+          transform: translate(560px, -12px);
+        }
+      }
+      @keyframes wsc-beacon {
+        0%,
+        70% {
+          opacity: 0.2;
+        }
+        71%,
+        100% {
+          opacity: 1;
+        }
+      }
+      #homeCard.sc-cw .wsc .star {
+        position: absolute;
+        width: 2px;
+        height: 2px;
+        border-radius: 50%;
+        background: #fff;
+        animation: wsc-tw2 4.5s ease-in-out infinite;
+      }
+      #homeCard.sc-cw .wsc .star.big {
+        width: 3px;
+        height: 3px;
+        box-shadow: 0 0 6px 1px rgba(255, 255, 255, 0.7);
+      }
+      @keyframes wsc-tw2 {
+        0%,
+        100% {
+          opacity: 0.2;
+        }
+        50% {
+          opacity: 1;
+        }
+      }
+      #homeCard.sc-cw .wsc .haze {
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 110px;
+        height: 60px;
+        background: radial-gradient(ellipse 60% 100% at 50% 100%, var(--haze), transparent 70%);
+      }
+      .dark #homeCard.sc-cw {
+        --sky: linear-gradient(180deg, #120e33, #2a1f5c 45%, #5b3a86 75%, #a45d8f);
+        --haze: rgba(255, 170, 190, 0.35);
+        --bld: #0e0b22;
+        --bld2: #1f1a3e;
+        --lit: #ffcf86;
+        --beacon: #ff6b6b;
+        --hd-fg: #eef3ff;
+        --hd-sub: #b6c2dc;
+      }
+      html:not(.dark) #homeCard.sc-cw {
+        --sky: linear-gradient(180deg, #3a2f86, #6a4fb0 45%, #b07ac0 75%, #f0a6a6);
+        --haze: rgba(255, 200, 210, 0.45);
+        --bld: #241c4a;
+        --bld2: #3a2f6a;
+        --lit: #ffe0a3;
+        --beacon: #ff7a7a;
+        --hd-fg: #ffffff;
+        --hd-sub: #e7eeff;
+      }
+      /* E · PARK VIEW — from inside your flat: the window looks out over a city park; the trees move a little in the wind */
+      /* Window views v2 (#74, user 2026-11-22): a large window that runs off the top and
+       right edges, so only its left edge, one cross bar and the sill show. */
+      #homeCard .wsc .frame {
+        fill: none;
+        stroke: var(--frame);
+        stroke-width: 7;
+      }
+      #homeCard .wsc .mull {
+        stroke: var(--frame);
+        stroke-width: 4;
+      }
+      #homeCard .wsc .sill {
+        fill: var(--sill);
+      }
+      /* Park View: evening stars and lit windows in the dark; clouds by day. */
+      #homeCard.sc-pv .wsc {
+        background: var(--room);
+      }
+      #homeCard.sc-pv .wsc .star {
+        fill: #fff;
+        opacity: var(--star-o);
+        animation: wsc-tw 5s ease-in-out infinite;
+      }
+      #homeCard.sc-pv .wsc .cloud {
+        fill: #fff;
+        opacity: var(--cloud-o);
+        animation: wsc-drift 40s linear infinite alternate;
+      }
+      @keyframes wsc-drift {
+        to {
+          transform: translateX(-26px);
+        }
+      }
+      #homeCard.sc-pv .wsc .bld {
+        fill: var(--city);
+      }
+      #homeCard.sc-pv .wsc .bwin {
+        fill: var(--win);
+      }
+      #homeCard.sc-pv .wsc .bwin.blink {
+        animation: wsc-winb 11s steps(1) infinite;
+      }
+      #homeCard.sc-pv .wsc .canopy {
+        transform-box: fill-box;
+        transform-origin: 50% 100%;
+        animation: wsc-breeze 6s ease-in-out infinite alternate;
+      }
+      #homeCard.sc-pv .wsc .canopy.k2 {
+        animation-duration: 7.5s;
+        animation-delay: -2s;
+      }
+      @keyframes wsc-breeze {
+        to {
+          transform: rotate(1.6deg);
+        }
+      }
+      #homeCard.sc-pv .wsc .lamp {
+        fill: var(--lamp);
+      }
+      #homeCard.sc-pv .wsc .glow {
+        fill: var(--lamp-glow);
+      }
+      .dark #homeCard.sc-pv {
+        --room: #201a2e;
+        --sky1: #0f1730;
+        --sky2: #3c3a63;
+        --star-o: 0.9;
+        --cloud-o: 0;
+        --city: #1d2340;
+        --win: #ffcf86;
+        --grass: #1b2a21;
+        --tree1: #21372a;
+        --tree2: #2c4934;
+        --path: #383840;
+        --lamp: #ffd28a;
+        --lamp-glow: rgba(255, 200, 120, 0.24);
+        --frame: #2c2440;
+        --sill: #332a48;
+        --pot: #8a5a3c;
+        --leaf: #3f6a46;
+        --hd-fg: #f5efe8;
+        --hd-sub: #cbbfb2;
+      }
+      html:not(.dark) #homeCard.sc-pv {
+        --room: #e7def2;
+        --sky1: #6aa7e2;
+        --sky2: #cfe4f5;
+        --star-o: 0;
+        --cloud-o: 0.85;
+        --city: #a3b3c9;
+        --win: #e8f1fb;
+        --grass: #7fb067;
+        --tree1: #4f8a4a;
+        --tree2: #6fa85e;
+        --path: #e8dcc5;
+        --lamp: #5a5f66;
+        --lamp-glow: transparent;
+        --frame: #ffffff;
+        --sill: #f4effa;
+        --pot: #c4774e;
+        --leaf: #4f8a4a;
+        --hd-fg: #2a2238;
+        --hd-sub: #574b6b;
+      }
+      /* Rooftops: golden-hour light catches every roof edge; the air moves. */
+      #homeCard.sc-rv .wsc {
+        background: var(--room);
+      }
+      #homeCard.sc-rv .wsc .roof {
+        fill: var(--roof);
+      }
+      #homeCard.sc-rv .wsc .roof2 {
+        fill: var(--roof2);
+      }
+      #homeCard.sc-rv .wsc .rim {
+        fill: none;
+        stroke: var(--rim);
+        stroke-width: 1.6;
+        stroke-linejoin: round;
+        filter: drop-shadow(0 0 2.5px var(--rim));
+      }
+      #homeCard.sc-rv .wsc .sunc {
+        fill: var(--sunc);
+      }
+      #homeCard.sc-rv .wsc .halo {
+        fill: var(--halo);
+      }
+      #homeCard.sc-rv .wsc .rwin {
+        fill: var(--lit);
+      }
+      #homeCard.sc-rv .wsc .wind {
+        stroke: var(--wind);
+        stroke-width: 1.2;
+        stroke-linecap: round;
+        animation: wsc-wind 7s linear infinite;
+      }
+      @keyframes wsc-wind {
+        0% {
+          transform: translateX(-90px);
+          opacity: 0;
+        }
+        20%,
+        70% {
+          opacity: 1;
+        }
+        100% {
+          transform: translateX(150px);
+          opacity: 0;
+        }
+      }
+      #homeCard.sc-rv .wsc .puff {
+        fill: var(--smoke);
+        filter: blur(4px);
+        transform-box: fill-box;
+        transform-origin: center;
+        animation: wsc-puff 6s ease-out infinite;
+      }
+      @keyframes wsc-puff {
+        0% {
+          transform: translate(0, 0) scale(0.5);
+          opacity: 0;
+        }
+        25% {
+          opacity: 0.85;
+        }
+        100% {
+          transform: translate(34px, -30px) scale(1.9);
+          opacity: 0;
+        }
+      }
+      .dark #homeCard.sc-rv {
+        --room: #2a1e17;
+        --sky1: #2e2150;
+        --sky2: #e2875c;
+        --sunc: #ffd19a;
+        --halo: rgba(255, 170, 100, 0.35);
+        --roof: #1c1a24;
+        --roof2: #2b2433;
+        --rim: #ffb35c;
+        --lit: #ffc978;
+        --wind: rgba(255, 220, 190, 0.45);
+        --smoke: rgba(220, 200, 210, 0.4);
+        --frame: #36271e;
+        --sill: #3d2d23;
+        --pot: #7d5a8a;
+        --leaf: #4d7a55;
+        --hd-fg: #f4eff8;
+        --hd-sub: #cbc2d6;
+      }
+      html:not(.dark) #homeCard.sc-rv {
+        --room: #f3e1d0;
+        --sky1: #f08c62;
+        --sky2: #ffd79c;
+        --sunc: #fff3d1;
+        --halo: rgba(255, 236, 190, 0.7);
+        --roof: #6f4f52;
+        --roof2: #93706c;
+        --rim: #ffc76a;
+        --lit: #fff2c2;
+        --wind: rgba(255, 255, 255, 0.7);
+        --smoke: rgba(255, 255, 255, 0.85);
+        --frame: #ffffff;
+        --sill: #fbf2e9;
+        --pot: #c4774e;
+        --leaf: #4f8a4a;
+        --hd-fg: #2c221a;
+        --hd-sub: #5d4d3f;
+      }
+      /* ── Scene motion, round 2 (user 2026-11-22: every scene needs life) ── */
+      /* Golden Hour: curved gusts flowing across, birds flap as they glide. */
+
+      #homeCard.sc-gh .wsc .bird svg {
+        display: block;
+        transform-origin: 50% 70%;
+        animation: wsc-flap 0.45s ease-in-out infinite alternate;
+      }
+      #homeCard.sc-gh .wsc .bird.k2 svg {
+        animation-duration: 0.38s;
+        animation-delay: -0.2s;
+      }
+      @keyframes wsc-flap {
+        to {
+          transform: scaleY(0.3);
+        }
+      }
+      .dark #homeCard.sc-gh {
+        --gust: rgba(255, 214, 180, 0.45);
+      }
+      html:not(.dark) #homeCard.sc-gh {
+        --gust: rgba(255, 255, 255, 0.8);
+      }
+      /* Moonlit: a plane passing far off, and a tiny outpost in the corner (user 2026-11-22:
+         the three searchlights were too loud). */
+      #homeCard.sc-ml .wsc .outpost {
+        position: absolute;
+        right: 18px;
+        top: 80px;
+        width: 44px;
+        height: 26px;
+        fill: var(--outpost);
+        stroke: var(--outpost);
+        stroke-width: 0;
+      }
+      #homeCard.sc-ml .wsc .outpost .olt {
+        fill: var(--olt);
+        filter: drop-shadow(0 0 2px var(--olt));
+        animation: wsc-glim 3.2s ease-in-out infinite;
+      }
+      @keyframes wsc-glim {
+        0%,
+        100% {
+          opacity: 0.25;
+        }
+        50% {
+          opacity: 0.9;
+        }
+      }
+      #homeCard.sc-ml .wsc .plane {
+        position: absolute;
+        top: 34px;
+        left: -10px;
+        width: 2px;
+        height: 2px;
+        border-radius: 50%;
+        background: var(--plane);
+        box-shadow: 0 0 4px 1px var(--plane);
+        animation:
+          wsc-planeX 55s linear infinite,
+          wsc-beacon 1.6s steps(1) infinite;
+      }
+      .dark #homeCard.sc-ml {
+        --outpost: #080d22;
+        --olt: #ff7b6b;
+        --plane: #ff8a8a;
+      }
+      html:not(.dark) #homeCard.sc-ml {
+        --outpost: #333d82;
+        --olt: #ffb3a8;
+        --plane: #ffd1d1;
+      }
+      /* Slow Morning: leaf shadows stir, dust drifts in the light. */
+      #homeCard.sc-dl .wsc .leaves {
+        animation: wsc-stir 5.5s ease-in-out infinite alternate;
+      }
+      #homeCard.sc-dl .wsc .leaves.k2 {
+        transform-origin: 30% 0;
+        animation-duration: 4.2s;
+        animation-direction: alternate-reverse;
+      }
+      @keyframes wsc-stir {
+        from {
+          transform: rotate(-2deg) translateX(3px);
+        }
+        to {
+          transform: rotate(5deg) translateX(-6px);
+        }
+      }
+      #homeCard.sc-dl .wsc .mote {
+        position: absolute;
+        width: 2px;
+        height: 2px;
+        border-radius: 50%;
+        background: var(--mote);
+        animation: wsc-mote 11s linear infinite;
+      }
+      @keyframes wsc-mote {
+        0% {
+          transform: translate(0, 0);
+          opacity: 0;
+        }
+        20%,
+        80% {
+          opacity: 0.9;
+        }
+        100% {
+          transform: translate(-34px, -46px);
+          opacity: 0;
+        }
+      }
+
+      .dark #homeCard.sc-dl {
+        --mote: rgba(255, 220, 170, 0.85);
+        --rope: #8a7058;
+        --pot-c: #7a5236;
+        --leaf-c: #4b6b40;
+      }
+      html:not(.dark) #homeCard.sc-dl {
+        --mote: rgba(255, 255, 255, 0.95);
+        --rope: #8f6e4e;
+        --pot-c: #b8673f;
+        --leaf-c: #557e44;
+      }
+      /* City of Stars: rooftop beacons, a crane on a building going up, neon and busy windows. */
+      #homeCard.sc-cw .wsc .spire {
+        fill: var(--bld);
+      }
+      #homeCard.sc-cw .wsc .crane {
+        fill: none;
+        stroke: var(--crane);
+        stroke-width: 1.4;
+        stroke-linecap: round;
+      }
+      #homeCard.sc-cw .wsc .bcn {
+        fill: #ff5a5a;
+        animation: wsc-beacon 1.8s steps(1) infinite;
+      }
+      #homeCard.sc-cw .wsc .bcn.k2 {
+        animation-duration: 2.4s;
+        animation-delay: -0.9s;
+      }
+      #homeCard.sc-cw .wsc .neon {
+        animation: wsc-neon 3.2s ease-in-out infinite;
+      }
+      #homeCard.sc-cw .wsc .neon.k2 {
+        animation-duration: 4.6s;
+        animation-delay: -1.7s;
+      }
+      @keyframes wsc-neon {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        45% {
+          opacity: 0.35;
+        }
+        50% {
+          opacity: 1;
+        }
+        55% {
+          opacity: 0.5;
+        }
+      }
+      .dark #homeCard.sc-cw {
+        --crane: #0b0920;
+      }
+      html:not(.dark) #homeCard.sc-cw {
+        --crane: #1c1640;
+      }
+      /* Park View: the wind moves through the trees, leaves and streaks blow across. */
+      #homeCard.sc-pv .wsc .canopy {
+        animation: wsc-gale 3.8s ease-in-out infinite alternate;
+      }
+      #homeCard.sc-pv .wsc .canopy.k2 {
+        animation-duration: 4.6s;
+        animation-delay: -1.3s;
+      }
+      @keyframes wsc-gale {
+        from {
+          transform: rotate(-2deg) skewX(1.5deg);
+        }
+        to {
+          transform: rotate(3deg) skewX(-2.5deg);
+        }
+      }
+      #homeCard.sc-pv .wsc .wind {
+        stroke: var(--wind);
+        stroke-width: 1.2;
+        stroke-linecap: round;
+        animation: wsc-wind 6s linear infinite;
+      }
+      #homeCard.sc-pv .wsc .leafy {
+        fill: var(--tree2);
+        animation: wsc-leafy 6.5s linear infinite;
+      }
+      @keyframes wsc-leafy {
+        0% {
+          transform: translate(0, 0) rotate(0deg);
+          opacity: 0;
+        }
+        15%,
+        80% {
+          opacity: 1;
+        }
+        100% {
+          transform: translate(150px, 24px) rotate(320deg);
+          opacity: 0;
+        }
+      }
+      .dark #homeCard.sc-pv {
+        --wind: rgba(200, 210, 255, 0.35);
+      }
+      html:not(.dark) #homeCard.sc-pv {
+        --wind: rgba(255, 255, 255, 0.85);
+      }
+      /* Rooftops: only the tall roofs catch the light, at half the old glow. */
+      #homeCard.sc-rv .wsc .rim {
+        opacity: 0.5;
+        filter: drop-shadow(0 0 1.5px var(--rim));
+      }
+      /* Weekend greeting line, gusts, coffee cup and the arrival (user 2026-11-22). */
+      .td-hd-desc {
+        margin: 6px 0 0;
+        max-width: 340px;
+        font-size: 13px;
+        line-height: 1.35;
+        color: var(--hd-sub, var(--muted-fg));
+      }
+      #homeCard.has-scene .td-hd-txt {
+        flex: 1;
+      }
+      .td-hd-desc[hidden] {
+        display: none;
+      }
+      #homeCard .wsc .gust {
+        fill: none;
+        stroke: var(--gust, var(--wind));
+        stroke-width: 1.3;
+        stroke-linecap: round;
+        stroke-dasharray: 100;
+        stroke-dashoffset: 100;
+        animation: wsc-whiff var(--d, 9s) ease-in-out infinite;
+      }
+      @keyframes wsc-whiff {
+        0% {
+          stroke-dashoffset: 100;
+          opacity: 0;
+          transform: translateX(0);
+        }
+        6% {
+          opacity: 1;
+        }
+        22% {
+          stroke-dashoffset: 0;
+        }
+        40% {
+          stroke-dashoffset: -100;
+          opacity: 0;
+          transform: translateX(18px);
+        }
+        100% {
+          stroke-dashoffset: -100;
+          opacity: 0;
+          transform: translateX(18px);
+        }
+      }
+      #homeCard.sc-dl .wsc .cup {
+        position: absolute;
+        left: 14px;
+        top: 80px;
+        width: 50px;
+        height: 58px;
+        opacity: var(--cup-o);
+      }
+      #homeCard.sc-dl .wsc .steam {
+        fill: none;
+        stroke: var(--steam);
+        stroke-width: 1.6;
+        stroke-linecap: round;
+        stroke-dasharray: 40 60;
+        animation: wsc-steam 3.6s ease-in-out infinite;
+      }
+      #homeCard.sc-dl .wsc .steam.k2 {
+        animation-delay: -1.2s;
+      }
+      #homeCard.sc-dl .wsc .steam.k3 {
+        animation-delay: -2.4s;
+      }
+      @keyframes wsc-steam {
+        0% {
+          stroke-dashoffset: 40;
+          opacity: 0;
+          transform: translateY(4px);
+        }
+        30% {
+          opacity: 1;
+        }
+        100% {
+          stroke-dashoffset: -60;
+          opacity: 0;
+          transform: translateY(-4px);
+        }
+      }
+      .dark #homeCard.sc-dl {
+        --cup: #4c1a1d;
+        --cup2: #3a1416;
+        --cup-hi: rgba(255, 180, 140, 0.25);
+        --coffee: #120705;
+        --cup-sh: rgba(0, 0, 0, 0.35);
+        --steam: rgba(255, 230, 210, 0.4);
+        --cup-o: 1;
+      }
+      html:not(.dark) #homeCard.sc-dl {
+        --cup: #6e2622;
+        --cup2: #5a1f1c;
+        --cup-hi: rgba(255, 220, 190, 0.45);
+        --coffee: #2a0f0a;
+        --cup-sh: rgba(90, 50, 20, 0.25);
+        --steam: rgba(255, 255, 255, 0.85);
+        --cup-o: 0.7;
+      }
+      #homeCard.wk-arrive .wsc {
+        animation: wk-scene-in 1.2s cubic-bezier(0.16, 1, 0.3, 1);
+      }
+      #homeCard.wk-arrive .td-hd-txt,
+      #homeCard.wk-arrive #wkndSum {
+        animation: wk-rise-in 0.8s cubic-bezier(0.16, 1, 0.3, 1) both;
+      }
+      #homeCard.wk-arrive #wkndSum {
+        animation-delay: 0.25s;
+      }
+      @keyframes wk-scene-in {
+        from {
+          opacity: 0;
+          transform: scale(1.06);
+          filter: blur(10px);
+        }
+      }
+      @keyframes wk-rise-in {
+        from {
+          opacity: 0;
+          transform: translateY(10px);
+          filter: blur(4px);
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        #homeCard.wk-arrive .wsc,
+        #homeCard.wk-arrive .td-hd-txt,
+        #homeCard.wk-arrive #wkndSum {
+          animation: none;
+        }
+      }
+
       .ws-cap {
         font-size: 12px;
         color: var(--text-muted);
@@ -10464,10 +11593,32 @@
         border-radius: 50%;
         background: var(--muted-fg);
       }
+      /* The list scrolls on its own; the button sits in a bottom panel that never
+       scrolls away (user 2026-11-22). */
+      #whatsNewOverlay .wn-modal {
+        display: flex;
+        flex-direction: column;
+        overflow: hidden !important;
+      }
+      #whatsNewOverlay .wn-head {
+        flex: none;
+      }
+      #whatsNewOverlay .wn-body {
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        padding-bottom: 4px;
+      }
+      .wn-foot {
+        flex: none;
+        margin-top: 16px;
+        padding-top: 14px;
+        border-top: 1px solid var(--border);
+      }
       .wn-continue {
         width: 100%;
         height: 44px;
-        margin-top: 22px;
       }
       @media (max-width: 640px) {
         .wn-continue {
@@ -17239,6 +18390,7 @@
                   <div class="td-hd-txt">
                     <h2 class="td-hd-title" id="tdGreet">Good morning!</h2>
                     <p class="td-hd-date" id="tdDate"></p>
+                    <p class="td-hd-desc" id="tdDesc" hidden></p>
                   </div>
                   <div class="dt-wrap" id="dtWrap">
                     <button
@@ -17367,6 +18519,8 @@
                   </div>
                   <!-- Not started (#61, C2 Stack): a fixed drawing (never changes with the clock),
                then the one line that does. -->
+                  <!-- #73: the session runs on another device; once it goes quiet, offer to end at its last check-in -->
+                  <div class="re-slot" id="reSlot"><div id="reBox" aria-live="polite"></div></div>
                   <div id="rcEmptyState" style="display: none">
                     <div class="es-stack" aria-hidden="true">
                       <span class="es-card b2"></span><span class="es-card b1"></span>
@@ -17681,7 +18835,7 @@
                     </div>
                     <!-- Optional note: a short reminder of what this day was -->
                     <div id="wkndNoteWrap" style="margin-bottom: 16px">
-                      <div class="form-label" id="wkndNoteTitle" style="margin-bottom: 8px">What did you do?</div>
+                      <div class="form-label" id="wkndNoteTitle" style="margin-bottom: 8px">What're your plans?</div>
                       <div class="wknd-note-field">
                         <textarea
                           id="wkndNote"
@@ -19933,7 +21087,7 @@
           padding: 4px 7px;
           border-radius: 100px;
         "
-        >v1.2.35</span
+        >v1.2.36</span
       >
     </a>
 
@@ -22150,7 +23304,9 @@
           </div>
         </div>
         <div class="wn-body" id="wnBody"></div>
-        <button type="button" class="btn btn-primary wn-continue" id="wnContinue">Continue</button>
+        <div class="wn-foot">
+          <button type="button" class="btn btn-primary wn-continue" id="wnContinue">Explore 5pm</button>
+        </div>
       </div>
     </div>
 

@@ -1,4 +1,4 @@
-const APP_VERSION = '1.2.35';
+const APP_VERSION = '1.2.36';
 localStorage.setItem('wh_ver', APP_VERSION);
 
 // ── HELPERS ─────────────────────────────────────────
@@ -156,6 +156,7 @@ let daySelectorWeekOffset = 0; // 0 = current week, -1 = last week, …
 let autoStopped = false; // true after auto-stop fires
 let _dayEditKey = null; // key being edited in day-edit modal
 let _deCanDelete = false; // the day being edited has something saved to delete
+let _deFuture = false; // Update Entry is planning a day that hasn't come yet: no times
 let _isWkndNoteModal = false; // true when day-edit modal is open in weekend-note variant
 let _sessionAccSecs = 0; // accumulated seconds from previous sessions today (for resume)
 let _sessionCheckoutTime = null; // timestamp of last End Session (for resume label)
@@ -924,14 +925,15 @@ function closeCheckoutModal() {
 }
 
 // ── END SHIFT: finalises the day, shows insights modal ──────────────────
-function checkout() {
+function checkout(at) {
   if (!loginDate) return;
   cancelScheduledNotifications(); // cancel pending push notifications
   if (ticker) {
     clearInterval(ticker);
     ticker = null;
   }
-  const now = new Date();
+  // End now, or at a given time (#73: when another device went quiet), never before the start.
+  const now = at instanceof Date && !isNaN(at) ? new Date(Math.max(+at, +loginDate)) : new Date();
   const tk = todayKey(),
     ex = dayLog(tk) || {};
   const sessionSecs = Math.floor((now - loginDate) / 1000);
@@ -3431,7 +3433,7 @@ function renderEmptyState() {
   if (selectedDayKey && selectedDayKey !== todayKey()) return;
   _hideSkeleton();
   // Weekend override — show last-week summary card instead of the normal empty state
-  const wknd = isWeekend() && !loginDate;
+  const wknd = _weekendMode();
   // Weekday Holiday / Leave: the day-off card instead of the tracker. Half Day keeps the
   // tracker with its halved target (#61).
   const _todayOv = !loginDate && !wknd ? dayLog(todayKey())?.override || null : null;
@@ -3738,7 +3740,7 @@ function _infoNoteTitle(type) {
   if (type === 'holiday') return 'What was it?';
   if (type === 'leave') return 'What made you take a leave?';
   if (type === 'halfday') return 'Any notes?';
-  return 'What did you do?'; // weekend
+  return "What're your plans?"; // weekend
 }
 // Auto-grow the note field: one line by default, up to 5 lines, then scroll.
 function _wkndNoteAutoGrow(ta) {
@@ -4080,6 +4082,21 @@ function _wkndExtraDays(base, tk) {
   }
   return out;
 }
+// Longest day / Average / Shortest day for the weekend card (#74): only days with
+// hours count (not Leave, Holiday, no entry or a worked weekend day), and the row
+// shows only when it says something: 2+ such days, 30+ minutes between longest and shortest.
+function _wkndKpis(secs, skip) {
+  const w = secs.map((s, i) => ({ s, i })).filter(x => x.s > 0 && !skip[x.i]);
+  if (w.length < 2) return null;
+  let max = w[0],
+    min = w[0];
+  for (const x of w) {
+    if (x.s > max.s) max = x;
+    if (x.s < min.s) min = x;
+  }
+  if (max.s - min.s < 1800) return null;
+  return { max, min, avg: Math.round(w.reduce((a, x) => a + x.s, 0) / w.length), n: w.length };
+}
 function _renderWkndSummary(noteKey, ti, when) {
   const box = el('wkndSum');
   if (!box) return;
@@ -4125,6 +4142,22 @@ function _renderWkndSummary(noteKey, ti, when) {
   const chipHtml = (text, tone, check) =>
     `<span class="rc-desc-chip pill${tone ? ' ' + tone : ''} ws-chip">${check ? _WKND_SVG(_WKND_ICON.check) : ''}${text}</span>`;
   const weekRow = weekChip ? chipHtml(weekChip.text, weekChip.tone, weekChip.tone === 'ok') : '';
+  const kpi = _wkndKpis(
+    secs,
+    rows.map((r, i) => r.attendance === 'Leave' || r.attendance === 'Holiday' || !!wk[i].extra)
+  );
+  const kpiHtml = kpi
+    ? `<div class="sx-kpis ws-kpis">${[
+        ['max', 'Longest day', kpi.max.s],
+        ['avg', 'Average', kpi.avg],
+        ['min', 'Shortest day', kpi.min.s]
+      ]
+        .map(
+          ([k, l, v]) =>
+            `<div class="sx-kp" data-k="${k}" tabindex="0"><span>${l}</span><b>${_rcRemainingFmt(v)}</b></div>`
+        )
+        .join('')}</div>`
+    : '';
   box.innerHTML = `<div class="ws-card">
           <div class="ws-cap">This week</div>
           <div class="ws-sumrow"><div class="ws-total"></div><div class="ws-vary" aria-live="polite">${weekRow}</div></div>
@@ -4135,6 +4168,7 @@ function _renderWkndSummary(noteKey, ti, when) {
               <div class="ws-bars" role="group" aria-label="Hours by day">${bars}</div>
             </div>
           </div>
+          ${kpiHtml}
           ${noteHtml}
         </div>`;
   // The variable row: the week's verdict, or, while a bar is hovered, that
@@ -4179,6 +4213,14 @@ function _renderWkndSummary(noteKey, ti, when) {
     paintNote(note || _infoNoteTitle('weekend'), !!note);
     rollTo(heroSecs);
     barsEl.querySelectorAll('.ws-bar').forEach(b => b.classList.remove('hot'));
+    _wsLine(best);
+  };
+  // The dashed line: the longest day by default; a KPI moves it to its own value.
+  const tgtEl = box.querySelector('.ws-target');
+  const _wsLine = v => {
+    if (!tgtEl || !v) return;
+    tgtEl.style.bottom = `${Math.round((v / top) * 100)}%`;
+    tgtEl.querySelector('em').textContent = _rcRemainingFmt(v);
   };
   const show = i => {
     const r = rows[i],
@@ -4232,6 +4274,27 @@ function _renderWkndSummary(noteKey, ti, when) {
   });
   barsEl.addEventListener('mouseleave', () => {
     if (!barsEl.contains(document.activeElement)) rest();
+  });
+  // Longest / Shortest light up their day; Average shows the line at the average.
+  box.querySelectorAll('.ws-kpis .sx-kp').forEach(k => {
+    const on = () => {
+      if (k.dataset.k === 'avg') {
+        rest();
+        if (cap) cap.textContent = `Average of ${kpi.n} days`;
+        rollTo(kpi.avg);
+        _wsLine(kpi.avg);
+      } else {
+        const x = kpi[k.dataset.k];
+        show(x.i);
+        if (cap)
+          cap.textContent = `${k.dataset.k === 'max' ? 'Longest' : 'Shortest'} day · ${FULL[wk[x.i].date.getDay()]}`;
+        _wsLine(x.s);
+      }
+    };
+    k.addEventListener('mouseenter', on);
+    k.addEventListener('focus', on);
+    k.addEventListener('mouseleave', rest);
+    k.addEventListener('blur', rest);
   });
   barsEl.addEventListener('focusout', e => {
     if (!barsEl.contains(e.relatedTarget)) rest();
@@ -5989,6 +6052,7 @@ function _flushLiveLog() {
 }
 
 function render() {
+  _paintElsewhere();
   if (!loginDate) return;
   if (_dropStaleLive()) {
     _refreshFromCloud(true);
@@ -6195,9 +6259,17 @@ function _todayHeadText(d, name) {
 }
 function _paintTodayHead() {
   const t = _todayHeadText(nowTz(), cfg().name);
-  // Weekends: no day-type menu, and the greeting says so, centred.
-  const wk = isWeekendKey(todayKey()) && !loginDate;
-  if (wk) t.title = 'Happy Weekend!';
+  // Weekends: no day-type menu; the day's scene sets the greeting (#74).
+  const wk = _weekendMode();
+  const sc = wk ? _weekendScene(nowTz(), !isWeekend()) : null;
+  const copy = sc ? _wscCopy(sc) : null;
+  if (copy) t.title = copy.t;
+  _paintWeekendScene(sc);
+  const dsc = el('tdDesc');
+  if (dsc) {
+    dsc.hidden = !copy;
+    if (copy && dsc.textContent !== copy.s) dsc.textContent = copy.s;
+  }
   document.querySelector('.td-hd')?.classList.toggle('td-wknd', wk);
   if (wk && _tdMenuOpen()) _tdCloseMenu();
   const g = el('tdGreet'),
@@ -6205,6 +6277,542 @@ function _paintTodayHead() {
   if (g && g.textContent !== t.title) g.textContent = t.title;
   if (dt && dt.textContent !== t.date) dt.textContent = t.date;
 }
+// ── WEEKEND SCENES (#74, approved 2026-11-22) ─────────────────────────────
+// On a weekend, and on the last working day once the day is done, the top of the
+// Today card becomes a quiet scene that fades into the card (CSS and inline SVG
+// only). The scene follows the time of day; the greeting is picked at random each
+// time 5pm is opened. Nothing is saved or synced.
+var _WSC_IDS = ['gh', 'ml', 'dl', 'cw', 'pv', 'rv'];
+// When each scene can show: lwd = also on the last working day; b = times of day.
+var _WSC_WHEN = {
+  gh: { lwd: true, b: ['morning', 'afternoon', 'evening'] },
+  ml: { lwd: true, b: ['night'] },
+  dl: { lwd: false, b: ['morning'] },
+  cw: { lwd: true, b: ['night'] },
+  pv: { lwd: false, b: ['morning', 'afternoon', 'evening'] },
+  rv: { lwd: false, b: ['morning', 'afternoon', 'evening'] }
+};
+// The user's words (2026-11-22). No names in the titles (user 2026-11-22).
+var _WSC_COPY = {
+  gh: {
+    t: ['Happy Weekend!', 'Hello, Weekend!', 'Enjoy Your Weekend!'],
+    s: [
+      'Let the day end on a golden note.',
+      'The world can wait, watch a sunset.',
+      'Find a little me time for yourself.'
+    ]
+  },
+  ml: {
+    t: ['Sleep In.', 'Good Night.', 'Take It Easy.'],
+    s: ['Nothing to chase. Nowhere to be.', 'Let tomorrow take care of itself.', 'Tonight, even time can slow down.']
+  },
+  dl: {
+    t: ['Slow Morning.', 'Take Your Time.', 'Rise Easy.'],
+    s: ['No rush! Begin your day slowly.', "It's okay to skip the alarm sometimes.", "Relax! You ain't Peter Parker."]
+  },
+  cw: {
+    t: ['Good Night.', 'Good Evening.', 'Enjoy Your Night.'],
+    s: ['Any plans for a dinner date?', 'The city never sleeps. You can.', 'Boredom gets you ideas. Sleep!']
+  },
+  pv: {
+    t: ['Staying In!', 'Enjoy the View.', 'A Little Time In!'],
+    s: [
+      'Get comfy & do nothing at all.',
+      'Sometimes, staying in is the best plan.',
+      'Let the world rush, you do your thing.'
+    ]
+  },
+  rv: {
+    t: ['Happy Weekend!', 'Hello.', 'Take It All In.'],
+    s: [
+      'Watching skyscrapers? Good plan.',
+      'Somewhere between the sky and the city.',
+      'No plans. Just a little perspective.'
+    ]
+  }
+};
+// Morning 5:00–11:59 · afternoon 12:00–15:59 · evening 16:00–18:59 · night 19:00–4:59.
+var _WSC_TIMES = ['morning', 'afternoon', 'evening', 'night'];
+function _wscBucket(h) {
+  return h >= 5 && h < 12 ? 'morning' : h < 16 && h >= 12 ? 'afternoon' : h >= 16 && h < 19 ? 'evening' : 'night';
+}
+// The scene for this moment: the ones allowed now (time of day, weekend or last working
+// day), then one of them by the date, so it holds steady through each part of the day.
+// On the last working day the card turns over only once the day is done, so only
+// evening and night apply; a half day done earlier counts as evening (user 2026-11-22).
+var _WSC_LWD_TIMES = ['evening', 'night'];
+function _weekendScene(d, lwd) {
+  const now = _wscBucket(d.getHours()),
+    bucket = lwd && !_WSC_LWD_TIMES.includes(now) ? 'evening' : now;
+  const ok = _WSC_IDS.filter(id => _WSC_WHEN[id].b.includes(bucket) && (!lwd || _WSC_WHEN[id].lwd));
+  const day = Math.floor(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / 864e5);
+  return ok[(day * 7 + _WSC_TIMES.indexOf(bucket)) % ok.length];
+}
+// A title and a line for a scene, picked at random once per opening of 5pm.
+var _wscPicks = {};
+function _wscCopy(id, rnd = Math.random) {
+  if (!_wscPicks[id]) _wscPicks[id] = [Math.floor(rnd() * 3), Math.floor(rnd() * 3)];
+  const [ti, si] = _wscPicks[id];
+  return { t: _WSC_COPY[id].t[ti], s: _WSC_COPY[id].s[si] };
+}
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) _wscPicks = {}; // opened again: a fresh greeting
+});
+// Last working day of the week (Friday, or Saturday on a 6-day week).
+function _isLastWorkday(key) {
+  const d = new Date(key + 'T12:00');
+  d.setDate(d.getDate() + 1);
+  return !isWeekendKey(key) && isWeekendKey(dateKey(d));
+}
+// On the last working day the weekend card takes over once the day is done: the
+// session has ended and either the target was met or it ran past the shift.
+function _lwdDone() {
+  const tk = todayKey();
+  if (_sessionOpen() || !_isLastWorkday(tk)) return false;
+  const log = dayLog(tk) || {};
+  if (!(log.checkoutTime || log.checkoutDisplay) || log.override === 'holiday' || log.override === 'leave')
+    return false;
+  const c = cfg(),
+    target = c.dailyH * 3600 * (log.override === 'halfday' ? 0.5 : 1);
+  if ((log.hoursWorked || 0) * 3600 >= target - 60) return true;
+  const end = parse(c.shiftEnd || ''),
+    out = log.checkoutTime ? log.checkoutTime.split(':').map(Number) : null;
+  return !!(end && out && out[0] * 60 + out[1] >= end.getHours() * 60 + end.getMinutes());
+}
+// A session is open while it runs or sits paused (hours, no end time, not auto-stopped).
+function _sessionOpen() {
+  if (loginDate) return true;
+  const tk = todayKey(),
+    log = dayLog(tk);
+  return !!(log && log.sessionDate === tk && !log.checkoutTime && (log.hoursWorked || 0) > 0 && !log.autostopped);
+}
+// Weekend card for today: a weekend day with no session open, or a finished last working
+// day. The scenes never show during a working session (user 2026-11-22).
+function _weekendMode() {
+  return (isWeekend() && !_sessionOpen()) || _lwdDone();
+}
+// Tiny gusts of wind: short curls drawn in and out at random spots and times (user
+// 2026-11-22: not straight lines, not across the whole sky, invisible now and then).
+function _wscGusts(n, x0, y0, w, h) {
+  const SHAPES = [
+    'M0 6 C8 0 16 12 26 6 S42 0 52 5',
+    'M0 4 C10 10 18 0 28 5 C36 9 44 2 50 6',
+    'M0 8 C10 8 16 0 24 2 C32 4 30 12 22 10'
+  ];
+  let g = '';
+  for (let i = 0; i < n; i++) {
+    const x = (x0 + Math.random() * w).toFixed(0),
+      y = (y0 + Math.random() * h).toFixed(0),
+      s = (0.6 + Math.random() * 0.7).toFixed(2);
+    g += `<g transform="translate(${x} ${y}) scale(${s})"><path class="gust" pathLength="100" d="${SHAPES[i % 3]}" style="--d:${(7 + Math.random() * 8).toFixed(1)}s;animation-delay:${(-Math.random() * 14).toFixed(1)}s"/></g>`;
+  }
+  return g;
+}
+var _WSC_BIRD =
+  '<svg viewBox="0 0 24 10" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M1 6q5-5 11 1q6-6 11-1"/></svg>';
+// Moonlit's corner: a tiny shelter, a satellite dish and a mast light, all in shadow.
+var _WSC_OUTPOST =
+  '<svg class="outpost" viewBox="0 0 44 26" aria-hidden="true"><path d="M3 26V16.5L9.5 12l6.5 4.5V26Z"/><rect x="24" y="13" width="1.4" height="13"/><path d="M18 7.6C18.6 13.4 23.8 16.6 30 15Z"/><path d="M24 11.2 20.6 8.4" stroke-width="1"/><rect x="36" y="6.5" width="1" height="19.5"/><circle class="olt" cx="36.5" cy="5.6" r="1.1"/></svg>';
+var _wscHills = (a, b) =>
+  `<svg class="sil" viewBox="0 0 500 70" preserveAspectRatio="none" style="height:70px;top:64px"><path d="M0 50 Q80 10 160 38 T320 30 T500 40 V70 H0Z" fill="var(${a})"/><path d="M0 62 Q110 30 220 52 T500 50 V70 H0Z" fill="var(${b})"/></svg>`;
+// A large window that runs off the top and right edges: only its left edge, the cross
+// bars and the sill show, and the view fills the rest (user 2026-11-22).
+var _wscWindow = (cid, gid, inside, plant) =>
+  `<svg class="full" viewBox="0 0 400 204" preserveAspectRatio="xMaxYMin meet" style="height:200px"><defs><clipPath id="${cid}"><rect x="168" y="-20" width="260" height="172"/></clipPath><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--sky1)"/><stop offset="1" stop-color="var(--sky2)"/></linearGradient></defs><g clip-path="url(#${cid})"><rect x="168" y="-20" width="260" height="172" fill="url(#${gid})"/>${inside}</g><path class="frame" d="M168 -20 V152"/><line class="mull" x1="290" y1="-20" x2="290" y2="152"/><line class="mull" x1="168" y1="56" x2="428" y2="56"/><rect class="sill" x="158" y="150" width="270" height="10" rx="2"/>${plant}</svg>`;
+function _wscPark() {
+  // Stars (dark) and slow clouds (light) in the sky.
+  let sky = '';
+  [
+    [182, 6],
+    [204, 22],
+    [226, 4],
+    [250, 30],
+    [272, 12],
+    [306, 8],
+    [330, 26],
+    [352, 4],
+    [374, 18],
+    [396, 34],
+    [214, 40],
+    [318, 42],
+    [388, 2]
+  ].forEach(
+    ([x, y], i) =>
+      (sky += `<circle class="star" cx="${x}" cy="${y}" r="${i % 3 ? 0.9 : 1.3}" style="animation-delay:${-i * 0.7}s"/>`)
+  );
+  sky +=
+    '<ellipse class="cloud" cx="236" cy="16" rx="26" ry="7"/><ellipse class="cloud" cx="252" cy="12" rx="16" ry="7"/><ellipse class="cloud" cx="352" cy="30" rx="30" ry="7"/><ellipse class="cloud" cx="372" cy="25" rx="16" ry="6"/>';
+  // The far side of the park: a row of buildings with lit windows.
+  const bl = [
+    [168, 70, 22],
+    [192, 58, 18],
+    [212, 74, 26],
+    [240, 50, 20],
+    [262, 66, 24],
+    [288, 46, 22],
+    [312, 62, 26],
+    [340, 54, 20],
+    [362, 70, 24],
+    [388, 60, 40]
+  ];
+  let city = '',
+    k = 0;
+  bl.forEach(([x, y, w]) => {
+    city += `<rect class="bld" x="${x}" y="${y}" width="${w}" height="${112 - y}"/>`;
+    for (let yy = y + 5; yy < 104; yy += 7)
+      for (let xx = x + 4; xx < x + w - 3; xx += 6) {
+        k++;
+        if ((k * 7 + yy) % 5 < 2)
+          city += `<rect class="bwin${k % 23 === 0 ? ' blink' : ''}" x="${xx}" y="${yy}" width="2.4" height="3"/>`;
+      }
+  });
+  const park =
+    '<rect x="168" y="104" width="260" height="48" fill="var(--grass)"/><path d="M222 152 C244 128 304 118 428 114 V124 C330 128 266 138 244 152Z" fill="var(--path)"/><g class="canopy"><ellipse cx="200" cy="104" rx="26" ry="21" fill="var(--tree1)"/><ellipse cx="220" cy="95" rx="21" ry="18" fill="var(--tree2)"/></g><g class="canopy k2"><ellipse cx="326" cy="100" rx="28" ry="22" fill="var(--tree1)"/><ellipse cx="348" cy="91" rx="22" ry="18" fill="var(--tree2)"/><ellipse cx="384" cy="104" rx="22" ry="19" fill="var(--tree1)"/></g><circle class="glow" cx="270" cy="116" r="15"/><rect x="269" y="116" width="2" height="26" fill="var(--city)"/><circle class="lamp" cx="270" cy="116" r="2.6"/>';
+  return (
+    _wscWindow(
+      'wscPw',
+      'wscPs',
+      sky +
+        city +
+        park +
+        _wscGusts(6, 176, 6, 200, 70) +
+        '<ellipse class="leafy" cx="196" cy="88" rx="2.4" ry="1.2"/><ellipse class="leafy" cx="240" cy="78" rx="2.2" ry="1.1" style="animation-delay:-1.6s"/><ellipse class="leafy" cx="300" cy="94" rx="2.4" ry="1.2" style="animation-delay:-3.2s"/><ellipse class="leafy" cx="184" cy="70" rx="2" ry="1" style="animation-delay:-4.8s"/>',
+      '<path d="M190 150 l4 -16 h18 l4 16Z" fill="var(--pot)"/><path d="M203 134 C194 120 188 116 184 118 C190 122 196 128 201 135Z M203 134 C208 118 216 112 222 114 C216 120 210 126 205 135Z M203 134 C202 120 204 110 207 106 C208 116 206 126 204 135Z" fill="var(--leaf)"/>'
+    ) + '<div class="grain"></div>'
+  );
+}
+function _wscRooftops() {
+  const back = 'M168 104 h38 l10 -8 h26 v-14 h6 v14 h30 l12 -10 h28 v10 h40 v-20 h8 v20 h62',
+    front = 'M168 124 h48 l20 -16 l20 16 h24 v-6 h10 v6 h40 l14 -10 h86';
+  const inside =
+    // The sun low behind the roofs, its glow spilling over them.
+    '<circle class="halo" cx="368" cy="104" r="40"/><circle class="sunc" cx="368" cy="106" r="15"/>' +
+    `<path class="roof2" d="${back} V152 H168Z"/>` +
+    '<g class="roof2"><rect x="300" y="56" width="22" height="20" rx="2"/><rect x="302" y="76" width="2" height="10"/><rect x="318" y="76" width="2" height="10"/><path d="M298 56 L311 48 L324 56Z"/></g>' +
+    `<path class="rim" d="${back}"/><path class="rim" d="M298 56 L311 48 L324 56 M322 57 V75"/>` +
+    `<path class="roof" d="${front} V152 H168Z"/><rect class="roof" x="252" y="94" width="8" height="16"/>` +
+    '<rect class="rwin" x="184" y="132" width="5" height="6"/><rect class="rwin" x="196" y="132" width="5" height="6" opacity=".6"/><rect class="rwin" x="296" y="132" width="5" height="6"/><rect class="rwin" x="352" y="128" width="5" height="6"/><rect class="rwin" x="364" y="128" width="5" height="6" opacity=".7"/>' +
+    // The air: chimney smoke drifting downwind and a few streaks of wind.
+    '<circle class="puff" cx="256" cy="88" r="5"/><circle class="puff" cx="256" cy="88" r="5" style="animation-delay:-2s"/><circle class="puff" cx="256" cy="88" r="5" style="animation-delay:-4s"/>' +
+    _wscGusts(6, 176, 6, 200, 60);
+  return (
+    _wscWindow(
+      'wscRw',
+      'wscRs',
+      inside,
+      '<path d="M360 150 l3 -12 h16 l3 12Z" fill="var(--pot)"/><path d="M371 138 C364 126 358 124 355 126 C360 129 365 133 369 139Z M371 138 C375 124 381 120 386 122 C381 126 376 132 373 139Z" fill="var(--leaf)"/>'
+    ) + '<div class="grain"></div>'
+  );
+}
+// City of Stars: not every roof is flat. Spires, a setback, antennas with beacons,
+// a crane on a building going up, and two neon signs.
+var _WSC_CITY_TOPS =
+  '<path class="spire" d="M120 70 L137 56 L154 70Z"/><rect class="spire" x="326" y="64" width="22" height="10"/>' +
+  '<path class="crane" d="M137 56 V44 M337 64 V50 M282 56 V42 M214 62 V22 M196 24 H266 M214 22 L232 24 M214 22 L200 24 M256 24 V44"/>' +
+  '<rect x="198" y="25" width="7" height="4" fill="var(--crane)"/><rect x="252" y="44" width="8" height="5" fill="var(--crane)"/>' +
+  '<circle class="bcn" cx="137" cy="44" r="1.6"/><circle class="bcn k2" cx="337" cy="50" r="1.6"/><circle class="bcn" cx="282" cy="42" r="1.4"/><circle class="bcn k2" cx="266" cy="24" r="1.4"/>' +
+  '<rect class="neon" x="161" y="100" width="16" height="2.5" rx="1" fill="#ff5fa2"/><rect class="neon k2" x="284" y="110" width="14" height="2.5" rx="1" fill="#5fd8ff"/>';
+var _WSC_HTML = {
+  gh: () =>
+    `<div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div><div class="sun"></div>${_wscHills('--hill1', '--hill2')}<svg class="full gusts" viewBox="0 0 400 140" preserveAspectRatio="xMidYMid slice">${_wscGusts(8, 10, 12, 360, 70)}</svg><span class="bird">${_WSC_BIRD}</span><span class="bird k2">${_WSC_BIRD}</span><div class="grain"></div>`,
+  ml: () => {
+    let s = '';
+    [
+      [6, 16],
+      [12, 50],
+      [20, 30],
+      [29, 10],
+      [36, 62],
+      [44, 22],
+      [55, 46],
+      [61, 12],
+      [68, 70],
+      [76, 38],
+      [86, 16],
+      [92, 60],
+      [24, 76],
+      [50, 6],
+      [82, 84],
+      [40, 90]
+    ].forEach(
+      ([x, y], i) =>
+        (s += `<span class="star" style="left:${x}%;top:${y}px;animation-delay:${(i * 0.37) % 5}s"></span>`)
+    );
+    return `${s}<span class="shoot"></span><div class="moon"></div><div class="blob b1"></div><div class="blob b2"></div><span class="plane"></span>${_wscHills('--hill1', '--hill2')}${_WSC_OUTPOST}<div class="grain"></div>`;
+  },
+  dl: () => {
+    let l = '';
+    [
+      [30, 14, 30],
+      [84, 2, -20],
+      [136, 22, 12],
+      [52, 52, -38],
+      [112, 64, 26],
+      [170, 40, -12],
+      [150, 96, 42],
+      [86, 104, -26],
+      [190, 8, 16],
+      [24, 92, 22]
+    ].forEach(([x, y, r]) => (l += `<i style="left:${x}px;top:${y}px;transform:rotate(${r}deg)"></i>`));
+    l +=
+      '<b style="left:40px;top:0;width:200px;transform:rotate(28deg)"></b><b style="left:120px;top:0;width:150px;transform:rotate(62deg)"></b>';
+    const half = l.indexOf('<i', l.split('<i').slice(0, 6).join('<i').length);
+    let m = '';
+    [
+      [62, 40],
+      [70, 76],
+      [78, 30],
+      [86, 96],
+      [66, 110],
+      [92, 58],
+      [74, 120],
+      [58, 88],
+      [88, 18],
+      [80, 66]
+    ].forEach(
+      ([x, y], i) => (m += `<span class="mote" style="left:${x}%;top:${y}px;animation-delay:${-i * 1.1}s"></span>`)
+    );
+    // A dark red cup of coffee in the shade, bottom left, steam curling up (user 2026-11-22).
+    const cup =
+      '<svg class="cup" viewBox="0 0 56 64" aria-hidden="true"><path class="steam" pathLength="100" d="M20 30 C16 24 24 20 20 13 C17 8 21 4 20 1"/><path class="steam k2" pathLength="100" d="M27 30 C31 23 23 19 27 12 C30 7 26 4 27 1"/><path class="steam k3" pathLength="100" d="M34 30 C30 25 37 21 34 15"/><ellipse cx="25" cy="60" rx="20" ry="3" fill="var(--cup-sh)"/><ellipse cx="25" cy="56" rx="17" ry="3.2" fill="var(--cup2)"/><path d="M12 34 h26 v13 a7 7 0 0 1 -7 7 h-12 a7 7 0 0 1 -7 -7z" fill="var(--cup)"/><path d="M38 37 h3 a5 5 0 0 1 0 10 h-3" fill="none" stroke="var(--cup)" stroke-width="3"/><path d="M14 36 v10" stroke="var(--cup-hi)" stroke-width="1.4" stroke-linecap="round"/><ellipse cx="25" cy="34" rx="13" ry="2.2" fill="var(--coffee)"/></svg>';
+    return `<div class="shaft"></div><div class="pane"></div><div class="pane h"></div><div class="leaves">${l.slice(0, half)}</div><div class="leaves k2">${l.slice(half)}</div>${m}${cup}<div class="grain"></div>`;
+  },
+  cw: () => {
+    // Two rows of buildings; lit windows on the near row, two of them switching.
+    const near = [
+      [0, 96, 44],
+      [46, 80, 30],
+      [78, 104, 40],
+      [120, 70, 34],
+      [156, 90, 46],
+      [204, 62, 30],
+      [236, 84, 40],
+      [278, 100, 36],
+      [316, 74, 42],
+      [360, 92, 40]
+    ];
+    const far = [
+      [20, 78, 40],
+      [70, 66, 36],
+      [140, 58, 44],
+      [200, 72, 38],
+      [262, 56, 40],
+      [330, 64, 44]
+    ];
+    const b =
+      far.map(([x, y, w]) => `<rect class="city2" x="${x}" y="${y}" width="${w}" height="${140 - y}"/>`).join('') +
+      near.map(([x, y, w]) => `<rect class="city" x="${x}" y="${y}" width="${w}" height="${150 - y}"/>`).join('');
+    let wins = '',
+      k = 0;
+    near.forEach(([x, y, w]) => {
+      for (let yy = y + 8; yy < 146; yy += 10)
+        for (let xx = x + 5; xx < x + w - 5; xx += 8) {
+          k++;
+          const r = (Math.sin(k * 12.9898) * 43758.5453) % 1,
+            blink = k === 23 || k === 71 || k % 11 === 0;
+          if (Math.abs(r) > 0.72 || blink)
+            wins += `<rect class="win${blink ? ' blink' : ''}" style="--t:${blink ? 5 + (k % 9) : 0}s" x="${xx}" y="${yy}" width="3" height="4"/>`;
+        }
+    });
+    let st = '';
+    [
+      [8, 12, 0],
+      [16, 40, 1],
+      [24, 22, 0],
+      [33, 8, 0],
+      [41, 50, 0],
+      [48, 18, 1],
+      [56, 34, 0],
+      [63, 6, 0],
+      [71, 44, 0],
+      [78, 20, 1],
+      [86, 10, 0],
+      [93, 38, 0],
+      [12, 62, 0],
+      [37, 30, 0],
+      [66, 58, 0],
+      [89, 64, 0],
+      [52, 70, 0],
+      [28, 76, 0]
+    ].forEach(
+      ([x, y, big], i) =>
+        (st += `<span class="star${big ? ' big' : ''}" style="left:${x}%;top:${y}px;animation-delay:${(-i * 0.61) % 4.5}s"></span>`)
+    );
+    return `${st}<div class="haze"></div><svg class="full" viewBox="0 0 400 204" preserveAspectRatio="xMidYMax slice"><g transform="translate(0 24)">${b}${wins}${_WSC_CITY_TOPS}</g></svg><span class="plane"></span><div class="grain"></div>`;
+  },
+  pv: () => _wscPark(),
+  rv: () => _wscRooftops()
+};
+var _wscIO = null,
+  _wscSeen = false;
+// Puts the day's scene in the Today card (or takes it out). Rebuilt only when the scene changes.
+function _paintWeekendScene(id) {
+  const card = el('homeCard');
+  if (!card) return;
+  let box = card.querySelector(':scope > .wsc');
+  for (const c of [...card.classList]) if (c.startsWith('sc-') && c !== 'sc-' + id) card.classList.remove(c);
+  if (!id) {
+    box?.remove();
+    card.classList.remove('has-scene');
+    _wscSeen = true;
+    return;
+  }
+  const arriving = !box && _wscSeen;
+  _wscSeen = true;
+  card.classList.add('has-scene', 'sc-' + id);
+  if (arriving) {
+    // The weekend just began (the last working day ended, or midnight): a slow, soft arrival.
+    card.classList.remove('wk-arrive');
+    void card.offsetWidth;
+    card.classList.add('wk-arrive');
+    setTimeout(() => card.classList.remove('wk-arrive'), 1600);
+  }
+  if (box?.dataset.id === id) return;
+  if (!box) {
+    box = document.createElement('div');
+    box.className = 'wsc';
+    box.setAttribute('aria-hidden', 'true');
+    card.prepend(box);
+  }
+  box.dataset.id = id;
+  box.innerHTML = _WSC_HTML[id]();
+  // Hold still while the card is scrolled away.
+  if (!_wscIO && 'IntersectionObserver' in window) {
+    _wscIO = new IntersectionObserver(es =>
+      es.forEach(e => card.querySelector(':scope > .wsc')?.classList.toggle('still', !e.isIntersecting))
+    );
+    _wscIO.observe(card);
+  }
+}
+// ── RUNNING ON ANOTHER DEVICE (#73, approved 2026-11-22) ─────────────────
+// The device that started today's session checks in every 5 minutes (devices
+// map: run = today, s = now). Another device showing the same session reads
+// that: "On Office PC · checked in 3 min ago", and once the device has been
+// quiet for 15 minutes (shut down, asleep, offline), a card offers to end the
+// day at its last check-in. Nothing ever ends on its own.
+var _RUN_KEY = 'wh_run_here',
+  _BEAT_MS = 5 * 60 * 1000,
+  _QUIET_MS = 15 * 60 * 1000;
+var _beatAt = 0,
+  _beatWas = false,
+  _else = null,
+  _elseAt = 0,
+  _elseKept = '',
+  _elseKey = '';
+function _runHere() {
+  try {
+    return localStorage.getItem(_RUN_KEY) === todayKey();
+  } catch {
+    return false;
+  }
+}
+// Called when a session is started or resumed on this device (not when it's picked up from another one).
+function _markRunHere() {
+  try {
+    localStorage.setItem(_RUN_KEY, todayKey());
+  } catch {
+    /* private mode: this device just won't check in */
+  }
+  _beatAt = 0;
+  _runBeat();
+}
+function _runBeat() {
+  if (DEV_SAMPLE || !navigator.onLine) return;
+  const on = !!loginDate && !autoStopped && _runHere();
+  if (on) {
+    if (Date.now() - _beatAt < _BEAT_MS - 5000) return;
+    _beatAt = Date.now();
+    _beatWas = true;
+    Devices.beat(todayKey()).catch(() => (_beatAt = 0));
+  } else if (_beatWas) {
+    // Paused, ended or auto-stopped: say once that nothing runs here any more.
+    _beatWas = false;
+    _beatAt = 0;
+    Devices.beat(null).catch(() => {});
+  }
+}
+// The other device running today's session, by its latest check-in (pure, tested).
+function _runnerFrom(map, me, tk) {
+  let best = null;
+  for (const [id, d] of Object.entries(map || {})) {
+    if (id === me || !d || d.r || d.run !== tk || !d.s) continue;
+    const t = Date.parse(d.s);
+    if (!isNaN(t) && (!best || t > best.seen)) best = { name: d.n || 'Another device', seen: t };
+  }
+  return best;
+}
+function _elseAgo(ms) {
+  const m = Math.floor(ms / 60000);
+  if (m < 2) return 'just now';
+  if (m < 60) return `${m} min ago`;
+  return `${Math.floor(m / 60)}h ${p2(m % 60)}m ago`;
+}
+async function _elsePoll(force) {
+  if (DEV_SAMPLE || !loginDate || autoStopped || _runHere() || document.hidden) return;
+  if (!force && Date.now() - _elseAt < 2 * 60 * 1000) return;
+  _elseAt = Date.now();
+  try {
+    const { map } = await Devices._read();
+    _else = _runnerFrom(map, _deviceId(), todayKey());
+  } catch {
+    /* keep the last answer */
+  }
+  _paintElsewhere();
+}
+var _RE_PC =
+  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="20" height="14" x="2" y="3" rx="2"/><path d="M8 21h8M12 17v4"/></svg>';
+var _RE_OFF =
+  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2v10"/><path d="M18.4 6.6a9 9 0 1 1-12.77.04"/></svg>';
+// Runs with every render; touches the page only when what it says changes.
+function _paintElsewhere() {
+  const slot = el('reSlot'),
+    box = el('reBox');
+  if (!slot || !box) return;
+  const show = !!loginDate && !autoStopped && !_runHere() && !!_else;
+  const quiet = show && Date.now() - _else.seen >= _QUIET_MS && _elseKept !== String(_else.seen);
+  const key = !show ? '' : quiet ? `q${_else.seen}` : `l${_else.name}|${_elseAgo(Date.now() - _else.seen)}`;
+  if (key === _elseKey) return;
+  _elseKey = key;
+  slot.classList.toggle('open', show);
+  if (!show) return;
+  const at = short(new Date(_else.seen));
+  if (quiet) {
+    box.innerHTML = `<div class="re-card" role="group" aria-labelledby="reT"><div class="re-h"><span class="re-ic">${_RE_OFF}</span><div><p class="re-t" id="reT"></p><p class="re-d">If you left work then, end today at that time.</p></div></div><div class="re-a"><button type="button" class="btn-secondary" data-re="keep">Keep Running</button><button type="button" class="btn btn-primary" data-re="end"></button></div></div>`;
+    box.querySelector('#reT').textContent = `${_else.name} went quiet at ${at}`;
+    box.querySelector('[data-re="end"]').textContent = `End at ${at}`;
+  } else {
+    box.innerHTML = `<p class="re-line">${_RE_PC}<span></span></p>`;
+    box.querySelector('span').textContent = `On ${_else.name} · checked in ${_elseAgo(Date.now() - _else.seen)}`;
+  }
+}
+document.addEventListener('click', e => {
+  const b = e.target.closest('#reBox [data-re]');
+  if (!b || !_else) return;
+  if (b.dataset.re === 'keep') {
+    // Hidden until that device checks in again and then goes quiet again.
+    _elseKept = String(_else.seen);
+  } else {
+    const at = new Date(_else.seen);
+    _else = null;
+    checkout(at); // the normal End, at the last check-in
+  }
+  _elseKey = '';
+  _paintElsewhere();
+});
+setInterval(() => {
+  _runBeat();
+  _elsePoll();
+}, 60 * 1000);
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) _elsePoll(true);
+});
+// Windows app: the shutdown hook calls this so the last check-in and any unsent
+// change go out before Windows closes 5pm (#73 A). Ends nothing.
+window.__beforeShutdown = () => {
+  _beatAt = 0;
+  _runBeat();
+  _flushSync({ silent: true });
+};
 function _setShiftCtaVisible(v) {
   const s = el('todayLoginSection');
   if (!s) return;
@@ -6234,7 +6842,7 @@ function selectDay() {
   const _ov = dayLog(key)?.override;
   const _infoType = loginDate
     ? null
-    : isWeekendKey(key)
+    : isWeekendKey(key) || _lwdDone()
       ? 'weekend'
       : _ov === 'holiday'
         ? 'holiday'
@@ -6407,22 +7015,30 @@ let _wkCtx = null;
 // Returns { kind, label, line, hrsSecs, diffSecs, tone, icon, today }.
 function wkDayModel(log, { isToday, isPast, isFuture, live, liveSecs, dailySecs }) {
   const ov = log?.override || (isFuture ? log?.futurePlan : null);
+  // The day's note shows as the row's second line (a plan's note on future days).
+  const note = String((isFuture ? log?.futureReason : log?.note) || '').trim();
   const worked = log?.hoursWorked != null ? Math.round(log.hoursWorked * 3600) : 0;
   if (ov === 'holiday')
     return {
       kind: 'holiday',
       label: 'Holiday',
-      line: log?.futureReason ? `${log.futureReason} · enjoy the day off` : 'Enjoy the day off',
+      line: note || 'Enjoy the day off',
       tone: 'orchid',
       icon: 'holiday'
     };
   if (ov === 'leave')
-    return { kind: 'leave', label: 'On leave', line: 'Out of office · recharge', tone: 'blue', icon: 'leave' };
+    return { kind: 'leave', label: 'On leave', line: note || 'Out of office · recharge', tone: 'blue', icon: 'leave' };
   if (ov === 'halfday')
     return {
       kind: 'halfday',
       label: 'Half day',
-      line: log?.checkoutDisplay ? `Done by ${log.checkoutDisplay}` : 'Half the hours today',
+      line:
+        note ||
+        (log?.checkoutDisplay
+          ? `Done by ${log.checkoutDisplay}`
+          : isFuture
+            ? 'Half the hours'
+            : 'Half the hours today'),
       tone: 'teal',
       icon: 'halfday',
       hrsSecs: worked || null
@@ -6446,6 +7062,8 @@ function wkDayModel(log, { isToday, isPast, isFuture, live, liveSecs, dailySecs 
         icon: 'late',
         future: true
       };
+    // A Full Day planned with a note: name the day and show the note.
+    if (note) return { kind: 'future', future: true, label: 'Full Day', icon: 'fullday', tone: '', line: note };
     return { kind: 'future', future: true };
   }
   if (isToday) {
@@ -7173,6 +7791,7 @@ function _startSession(p) {
   scheduleNotifications(loginDate.toISOString());
   _startCheckpoint(); // periodic sync while session active
   _syncNow(); // immediately push the start event
+  _markRunHere(); // this device now checks in for the session (#73)
 }
 function isOutsideShift(p) {
   const c = cfg();
@@ -10459,7 +11078,6 @@ function openDayEditModal(key, focusNote = false, wkndNote = false) {
   const dayInfo = [...wk, ...allWk].find(d => d.key === (key || todayKey()));
   const log = dayLog(key);
   const d = new Date(key + 'T12:00');
-  const _isFuturePlanModal = new Date(key + 'T12:00') > new Date() && key !== todayKey() && !!log?.futurePlan;
   // Header (#34): the date is the title; the subtitle names what this tab does.
   const _deDate = new Date(_dayEditKey + 'T12:00');
   el('dayEditTitle').textContent = _deDate.toLocaleDateString('en-US', {
@@ -10467,7 +11085,9 @@ function openDayEditModal(key, focusNote = false, wkndNote = false) {
     month: 'short',
     day: 'numeric'
   });
-  el('dayEditDesc').dataset.editDesc = _isFuturePlanModal ? 'Plan this day.' : 'Fix the times or the kind of day.';
+  // A future day is planned, not tracked: pick the kind of day, never times.
+  _deFuture = (key || todayKey()) > todayKey();
+  el('dayEditDesc').dataset.editDesc = _deFuture ? 'Plan the kind of day.' : 'Fix the times or the kind of day.';
   // Raise Dispute only makes sense for a day that has happened.
   const _canDispute = !wkndNote && (key || todayKey()) <= todayKey();
   el('deTabs').hidden = !_canDispute;
@@ -10542,7 +11162,7 @@ function openDayEditModal(key, focusNote = false, wkndNote = false) {
     }
     if (_deNoteWrap) _deNoteWrap.classList.add('visible');
     if (_deNoteLabel) {
-      _deNoteLabel.textContent = 'What did you do?';
+      _deNoteLabel.textContent = "What're your plans?";
       _deNoteLabel.style.display = '';
     }
   } else {
@@ -10747,7 +11367,7 @@ function _deSetType(type, instant) {
         pill.style.transition = '';
       });
   }
-  el('deTimeWrap')?.classList.toggle('hidden', type === 'leave' || type === 'holiday');
+  el('deTimeWrap')?.classList.toggle('hidden', _deFuture || type === 'leave' || type === 'holiday');
   if (!_isWkndNoteModal && el('deNoteLabel')) el('deNoteLabel').textContent = _DE_NOTE_LABEL[type] || 'Note';
   _deUpdateLive();
 }
@@ -10755,8 +11375,9 @@ function setDeOverride(type) {
   _deSetType(type);
 }
 // The live line under the times: what this entry adds up to.
-function _deLiveLine(dayName, type, secs, daily) {
+function _deLiveLine(dayName, type, secs, daily, future) {
   if (type === 'leave' || type === 'holiday') return 'No hours for a day off. Your week adjusts.';
+  if (future && type !== 'halfday') return `You'll track ${dayName}'s times on the day.`;
   const hm = v => {
     const m = Math.round(v / 60);
     return `${Math.floor(m / 60)}h ${p2(m % 60)}m`;
@@ -10779,7 +11400,13 @@ function _deUpdateLive() {
   }
   out.textContent = _isWkndNoteModal
     ? ''
-    : _deLiveLine(FULL_DAYS_EN[new Date(key + 'T12:00').getDay()], type, secs, cfg().dailyH * 3600);
+    : _deLiveLine(
+        FULL_DAYS_EN[new Date(key + 'T12:00').getDay()],
+        type,
+        _deFuture ? 0 : secs,
+        cfg().dailyH * 3600,
+        _deFuture
+      );
 }
 // Raise Dispute: what 5pm recorded for the day goes in the email.
 function _deRecordedText(inT, outT, secs) {
@@ -11958,6 +12585,7 @@ function _resumeFromLog(tl) {
     render();
     if (ticker) clearInterval(ticker);
     ticker = setInterval(render, 1000);
+    _elsePoll(true); // which device runs it, and is it still checking in? (#73)
     return true;
   }
   return false;
@@ -12297,10 +12925,31 @@ function saveDayEditModal() {
         : null;
   const _deNoteVal = el('deNote')?.value.trim() || '';
 
+  // A future day is only planned: no times are asked for or checked.
+  // Full Day clears the plan, keeping a note if one was written.
+  if (key > todayKey() && !activeOverride) {
+    // Nothing saved and nothing written: there's no plan to store.
+    if (Object.keys(ex).length || _deNoteVal)
+      saveDayLogAndSync(key, {
+        ...ex,
+        futurePlan: null,
+        futureReason: _deNoteVal || null,
+        lastUpdated: new Date().toISOString()
+      });
+    el('deErr').classList.remove('show');
+    persist();
+    closeDayEditModal();
+    renderHistory();
+    renderPenalties();
+    renderSurplusCircles();
+    if (key === selectedDayKey) selectDay(todayKey());
+    return;
+  }
+
   // Half-day demotion: if the half-day layout is active but the user has entered real
   // login + logout times that exceed half the daily target, treat it as a normal entry
   // (switch back to the default duration/target layout instead of the half-day card).
-  if (activeOverride === 'halfday' && s && e) {
+  if (activeOverride === 'halfday' && s && e && key <= todayKey()) {
     const _eHd = e <= s ? new Date(e.getTime() + 24 * 3600 * 1000) : e;
     if (Math.floor((_eHd - s) / 1000) > (c.dailyH * 3600) / 2) activeOverride = null;
   }
@@ -12311,6 +12960,7 @@ function saveDayEditModal() {
       saveDayLogAndSync(key, {
         ...ex,
         futurePlan: 'halfday',
+        lastUpdated: new Date().toISOString(),
         ...(_deNoteVal ? { futureReason: _deNoteVal } : { futureReason: null })
       });
     } else {
@@ -12327,6 +12977,7 @@ function saveDayEditModal() {
       saveDayLogAndSync(key, {
         ...ex,
         futurePlan: activeOverride,
+        lastUpdated: new Date().toISOString(),
         ...(_deNoteVal ? { futureReason: _deNoteVal } : { futureReason: null })
       });
       setTimeout(() => _payrollCheck('dayoff', key), 0); // Penalty Reminders, rung 1
@@ -12349,6 +13000,7 @@ function saveDayEditModal() {
     } else {
       // No active session — start one from the given time
       loginDate = s;
+      _markRunHere();
       wasDone = false;
       notifSent = false;
       autoStopped = false;
@@ -13175,7 +13827,7 @@ el('whatsNewBtn')?.addEventListener('click', () => openWhatsNew());
   window.Sheet?.attach(ov.querySelector('.email-modal'), {
     close: closeWhatsNew,
     isOpen: () => ov.classList.contains('open'),
-    scroller: ov.querySelector('.email-modal')
+    scroller: ov.querySelector('.wn-body')
   });
   // After launch modals (recovery, week plan) have had their turn.
   setTimeout(_wnMaybeShow, 2500);
@@ -13622,6 +14274,7 @@ el('dailyTargetCancelBtn').addEventListener('click', () => {
   if (loginDate) return;
   // Paused at the target (Recommend Timings off): resume from now; the gap isn't counted.
   loginDate = new Date();
+  _markRunHere();
   persistSession(); // save the new post-pause loginDate so a reload restores overtime, not the stale pre-pause session
   if (ticker) clearInterval(ticker);
   ticker = setInterval(render, 1000);
@@ -15477,6 +16130,19 @@ const Devices = {
     fn(map);
     await this._write(uid, map);
     return map;
+  },
+
+  // #73: the device running today's session checks in (run = today, s = now);
+  // run is removed when nothing runs here any more.
+  async beat(run) {
+    if (DEV_SAMPLE) return;
+    await this._mutate(map => {
+      const me = map[_deviceId()];
+      if (!me) return;
+      me.s = new Date().toISOString();
+      if (run) me.run = run;
+      else delete me.run;
+    });
   },
 
   // Record this device, and decide whether it has been kicked.

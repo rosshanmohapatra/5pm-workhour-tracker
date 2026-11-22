@@ -14718,7 +14718,8 @@ async function openMfaSetup() {
         await mfa.unenroll({ factorId: s.id });
       } catch (_) {}
     }
-    const { data, error } = await mfa.enroll({ factorType: 'totp' });
+    // issuer = the name authenticator apps show (default was the Supabase site address)
+    const { data, error } = await mfa.enroll({ factorType: 'totp', issuer: '5pm' });
     if (error) throw error;
     _mfaFactorId = data.id;
     el('mfaQrImg').src = data.totp.qr_code;

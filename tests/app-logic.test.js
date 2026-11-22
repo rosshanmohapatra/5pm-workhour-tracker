@@ -3549,3 +3549,7 @@ test('Sentry: pinned SDK, same version as the app, errors only, no personal data
   assert.match(csp, /connect-src [^;]*https:\/\/o4512474129629184\.ingest\.us\.sentry\.io/);
   assert.doesNotMatch(csp, /script-src [^;]*sentry/);
 });
+
+test('Authenticator apps list the account as 5pm, not the site address', () => {
+  assert.match(SRC, /mfa\.enroll\(\{ factorType: 'totp', issuer: '5pm' \}\)/);
+});

@@ -2997,14 +2997,30 @@
         if (e.pointerType !== 'mouse' && !chart.contains(e.target)) cb(); };
       document.addEventListener('pointerdown', h, true);
     }
+    // Saturday / Sunday of the same week that aren't workdays but have hours logged
+    // (up to today). Pure, so it can be tested.
+    function _wkndExtraDays(base, tk) {
+      if (!base.length) return [];
+      const mon = base[0].date, have = new Set(base.map(d => d.key)), out = [];
+      for (const i of [5, 6]) {
+        const d = new Date(mon); d.setDate(mon.getDate() + i);
+        const key = dateKey(d);
+        if (have.has(key) || key > tk) continue;
+        if ((dayLog(key)?.hoursWorked || 0) > 0) out.push({ key, name: FULL_DAYS_EN[d.getDay()], date: d, extra: true });
+      }
+      return out;
+    }
     function _renderWkndSummary(noteKey, ti, when) {
       const box = el('wkndSum'); if (!box) return;
-      const wk = week(daySelectorWeekOffset), rows = _wkndDayData(wk);
+      // The week's workdays, plus any weekend day (outside the work week) that has
+      // hours: worked anyway, it gets its own bar and counts in the total as extra.
+      // The weekly target stays the workdays' target.
+      const base = week(daySelectorWeekOffset), tk = todayKey();
+      const wk = [...base, ..._wkndExtraDays(base, tk)], rows = _wkndDayData(wk);
       const c = cfg(), daily = c.dailyH * 3600;
-      const tk = todayKey();   // days still ahead count as 0, whatever is stored for them
       const secs = wk.map(d => d.key > tk ? 0 : Math.round((dayLog(d.key)?.hoursWorked || 0) * 3600));
       const total = secs.reduce((a, b) => a + b, 0);
-      const weekChip = _wkndWeekChip(total, adjustedWeeklyTarget(wk));
+      const weekChip = _wkndWeekChip(total, adjustedWeeklyTarget(base));
       const FULL = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
       const mon = d => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
       // Plot: the dashed line marks this week's longest day (not a fixed target or a
@@ -3027,9 +3043,8 @@
       const chipHtml = (text, tone, check) => `<span class="rc-desc-chip pill${tone ? ' ' + tone : ''} ws-chip">${check ? _WKND_SVG(_WKND_ICON.check) : ''}${text}</span>`;
       const weekRow = weekChip ? chipHtml(weekChip.text, weekChip.tone, weekChip.tone === 'ok') : '';
       box.innerHTML = `<div class="ws-card">
-          <span class="dt-pill">${_WKND_SVG(WK_ICON[DAY_TYPES.weekend.icon])}${ti.title}</span>
-          <div class="ws-total"></div>
-          <div class="ws-vary" aria-live="polite">${weekRow}</div>
+          <div class="ws-cap">This week</div>
+          <div class="ws-sumrow"><div class="ws-total"></div><div class="ws-vary" aria-live="polite">${weekRow}</div></div>
           <div class="ws-chart">
             <div class="ws-plot">
               <span class="ws-grid" style="bottom:50%"></span>
@@ -3058,21 +3073,24 @@
         noteBtn.classList.toggle('has', has);
         noteBtn.innerHTML = _WKND_SVG(has ? _WKND_ICON.note : _WKND_ICON.plus) + '<span></span>';
         noteBtn.querySelector('span').textContent = text; };
-      const rest = () => { vary.innerHTML = weekRow; paintNote(note || _infoNoteTitle('weekend'), !!note); rollTo(heroSecs);
+      const cap = box.querySelector('.ws-cap');
+      const rest = () => { vary.innerHTML = weekRow; if (cap) cap.textContent = 'This week'; paintNote(note || _infoNoteTitle('weekend'), !!note); rollTo(heroSecs);
         barsEl.querySelectorAll('.ws-bar').forEach(b => b.classList.remove('hot')); };
       const show = i => {
         const r = rows[i], att = r.attendance, log = dayLog(wk[i].key) || {};
-        const [label, tone] = TYPE[att] || [secs[i] ? 'Full Day' : 'No entry', ''];
+        const [label, tone] = wk[i].extra ? ['Weekend', ''] : TYPE[att] || [secs[i] ? 'Full Day' : 'No entry', ''];
         const typeChip = `<span class="dt-chip"${tone ? ` style="--dt:var(--${tone})"` : ''}>${label}</span>`;
         // Start and end of that day, when it has both.
         const inT = secs[i] ? _loginDisplayFromLog(log) : '', outT = secs[i] ? _checkoutDisplayFromLog(log) : '';
         const times = inT && outT && outT !== '—' ? chipHtml(`${inT} – ${outT}`, '') : '';
         let verdict = '';
-        if (att === 'Leave' || att === 'Holiday') verdict = chipHtml('No hours', '');
+        if (wk[i].extra) verdict = chipHtml('All extra', '');
+        else if (att === 'Leave' || att === 'Holiday') verdict = chipHtml('No hours', '');
         else if (secs[i]) { const tgt = att === 'Half Day' ? daily / 2 : daily, d = secs[i] - tgt;
           verdict = Math.abs(d) <= 300 ? chipHtml('On target', 'ok', true)
             : d < 0 ? chipHtml(`${_wsGap(_minsGap(tgt, secs[i]))} short`, '') : chipHtml(`${_wsGap(_minsGap(secs[i], tgt))} over`, 'warn'); }
         vary.innerHTML = typeChip + times + verdict;
+        if (cap) cap.textContent = `${FULL[wk[i].date.getDay()]}, ${mon(wk[i].date)}`;
         rollTo(secs[i]);
         // That day's note, if it has one; otherwise the weekend note stays.
         const dn = (log.note || '').trim();

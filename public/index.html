@@ -1357,9 +1357,15 @@
     .td-hd-txt { min-width: 0; }
     .td-hd-title { margin: 0; font-size: 18px; font-weight: 600; letter-spacing: -.01em; color: var(--foreground); text-wrap: balance; }
     .td-hd-date { margin: 2px 0 0; font-size: 13px; color: var(--muted-fg); }
-    .td-hd.td-wknd { justify-content: center; text-align: center; }
-    .td-hd.td-wknd .td-hd-txt { flex: 1; }
+    /* Weekend (B, 2026-11-22): greeting left, an armchair tile where the day-type menu sits on weekdays. */
     .td-hd.td-wknd .dt-wrap { display: none; }
+    .td-wk-ill { display: none; width: 48px; height: 48px; flex: none; border-radius: 14px; background: var(--muted); color: var(--foreground); place-items: center; }
+    .td-wk-ill svg { width: 24px; height: 24px; }
+    .td-hd.td-wknd .td-wk-ill { display: grid; }
+    .ws-cap { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+    .ws-sumrow { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 10px; }
+    .ws-sumrow .ws-total { margin-top: 0; }
+    .ws-sumrow .ws-vary { margin-top: 0; }
     .dt-wrap { position: relative; flex: none; }
     .dt-btn.rc-info-btn { height: 32px; gap: 6px; padding: 0 10px; border: 1px solid var(--border); border-radius: 9px; background: transparent;
       font: 600 13px var(--font); color: var(--foreground); }
@@ -4297,7 +4303,7 @@
     .wf-head { position: relative; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
     .wf-title { margin: 0; font-size: 18px; font-weight: 600; letter-spacing: -.01em; color: var(--foreground); }
     .wf-acts { display: flex; align-items: center; gap: 6px; }
-    .wf-trigger { display: inline-flex; align-items: center; gap: 8px; height: 34px; padding: 0 10px; margin-right: -6px; border: 0; border-radius: 10px; background: transparent;
+    .wf-trigger { display: inline-flex; align-items: center; gap: 8px; height: 34px; padding: 0 10px; margin-right: 0; border: 0; border-radius: 10px; background: transparent;
       color: var(--foreground); font: 500 13px var(--font); cursor: pointer; transition: background .14s; }   /* same type as the Today button */
     .wf-trigger:hover, .wf-trigger[aria-expanded="true"] { background: var(--muted); }
     .wf-trigger > svg:first-child { width: 16px; height: 16px; color: var(--muted-fg); }
@@ -4326,7 +4332,7 @@
     .osb:hover, .osb.drag { background: color-mix(in srgb, var(--foreground) 6%, transparent); border-radius: 5px; }
     .osb:hover .osb-thumb, .osb.drag .osb-thumb { width: 6px; right: 2px; }
     /* The calendar popover. */
-    .wf-cal { position: absolute; z-index: 20; top: calc(100% + 6px); left: 8px; width: 288px; padding: 10px; border-radius: 18px; background: var(--surface-raised);
+    .wf-cal { position: absolute; z-index: 20; top: calc(100% + 6px); right: 12px; left: auto; width: 288px; transform-origin: top right; padding: 10px; border-radius: 18px; background: var(--surface-raised);
       box-shadow: inset 0 0 0 1px var(--border), 0 22px 55px rgb(0 0 0 / .26); animation: wfIn .22s var(--ease-sheet); transform-origin: top left; }
     .wf-cal[hidden] { display: none; }
     .wfc-head { display: flex; align-items: center; justify-content: space-between; height: 32px; margin-bottom: 4px; }
@@ -4595,6 +4601,7 @@
             </button>
             <div class="ac-menu dt-menu" id="dtMenu" role="menu" aria-label="Today is a"></div>
           </div>
+          <span class="td-wk-ill" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M19 9V6a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v3"/><path d="M3 16a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-5a2 2 0 0 0-4 0v1.5a.5.5 0 0 1-.5.5h-9a.5.5 0 0 1-.5-.5V11a2 2 0 0 0-4 0z"/><path d="M5 18v2M19 18v2"/></svg></span>
         </div>
         <div class="dt-confirm" id="dtConfirm" role="group" aria-labelledby="dtcTitle" hidden>
           <div class="dtc-h"><span class="dtc-ic" id="dtcIcon" aria-hidden="true"></span><div>

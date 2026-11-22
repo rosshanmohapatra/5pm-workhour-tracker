@@ -1021,7 +1021,7 @@ test('Weekend card: no icons on bars, chart container with target line, one vari
   const r = extract('function _renderWkndSummary(');
   assert.doesNotMatch(r, /wkSvg\(|ws-ic/);                                // no icons on the bars
   assert.match(r, /<div class="ws-chart">[\s\S]*<span class="ws-target"/);  // its own container, the target dashed
-  assert.doesNotMatch(r, /This week, \$\{first\}|ws-cap/);                // no date line
+  assert.doesNotMatch(r, /This week, \$\{first\}/);   // B (2026-11-22): a 'This week' caption that names the hovered day
   assert.match(r, /'Half Day': \['Half Day', 'teal'\], 'Leave': \['On Leave', 'blue'\], 'Holiday': \['Holiday', 'orchid'\]/);
   assert.match(r, /vary\.innerHTML = typeChip \+ times \+ verdict;/);              // type · start–end · verdict
   assert.match(r, /const rest = \(\) => \{ vary\.innerHTML = weekRow;/);
@@ -1049,7 +1049,7 @@ test('Weekend total rolls (NumberFlow) to the hovered day and back', () => {
   const heroText = load('const p2 = n => String(n).padStart(2, "0");\n' + r.match(/const heroText = v => \{[^\n]*\};/)[0], { Math }, 'heroText');
   assert.equal(heroText(0), '0h 00m'); assert.equal(heroText(45 * 60), '0h 45m'); assert.equal(heroText(77520), '21h 32m');   // one shape, so it always rolls
   assert.match(r, /_loadLib\('numberflow'\)/);
-  assert.match(r, /vary\.innerHTML = typeChip \+ times \+ verdict;\n\s*rollTo\(secs\[i\]\);/);  // hover → that day's hours
+  assert.match(r, /vary\.innerHTML = typeChip \+ times \+ verdict;\n[^\n]*\n\s*rollTo\(secs\[i\]\);/);  // hover → that day's hours
   assert.match(r, /rollTo\(heroSecs\);/);                                               // leave → the week again
 });
 
@@ -2078,4 +2078,30 @@ test('Tips: popover tips point at their feature; no Save Recipient tip (#4)', ()
   assert.match(TOUR, /fix your hours or raise a dispute/);
   assert.match(TOUR, /action: \{ label: 'Turn On'/);
   assert.doesNotMatch(TOUR, /id: 'saveRecipient'/);
+});
+
+test('Weekend Today card is layout B: greeting left, armchair tile, no Weekend label (2026-11-22)', () => {
+  const HTML = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
+  const SRC = fs.readFileSync(path.join(__dirname, '..', 'public', 'lib', 'pages', 'index-app.js'), 'utf8');
+  assert.match(HTML, /class="td-wk-ill"/);
+  assert.doesNotMatch(HTML, /\.td-hd\.td-wknd \{ justify-content: center/);
+  assert.match(SRC, /<div class="ws-cap">This week<\/div>/);
+  assert.doesNotMatch(SRC, /<span class="dt-pill">\$\{_WKND_SVG\(WK_ICON\[DAY_TYPES\.weekend\.icon\]\)\}/);
+});
+
+test('Weekend card adds a worked Saturday/Sunday outside the work week as an extra bar (2026-11-22)', () => {
+  const SRC = fs.readFileSync(path.join(__dirname, '..', 'public', 'lib', 'pages', 'index-app.js'), 'utf8');
+  const body = SRC.slice(SRC.indexOf('function _wkndExtraDays('), SRC.indexOf('function _renderWkndSummary('));
+  const logs = { '2026-11-21': { hoursWorked: 3 }, '2026-11-22': { hoursWorked: 0 } };
+  const dateKey = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const fn = new Function('dateKey', 'dayLog', 'FULL_DAYS_EN', body + '; return _wkndExtraDays;')(
+    dateKey, k => logs[k], ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday']);
+  const mon = new Date(2026, 10, 16);
+  const base = [0, 1, 2, 3, 4].map(i => { const d = new Date(mon); d.setDate(16 + i); return { key: dateKey(d), date: d }; });
+  const out = fn(base, '2026-11-22');
+  assert.deepEqual(out.map(d => [d.key, d.extra]), [['2026-11-21', true]]);   // Saturday worked; Sunday empty
+  assert.equal(fn(base, '2026-11-20').length, 0);                              // not yet happened
+  const six = [...base, { key: '2026-11-21', date: new Date(2026, 10, 21) }];
+  assert.equal(fn(six, '2026-11-22').length, 0);                               // 6-day week: Saturday is already a bar
+  assert.match(SRC, /_wkndWeekChip\(total, adjustedWeeklyTarget\(base\)\)/);   // target stays the workdays'
 });

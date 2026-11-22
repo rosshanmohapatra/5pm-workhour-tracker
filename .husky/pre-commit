@@ -1,0 +1,7 @@
+# Before each commit: format + lint the staged files, then scan them for secrets.
+npx lint-staged
+if command -v gitleaks >/dev/null 2>&1; then
+  gitleaks git --staged --redact --no-banner
+else
+  echo "gitleaks is not installed: secret scan skipped (install it: winget install gitleaks)"
+fi

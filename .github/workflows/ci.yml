@@ -1,0 +1,60 @@
+name: CI
+
+# Re-runs every check on GitHub for each push (the local Git hooks can be skipped; this can't).
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+env:
+  HUSKY: 0 # Git hooks aren't needed on the CI machine
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Formatting (Prettier)
+        run: npx prettier --check .
+      - name: Lint (ESLint)
+        run: npx eslint .
+      - name: Unit tests
+        run: npm test
+      - name: No inline scripts (CSP)
+        run: node scripts/check-csp.js
+      - name: Known vulnerable dependencies
+        run: npm audit --audit-level=high
+
+  browser-tests:
+    runs-on: ubuntu-latest
+    needs: checks
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+      - run: npx playwright install --with-deps chromium firefox webkit
+      - name: Browser tests (Playwright)
+        run: npx playwright test
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7

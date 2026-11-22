@@ -23,3 +23,10 @@ Github_5PM_Client_ID.txt
 *-report-*.pdf
 *-report-*.csv
 test-inline.pdf
+
+# Playwright output
+playwright-report/
+test-results/
+
+# Workflow state (local)
+.workflow/

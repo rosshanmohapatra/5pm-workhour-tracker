@@ -5273,6 +5273,265 @@
         --hd-fg: #2c221a;
         --hd-sub: #5d4d3f;
       }
+      /* ── Scene motion, round 2 (user 2026-11-22: every scene needs life) ── */
+      /* Golden Hour: curved gusts flowing across, birds flap as they glide. */
+      #homeCard.sc-gh .wsc .gusts path {
+        fill: none;
+        stroke: var(--gust);
+        stroke-width: 1.4;
+        stroke-linecap: round;
+        stroke-dasharray: 46 360;
+        animation: wsc-gust 7s linear infinite;
+      }
+      @keyframes wsc-gust {
+        0% {
+          stroke-dashoffset: 406;
+          opacity: 0;
+        }
+        15%,
+        75% {
+          opacity: 1;
+        }
+        100% {
+          stroke-dashoffset: 0;
+          opacity: 0;
+        }
+      }
+      #homeCard.sc-gh .wsc .bird svg {
+        display: block;
+        transform-origin: 50% 70%;
+        animation: wsc-flap 0.45s ease-in-out infinite alternate;
+      }
+      #homeCard.sc-gh .wsc .bird.k2 svg {
+        animation-duration: 0.38s;
+        animation-delay: -0.2s;
+      }
+      @keyframes wsc-flap {
+        to {
+          transform: scaleY(0.3);
+        }
+      }
+      .dark #homeCard.sc-gh {
+        --gust: rgba(255, 214, 180, 0.45);
+      }
+      html:not(.dark) #homeCard.sc-gh {
+        --gust: rgba(255, 255, 255, 0.8);
+      }
+      /* Moonlit: searchlights sweeping up from the town, and a plane passing far off. */
+      #homeCard.sc-ml .wsc .beam {
+        position: absolute;
+        top: -20px;
+        width: 42px;
+        height: 160px;
+        margin-left: -21px;
+        background: linear-gradient(to top, var(--beam), transparent 85%);
+        clip-path: polygon(46% 100%, 54% 100%, 100% 0, 0 0);
+        transform-origin: 50% 100%;
+        filter: blur(1.5px);
+        animation: wsc-sweep 9s ease-in-out infinite alternate;
+      }
+      #homeCard.sc-ml .wsc .beam.k2 {
+        animation-duration: 11s;
+        animation-delay: -4s;
+      }
+      #homeCard.sc-ml .wsc .beam.k3 {
+        animation-duration: 7.5s;
+        animation-delay: -2s;
+      }
+      @keyframes wsc-sweep {
+        from {
+          transform: rotate(-28deg);
+        }
+        to {
+          transform: rotate(26deg);
+        }
+      }
+      #homeCard.sc-ml .wsc .plane {
+        position: absolute;
+        top: 34px;
+        left: -10px;
+        width: 2px;
+        height: 2px;
+        border-radius: 50%;
+        background: var(--plane);
+        box-shadow: 0 0 4px 1px var(--plane);
+        animation:
+          wsc-planeX 55s linear infinite,
+          wsc-beacon 1.6s steps(1) infinite;
+      }
+      .dark #homeCard.sc-ml {
+        --beam: rgba(210, 222, 255, 0.36);
+        --plane: #ff8a8a;
+      }
+      html:not(.dark) #homeCard.sc-ml {
+        --beam: rgba(255, 255, 255, 0.38);
+        --plane: #ffd1d1;
+      }
+      /* Slow Morning: a hanging planter swings, leaf shadows stir, dust drifts in the light. */
+      #homeCard.sc-dl .wsc .leaves {
+        animation: wsc-stir 5.5s ease-in-out infinite alternate;
+      }
+      #homeCard.sc-dl .wsc .leaves.k2 {
+        transform-origin: 30% 0;
+        animation-duration: 4.2s;
+        animation-direction: alternate-reverse;
+      }
+      @keyframes wsc-stir {
+        from {
+          transform: rotate(-2deg) translateX(3px);
+        }
+        to {
+          transform: rotate(5deg) translateX(-6px);
+        }
+      }
+      #homeCard.sc-dl .wsc .mote {
+        position: absolute;
+        width: 2px;
+        height: 2px;
+        border-radius: 50%;
+        background: var(--mote);
+        animation: wsc-mote 11s linear infinite;
+      }
+      @keyframes wsc-mote {
+        0% {
+          transform: translate(0, 0);
+          opacity: 0;
+        }
+        20%,
+        80% {
+          opacity: 0.9;
+        }
+        100% {
+          transform: translate(-34px, -46px);
+          opacity: 0;
+        }
+      }
+      #homeCard.sc-dl .wsc .planter {
+        position: absolute;
+        right: 26px;
+        top: 0;
+        width: 64px;
+        height: 104px;
+        transform-origin: 50% 0;
+        animation: wsc-swing 6s ease-in-out infinite alternate;
+      }
+      @keyframes wsc-swing {
+        from {
+          transform: rotate(-2.5deg);
+        }
+        to {
+          transform: rotate(2.5deg);
+        }
+      }
+      .dark #homeCard.sc-dl {
+        --mote: rgba(255, 220, 170, 0.85);
+        --rope: #8a7058;
+        --pot-c: #7a5236;
+        --leaf-c: #4b6b40;
+      }
+      html:not(.dark) #homeCard.sc-dl {
+        --mote: rgba(255, 255, 255, 0.95);
+        --rope: #8f6e4e;
+        --pot-c: #b8673f;
+        --leaf-c: #557e44;
+      }
+      /* City of Stars: rooftop beacons, a crane on a building going up, neon and busy windows. */
+      #homeCard.sc-cw .wsc .spire {
+        fill: var(--bld);
+      }
+      #homeCard.sc-cw .wsc .crane {
+        fill: none;
+        stroke: var(--crane);
+        stroke-width: 1.4;
+        stroke-linecap: round;
+      }
+      #homeCard.sc-cw .wsc .bcn {
+        fill: #ff5a5a;
+        animation: wsc-beacon 1.8s steps(1) infinite;
+      }
+      #homeCard.sc-cw .wsc .bcn.k2 {
+        animation-duration: 2.4s;
+        animation-delay: -0.9s;
+      }
+      #homeCard.sc-cw .wsc .neon {
+        animation: wsc-neon 3.2s ease-in-out infinite;
+      }
+      #homeCard.sc-cw .wsc .neon.k2 {
+        animation-duration: 4.6s;
+        animation-delay: -1.7s;
+      }
+      @keyframes wsc-neon {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        45% {
+          opacity: 0.35;
+        }
+        50% {
+          opacity: 1;
+        }
+        55% {
+          opacity: 0.5;
+        }
+      }
+      .dark #homeCard.sc-cw {
+        --crane: #0b0920;
+      }
+      html:not(.dark) #homeCard.sc-cw {
+        --crane: #1c1640;
+      }
+      /* Park View: the wind moves through the trees, leaves and streaks blow across. */
+      #homeCard.sc-pv .wsc .canopy {
+        animation: wsc-gale 3.8s ease-in-out infinite alternate;
+      }
+      #homeCard.sc-pv .wsc .canopy.k2 {
+        animation-duration: 4.6s;
+        animation-delay: -1.3s;
+      }
+      @keyframes wsc-gale {
+        from {
+          transform: rotate(-2deg) skewX(1.5deg);
+        }
+        to {
+          transform: rotate(3deg) skewX(-2.5deg);
+        }
+      }
+      #homeCard.sc-pv .wsc .wind {
+        stroke: var(--wind);
+        stroke-width: 1.2;
+        stroke-linecap: round;
+        animation: wsc-wind 6s linear infinite;
+      }
+      #homeCard.sc-pv .wsc .leafy {
+        fill: var(--tree2);
+        animation: wsc-leafy 6.5s linear infinite;
+      }
+      @keyframes wsc-leafy {
+        0% {
+          transform: translate(0, 0) rotate(0deg);
+          opacity: 0;
+        }
+        15%,
+        80% {
+          opacity: 1;
+        }
+        100% {
+          transform: translate(150px, 24px) rotate(320deg);
+          opacity: 0;
+        }
+      }
+      .dark #homeCard.sc-pv {
+        --wind: rgba(200, 210, 255, 0.35);
+      }
+      html:not(.dark) #homeCard.sc-pv {
+        --wind: rgba(255, 255, 255, 0.85);
+      }
+      /* Rooftops: only the tall roofs catch the light, at half the old glow. */
+      #homeCard.sc-rv .wsc .rim {
+        opacity: 0.5;
+        filter: drop-shadow(0 0 1.5px var(--rim));
+      }
 
       .ws-cap {
         font-size: 12px;

@@ -6362,7 +6362,10 @@ function _wscPark() {
     _wscWindow(
       'wscPw',
       'wscPs',
-      sky + city + park,
+      sky +
+        city +
+        park +
+        '<line class="wind" x1="186" y1="18" x2="236" y2="18"/><line class="wind" x1="230" y1="34" x2="292" y2="34" style="animation-delay:-2s"/><line class="wind" x1="176" y1="48" x2="214" y2="48" style="animation-delay:-4s"/><ellipse class="leafy" cx="196" cy="88" rx="2.4" ry="1.2"/><ellipse class="leafy" cx="240" cy="78" rx="2.2" ry="1.1" style="animation-delay:-1.6s"/><ellipse class="leafy" cx="300" cy="94" rx="2.4" ry="1.2" style="animation-delay:-3.2s"/><ellipse class="leafy" cx="184" cy="70" rx="2" ry="1" style="animation-delay:-4.8s"/>',
       '<path d="M190 150 l4 -16 h18 l4 16Z" fill="var(--pot)"/><path d="M203 134 C194 120 188 116 184 118 C190 122 196 128 201 135Z M203 134 C208 118 216 112 222 114 C216 120 210 126 205 135Z M203 134 C202 120 204 110 207 106 C208 116 206 126 204 135Z" fill="var(--leaf)"/>'
     ) + '<div class="grain"></div>'
   );
@@ -6377,7 +6380,6 @@ function _wscRooftops() {
     '<g class="roof2"><rect x="300" y="56" width="22" height="20" rx="2"/><rect x="302" y="76" width="2" height="10"/><rect x="318" y="76" width="2" height="10"/><path d="M298 56 L311 48 L324 56Z"/></g>' +
     `<path class="rim" d="${back}"/><path class="rim" d="M298 56 L311 48 L324 56 M322 57 V75"/>` +
     `<path class="roof" d="${front} V152 H168Z"/><rect class="roof" x="252" y="94" width="8" height="16"/>` +
-    `<path class="rim" d="${front}"/><path class="rim" d="M252 108 V94 h8"/>` +
     '<rect class="rwin" x="184" y="132" width="5" height="6"/><rect class="rwin" x="196" y="132" width="5" height="6" opacity=".6"/><rect class="rwin" x="296" y="132" width="5" height="6"/><rect class="rwin" x="352" y="128" width="5" height="6"/><rect class="rwin" x="364" y="128" width="5" height="6" opacity=".7"/>' +
     // The air: chimney smoke drifting downwind and a few streaks of wind.
     '<circle class="puff" cx="256" cy="88" r="5"/><circle class="puff" cx="256" cy="88" r="5" style="animation-delay:-2s"/><circle class="puff" cx="256" cy="88" r="5" style="animation-delay:-4s"/>' +
@@ -6391,9 +6393,17 @@ function _wscRooftops() {
     ) + '<div class="grain"></div>'
   );
 }
+// City of Stars: not every roof is flat. Spires, a setback, antennas with beacons,
+// a crane on a building going up, and two neon signs.
+var _WSC_CITY_TOPS =
+  '<path class="spire" d="M120 70 L137 56 L154 70Z"/><rect class="spire" x="326" y="64" width="22" height="10"/>' +
+  '<path class="crane" d="M137 56 V44 M337 64 V50 M282 56 V42 M214 62 V22 M196 24 H266 M214 22 L232 24 M214 22 L200 24 M256 24 V44"/>' +
+  '<rect x="198" y="25" width="7" height="4" fill="var(--crane)"/><rect x="252" y="44" width="8" height="5" fill="var(--crane)"/>' +
+  '<circle class="bcn" cx="137" cy="44" r="1.6"/><circle class="bcn k2" cx="337" cy="50" r="1.6"/><circle class="bcn" cx="282" cy="42" r="1.4"/><circle class="bcn k2" cx="266" cy="24" r="1.4"/>' +
+  '<rect class="neon" x="161" y="100" width="16" height="2.5" rx="1" fill="#ff5fa2"/><rect class="neon k2" x="284" y="110" width="14" height="2.5" rx="1" fill="#5fd8ff"/>';
 var _WSC_HTML = {
   gh: () =>
-    `<div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div><div class="sun"></div>${_wscHills('--hill1', '--hill2')}<span class="bird">${_WSC_BIRD}</span><span class="bird k2">${_WSC_BIRD}</span><div class="grain"></div>`,
+    `<div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div><div class="sun"></div>${_wscHills('--hill1', '--hill2')}<svg class="full gusts" viewBox="0 0 400 140" preserveAspectRatio="none"><path d="M-20 34 C60 18 120 54 200 36 S330 18 420 40"/><path d="M-20 72 C70 56 140 88 230 68 S350 54 420 74" style="animation-delay:-2.3s"/><path d="M-20 52 C50 42 110 66 190 52 S320 38 420 58" style="animation-delay:-4.6s"/></svg><span class="bird">${_WSC_BIRD}</span><span class="bird k2">${_WSC_BIRD}</span><div class="grain"></div>`,
   ml: () => {
     let s = '';
     [
@@ -6417,7 +6427,7 @@ var _WSC_HTML = {
       ([x, y], i) =>
         (s += `<span class="star" style="left:${x}%;top:${y}px;animation-delay:${(i * 0.37) % 5}s"></span>`)
     );
-    return `${s}<span class="shoot"></span><div class="moon"></div><div class="blob b1"></div><div class="blob b2"></div>${_wscHills('--hill1', '--hill2')}<div class="grain"></div>`;
+    return `${s}<span class="shoot"></span><div class="moon"></div><div class="blob b1"></div><div class="blob b2"></div><span class="beam" style="left:24%"></span><span class="beam k2" style="left:57%"></span><span class="beam k3" style="left:83%"></span><span class="plane"></span>${_wscHills('--hill1', '--hill2')}<div class="grain"></div>`;
   },
   dl: () => {
     let l = '';
@@ -6435,7 +6445,25 @@ var _WSC_HTML = {
     ].forEach(([x, y, r]) => (l += `<i style="left:${x}px;top:${y}px;transform:rotate(${r}deg)"></i>`));
     l +=
       '<b style="left:40px;top:0;width:200px;transform:rotate(28deg)"></b><b style="left:120px;top:0;width:150px;transform:rotate(62deg)"></b>';
-    return `<div class="shaft"></div><div class="pane"></div><div class="pane h"></div><div class="leaves">${l}</div><div class="grain"></div>`;
+    const half = l.indexOf('<i', l.split('<i').slice(0, 6).join('<i').length);
+    let m = '';
+    [
+      [62, 40],
+      [70, 76],
+      [78, 30],
+      [86, 96],
+      [66, 110],
+      [92, 58],
+      [74, 120],
+      [58, 88],
+      [88, 18],
+      [80, 66]
+    ].forEach(
+      ([x, y], i) => (m += `<span class="mote" style="left:${x}%;top:${y}px;animation-delay:${-i * 1.1}s"></span>`)
+    );
+    const planter =
+      '<svg class="planter" viewBox="0 0 64 104" aria-hidden="true"><path d="M32 0 L14 60 M32 0 L50 60 M32 0 V60" stroke="var(--rope)" stroke-width="1.2" fill="none"/><path d="M12 60 h40 l-5 20 h-30z" fill="var(--pot-c)"/><g fill="var(--leaf-c)"><ellipse cx="18" cy="60" rx="9" ry="4" transform="rotate(-20 18 60)"/><ellipse cx="46" cy="59" rx="9" ry="4" transform="rotate(25 46 59)"/><ellipse cx="32" cy="56" rx="8" ry="4"/><ellipse cx="12" cy="74" rx="3" ry="6"/><ellipse cx="10" cy="88" rx="3" ry="5"/><ellipse cx="52" cy="76" rx="3" ry="6"/><ellipse cx="54" cy="92" rx="3" ry="5"/></g><path d="M12 64 C9 76 9 88 10 96 M52 64 C55 78 55 88 54 98" stroke="var(--leaf-c)" stroke-width="1.2" fill="none"/></svg>';
+    return `<div class="shaft"></div><div class="pane"></div><div class="pane h"></div><div class="leaves">${l.slice(0, half)}</div><div class="leaves k2">${l.slice(half)}</div>${m}${planter}<div class="grain"></div>`;
   },
   cw: () => {
     // Two rows of buildings; lit windows on the near row, two of them switching.
@@ -6469,9 +6497,9 @@ var _WSC_HTML = {
         for (let xx = x + 5; xx < x + w - 5; xx += 8) {
           k++;
           const r = (Math.sin(k * 12.9898) * 43758.5453) % 1,
-            blink = k === 23 || k === 71;
+            blink = k === 23 || k === 71 || k % 11 === 0;
           if (Math.abs(r) > 0.72 || blink)
-            wins += `<rect class="win${blink ? ' blink' : ''}" style="--t:${blink ? (k === 23 ? 9 : 13) : 0}s" x="${xx}" y="${yy}" width="3" height="4"/>`;
+            wins += `<rect class="win${blink ? ' blink' : ''}" style="--t:${blink ? 5 + (k % 9) : 0}s" x="${xx}" y="${yy}" width="3" height="4"/>`;
         }
     });
     let st = '';
@@ -6498,7 +6526,7 @@ var _WSC_HTML = {
       ([x, y, big], i) =>
         (st += `<span class="star${big ? ' big' : ''}" style="left:${x}%;top:${y}px;animation-delay:${(-i * 0.61) % 4.5}s"></span>`)
     );
-    return `${st}<div class="haze"></div><svg class="full" viewBox="0 0 400 204" preserveAspectRatio="xMidYMax slice"><g transform="translate(0 24)">${b}${wins}</g></svg><span class="plane"></span><div class="grain"></div>`;
+    return `${st}<div class="haze"></div><svg class="full" viewBox="0 0 400 204" preserveAspectRatio="xMidYMax slice"><g transform="translate(0 24)">${b}${wins}${_WSC_CITY_TOPS}</g></svg><span class="plane"></span><div class="grain"></div>`;
   },
   pv: () => _wscPark(),
   rv: () => _wscRooftops()

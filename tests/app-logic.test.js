@@ -3659,3 +3659,23 @@ test('Weekend scenes: one soft fade ending above "This week"; window views on th
   assert.ok(HTML.includes('.dark #homeCard.sc-rv {') && HTML.includes('--room: #2a1e17;')); // faded orange wall
   assert.match(extract('function _infoNoteTitle('), /What're your plans\?/);
 });
+
+test('Weekend scenes: every scene has motion; Rooftops glow only on the tall roofs', () => {
+  const HTML = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
+  for (const k of [
+    'wsc-gust',
+    'wsc-flap',
+    'wsc-sweep',
+    'wsc-stir',
+    'wsc-mote',
+    'wsc-swing',
+    'wsc-neon',
+    'wsc-gale',
+    'wsc-leafy'
+  ])
+    assert.ok(HTML.includes(`@keyframes ${k} {`), k);
+  assert.match(SRC, /class="beam k2"/); // Moonlit searchlights
+  assert.match(SRC, /class="planter"/); // Slow Morning hanging planter
+  assert.match(SRC, /var _WSC_CITY_TOPS =/); // City of Stars spires, crane, beacons, neon
+  assert.doesNotMatch(SRC, /class="rim" d="\$\{front\}"/); // the low front roofs don't glow
+});

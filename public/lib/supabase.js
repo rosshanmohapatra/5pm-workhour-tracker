@@ -15,7 +15,7 @@
 // Credentials are injected at build time by scripts/generate-config.js into
 // lib/config.js, which sets window.__SB_URL and window.__SB_ANON_KEY before
 // this module runs. No fallback literals — fail loudly if misconfigured.
-const SUPABASE_URL      = (typeof window !== 'undefined' && window.__SB_URL)      || '';
+const SUPABASE_URL = (typeof window !== 'undefined' && window.__SB_URL) || '';
 const SUPABASE_ANON_KEY = (typeof window !== 'undefined' && window.__SB_ANON_KEY) || '';
 if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
   console.error('[supabase.js] Missing __SB_URL or __SB_ANON_KEY — ensure lib/config.js is loaded before this module.');
@@ -38,7 +38,7 @@ export async function getSupabase() {
     await new Promise((resolve, reject) => {
       const s = document.createElement('script');
       s.src = _supabaseScript;
-      s.onload  = resolve;
+      s.onload = resolve;
       s.onerror = () => reject(new Error('Failed to load Supabase SDK'));
       document.head.appendChild(s);
     });
@@ -50,8 +50,8 @@ export async function getSupabase() {
       // verified server-side by Supabase on every request).
       persistSession: true,
       autoRefreshToken: true,
-      detectSessionInUrl: true,
-    },
+      detectSessionInUrl: true
+    }
   });
 
   return _client;
@@ -62,7 +62,9 @@ export async function getSupabase() {
 /** Returns the currently signed-in user, or null. */
 export async function getCurrentUser() {
   const sb = await getSupabase();
-  const { data: { user } } = await sb.auth.getUser();
+  const {
+    data: { user }
+  } = await sb.auth.getUser();
   return user ?? null;
 }
 
@@ -78,7 +80,7 @@ export async function signUpWithEmail(email, password, displayName) {
   return sb.auth.signUp({
     email,
     password,
-    options: { data: { display_name: displayName ?? email.split('@')[0] } },
+    options: { data: { display_name: displayName ?? email.split('@')[0] } }
   });
 }
 
@@ -92,15 +94,11 @@ export async function signOut() {
 
 /** Fetch the profile for the currently authenticated user. */
 export async function getProfile() {
-  const sb   = await getSupabase();
+  const sb = await getSupabase();
   const user = await getCurrentUser();
   if (!user) throw new Error('Not authenticated');
 
-  return sb
-    .from('profiles')
-    .select('id, email, display_name, avatar_url, created_at')
-    .eq('id', user.id)
-    .single();
+  return sb.from('profiles').select('id, email, display_name, avatar_url, created_at').eq('id', user.id).single();
 }
 
 /**
@@ -109,13 +107,13 @@ export async function getProfile() {
  * @param {{ display_name?: string, avatar_url?: string }} updates
  */
 export async function updateProfile(updates) {
-  const sb   = await getSupabase();
+  const sb = await getSupabase();
   const user = await getCurrentUser();
   if (!user) throw new Error('Not authenticated');
 
   const safe = {};
   if (updates.display_name !== undefined) safe.display_name = String(updates.display_name).slice(0, 100);
-  if (updates.avatar_url   !== undefined) safe.avatar_url   = String(updates.avatar_url).slice(0, 500);
+  if (updates.avatar_url !== undefined) safe.avatar_url = String(updates.avatar_url).slice(0, 500);
 
   return sb.from('profiles').update(safe).eq('id', user.id);
 }
@@ -124,7 +122,7 @@ export async function updateProfile(updates) {
 
 /** Fetch settings for the current user. */
 export async function getUserSettings() {
-  const sb   = await getSupabase();
+  const sb = await getSupabase();
   const user = await getCurrentUser();
   if (!user) throw new Error('Not authenticated');
 
@@ -141,16 +139,14 @@ export async function getUserSettings() {
  * are stripped before the request reaches the database.
  */
 export async function upsertUserSettings(settings) {
-  const sb   = await getSupabase();
+  const sb = await getSupabase();
   const user = await getCurrentUser();
   if (!user) throw new Error('Not authenticated');
 
   // Strip server-managed columns (belt-and-suspenders on top of DB grants)
   const { plan, user_id, created_at, id, ...safe } = settings;
 
-  return sb
-    .from('user_settings')
-    .upsert({ user_id: user.id, ...safe }, { onConflict: 'user_id' });
+  return sb.from('user_settings').upsert({ user_id: user.id, ...safe }, { onConflict: 'user_id' });
 }
 
 // ─── Work Log helpers ────────────────────────────────────────────────────────
@@ -161,7 +157,7 @@ export async function upsertUserSettings(settings) {
  * @param {object} data     Fields to write (see work_logs table)
  */
 export async function upsertWorkLog(logDate, data) {
-  const sb   = await getSupabase();
+  const sb = await getSupabase();
   const user = await getCurrentUser();
   if (!user) throw new Error('Not authenticated');
 
@@ -170,15 +166,12 @@ export async function upsertWorkLog(logDate, data) {
 
   return sb
     .from('work_logs')
-    .upsert(
-      { user_id: user.id, log_date: logDate, ...safe },
-      { onConflict: 'user_id,log_date' }
-    );
+    .upsert({ user_id: user.id, log_date: logDate, ...safe }, { onConflict: 'user_id,log_date' });
 }
 
 /** Fetch work logs for the current user within a date range. */
 export async function getWorkLogs(fromDate, toDate) {
-  const sb   = await getSupabase();
+  const sb = await getSupabase();
   const user = await getCurrentUser();
   if (!user) throw new Error('Not authenticated');
 
@@ -193,14 +186,9 @@ export async function getWorkLogs(fromDate, toDate) {
 
 /** Fetch a single work log by date. */
 export async function getWorkLogByDate(logDate) {
-  const sb   = await getSupabase();
+  const sb = await getSupabase();
   const user = await getCurrentUser();
   if (!user) throw new Error('Not authenticated');
 
-  return sb
-    .from('work_logs')
-    .select('*')
-    .eq('user_id', user.id)
-    .eq('log_date', logDate)
-    .maybeSingle();
+  return sb.from('work_logs').select('*').eq('user_id', user.id).eq('log_date', logDate).maybeSingle();
 }

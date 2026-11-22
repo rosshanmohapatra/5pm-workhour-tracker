@@ -7,9 +7,17 @@ const fs = require('fs');
 const path = require('path');
 
 const root = path.join(__dirname, '..', 'public'); // the website lives in public/
-const pages = ['index.html', 'login.html', '404.html', 'about.html', 'privacy.html',
-  'passkey-desktop.html', 'oauth/consent/index.html'];
-const scripts = fs.readdirSync(path.join(root, 'lib/pages'))
+const pages = [
+  'index.html',
+  'login.html',
+  '404.html',
+  'about.html',
+  'privacy.html',
+  'passkey-desktop.html',
+  'oauth/consent/index.html'
+];
+const scripts = fs
+  .readdirSync(path.join(root, 'lib/pages'))
   .filter(f => f.endsWith('.js') && !f.endsWith('-handlers.js'))
   .map(f => 'lib/pages/' + f);
 
@@ -20,7 +28,7 @@ for (const rel of [...pages, ...scripts]) {
   const text = fs.readFileSync(file, 'utf8');
   const checks = [
     [/\son[a-z]+="/g, 'inline on*="" handler'],
-    [/javascript:/g, 'javascript: URL'],
+    [/javascript:/g, 'javascript: URL']
   ];
   if (rel.endsWith('.html')) checks.push([/<script(?![^>]*\bsrc=)[^>]*>/g, 'inline <script> block']);
   for (const [re, what] of checks) {
@@ -32,7 +40,9 @@ for (const rel of [...pages, ...scripts]) {
   }
 }
 if (problems) {
-  console.error(`\n${problems} inline script(s) found. Use data-on-<event>="<key>" with lib/pages/*-handlers.js, or addEventListener.`);
+  console.error(
+    `\n${problems} inline script(s) found. Use data-on-<event>="<key>" with lib/pages/*-handlers.js, or addEventListener.`
+  );
   process.exit(1);
 }
 console.log('No inline script found.');

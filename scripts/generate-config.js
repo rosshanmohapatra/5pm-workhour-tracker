@@ -1,7 +1,7 @@
 // scripts/generate-config.js
 // Runs at Vercel build time — reads env vars and writes public/lib/config.js.
 // This file is safe to commit; public/lib/config.js is not.
-const fs   = require('fs');
+const fs = require('fs');
 const path = require('path');
 
 const url = process.env.SUPABASE_URL;
@@ -14,8 +14,12 @@ if (!url || !key) {
 
 const content =
   '// Auto-generated at build time — DO NOT COMMIT\n' +
-  "window.__SB_URL      = '" + url + "';\n" +
-  "window.__SB_ANON_KEY = '" + key + "';\n";
+  "window.__SB_URL      = '" +
+  url +
+  "';\n" +
+  "window.__SB_ANON_KEY = '" +
+  key +
+  "';\n";
 
 const outPath = path.join(__dirname, '..', 'public', 'lib', 'config.js');
 fs.mkdirSync(path.dirname(outPath), { recursive: true });

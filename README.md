@@ -19,6 +19,7 @@ Most days don't end when the work ends. They end when you finally look at the cl
 ## Features
 
 ### Offline Tracking
+
 - **Live shift tracking** - start once and the clock runs. Pause and resume any time.
 - **Recommended leave time** - a live "Leave at HH:MM", updated every second.
 - **Daily and weekly targets** - for example 9 h a day or 45 h a week; a short day is made up across the rest of the week.
@@ -26,18 +27,21 @@ Most days don't end when the work ends. They end when you finally look at the cl
 - **Edit entries** - fix a start or end time afterwards, with overlap checks.
 
 ### Stay on Plan
+
 - **Plan days** - mark a day as Half Day, Full Day Leave or Holiday.
 - **Plan weeks** - schedule early leaves or late stays ahead of time.
 - **Leave-by targets** - "I need to leave by 4 PM today", and 5pm plans around it.
 - **Penalties** - see which days or weeks fell short and how much is owed.
 
 ### Alerts, Documents, Reports
+
 - **Notifications** - when you hit your target, when overtime starts, and when a deficit builds (while 5pm is open).
 - **Raise Dispute** - draft an email to HR when the office attendance system has a day wrong.
 - **Reports and backups** - export PDF reports; back up and restore your data as a file.
 - **Quick setup** - name, role and routine, and you're done.
 
 ### Account and Devices
+
 - **Sync across devices** - web, Windows app and phone stay in step.
 - **Secure sign-in** - email and password, Google, or a passkey, with two-factor authentication and backup codes.
 - **Manage devices** - see every signed-in device, rename them, and sign out the ones you don't use.
@@ -56,14 +60,14 @@ Most days don't end when the work ends. They end when you finally look at the cl
 
 5pm stores only what it needs to track your hours and keep your devices in sync. Nothing is sold or shared, and there are no ads, analytics or tracking tools.
 
-| Group | What is stored | Why |
-|---|---|---|
-| **Account** | Email address, display name, profile picture link (when you sign in with Google or GitHub) | To sign you in and show who's signed in |
-| **Security** | Sign-in methods (password, Google, GitHub, passkeys) and two-factor settings, held by Supabase Auth; backup codes stored only as one-way hashes | To keep your account safe and let you recover it |
-| **Work hours** | For each day: start and end times, hours worked, paused time, day type (Full Day, Half Day, Leave, Holiday), a leave-by time and your note | The core of 5pm: your hours, targets and leave time |
-| **Settings** | Daily and weekly targets, work days, shift, time zone, auto-stop, notification choices, your role, and which notifications you've dismissed | So 5pm works the same on every device |
-| **Devices** | A friendly device name, the browser and system it runs on (for example "Chrome on Windows"), when it was last opened, and whether you signed it out | To list your signed-in devices and sign out the ones you don't use |
-| **Account deletion feedback** | The reasons and comments you choose to give when deleting your account (optional) | To learn what to improve |
+| Group                         | What is stored                                                                                                                                      | Why                                                                |
+| ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| **Account**                   | Email address, display name, profile picture link (when you sign in with Google or GitHub)                                                          | To sign you in and show who's signed in                            |
+| **Security**                  | Sign-in methods (password, Google, GitHub, passkeys) and two-factor settings, held by Supabase Auth; backup codes stored only as one-way hashes     | To keep your account safe and let you recover it                   |
+| **Work hours**                | For each day: start and end times, hours worked, paused time, day type (Full Day, Half Day, Leave, Holiday), a leave-by time and your note          | The core of 5pm: your hours, targets and leave time                |
+| **Settings**                  | Daily and weekly targets, work days, shift, time zone, auto-stop, notification choices, your role, and which notifications you've dismissed         | So 5pm works the same on every device                              |
+| **Devices**                   | A friendly device name, the browser and system it runs on (for example "Chrome on Windows"), when it was last opened, and whether you signed it out | To list your signed-in devices and sign out the ones you don't use |
+| **Account deletion feedback** | The reasons and comments you choose to give when deleting your account (optional)                                                                   | To learn what to improve                                           |
 
 **Stays on your device only:** a local copy of your data (so 5pm works offline), your theme, and small app preferences. These never leave your device unless they're part of the groups above.
 
@@ -77,15 +81,15 @@ Most days don't end when the work ends. They end when you finally look at the cl
 
 ## Frequently Asked Questions (FAQ)
 
-| Question | Answer |
-|---|---|
-| **Can my employer see my hours?** | No. 5pm isn't connected to your employer or any office system. Your hours belong to your account, and only you can see them. |
-| **Does it watch what I do on my computer?** | No. 5pm only knows the times you start, pause and stop. It doesn't look at your screen, apps or activity, and it uses no analytics or tracking tools. |
-| **Does it work offline?** | Yes. Everything is saved on your device first and syncs when you're back online. |
-| **What if I forget to stop the timer?** | Auto-stop ends the session 2 hours past your daily target (by default). If you were still working, press Resume and carry on. You can also fix any start or end time later with Update Entry. |
-| **My office attendance system has a day wrong. Can 5pm fix it?** | 5pm can't change your office system, but Raise Dispute drafts an email to HR with that day's real times. |
-| **Will I get reminders when 5pm is closed?** | Not yet. Notifications arrive while 5pm is open in a browser tab or running as the Windows app. |
-| **How do I delete my account?** | Settings › Security › Delete Account. Your data is kept for 48 hours in case you change your mind, then removed for good. |
+| Question                                                         | Answer                                                                                                                                                                                        |
+| ---------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Can my employer see my hours?**                                | No. 5pm isn't connected to your employer or any office system. Your hours belong to your account, and only you can see them.                                                                  |
+| **Does it watch what I do on my computer?**                      | No. 5pm only knows the times you start, pause and stop. It doesn't look at your screen, apps or activity, and it uses no analytics or tracking tools.                                         |
+| **Does it work offline?**                                        | Yes. Everything is saved on your device first and syncs when you're back online.                                                                                                              |
+| **What if I forget to stop the timer?**                          | Auto-stop ends the session 2 hours past your daily target (by default). If you were still working, press Resume and carry on. You can also fix any start or end time later with Update Entry. |
+| **My office attendance system has a day wrong. Can 5pm fix it?** | 5pm can't change your office system, but Raise Dispute drafts an email to HR with that day's real times.                                                                                      |
+| **Will I get reminders when 5pm is closed?**                     | Not yet. Notifications arrive while 5pm is open in a browser tab or running as the Windows app.                                                                                               |
+| **How do I delete my account?**                                  | Settings › Security › Delete Account. Your data is kept for 48 hours in case you change your mind, then removed for good.                                                                     |
 
 ---
 
@@ -103,17 +107,17 @@ Copy `.env.example` to `.env.local` and fill it in. The database schema is in `s
 
 ## Built with
 
-| | |
-|---|---|
-| [Supabase](https://supabase.com/) | Sign-in, database, realtime sync |
-| [Vercel](https://vercel.com/) | Hosting for the web app |
-| [Tauri](https://tauri.app/) | The Windows app |
-| [driver.js](https://driverjs.com/) | Product Tour |
-| [jsPDF](https://github.com/parallax/jsPDF) + [AutoTable](https://github.com/simonbengtsson/jsPDF-AutoTable) | PDF reports |
-| [QRCode.js](https://github.com/davidshimjs/qrcodejs) | Two-factor setup QR code |
-| [Floating UI](https://floating-ui.com/) | Menus and tooltips |
-| [NumberFlow](https://number-flow.barvian.me/) | Animated numbers |
-| [@use-gesture](https://use-gesture.netlify.app/) | Swipe gestures |
+|                                                                                                             |                                  |
+| ----------------------------------------------------------------------------------------------------------- | -------------------------------- |
+| [Supabase](https://supabase.com/)                                                                           | Sign-in, database, realtime sync |
+| [Vercel](https://vercel.com/)                                                                               | Hosting for the web app          |
+| [Tauri](https://tauri.app/)                                                                                 | The Windows app                  |
+| [driver.js](https://driverjs.com/)                                                                          | Product Tour                     |
+| [jsPDF](https://github.com/parallax/jsPDF) + [AutoTable](https://github.com/simonbengtsson/jsPDF-AutoTable) | PDF reports                      |
+| [QRCode.js](https://github.com/davidshimjs/qrcodejs)                                                        | Two-factor setup QR code         |
+| [Floating UI](https://floating-ui.com/)                                                                     | Menus and tooltips               |
+| [NumberFlow](https://number-flow.barvian.me/)                                                               | Animated numbers                 |
+| [@use-gesture](https://use-gesture.netlify.app/)                                                            | Swipe gestures                   |
 
 ---
 
@@ -126,4 +130,5 @@ Please report vulnerabilities privately; see [SECURITY.md](.github/SECURITY.md).
 [Apache License 2.0](LICENSE) © Roshan Mahapatra. See [NOTICE](NOTICE).
 
 ## Release Notes
+
 Release notes for every version are on the [Releases page](https://github.com/rosshanmohapatra/5pm-workhour-tracker/releases).

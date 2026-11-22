@@ -1,1 +1,5 @@
-(function(){var s=localStorage.getItem('wh_theme');var p=window.matchMedia('(prefers-color-scheme:dark)').matches;if(s==='dark'||((!s||s==='auto')&&p))document.documentElement.classList.add('dark');})()
+(function () {
+  var s = localStorage.getItem('wh_theme');
+  var p = window.matchMedia('(prefers-color-scheme:dark)').matches;
+  if (s === 'dark' || ((!s || s === 'auto') && p)) document.documentElement.classList.add('dark');
+})();

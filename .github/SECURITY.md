@@ -8,10 +8,10 @@ Windows version from [Releases](https://github.com/rosshanmohapatra/5pm-workhour
 or the [Microsoft Store](https://apps.microsoft.com/detail/9ntmgrg95v3m). The Windows app
 updates itself, so staying on the latest version is the fix for most reports.
 
-| Version | Supported |
-| ------- | --------- |
-| 1.2.x (latest) | Yes |
-| < 1.2   | No  |
+| Version        | Supported |
+| -------------- | --------- |
+| 1.2.x (latest) | Yes       |
+| < 1.2          | No        |
 
 ## Reporting a Vulnerability
 
@@ -37,13 +37,13 @@ denial-of-service or load tests, or use automated scanners that flood the servic
 
 5pm is a web app with a Windows desktop version. What's in scope:
 
-| Part | What it is |
-|---|---|
-| Web app | Static HTML, CSS and JavaScript served by Vercel |
-| Accounts | Supabase Auth: email and password, Google, passkeys, two-factor authentication (authenticator app) with backup codes |
-| Data | Supabase Postgres. Every table has row-level security so an account can only read and write its own rows; two-factor is enforced by the database, not only the sign-in page |
-| Sync | Supabase Realtime, limited to the signed-in account's own rows |
-| Windows app | Tauri app built from the `desktop` branch; updates are signed and verified before install |
+| Part        | What it is                                                                                                                                                                  |
+| ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Web app     | Static HTML, CSS and JavaScript served by Vercel                                                                                                                            |
+| Accounts    | Supabase Auth: email and password, Google, passkeys, two-factor authentication (authenticator app) with backup codes                                                        |
+| Data        | Supabase Postgres. Every table has row-level security so an account can only read and write its own rows; two-factor is enforced by the database, not only the sign-in page |
+| Sync        | Supabase Realtime, limited to the signed-in account's own rows                                                                                                              |
+| Windows app | Tauri app built from the `desktop` branch; updates are signed and verified before install                                                                                   |
 
 Out of scope: vulnerabilities in Supabase, Vercel, GitHub, Microsoft or Google
 themselves (report those to them), and issues that need a device that is already

@@ -4,9 +4,21 @@
 // (window.__H). Loaded first in <head>, it binds elements as the page is parsed
 // and any that scripts add later (innerHTML), with a MutationObserver.
 (function () {
-  var EVENTS = ['blur', 'change', 'click', 'input', 'keydown', 'load',
-                'mouseenter', 'mouseleave', 'mouseout', 'mouseover'];
-  var SELECTOR = EVENTS.map(function (e) { return '[data-on-' + e + ']'; }).join(',');
+  var EVENTS = [
+    'blur',
+    'change',
+    'click',
+    'input',
+    'keydown',
+    'load',
+    'mouseenter',
+    'mouseleave',
+    'mouseout',
+    'mouseover'
+  ];
+  var SELECTOR = EVENTS.map(function (e) {
+    return '[data-on-' + e + ']';
+  }).join(',');
   var bound = new WeakSet();
 
   function bind(el) {
@@ -33,7 +45,11 @@
   }
 
   new MutationObserver(function (records) {
-    records.forEach(function (r) { r.addedNodes.forEach(scan); });
+    records.forEach(function (r) {
+      r.addedNodes.forEach(scan);
+    });
   }).observe(document.documentElement, { childList: true, subtree: true });
-  document.addEventListener('DOMContentLoaded', function () { scan(document.documentElement); });
+  document.addEventListener('DOMContentLoaded', function () {
+    scan(document.documentElement);
+  });
 })();

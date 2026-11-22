@@ -29,7 +29,10 @@ for (const e of list) {
 
 const want = process.argv[2] || list[0].version;
 const entry = list.find(e => e.version === want);
-if (!entry) { console.error('No What\'s New entry for ' + want + '. Add one to public/lib/whats-new.js.'); process.exit(1); }
+if (!entry) {
+  console.error("No What's New entry for " + want + '. Add one to public/lib/whats-new.js.');
+  process.exit(1);
+}
 
 const out = [];
 if (entry.improvements?.length) out.push('**Improvements**', '', ...entry.improvements, '');

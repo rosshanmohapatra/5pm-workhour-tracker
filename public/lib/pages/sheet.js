@@ -21,9 +21,14 @@
   function attach(sheet, opts) {
     if (!sheet || !window.DragGesture) return;
     // scroller can be a function, for a sheet whose scrolling part changes.
-    function getScroller() { return (typeof opts.scroller === 'function' ? opts.scroller() : opts.scroller) || null; }
+    function getScroller() {
+      return (typeof opts.scroller === 'function' ? opts.scroller() : opts.scroller) || null;
+    }
     var scroller = null;
-    var dragging = false, height = 1, pendingY = null, frame = 0;
+    var dragging = false,
+      height = 1,
+      pendingY = null,
+      frame = 0;
 
     function paint() {
       frame = 0;
@@ -31,54 +36,70 @@
     }
 
     function settle() {
-      if (frame) { cancelAnimationFrame(frame); frame = 0; }
+      if (frame) {
+        cancelAnimationFrame(frame);
+        frame = 0;
+      }
       pendingY = null;
       dragging = false;
       sheet.classList.remove('sheet-dragging');
       sheet.style.transform = '';
     }
 
-    new window.DragGesture(sheet, function (s) {
-      var y = s.offset[1];
-      if (s.first) {
-        scroller = getScroller();
-        // A drag that starts in scrolled content is a scroll, not a dismiss.
-        if (!PHONE.matches || !opts.isOpen() || (scroller && scroller.contains(s.event.target) && scroller.scrollTop > 0)) {
-          s.cancel(); return;
+    new window.DragGesture(
+      sheet,
+      function (s) {
+        var y = s.offset[1];
+        if (s.first) {
+          scroller = getScroller();
+          // A drag that starts in scrolled content is a scroll, not a dismiss.
+          if (
+            !PHONE.matches ||
+            !opts.isOpen() ||
+            (scroller && scroller.contains(s.event.target) && scroller.scrollTop > 0)
+          ) {
+            s.cancel();
+            return;
+          }
         }
+        if (s.tap) return;
+        if (!s.last) {
+          // Pushing up on content that can scroll is a scroll: hand it back
+          // before claiming the touch, or the content could never scroll.
+          if (!dragging && s.movement[1] < 0 && scroller && scroller.scrollHeight > scroller.clientHeight) {
+            s.cancel();
+            return;
+          }
+          if (s.event.cancelable) s.event.preventDefault(); // the sheet owns this gesture now
+          if (!dragging) {
+            // once per drag
+            dragging = true;
+            height = sheet.offsetHeight || 1;
+            sheet.classList.add('sheet-dragging'); // CSS turns the transition off
+          }
+          pendingY = y;
+          if (!frame) frame = requestAnimationFrame(paint);
+          return;
+        }
+        // Released: a quarter of the way down, or a downward flick, closes it.
+        var flick = s.velocity[1] > 0.5 && s.direction[1] > 0;
+        var far = dragging && y > height * 0.25;
+        var wasDragging = dragging;
+        settle();
+        if (wasDragging && (flick || far)) opts.close();
+      },
+      {
+        axis: 'y',
+        filterTaps: true,
+        pointer: { touch: true }, // touch events keep coming while the page would scroll
+        from: function () {
+          return [0, 0];
+        },
+        bounds: { top: 0 },
+        rubberband: 0.15, // pulling up resists, like iOS
+        eventOptions: { passive: false }
       }
-      if (s.tap) return;
-      if (!s.last) {
-        // Pushing up on content that can scroll is a scroll: hand it back
-        // before claiming the touch, or the content could never scroll.
-        if (!dragging && s.movement[1] < 0 && scroller && scroller.scrollHeight > scroller.clientHeight) {
-          s.cancel(); return;
-        }
-        if (s.event.cancelable) s.event.preventDefault(); // the sheet owns this gesture now
-        if (!dragging) {                                  // once per drag
-          dragging = true;
-          height = sheet.offsetHeight || 1;
-          sheet.classList.add('sheet-dragging');          // CSS turns the transition off
-        }
-        pendingY = y;
-        if (!frame) frame = requestAnimationFrame(paint);
-        return;
-      }
-      // Released: a quarter of the way down, or a downward flick, closes it.
-      var flick = s.velocity[1] > 0.5 && s.direction[1] > 0;
-      var far = dragging && y > height * 0.25;
-      var wasDragging = dragging;
-      settle();
-      if (wasDragging && (flick || far)) opts.close();
-    }, {
-      axis: 'y',
-      filterTaps: true,
-      pointer: { touch: true },            // touch events keep coming while the page would scroll
-      from: function () { return [0, 0]; },
-      bounds: { top: 0 },
-      rubberband: 0.15,                    // pulling up resists, like iOS
-      eventOptions: { passive: false }
-    });
+    );
   }
 
   window.Sheet = { attach: attach };

@@ -12,14 +12,30 @@ const src = fs.readFileSync(path.join(__dirname, '..', 'public', 'lib', 'pages',
 const a = src.indexOf('const EMAIL_TPL = {');
 const b = src.indexOf('// One line per weekday', a);
 assert.ok(a !== -1 && b !== -1, 'could not locate the email templates');
-const { EMAIL_TPL, _fillTpl, DISPUTE_REASONS } =
-  new Function(src.slice(a, b) + '\n return { EMAIL_TPL, _fillTpl, DISPUTE_REASONS };')();
+const { EMAIL_TPL, _fillTpl, DISPUTE_REASONS } = new Function(
+  src.slice(a, b) + '\n return { EMAIL_TPL, _fillTpl, DISPUTE_REASONS };'
+)();
 
-const full = { hi: 'Hi Asha,', dear: 'Dear Asha,', date: 'Monday, Nov 3', range: 'Nov 3–7',
-  start: '11:05 AM', end: '06:10 PM', worked: '7h 05m', target: '9h 00m', short: '1h 55m',
-  reason: "a doctor's appointment", days: 'Mon 3 Nov: 7h 05m', name: 'Roshan', position: 'Designer',
-  description: 'The timer stopped when I locked my phone.', version: '1.2.27', surface: 'website',
-  platform: 'Chrome on Windows', details: 'Diagnostics\n\nApp: 5pm 1.2.27, Website' };
+const full = {
+  hi: 'Hi Asha,',
+  dear: 'Dear Asha,',
+  date: 'Monday, Nov 3',
+  range: 'Nov 3–7',
+  start: '11:05 AM',
+  end: '06:10 PM',
+  worked: '7h 05m',
+  target: '9h 00m',
+  short: '1h 55m',
+  reason: "a doctor's appointment",
+  days: 'Mon 3 Nov: 7h 05m',
+  name: 'Roshan',
+  position: 'Designer',
+  description: 'The timer stopped when I locked my phone.',
+  version: '1.2.27',
+  surface: 'website',
+  platform: 'Chrome on Windows',
+  details: 'Diagnostics\n\nApp: 5pm 1.2.27, Website'
+};
 
 // Every format fills every token it uses.
 for (const type of ['daily', 'weekly', 'dispute', 'bug']) {
@@ -40,8 +56,13 @@ assert.ok(_fillTpl(EMAIL_TPL.daily.concise.body, full).includes("Reason: a docto
 
 // Disputes: three formats, each with a Reason line; reasons read after "Reason:".
 assert.deepStrictEqual(Object.keys(EMAIL_TPL.dispute).sort(), ['concise', 'detailed', 'formal']);
-for (const r of Object.values(DISPUTE_REASONS)) assert.ok(r && !/[.]$/.test(r), 'reason reads after "Reason:", no full stop: ' + r);
-for (const fmt of ['concise', 'detailed', 'formal']) assert.ok(_fillTpl(EMAIL_TPL.dispute[fmt].body, full).includes('Reason: ' + full.reason), fmt + ' must state the reason');
+for (const r of Object.values(DISPUTE_REASONS))
+  assert.ok(r && !/[.]$/.test(r), 'reason reads after "Reason:", no full stop: ' + r);
+for (const fmt of ['concise', 'detailed', 'formal'])
+  assert.ok(
+    _fillTpl(EMAIL_TPL.dispute[fmt].body, full).includes('Reason: ' + full.reason),
+    fmt + ' must state the reason'
+  );
 // A day with no recorded end drops the End line instead of printing an empty one.
 assert.ok(!/End:/.test(_fillTpl(EMAIL_TPL.dispute.concise.body, { ...full, end: '' })));
 

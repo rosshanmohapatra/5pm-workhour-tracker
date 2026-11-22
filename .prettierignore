@@ -1,0 +1,12 @@
+# Generated, vendored (third-party, byte-exact) or template files Prettier must not touch.
+node_modules/
+package-lock.json
+.workflow/
+supabase/templates/
+public/lib/number-flow.js
+public/lib/supabase.umd.js
+public/lib/driver.js
+public/lib/driver.css
+public/lib/floating-ui.js
+public/lib/use-gesture.js
+.claude/

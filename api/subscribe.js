@@ -28,8 +28,8 @@ async function getVerifiedUser(req) {
   const res = await fetch(`${process.env.SUPABASE_URL}/auth/v1/user`, {
     headers: {
       Authorization: `Bearer ${token}`,
-      apikey: process.env.SUPABASE_ANON_KEY,
-    },
+      apikey: process.env.SUPABASE_ANON_KEY
+    }
   });
 
   if (!res.ok) return null;

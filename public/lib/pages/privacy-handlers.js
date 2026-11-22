@@ -5,5 +5,7 @@
 // below, or attach a listener in code instead.
 window.__H = Object.assign(window.__H || {}, {
   // onload: this.media='all'
-  he403411552: function (event) { this.media='all' },
+  he403411552: function (event) {
+    this.media = 'all';
+  }
 });

@@ -32,28 +32,28 @@ function secretMatches(token, expected) {
 }
 
 webpush.setVapidDetails(
-  process.env.VAPID_SUBJECT,       // e.g. mailto:you@yourapp.com
+  process.env.VAPID_SUBJECT, // e.g. mailto:you@yourapp.com
   process.env.VAPID_PUBLIC_KEY,
-  process.env.VAPID_PRIVATE_KEY,
+  process.env.VAPID_PRIVATE_KEY
 );
 
 const MESSAGES = {
   kickstart: {
     title: 'Almost there 👀',
-    body:  '5 minutes left in your shift. Time to start wrapping up.',
-    tag:   'kickstart',
+    body: '5 minutes left in your shift. Time to start wrapping up.',
+    tag: 'kickstart'
   },
   target: {
     title: 'Time to go! 🎉',
-    body:  "You've hit your daily target. Head out — you've earned it.",
-    tag:   'target',
+    body: "You've hit your daily target. Head out — you've earned it.",
+    tag: 'target'
   },
   overtime: {
     title: 'You should leave now ⏰',
-    body:  "It's been 5 minutes past your target. Close the laptop and go.",
-    tag:   'overtime',
-    requireInteraction: true,
-  },
+    body: "It's been 5 minutes past your target. Close the laptop and go.",
+    tag: 'overtime',
+    requireInteraction: true
+  }
 };
 
 export default async function handler(req, res) {
@@ -81,10 +81,7 @@ export default async function handler(req, res) {
   const subscription = typeof subRaw === 'string' ? JSON.parse(subRaw) : subRaw;
 
   try {
-    await webpush.sendNotification(
-      subscription,
-      JSON.stringify(MESSAGES[type])
-    );
+    await webpush.sendNotification(subscription, JSON.stringify(MESSAGES[type]));
     res.status(200).json({ ok: true, type });
   } catch (err) {
     // 410 Gone = subscription expired / user revoked permission

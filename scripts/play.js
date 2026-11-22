@@ -17,11 +17,19 @@ const PORT = Number(process.env.PORT) || 3000;
 const HOST = '127.0.0.1';
 const IGNORE = /(^|[\\/])(\.|node_modules|src-tauri)/;
 const TYPES = {
-  '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8',
-  '.css': 'text/css; charset=utf-8', '.json': 'application/json', '.svg': 'image/svg+xml',
-  '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.ico': 'image/x-icon',
-  '.webp': 'image/webp', '.woff2': 'font/woff2', '.txt': 'text/plain; charset=utf-8',
-  '.webmanifest': 'application/manifest+json',
+  '.html': 'text/html; charset=utf-8',
+  '.js': 'text/javascript; charset=utf-8',
+  '.css': 'text/css; charset=utf-8',
+  '.json': 'application/json',
+  '.svg': 'image/svg+xml',
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.ico': 'image/x-icon',
+  '.webp': 'image/webp',
+  '.woff2': 'font/woff2',
+  '.txt': 'text/plain; charset=utf-8',
+  '.webmanifest': 'application/manifest+json'
 };
 // External file, not inline, so it follows the same CSP rule as the app.
 const RELOAD_JS = "new EventSource('/__play/events').onmessage = () => location.reload();\n";
@@ -38,17 +46,33 @@ const ROOT_REAL = fs.realpathSync(ROOT);
 // the final path is built, so nothing outside the repo can slip through.
 function resolveFile(urlPath) {
   let p;
-  try { p = decodeURIComponent(urlPath.split('?')[0]); } catch { return null; }
+  try {
+    p = decodeURIComponent(urlPath.split('?')[0]);
+  } catch {
+    return null;
+  }
   if (p.includes('\0')) return null;
   if (p.endsWith('/')) p += 'index.html';
   for (const candidate of [p, p + '.html']) {
     const file = path.resolve(ROOT, '.' + candidate);
     if (!file.startsWith(ROOT + path.sep)) continue;
     let real;
-    try { real = fs.realpathSync(file); } catch { continue; }
+    try {
+      real = fs.realpathSync(file);
+    } catch {
+      continue;
+    }
     if (!real.startsWith(ROOT_REAL + path.sep)) continue;
-    if (path.relative(ROOT_REAL, real).split(path.sep).some(s => s.startsWith('.'))) continue;
-    try { if (fs.statSync(real).isFile()) return real; } catch {}
+    if (
+      path
+        .relative(ROOT_REAL, real)
+        .split(path.sep)
+        .some(s => s.startsWith('.'))
+    )
+      continue;
+    try {
+      if (fs.statSync(real).isFile()) return real;
+    } catch {}
   }
   return null;
 }
@@ -64,9 +88,15 @@ const server = http.createServer((req, res) => {
     clients.add(res);
     return req.on('close', () => clients.delete(res));
   }
-  if (req.method !== 'GET' && req.method !== 'HEAD') { res.writeHead(405); return res.end(); }
+  if (req.method !== 'GET' && req.method !== 'HEAD') {
+    res.writeHead(405);
+    return res.end();
+  }
   const file = resolveFile(req.url);
-  if (!file) { res.writeHead(404, { 'Content-Type': TYPES['.txt'] }); return res.end('Not found'); }
+  if (!file) {
+    res.writeHead(404, { 'Content-Type': TYPES['.txt'] });
+    return res.end('Not found');
+  }
   const ext = path.extname(file).toLowerCase();
   let body = fs.readFileSync(file);
   if (ext === '.html') {
@@ -100,8 +130,16 @@ server.listen(PORT, HOST, () => {
   const winChrome = ['PROGRAMFILES', 'PROGRAMFILES(X86)', 'LOCALAPPDATA']
     .map(v => process.env[v] && path.join(process.env[v], 'Google', 'Chrome', 'Application', 'chrome.exe'))
     .find(p => p && fs.existsSync(p));
-  const cmd = process.platform === 'win32'
-    ? (winChrome ? [winChrome, [url]] : ['cmd', ['/c', 'start', '', url]]) // no Chrome: default browser
-    : process.platform === 'darwin' ? ['open', ['-a', 'Google Chrome', url]] : null;
-  if (cmd) spawn(cmd[0], cmd[1], { stdio: 'ignore', detached: true }).on('error', () => {}).unref();
+  const cmd =
+    process.platform === 'win32'
+      ? winChrome
+        ? [winChrome, [url]]
+        : ['cmd', ['/c', 'start', '', url]] // no Chrome: default browser
+      : process.platform === 'darwin'
+        ? ['open', ['-a', 'Google Chrome', url]]
+        : null;
+  if (cmd)
+    spawn(cmd[0], cmd[1], { stdio: 'ignore', detached: true })
+      .on('error', () => {})
+      .unref();
 });

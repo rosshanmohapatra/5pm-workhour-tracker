@@ -14,5 +14,8 @@
   "dependencies": {
     "@vercel/kv": "^2.0.0",
     "web-push": "^3.6.7"
+  },
+  "devDependencies": {
+    "prettier": "3.9.10"
   }
 }

@@ -1,0 +1,122 @@
+name: Desktop release
+
+# Manual only (user 2026-11-23: GitHub desktop releases only when asked; version
+# tags exist for the Microsoft Store workflow). To build: Actions > Desktop release >
+# Run workflow, and pick the version TAG (e.g. v1.2.37) under "Use workflow from".
+# The release is created as a DRAFT. Nothing reaches users until it is published
+# by hand in the GitHub UI.
+#
+# Both Windows architectures in one release: a 64-bit (x64) and a 32-bit (x86)
+# build. 5pm Setup carries both and installs the one that fits the PC; the
+# in-app updater picks its own from latest.json.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      # Only from a version tag: the release, file names and updater feed take its name.
+      - name: Check that a version tag was picked
+        if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
+        run: |
+          echo "::error::Pick a version tag (e.g. v1.2.37) under 'Use workflow from', not a branch."
+          exit 1
+
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 20
+
+      # x64 is the runner's own target; the 32-bit one is added.
+      - uses: dtolnay/rust-toolchain@39008827e6b4319a349e9a42dfc90579dd25f1ca # stable
+        with:
+          targets: i686-pc-windows-msvc
+
+      - uses: swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
+        with:
+          workspaces: './src-tauri -> target'
+
+      # 64-bit build. The NSIS installer exists for the in-app updater;
+      # 5pm-Standalone is what people download. The arch is in the name because
+      # both builds land in the same release. latest.json follows the names.
+      - name: Build 5pm (64-bit)
+        uses: tauri-apps/tauri-action@84b9d35b5fc46c1e45415bdb6144030364f7ebc5 # v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          # Pinned: src-tauri/installer/installer.nsi is a copy of this CLI's template.
+          # Bump both together (re-copy the stock template and re-apply the "5pm:" edits).
+          tauriScript: npx --yes @tauri-apps/cli@2.12.0
+          tagName: ${{ github.ref_name }}
+          releaseName: '5pm ${{ github.ref_name }}'
+          # Left empty on purpose. The app's "release notes" link opens this
+          # release page, so write the notes in the draft before publishing.
+          releaseDraft: true
+          includeUpdaterJson: true
+          assetNamePattern: 'update-[version]-[arch][ext]'
+
+      # 32-bit build into the same draft. tauri-action adds its platform
+      # (windows-i686) to the latest.json already there.
+      - name: Build 5pm (32-bit)
+        uses: tauri-apps/tauri-action@84b9d35b5fc46c1e45415bdb6144030364f7ebc5 # v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          tauriScript: npx --yes @tauri-apps/cli@2.12.0
+          args: --target i686-pc-windows-msvc
+          tagName: ${{ github.ref_name }}
+          releaseName: '5pm ${{ github.ref_name }}'
+          releaseDraft: true
+          includeUpdaterJson: true
+          assetNamePattern: 'update-[version]-[arch][ext]'
+
+      # 5pm Setup: the branded installer people download. It carries both NSIS
+      # installers built above and runs the right one silently. Built as 32-bit
+      # so it opens on every Windows PC.
+      - name: Build 5pm Setup
+        shell: bash
+        run: |
+          VER="${GITHUB_REF_NAME#v}"
+          export CARGO_TARGET_DIR="$GITHUB_WORKSPACE/src-tauri/target"
+          X64="$CARGO_TARGET_DIR/release"
+          X86="$CARGO_TARGET_DIR/i686-pc-windows-msvc/release"
+          export FIVEPM_INSTALLER_X64="$X64/bundle/nsis/5pm_${VER}_x64-setup.exe"
+          export FIVEPM_INSTALLER_X86="$X86/bundle/nsis/5pm_${VER}_x86-setup.exe"
+          export FIVEPM_APP_EXE_SIZE_X64="$(stat -c %s "$X64/app.exe")"
+          export FIVEPM_APP_EXE_SIZE_X86="$(stat -c %s "$X86/app.exe")"
+          test -f "$FIVEPM_INSTALLER_X64" && test -f "$FIVEPM_INSTALLER_X86"
+          cd setup/src-tauri
+          npx --yes @tauri-apps/cli@2.12.0 build --no-bundle --target i686-pc-windows-msvc
+          cp "$X86/fivepm-setup.exe" "$GITHUB_WORKSPACE/5pm-Standalone-${VER}.exe"
+
+      - name: Attach 5pm Setup to the draft release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release upload "$GITHUB_REF_NAME" "5pm-Standalone-${GITHUB_REF_NAME#v}.exe" --clobber
+
+      # ARM PCs ask the updater for windows-aarch64, which neither build is.
+      # They get the 32-bit installer, which ARM runs on every Windows version.
+      # Also fails the run if either Windows platform is missing.
+      - name: Give ARM PCs the 32-bit update
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release download "$GITHUB_REF_NAME" --pattern latest.json --clobber
+          jq -e '.platforms["windows-x86_64"].url and .platforms["windows-i686"].url' latest.json
+          jq '.platforms as $p | .platforms += ({
+                "windows-aarch64": $p["windows-i686"], "windows-aarch64-nsis": $p["windows-i686-nsis"]
+              } | with_entries(select(.value != null)))' latest.json > latest.patched.json
+          mv latest.patched.json latest.json
+          gh release upload "$GITHUB_REF_NAME" latest.json --clobber

@@ -592,6 +592,14 @@ test('week rows pick the right day type', () => {
   assert.equal(wkDayModel({ futurePlan: 'late', planEndTime: '7:30 PM' }, fut).label, 'Staying late');
   assert.equal(wkDayModel({ futurePlan: 'early', planEndTime: '4:00 PM' }, fut).line, 'Planned · out at 4:00 PM');
   assert.equal(wkDayModel(undefined, fut).kind, 'future');
+  // Plans show their type and note in Your Activity.
+  assert.equal(wkDayModel({ futurePlan: 'leave', futureReason: 'Trip to Goa' }, fut).line, 'Trip to Goa');
+  assert.equal(wkDayModel({ futurePlan: 'holiday' }, fut).line, 'Enjoy the day off');
+  assert.equal(wkDayModel({ futurePlan: 'halfday', futureReason: 'Doctor' }, fut).label, 'Half day');
+  assert.equal(wkDayModel({ futurePlan: 'halfday', futureReason: 'Doctor' }, fut).line, 'Doctor');
+  const fd = wkDayModel({ futurePlan: null, futureReason: 'Client visit' }, fut);
+  assert.deepEqual([fd.label, fd.line, fd.icon], ['Full Day', 'Client visit', 'fullday']);
+  assert.equal(wkDayModel({ override: 'leave', note: 'Sick' }, past).line, 'Sick');
   // Today: no ± chip while running or paused, only once the day has ended.
   const run = wkDayModel({}, { ...today, live: true, liveSecs: 4 * 3600 });
   assert.equal(run.kind, 'running');
@@ -2300,6 +2308,11 @@ test('Update Entry: live line, recorded card, synced day-type control, pinned fo
   assert.equal(f._deLiveLine('Friday', 'holiday', 3600, 9 * 3600), 'No hours for a day off. Your week adjusts.');
   assert.equal(f._deLiveLine('Monday', 'halfday', 0, 9 * 3600), 'Counts as 4h 30m toward your week.');
   assert.equal(f._deLiveLine('Monday', 'fullday', 0, 9 * 3600), '');
+  // A future day is planned, never timed (no Started / Left at rows).
+  assert.equal(f._deLiveLine('Monday', 'fullday', 0, 9 * 3600, true), "You'll track Monday's times on the day.");
+  assert.equal(f._deLiveLine('Monday', 'halfday', 0, 9 * 3600, true), 'Counts as 4h 30m toward your week.');
+  assert.match(extract('function _deSetType('), /toggle\('hidden', _deFuture \|\| type === 'leave'/);
+  assert.match(extract('function saveDayEditModal('), /key > todayKey\(\) && !activeOverride[\s\S]*?futurePlan: null/);
   assert.equal(f._deRecordedText('10:20 AM', '06:44 PM', 8 * 3600 + 24 * 60), '10:20 AM – 06:44 PM · 8h 24m');
   assert.equal(f._deRecordedText('', '—', 0), 'No times for this day');
   const HTML = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
@@ -3552,4 +3565,86 @@ test('Sentry: pinned SDK, same version as the app, errors only, no personal data
 
 test('Authenticator apps list the account as 5pm, not the site address', () => {
   assert.match(SRC, /mfa\.enroll\(\{ factorType: 'totp', issuer: '5pm' \}\)/);
+});
+
+// ── Weekend scenes (#74) ───────────────────────────────────────────────────
+test('Weekend scenes: one per weekend day, Saturday and Sunday differ, all six come round', () => {
+  const f = load(
+    extract('var _WSC_IDS =') +
+      '\n' +
+      extract('var _WSC_META =') +
+      '\n' +
+      extract('function _weekendScene(') +
+      '\n' +
+      extract('function _wscTitle('),
+    { Date, Math },
+    '({ pick: _weekendScene, title: _wscTitle, ids: _WSC_IDS })'
+  );
+  const seen = new Set();
+  let prev = null;
+  for (let w = 0; w < 6; w++) {
+    const sat = new Date(2026, 10, 21 + w * 7, 12),
+      sun = new Date(2026, 10, 22 + w * 7, 12);
+    const a = f.pick(sat),
+      b = f.pick(sun);
+    assert.notEqual(a, b);
+    if (prev) assert.notEqual(prev, a); // last Sunday vs this Saturday
+    prev = b;
+    seen.add(a).add(b);
+    // Same scene all day: morning and night pick the same one.
+    assert.equal(f.pick(new Date(2026, 10, 22 + w * 7, 0, 5)), b);
+  }
+  assert.equal(seen.size, 6);
+  assert.equal(f.title('dl', 'Roshan Mahapatra'), 'Slow morning, Roshan.');
+  assert.equal(f.title('cw', ''), 'Night in.');
+  assert.equal(f.title('gh', 'Roshan'), 'Happy Weekend!');
+});
+
+test('Weekend scenes: styles are scoped, themed for both modes, and their animations prefixed', () => {
+  const HTML = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
+  for (const id of ['gh', 'ml', 'dl', 'cw', 'pv', 'rv']) {
+    assert.ok(HTML.includes(`.dark #homeCard.sc-${id} {`), id + ' dark');
+    assert.ok(HTML.includes(`html:not(.dark) #homeCard.sc-${id} {`), id + ' light');
+  }
+  // Every animation inside a scene uses a wsc- keyframe, so nothing collides with the app's names.
+  const rules = HTML.match(/#homeCard\.sc-\w+ \.wsc[^{]*\{[^}]*\}/g) || [];
+  assert.ok(rules.length > 20);
+  for (const r of rules) for (const m of r.matchAll(/animation:\s*([\w-]+)/g)) assert.match(m[1], /^wsc-/, r);
+  assert.doesNotMatch(HTML, /\.td-hd\.td-wknd \.td-wk-ill \{\s*display: grid/); // no sofa tile
+});
+
+test('Weekend card: Longest / Average / Shortest only when 2+ days differ by 30+ minutes', () => {
+  const k = load(extract('function _wkndKpis('), { Math }, '_wkndKpis');
+  const H = 3600;
+  assert.equal(k([1.4 * H, 0, 0, 0, 0], [0, 0, 0, 0, 0]), null); // one day
+  assert.equal(k([9 * H, 9.2 * H, 9.1 * H, 8.9 * H, 9 * H], [0, 0, 0, 0, 0]), null); // 18 min apart
+  const r = k([9.6 * H, 8.2 * H, 9.1 * H, 7.8 * H, 0], [0, 0, 0, 0, 0]);
+  assert.deepEqual([r.max.i, r.min.i, r.n], [0, 3, 4]);
+  assert.equal(r.avg, Math.round(((9.6 + 8.2 + 9.1 + 7.8) * H) / 4));
+  // Leave / Holiday / extra weekend days are left out.
+  assert.equal(k([9 * H, 4 * H, 0, 0, 0], [0, 1, 0, 0, 0]), null);
+});
+
+// ── Running on another device (#73) ─────────────────────────────────────────
+test('Running elsewhere: the other device running today, by its latest check-in', () => {
+  const pick = load(extract('function _runnerFrom('), { Object, Date, isNaN }, '_runnerFrom');
+  const map = {
+    me: { n: 'Phone', run: '2026-11-23', s: '2026-11-23T12:00:00Z' },
+    pc: { n: 'Office PC', run: '2026-11-23', s: '2026-11-23T11:50:00Z' },
+    old: { n: 'Laptop', run: '2026-11-22', s: '2026-11-23T11:59:00Z' },
+    gone: { n: 'Tablet', run: '2026-11-23', s: '2026-11-23T11:58:00Z', r: '2026-11-23T08:00:00Z' }
+  };
+  const r = pick(map, 'me', '2026-11-23');
+  assert.equal(r.name, 'Office PC');
+  assert.equal(r.seen, Date.parse('2026-11-23T11:50:00Z'));
+  assert.equal(pick({}, 'me', '2026-11-23'), null);
+  const ago = load(extract('function _elseAgo('), { Math, p2 }, '_elseAgo');
+  assert.equal(ago(60e3), 'just now');
+  assert.equal(ago(15 * 60e3), '15 min ago');
+  assert.equal(ago(130 * 60e3), '2h 10m ago');
+  // End at a time, never before the start; quiet after 15 minutes; a shutdown hook for the Windows app.
+  assert.match(extract('function checkout('), /Math\.max\(\+at, \+loginDate\)/);
+  assert.match(SRC, /_QUIET_MS = 15 \* 60 \* 1000/);
+  assert.match(SRC, /window\.__beforeShutdown = \(\) =>/);
+  assert.match(extract('function _startSession('), /_markRunHere\(\)/);
 });

@@ -156,6 +156,7 @@ let daySelectorWeekOffset = 0; // 0 = current week, -1 = last week, …
 let autoStopped = false; // true after auto-stop fires
 let _dayEditKey = null; // key being edited in day-edit modal
 let _deCanDelete = false; // the day being edited has something saved to delete
+let _deFuture = false; // Update Entry is planning a day that hasn't come yet: no times
 let _isWkndNoteModal = false; // true when day-edit modal is open in weekend-note variant
 let _sessionAccSecs = 0; // accumulated seconds from previous sessions today (for resume)
 let _sessionCheckoutTime = null; // timestamp of last End Session (for resume label)
@@ -924,14 +925,15 @@ function closeCheckoutModal() {
 }
 
 // ── END SHIFT: finalises the day, shows insights modal ──────────────────
-function checkout() {
+function checkout(at) {
   if (!loginDate) return;
   cancelScheduledNotifications(); // cancel pending push notifications
   if (ticker) {
     clearInterval(ticker);
     ticker = null;
   }
-  const now = new Date();
+  // End now, or at a given time (#73: when another device went quiet), never before the start.
+  const now = at instanceof Date && !isNaN(at) ? new Date(Math.max(+at, +loginDate)) : new Date();
   const tk = todayKey(),
     ex = dayLog(tk) || {};
   const sessionSecs = Math.floor((now - loginDate) / 1000);
@@ -4080,6 +4082,21 @@ function _wkndExtraDays(base, tk) {
   }
   return out;
 }
+// Longest day / Average / Shortest day for the weekend card (#74): only days with
+// hours count (not Leave, Holiday, no entry or a worked weekend day), and the row
+// shows only when it says something: 2+ such days, 30+ minutes between longest and shortest.
+function _wkndKpis(secs, skip) {
+  const w = secs.map((s, i) => ({ s, i })).filter(x => x.s > 0 && !skip[x.i]);
+  if (w.length < 2) return null;
+  let max = w[0],
+    min = w[0];
+  for (const x of w) {
+    if (x.s > max.s) max = x;
+    if (x.s < min.s) min = x;
+  }
+  if (max.s - min.s < 1800) return null;
+  return { max, min, avg: Math.round(w.reduce((a, x) => a + x.s, 0) / w.length), n: w.length };
+}
 function _renderWkndSummary(noteKey, ti, when) {
   const box = el('wkndSum');
   if (!box) return;
@@ -4125,6 +4142,22 @@ function _renderWkndSummary(noteKey, ti, when) {
   const chipHtml = (text, tone, check) =>
     `<span class="rc-desc-chip pill${tone ? ' ' + tone : ''} ws-chip">${check ? _WKND_SVG(_WKND_ICON.check) : ''}${text}</span>`;
   const weekRow = weekChip ? chipHtml(weekChip.text, weekChip.tone, weekChip.tone === 'ok') : '';
+  const kpi = _wkndKpis(
+    secs,
+    rows.map((r, i) => r.attendance === 'Leave' || r.attendance === 'Holiday' || !!wk[i].extra)
+  );
+  const kpiHtml = kpi
+    ? `<div class="sx-kpis ws-kpis">${[
+        ['max', 'Longest day', kpi.max.s],
+        ['avg', 'Average', kpi.avg],
+        ['min', 'Shortest day', kpi.min.s]
+      ]
+        .map(
+          ([k, l, v]) =>
+            `<div class="sx-kp" data-k="${k}" tabindex="0"><span>${l}</span><b>${_rcRemainingFmt(v)}</b></div>`
+        )
+        .join('')}</div>`
+    : '';
   box.innerHTML = `<div class="ws-card">
           <div class="ws-cap">This week</div>
           <div class="ws-sumrow"><div class="ws-total"></div><div class="ws-vary" aria-live="polite">${weekRow}</div></div>
@@ -4135,6 +4168,7 @@ function _renderWkndSummary(noteKey, ti, when) {
               <div class="ws-bars" role="group" aria-label="Hours by day">${bars}</div>
             </div>
           </div>
+          ${kpiHtml}
           ${noteHtml}
         </div>`;
   // The variable row: the week's verdict, or, while a bar is hovered, that
@@ -4179,6 +4213,14 @@ function _renderWkndSummary(noteKey, ti, when) {
     paintNote(note || _infoNoteTitle('weekend'), !!note);
     rollTo(heroSecs);
     barsEl.querySelectorAll('.ws-bar').forEach(b => b.classList.remove('hot'));
+    _wsLine(best);
+  };
+  // The dashed line: the longest day by default; a KPI moves it to its own value.
+  const tgtEl = box.querySelector('.ws-target');
+  const _wsLine = v => {
+    if (!tgtEl || !v) return;
+    tgtEl.style.bottom = `${Math.round((v / top) * 100)}%`;
+    tgtEl.querySelector('em').textContent = _rcRemainingFmt(v);
   };
   const show = i => {
     const r = rows[i],
@@ -4232,6 +4274,27 @@ function _renderWkndSummary(noteKey, ti, when) {
   });
   barsEl.addEventListener('mouseleave', () => {
     if (!barsEl.contains(document.activeElement)) rest();
+  });
+  // Longest / Shortest light up their day; Average shows the line at the average.
+  box.querySelectorAll('.ws-kpis .sx-kp').forEach(k => {
+    const on = () => {
+      if (k.dataset.k === 'avg') {
+        rest();
+        if (cap) cap.textContent = `Average of ${kpi.n} days`;
+        rollTo(kpi.avg);
+        _wsLine(kpi.avg);
+      } else {
+        const x = kpi[k.dataset.k];
+        show(x.i);
+        if (cap)
+          cap.textContent = `${k.dataset.k === 'max' ? 'Longest' : 'Shortest'} day · ${FULL[wk[x.i].date.getDay()]}`;
+        _wsLine(x.s);
+      }
+    };
+    k.addEventListener('mouseenter', on);
+    k.addEventListener('focus', on);
+    k.addEventListener('mouseleave', rest);
+    k.addEventListener('blur', rest);
   });
   barsEl.addEventListener('focusout', e => {
     if (!barsEl.contains(e.relatedTarget)) rest();
@@ -5989,6 +6052,7 @@ function _flushLiveLog() {
 }
 
 function render() {
+  _paintElsewhere();
   if (!loginDate) return;
   if (_dropStaleLive()) {
     _refreshFromCloud(true);
@@ -6195,9 +6259,14 @@ function _todayHeadText(d, name) {
 }
 function _paintTodayHead() {
   const t = _todayHeadText(nowTz(), cfg().name);
-  // Weekends: no day-type menu, and the greeting says so, centred.
+  // Weekends: no day-type menu; the day's scene sets the greeting (#74).
   const wk = isWeekendKey(todayKey()) && !loginDate;
-  if (wk) t.title = 'Happy Weekend!';
+  const sc = wk ? _weekendScene(nowTz()) : null;
+  if (sc) {
+    t.title = _wscTitle(sc, cfg().name);
+    t.date += ` · ${_WSC_META[sc].s}`;
+  }
+  _paintWeekendScene(sc);
   document.querySelector('.td-hd')?.classList.toggle('td-wknd', wk);
   if (wk && _tdMenuOpen()) _tdCloseMenu();
   const g = el('tdGreet'),
@@ -6205,6 +6274,323 @@ function _paintTodayHead() {
   if (g && g.textContent !== t.title) g.textContent = t.title;
   if (dt && dt.textContent !== t.date) dt.textContent = t.date;
 }
+// ── WEEKEND SCENES (#74, approved 2026-11-22) ─────────────────────────────
+// On a weekend the top of the Today card becomes a quiet scene that fades into
+// the card (drawn with CSS and inline SVG only, no images). One scene per weekend
+// day, picked from the date, so every device shows the same one all day and
+// nothing is saved or synced. Saturday and Sunday never match.
+var _WSC_IDS = ['gh', 'ml', 'dl', 'cw', 'pv', 'rv'];
+// t: the greeting ({n} = ", Name" or nothing); s: the line after the date.
+var _WSC_META = {
+  gh: { t: 'Happy Weekend!', s: 'Golden hour' },
+  ml: { t: 'Sleep in{n}.', s: 'Nothing to track' },
+  dl: { t: 'Slow morning{n}.', s: 'Nothing to track' },
+  cw: { t: 'Night in{n}.', s: 'The city can wait' },
+  pv: { t: 'Staying in{n}.', s: 'Nice view today' },
+  rv: { t: 'Happy Weekend!', s: 'From the window' }
+};
+function _weekendScene(d) {
+  // Count weekend days from a fixed Saturday: each weekend is two slots.
+  const sat = new Date(d.getFullYear(), d.getMonth(), d.getDate() - ((d.getDay() + 1) % 7));
+  const wk = Math.round((sat - new Date(2026, 0, 3)) / 6048e5);
+  const slot = wk * 2 + (d.getDay() === 0 ? 1 : 0);
+  // 5 is coprime with 6: neighbouring slots never repeat, and all six come round.
+  return _WSC_IDS[(((slot * 5) % 6) + 6) % 6];
+}
+function _wscTitle(id, name) {
+  const first = (name || '').trim().split(/\s+/)[0];
+  return _WSC_META[id].t.replace('{n}', first ? `, ${first}` : '');
+}
+var _WSC_BIRD =
+  '<svg viewBox="0 0 24 10" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M1 6q5-5 11 1q6-6 11-1"/></svg>';
+var _wscHills = (a, b) =>
+  `<svg class="sil" viewBox="0 0 500 70" preserveAspectRatio="none" style="height:70px;bottom:70px"><path d="M0 50 Q80 10 160 38 T320 30 T500 40 V70 H0Z" fill="var(${a})"/><path d="M0 62 Q110 30 220 52 T500 50 V70 H0Z" fill="var(${b})"/></svg>`;
+var _wscWindow = (cid, gid, inside, plant) =>
+  `<svg class="full" viewBox="0 0 400 204" preserveAspectRatio="xMaxYMin slice"><defs><clipPath id="${cid}"><rect x="176" y="6" width="212" height="150" rx="3"/></clipPath><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--sky1)"/><stop offset="1" stop-color="var(--sky2)"/></linearGradient></defs><g clip-path="url(#${cid})"><rect x="176" y="6" width="212" height="150" fill="url(#${gid})"/>${inside}</g><rect class="frame" x="176" y="6" width="212" height="150" rx="3"/><line class="mull" x1="282" y1="6" x2="282" y2="156"/><line class="mull" x1="176" y1="62" x2="388" y2="62"/><rect class="sill" x="166" y="156" width="232" height="10" rx="2"/>${plant}</svg>`;
+var _WSC_HTML = {
+  gh: () =>
+    `<div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div><div class="sun"></div>${_wscHills('--hill1', '--hill2')}<span class="bird">${_WSC_BIRD}</span><span class="bird k2">${_WSC_BIRD}</span><div class="grain"></div>`,
+  ml: () => {
+    let s = '';
+    [
+      [6, 16],
+      [12, 50],
+      [20, 30],
+      [29, 10],
+      [36, 62],
+      [44, 22],
+      [55, 46],
+      [61, 12],
+      [68, 70],
+      [76, 38],
+      [86, 16],
+      [92, 60],
+      [24, 76],
+      [50, 6],
+      [82, 84],
+      [40, 90]
+    ].forEach(
+      ([x, y], i) =>
+        (s += `<span class="star" style="left:${x}%;top:${y}px;animation-delay:${(i * 0.37) % 5}s"></span>`)
+    );
+    return `${s}<span class="shoot"></span><div class="moon"></div><div class="blob b1"></div><div class="blob b2"></div>${_wscHills('--hill1', '--hill2')}<div class="grain"></div>`;
+  },
+  dl: () => {
+    let l = '';
+    [
+      [30, 14, 30],
+      [84, 2, -20],
+      [136, 22, 12],
+      [52, 52, -38],
+      [112, 64, 26],
+      [170, 40, -12],
+      [150, 96, 42],
+      [86, 104, -26],
+      [190, 8, 16],
+      [24, 92, 22]
+    ].forEach(([x, y, r]) => (l += `<i style="left:${x}px;top:${y}px;transform:rotate(${r}deg)"></i>`));
+    l +=
+      '<b style="left:40px;top:0;width:200px;transform:rotate(28deg)"></b><b style="left:120px;top:0;width:150px;transform:rotate(62deg)"></b>';
+    return `<div class="shaft"></div><div class="pane"></div><div class="pane h"></div><div class="leaves">${l}</div><div class="grain"></div>`;
+  },
+  cw: () => {
+    // Two rows of buildings; lit windows on the near row, two of them switching.
+    const near = [
+      [0, 96, 44],
+      [46, 80, 30],
+      [78, 104, 40],
+      [120, 70, 34],
+      [156, 90, 46],
+      [204, 62, 30],
+      [236, 84, 40],
+      [278, 100, 36],
+      [316, 74, 42],
+      [360, 92, 40]
+    ];
+    const far = [
+      [20, 78, 40],
+      [70, 66, 36],
+      [140, 58, 44],
+      [200, 72, 38],
+      [262, 56, 40],
+      [330, 64, 44]
+    ];
+    const b =
+      far.map(([x, y, w]) => `<rect class="city2" x="${x}" y="${y}" width="${w}" height="${140 - y}"/>`).join('') +
+      near.map(([x, y, w]) => `<rect class="city" x="${x}" y="${y}" width="${w}" height="${150 - y}"/>`).join('');
+    let wins = '',
+      k = 0;
+    near.forEach(([x, y, w]) => {
+      for (let yy = y + 8; yy < 146; yy += 10)
+        for (let xx = x + 5; xx < x + w - 5; xx += 8) {
+          k++;
+          const r = (Math.sin(k * 12.9898) * 43758.5453) % 1,
+            blink = k === 23 || k === 71;
+          if (Math.abs(r) > 0.72 || blink)
+            wins += `<rect class="win${blink ? ' blink' : ''}" style="--t:${blink ? (k === 23 ? 9 : 13) : 0}s" x="${xx}" y="${yy}" width="3" height="4"/>`;
+        }
+    });
+    let st = '';
+    [
+      [8, 12, 0],
+      [16, 40, 1],
+      [24, 22, 0],
+      [33, 8, 0],
+      [41, 50, 0],
+      [48, 18, 1],
+      [56, 34, 0],
+      [63, 6, 0],
+      [71, 44, 0],
+      [78, 20, 1],
+      [86, 10, 0],
+      [93, 38, 0],
+      [12, 62, 0],
+      [37, 30, 0],
+      [66, 58, 0],
+      [89, 64, 0],
+      [52, 70, 0],
+      [28, 76, 0]
+    ].forEach(
+      ([x, y, big], i) =>
+        (st += `<span class="star${big ? ' big' : ''}" style="left:${x}%;top:${y}px;animation-delay:${(-i * 0.61) % 4.5}s"></span>`)
+    );
+    return `${st}<div class="haze"></div><svg class="full" viewBox="0 0 400 204" preserveAspectRatio="xMidYMax slice"><g transform="translate(0 44)">${b}${wins}</g></svg><span class="plane"></span><div class="grain"></div>`;
+  },
+  pv: () =>
+    _wscWindow(
+      'wscPw',
+      'wscPs',
+      '<path fill="var(--city)" d="M176 92 h14 v-18 h10 v10 h12 v-26 h14 v20 h10 v-12 h16 v22 h12 v-30 h12 v18 h14 v-8 h16 v16 h12 v-22 h14 v14 h20 v10 h14 V156 H176Z"/><rect x="176" y="106" width="212" height="50" fill="var(--grass)"/><path d="M228 156 C246 132 300 122 388 118 V128 C320 132 266 140 248 156Z" fill="var(--path)"/><g class="canopy"><ellipse cx="204" cy="104" rx="24" ry="20" fill="var(--tree1)"/><ellipse cx="222" cy="96" rx="20" ry="18" fill="var(--tree2)"/></g><g class="canopy k2"><ellipse cx="318" cy="100" rx="28" ry="22" fill="var(--tree1)"/><ellipse cx="340" cy="92" rx="22" ry="18" fill="var(--tree2)"/><ellipse cx="372" cy="104" rx="20" ry="18" fill="var(--tree1)"/></g><circle class="glow" cx="268" cy="118" r="14"/><rect x="267" y="118" width="2" height="24" fill="var(--city)"/><circle class="lamp" cx="268" cy="118" r="2.6"/>',
+      '<path d="M196 156 l4 -16 h18 l4 16Z" fill="var(--pot)"/><path d="M209 140 C200 126 194 122 190 124 C196 128 202 134 207 141Z M209 140 C214 124 222 118 228 120 C222 126 216 132 211 141Z M209 140 C208 126 210 116 213 112 C214 122 212 132 210 141Z" fill="var(--leaf)"/>'
+    ) + '<div class="grain"></div>',
+  rv: () =>
+    _wscWindow(
+      'wscRw',
+      'wscRs',
+      '<path class="roof2" d="M176 104 h30 l10 -8 h26 v-14 h6 v14 h30 l12 -10 h28 v10 h40 v-20 h8 v20 h22 V156 H176Z"/><g class="roof2"><rect x="300" y="60" width="22" height="20" rx="2"/><rect x="302" y="80" width="2" height="10"/><rect x="318" y="80" width="2" height="10"/><path d="M298 60 L311 52 L324 60Z"/></g><path class="roof" d="M176 156 V124 h40 l20 -16 l20 16 h24 v-6 h10 v6 h40 l14 -10 h44 V156Z"/><rect class="roof" x="252" y="96" width="8" height="14"/><rect x="188" y="134" width="5" height="6" fill="var(--lit)"/><rect x="200" y="134" width="5" height="6" fill="var(--lit)" opacity=".6"/><rect x="296" y="134" width="5" height="6" fill="var(--lit)"/><rect x="350" y="130" width="5" height="6" fill="var(--lit)"/><rect x="362" y="130" width="5" height="6" fill="var(--lit)" opacity=".7"/>',
+      '<path d="M352 156 l3 -12 h16 l3 12Z" fill="var(--pot)"/><path d="M363 144 C356 132 350 130 347 132 C352 135 357 139 361 145Z M363 144 C367 130 373 126 378 128 C373 132 368 138 365 145Z" fill="var(--leaf)"/>'
+    ) +
+    '<span class="smoke" style="right:22%;top:84px"></span><span class="smoke" style="right:22%;top:84px;animation-delay:-3.5s"></span><div class="grain"></div>'
+};
+var _wscIO = null;
+// Puts the day's scene in the Today card (or takes it out). Rebuilt only when the scene changes.
+function _paintWeekendScene(id) {
+  const card = el('homeCard');
+  if (!card) return;
+  let box = card.querySelector(':scope > .wsc');
+  for (const c of [...card.classList]) if (c.startsWith('sc-') && c !== 'sc-' + id) card.classList.remove(c);
+  if (!id) {
+    box?.remove();
+    card.classList.remove('has-scene');
+    return;
+  }
+  card.classList.add('has-scene', 'sc-' + id);
+  if (box?.dataset.id === id) return;
+  if (!box) {
+    box = document.createElement('div');
+    box.className = 'wsc';
+    box.setAttribute('aria-hidden', 'true');
+    card.prepend(box);
+  }
+  box.dataset.id = id;
+  box.innerHTML = _WSC_HTML[id]();
+  // Hold still while the card is scrolled away.
+  if (!_wscIO && 'IntersectionObserver' in window) {
+    _wscIO = new IntersectionObserver(es =>
+      es.forEach(e => card.querySelector(':scope > .wsc')?.classList.toggle('still', !e.isIntersecting))
+    );
+    _wscIO.observe(card);
+  }
+}
+// ── RUNNING ON ANOTHER DEVICE (#73, approved 2026-11-22) ─────────────────
+// The device that started today's session checks in every 5 minutes (devices
+// map: run = today, s = now). Another device showing the same session reads
+// that: "On Office PC · checked in 3 min ago", and once the device has been
+// quiet for 15 minutes (shut down, asleep, offline), a card offers to end the
+// day at its last check-in. Nothing ever ends on its own.
+var _RUN_KEY = 'wh_run_here',
+  _BEAT_MS = 5 * 60 * 1000,
+  _QUIET_MS = 15 * 60 * 1000;
+var _beatAt = 0,
+  _beatWas = false,
+  _else = null,
+  _elseAt = 0,
+  _elseKept = '',
+  _elseKey = '';
+function _runHere() {
+  try {
+    return localStorage.getItem(_RUN_KEY) === todayKey();
+  } catch {
+    return false;
+  }
+}
+// Called when a session is started or resumed on this device (not when it's picked up from another one).
+function _markRunHere() {
+  try {
+    localStorage.setItem(_RUN_KEY, todayKey());
+  } catch {
+    /* private mode: this device just won't check in */
+  }
+  _beatAt = 0;
+  _runBeat();
+}
+function _runBeat() {
+  if (DEV_SAMPLE || !navigator.onLine) return;
+  const on = !!loginDate && !autoStopped && _runHere();
+  if (on) {
+    if (Date.now() - _beatAt < _BEAT_MS - 5000) return;
+    _beatAt = Date.now();
+    _beatWas = true;
+    Devices.beat(todayKey()).catch(() => (_beatAt = 0));
+  } else if (_beatWas) {
+    // Paused, ended or auto-stopped: say once that nothing runs here any more.
+    _beatWas = false;
+    _beatAt = 0;
+    Devices.beat(null).catch(() => {});
+  }
+}
+// The other device running today's session, by its latest check-in (pure, tested).
+function _runnerFrom(map, me, tk) {
+  let best = null;
+  for (const [id, d] of Object.entries(map || {})) {
+    if (id === me || !d || d.r || d.run !== tk || !d.s) continue;
+    const t = Date.parse(d.s);
+    if (!isNaN(t) && (!best || t > best.seen)) best = { name: d.n || 'Another device', seen: t };
+  }
+  return best;
+}
+function _elseAgo(ms) {
+  const m = Math.floor(ms / 60000);
+  if (m < 2) return 'just now';
+  if (m < 60) return `${m} min ago`;
+  return `${Math.floor(m / 60)}h ${p2(m % 60)}m ago`;
+}
+async function _elsePoll(force) {
+  if (DEV_SAMPLE || !loginDate || autoStopped || _runHere() || document.hidden) return;
+  if (!force && Date.now() - _elseAt < 2 * 60 * 1000) return;
+  _elseAt = Date.now();
+  try {
+    const { map } = await Devices._read();
+    _else = _runnerFrom(map, _deviceId(), todayKey());
+  } catch {
+    /* keep the last answer */
+  }
+  _paintElsewhere();
+}
+var _RE_PC =
+  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="20" height="14" x="2" y="3" rx="2"/><path d="M8 21h8M12 17v4"/></svg>';
+var _RE_OFF =
+  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2v10"/><path d="M18.4 6.6a9 9 0 1 1-12.77.04"/></svg>';
+// Runs with every render; touches the page only when what it says changes.
+function _paintElsewhere() {
+  const slot = el('reSlot'),
+    box = el('reBox');
+  if (!slot || !box) return;
+  const show = !!loginDate && !autoStopped && !_runHere() && !!_else;
+  const quiet = show && Date.now() - _else.seen >= _QUIET_MS && _elseKept !== String(_else.seen);
+  const key = !show ? '' : quiet ? `q${_else.seen}` : `l${_else.name}|${_elseAgo(Date.now() - _else.seen)}`;
+  if (key === _elseKey) return;
+  _elseKey = key;
+  slot.classList.toggle('open', show);
+  if (!show) return;
+  const at = short(new Date(_else.seen));
+  if (quiet) {
+    box.innerHTML = `<div class="re-card" role="group" aria-labelledby="reT"><div class="re-h"><span class="re-ic">${_RE_OFF}</span><div><p class="re-t" id="reT"></p><p class="re-d">If you left work then, end today at that time.</p></div></div><div class="re-a"><button type="button" class="btn-secondary" data-re="keep">Keep Running</button><button type="button" class="btn btn-primary" data-re="end"></button></div></div>`;
+    box.querySelector('#reT').textContent = `${_else.name} went quiet at ${at}`;
+    box.querySelector('[data-re="end"]').textContent = `End at ${at}`;
+  } else {
+    box.innerHTML = `<p class="re-line">${_RE_PC}<span></span></p>`;
+    box.querySelector('span').textContent = `On ${_else.name} · checked in ${_elseAgo(Date.now() - _else.seen)}`;
+  }
+}
+document.addEventListener('click', e => {
+  const b = e.target.closest('#reBox [data-re]');
+  if (!b || !_else) return;
+  if (b.dataset.re === 'keep') {
+    // Hidden until that device checks in again and then goes quiet again.
+    _elseKept = String(_else.seen);
+  } else {
+    const at = new Date(_else.seen);
+    _else = null;
+    checkout(at); // the normal End, at the last check-in
+  }
+  _elseKey = '';
+  _paintElsewhere();
+});
+setInterval(() => {
+  _runBeat();
+  _elsePoll();
+}, 60 * 1000);
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) _elsePoll(true);
+});
+// Windows app: the shutdown hook calls this so the last check-in and any unsent
+// change go out before Windows closes 5pm (#73 A). Ends nothing.
+window.__beforeShutdown = () => {
+  _beatAt = 0;
+  _runBeat();
+  _flushSync({ silent: true });
+};
 function _setShiftCtaVisible(v) {
   const s = el('todayLoginSection');
   if (!s) return;
@@ -6407,22 +6793,30 @@ let _wkCtx = null;
 // Returns { kind, label, line, hrsSecs, diffSecs, tone, icon, today }.
 function wkDayModel(log, { isToday, isPast, isFuture, live, liveSecs, dailySecs }) {
   const ov = log?.override || (isFuture ? log?.futurePlan : null);
+  // The day's note shows as the row's second line (a plan's note on future days).
+  const note = String((isFuture ? log?.futureReason : log?.note) || '').trim();
   const worked = log?.hoursWorked != null ? Math.round(log.hoursWorked * 3600) : 0;
   if (ov === 'holiday')
     return {
       kind: 'holiday',
       label: 'Holiday',
-      line: log?.futureReason ? `${log.futureReason} · enjoy the day off` : 'Enjoy the day off',
+      line: note || 'Enjoy the day off',
       tone: 'orchid',
       icon: 'holiday'
     };
   if (ov === 'leave')
-    return { kind: 'leave', label: 'On leave', line: 'Out of office · recharge', tone: 'blue', icon: 'leave' };
+    return { kind: 'leave', label: 'On leave', line: note || 'Out of office · recharge', tone: 'blue', icon: 'leave' };
   if (ov === 'halfday')
     return {
       kind: 'halfday',
       label: 'Half day',
-      line: log?.checkoutDisplay ? `Done by ${log.checkoutDisplay}` : 'Half the hours today',
+      line:
+        note ||
+        (log?.checkoutDisplay
+          ? `Done by ${log.checkoutDisplay}`
+          : isFuture
+            ? 'Half the hours'
+            : 'Half the hours today'),
       tone: 'teal',
       icon: 'halfday',
       hrsSecs: worked || null
@@ -6446,6 +6840,8 @@ function wkDayModel(log, { isToday, isPast, isFuture, live, liveSecs, dailySecs 
         icon: 'late',
         future: true
       };
+    // A Full Day planned with a note: name the day and show the note.
+    if (note) return { kind: 'future', future: true, label: 'Full Day', icon: 'fullday', tone: '', line: note };
     return { kind: 'future', future: true };
   }
   if (isToday) {
@@ -7173,6 +7569,7 @@ function _startSession(p) {
   scheduleNotifications(loginDate.toISOString());
   _startCheckpoint(); // periodic sync while session active
   _syncNow(); // immediately push the start event
+  _markRunHere(); // this device now checks in for the session (#73)
 }
 function isOutsideShift(p) {
   const c = cfg();
@@ -10459,7 +10856,6 @@ function openDayEditModal(key, focusNote = false, wkndNote = false) {
   const dayInfo = [...wk, ...allWk].find(d => d.key === (key || todayKey()));
   const log = dayLog(key);
   const d = new Date(key + 'T12:00');
-  const _isFuturePlanModal = new Date(key + 'T12:00') > new Date() && key !== todayKey() && !!log?.futurePlan;
   // Header (#34): the date is the title; the subtitle names what this tab does.
   const _deDate = new Date(_dayEditKey + 'T12:00');
   el('dayEditTitle').textContent = _deDate.toLocaleDateString('en-US', {
@@ -10467,7 +10863,9 @@ function openDayEditModal(key, focusNote = false, wkndNote = false) {
     month: 'short',
     day: 'numeric'
   });
-  el('dayEditDesc').dataset.editDesc = _isFuturePlanModal ? 'Plan this day.' : 'Fix the times or the kind of day.';
+  // A future day is planned, not tracked: pick the kind of day, never times.
+  _deFuture = (key || todayKey()) > todayKey();
+  el('dayEditDesc').dataset.editDesc = _deFuture ? 'Plan the kind of day.' : 'Fix the times or the kind of day.';
   // Raise Dispute only makes sense for a day that has happened.
   const _canDispute = !wkndNote && (key || todayKey()) <= todayKey();
   el('deTabs').hidden = !_canDispute;
@@ -10747,7 +11145,7 @@ function _deSetType(type, instant) {
         pill.style.transition = '';
       });
   }
-  el('deTimeWrap')?.classList.toggle('hidden', type === 'leave' || type === 'holiday');
+  el('deTimeWrap')?.classList.toggle('hidden', _deFuture || type === 'leave' || type === 'holiday');
   if (!_isWkndNoteModal && el('deNoteLabel')) el('deNoteLabel').textContent = _DE_NOTE_LABEL[type] || 'Note';
   _deUpdateLive();
 }
@@ -10755,8 +11153,9 @@ function setDeOverride(type) {
   _deSetType(type);
 }
 // The live line under the times: what this entry adds up to.
-function _deLiveLine(dayName, type, secs, daily) {
+function _deLiveLine(dayName, type, secs, daily, future) {
   if (type === 'leave' || type === 'holiday') return 'No hours for a day off. Your week adjusts.';
+  if (future && type !== 'halfday') return `You'll track ${dayName}'s times on the day.`;
   const hm = v => {
     const m = Math.round(v / 60);
     return `${Math.floor(m / 60)}h ${p2(m % 60)}m`;
@@ -10779,7 +11178,13 @@ function _deUpdateLive() {
   }
   out.textContent = _isWkndNoteModal
     ? ''
-    : _deLiveLine(FULL_DAYS_EN[new Date(key + 'T12:00').getDay()], type, secs, cfg().dailyH * 3600);
+    : _deLiveLine(
+        FULL_DAYS_EN[new Date(key + 'T12:00').getDay()],
+        type,
+        _deFuture ? 0 : secs,
+        cfg().dailyH * 3600,
+        _deFuture
+      );
 }
 // Raise Dispute: what 5pm recorded for the day goes in the email.
 function _deRecordedText(inT, outT, secs) {
@@ -11958,6 +12363,7 @@ function _resumeFromLog(tl) {
     render();
     if (ticker) clearInterval(ticker);
     ticker = setInterval(render, 1000);
+    _elsePoll(true); // which device runs it, and is it still checking in? (#73)
     return true;
   }
   return false;
@@ -12297,10 +12703,31 @@ function saveDayEditModal() {
         : null;
   const _deNoteVal = el('deNote')?.value.trim() || '';
 
+  // A future day is only planned: no times are asked for or checked.
+  // Full Day clears the plan, keeping a note if one was written.
+  if (key > todayKey() && !activeOverride) {
+    // Nothing saved and nothing written: there's no plan to store.
+    if (Object.keys(ex).length || _deNoteVal)
+      saveDayLogAndSync(key, {
+        ...ex,
+        futurePlan: null,
+        futureReason: _deNoteVal || null,
+        lastUpdated: new Date().toISOString()
+      });
+    el('deErr').classList.remove('show');
+    persist();
+    closeDayEditModal();
+    renderHistory();
+    renderPenalties();
+    renderSurplusCircles();
+    if (key === selectedDayKey) selectDay(todayKey());
+    return;
+  }
+
   // Half-day demotion: if the half-day layout is active but the user has entered real
   // login + logout times that exceed half the daily target, treat it as a normal entry
   // (switch back to the default duration/target layout instead of the half-day card).
-  if (activeOverride === 'halfday' && s && e) {
+  if (activeOverride === 'halfday' && s && e && key <= todayKey()) {
     const _eHd = e <= s ? new Date(e.getTime() + 24 * 3600 * 1000) : e;
     if (Math.floor((_eHd - s) / 1000) > (c.dailyH * 3600) / 2) activeOverride = null;
   }
@@ -12311,6 +12738,7 @@ function saveDayEditModal() {
       saveDayLogAndSync(key, {
         ...ex,
         futurePlan: 'halfday',
+        lastUpdated: new Date().toISOString(),
         ...(_deNoteVal ? { futureReason: _deNoteVal } : { futureReason: null })
       });
     } else {
@@ -12327,6 +12755,7 @@ function saveDayEditModal() {
       saveDayLogAndSync(key, {
         ...ex,
         futurePlan: activeOverride,
+        lastUpdated: new Date().toISOString(),
         ...(_deNoteVal ? { futureReason: _deNoteVal } : { futureReason: null })
       });
       setTimeout(() => _payrollCheck('dayoff', key), 0); // Penalty Reminders, rung 1
@@ -12349,6 +12778,7 @@ function saveDayEditModal() {
     } else {
       // No active session — start one from the given time
       loginDate = s;
+      _markRunHere();
       wasDone = false;
       notifSent = false;
       autoStopped = false;
@@ -13622,6 +14052,7 @@ el('dailyTargetCancelBtn').addEventListener('click', () => {
   if (loginDate) return;
   // Paused at the target (Recommend Timings off): resume from now; the gap isn't counted.
   loginDate = new Date();
+  _markRunHere();
   persistSession(); // save the new post-pause loginDate so a reload restores overtime, not the stale pre-pause session
   if (ticker) clearInterval(ticker);
   ticker = setInterval(render, 1000);
@@ -15472,6 +15903,19 @@ const Devices = {
     fn(map);
     await this._write(uid, map);
     return map;
+  },
+
+  // #73: the device running today's session checks in (run = today, s = now);
+  // run is removed when nothing runs here any more.
+  async beat(run) {
+    if (DEV_SAMPLE) return;
+    await this._mutate(map => {
+      const me = map[_deviceId()];
+      if (!me) return;
+      me.s = new Date().toISOString();
+      if (run) me.run = run;
+      else delete me.run;
+    });
   },
 
   // Record this device, and decide whether it has been kicked.

@@ -3568,36 +3568,53 @@ test('Authenticator apps list the account as 5pm, not the site address', () => {
 });
 
 // ── Weekend scenes (#74) ───────────────────────────────────────────────────
-test('Weekend scenes: one per weekend day, Saturday and Sunday differ, all six come round', () => {
+test('Weekend scenes follow the time of day; greetings use the name; last working day allows three', () => {
   const f = load(
     extract('var _WSC_IDS =') +
       '\n' +
-      extract('var _WSC_META =') +
+      extract('var _WSC_WHEN =') +
+      '\n' +
+      extract('var _WSC_COPY =') +
+      '\n' +
+      extract('function _wscBucket(') +
       '\n' +
       extract('function _weekendScene(') +
       '\n' +
-      extract('function _wscTitle('),
+      extract('var _wscPicks =') +
+      '\n' +
+      extract('function _wscCopy('),
     { Date, Math },
-    '({ pick: _weekendScene, title: _wscTitle, ids: _WSC_IDS })'
+    '({ pick: _weekendScene, copy: _wscCopy, bucket: _wscBucket, reset: () => { _wscPicks = {} } })'
   );
+  assert.equal(f.bucket(8), 'morning');
+  assert.equal(f.bucket(15), 'evening');
+  assert.equal(f.bucket(21), 'night');
+  assert.equal(f.bucket(3), 'night');
+  const at = (d, h) => new Date(2026, 10, d, h);
   const seen = new Set();
-  let prev = null;
-  for (let w = 0; w < 6; w++) {
-    const sat = new Date(2026, 10, 21 + w * 7, 12),
-      sun = new Date(2026, 10, 22 + w * 7, 12);
-    const a = f.pick(sat),
-      b = f.pick(sun);
-    assert.notEqual(a, b);
-    if (prev) assert.notEqual(prev, a); // last Sunday vs this Saturday
-    prev = b;
-    seen.add(a).add(b);
-    // Same scene all day: morning and night pick the same one.
-    assert.equal(f.pick(new Date(2026, 10, 22 + w * 7, 0, 5)), b);
+  for (let d = 21; d < 42; d++) {
+    const night = f.pick(at(d, 22), false),
+      morning = f.pick(at(d, 8), false),
+      evening = f.pick(at(d, 16), false);
+    assert.ok(['ml', 'cw'].includes(night), night);
+    assert.ok(['gh', 'dl', 'pv', 'rv'].includes(morning), morning);
+    assert.ok(['gh', 'pv', 'rv'].includes(evening), evening);
+    // Last working day: only Golden Hour, Moonlit and City of Stars.
+    assert.ok(['gh', 'ml', 'cw'].includes(f.pick(at(d, 16), true)));
+    assert.ok(['gh', 'ml', 'cw'].includes(f.pick(at(d, 22), true)));
+    [night, morning, evening].forEach(x => seen.add(x));
+    // Steady through the part of the day.
+    assert.equal(f.pick(at(d, 9), false), f.pick(at(d, 11), false));
   }
   assert.equal(seen.size, 6);
-  assert.equal(f.title('dl', 'Roshan Mahapatra'), 'Slow morning, Roshan.');
-  assert.equal(f.title('cw', ''), 'Night in.');
-  assert.equal(f.title('gh', 'Roshan'), 'Happy Weekend!');
+  // Greetings: the picked copy, with the first name or without it.
+  f.reset();
+  const c = f.copy('dl', 'Roshan Mahapatra', () => 0);
+  assert.deepEqual([c.t, c.s], ['Slow Morning, Roshan.', 'No rush! Begin your day slowly.']);
+  f.reset();
+  assert.equal(f.copy('pv', '', () => 0).t, 'Staying In!');
+  f.reset();
+  assert.equal(f.copy('rv', 'Roshan', () => 0.5).t, 'Hello, Roshan.');
 });
 
 test('Weekend scenes: styles are scoped, themed for both modes, and their animations prefixed', () => {
@@ -3663,19 +3680,32 @@ test('Weekend scenes: one soft fade ending above "This week"; window views on th
 test('Weekend scenes: every scene has motion; Rooftops glow only on the tall roofs', () => {
   const HTML = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
   for (const k of [
-    'wsc-gust',
+    'wsc-whiff',
     'wsc-flap',
     'wsc-sweep',
     'wsc-stir',
     'wsc-mote',
-    'wsc-swing',
+    'wsc-steam',
     'wsc-neon',
     'wsc-gale',
     'wsc-leafy'
   ])
     assert.ok(HTML.includes(`@keyframes ${k} {`), k);
   assert.match(SRC, /class="beam k2"/); // Moonlit searchlights
-  assert.match(SRC, /class="planter"/); // Slow Morning hanging planter
+  assert.match(SRC, /class="cup"/); // Slow Morning coffee cup
+  assert.doesNotMatch(SRC, /class="planter"/);
+  assert.match(SRC, /function _wscGusts\(/); // short curved gusts at random spots
   assert.match(SRC, /var _WSC_CITY_TOPS =/); // City of Stars spires, crane, beacons, neon
   assert.doesNotMatch(SRC, /class="rim" d="\$\{front\}"/); // the low front roofs don't glow
+});
+
+test('Last working day: the weekend card once the day is done (target met or past the shift)', () => {
+  const src = extract('function _lwdDone(');
+  assert.match(src, /if \(loginDate \|\| !_isLastWorkday\(tk\)\) return false;/);
+  assert.match(src, /hoursWorked \|\| 0\) \* 3600 >= target - 60/);
+  assert.match(extract('function _weekendMode('), /\(isWeekend\(\) && !loginDate\) \|\| _lwdDone\(\)/);
+  assert.match(extract('function _isLastWorkday('), /!isWeekendKey\(key\) && isWeekendKey\(dateKey\(d\)\)/);
+  const HTML = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
+  assert.ok(HTML.includes('#homeCard.wk-arrive .wsc {')); // the arrival transition
+  assert.ok(HTML.includes('id="tdDesc"'));
 });

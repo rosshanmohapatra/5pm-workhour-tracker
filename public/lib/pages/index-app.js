@@ -3433,7 +3433,7 @@ function renderEmptyState() {
   if (selectedDayKey && selectedDayKey !== todayKey()) return;
   _hideSkeleton();
   // Weekend override — show last-week summary card instead of the normal empty state
-  const wknd = isWeekend() && !loginDate;
+  const wknd = _weekendMode();
   // Weekday Holiday / Leave: the day-off card instead of the tracker. Half Day keeps the
   // tracker with its halved target (#61).
   const _todayOv = !loginDate && !wknd ? dayLog(todayKey())?.override || null : null;
@@ -6260,13 +6260,16 @@ function _todayHeadText(d, name) {
 function _paintTodayHead() {
   const t = _todayHeadText(nowTz(), cfg().name);
   // Weekends: no day-type menu; the day's scene sets the greeting (#74).
-  const wk = isWeekendKey(todayKey()) && !loginDate;
-  const sc = wk ? _weekendScene(nowTz()) : null;
-  if (sc) {
-    t.title = _wscTitle(sc, cfg().name);
-    t.date += ` · ${_WSC_META[sc].s}`;
-  }
+  const wk = _weekendMode();
+  const sc = wk ? _weekendScene(nowTz(), !isWeekend()) : null;
+  const copy = sc ? _wscCopy(sc, cfg().name) : null;
+  if (copy) t.title = copy.t;
   _paintWeekendScene(sc);
+  const dsc = el('tdDesc');
+  if (dsc) {
+    dsc.hidden = !copy;
+    if (copy && dsc.textContent !== copy.s) dsc.textContent = copy.s;
+  }
   document.querySelector('.td-hd')?.classList.toggle('td-wknd', wk);
   if (wk && _tdMenuOpen()) _tdCloseMenu();
   const g = el('tdGreet'),
@@ -6275,31 +6278,123 @@ function _paintTodayHead() {
   if (dt && dt.textContent !== t.date) dt.textContent = t.date;
 }
 // ── WEEKEND SCENES (#74, approved 2026-11-22) ─────────────────────────────
-// On a weekend the top of the Today card becomes a quiet scene that fades into
-// the card (drawn with CSS and inline SVG only, no images). One scene per weekend
-// day, picked from the date, so every device shows the same one all day and
-// nothing is saved or synced. Saturday and Sunday never match.
+// On a weekend, and on the last working day once the day is done, the top of the
+// Today card becomes a quiet scene that fades into the card (CSS and inline SVG
+// only). The scene follows the time of day; the greeting is picked at random each
+// time 5pm is opened. Nothing is saved or synced.
 var _WSC_IDS = ['gh', 'ml', 'dl', 'cw', 'pv', 'rv'];
-// t: the greeting ({n} = ", Name" or nothing); s: the line after the date.
-var _WSC_META = {
-  gh: { t: 'Happy Weekend!', s: 'Golden hour' },
-  ml: { t: 'Sleep in{n}.', s: 'Nothing to track' },
-  dl: { t: 'Slow morning{n}.', s: 'Nothing to track' },
-  cw: { t: 'Night in{n}.', s: 'The city can wait' },
-  pv: { t: 'Staying in{n}.', s: 'Nice view today' },
-  rv: { t: 'Happy Weekend!', s: 'From the window' }
+// When each scene can show: lwd = also on the last working day; b = times of day.
+var _WSC_WHEN = {
+  gh: { lwd: true, b: ['morning', 'evening'] },
+  ml: { lwd: true, b: ['night'] },
+  dl: { lwd: false, b: ['morning'] },
+  cw: { lwd: true, b: ['night'] },
+  pv: { lwd: false, b: ['morning', 'evening'] },
+  rv: { lwd: false, b: ['morning', 'evening'] }
 };
-function _weekendScene(d) {
-  // Count weekend days from a fixed Saturday: each weekend is two slots.
-  const sat = new Date(d.getFullYear(), d.getMonth(), d.getDate() - ((d.getDay() + 1) % 7));
-  const wk = Math.round((sat - new Date(2026, 0, 3)) / 6048e5);
-  const slot = wk * 2 + (d.getDay() === 0 ? 1 : 0);
-  // 5 is coprime with 6: neighbouring slots never repeat, and all six come round.
-  return _WSC_IDS[(((slot * 5) % 6) + 6) % 6];
+// The user's words (2026-11-22). {n} = ", Name", or nothing when no name is set.
+var _WSC_COPY = {
+  gh: {
+    t: ['Happy Weekend!', 'Hello, Weekend!', 'Enjoy Your Weekend!'],
+    s: [
+      'Let the day end on a golden note.',
+      'The world can wait, watch a sunset.',
+      'Find a little me time for yourself.'
+    ]
+  },
+  ml: {
+    t: ['Sleep in{n}.', 'Good Night{n}.', 'Take It Easy{n}.'],
+    s: ['Nothing to chase. Nowhere to be.', 'Let tomorrow take care of itself.', 'Tonight, even time can slow down.']
+  },
+  dl: {
+    t: ['Slow Morning{n}.', 'Take Your Time{n}.', 'Rise Easy{n}.'],
+    s: ['No rush! Begin your day slowly.', "It's okay to skip the alarm sometimes.", "Relax! You ain't Peter Parker."]
+  },
+  cw: {
+    t: ['Good Night{n}.', 'Good Evening{n}.', 'Enjoy Your Night{n}.'],
+    s: ['Any plans for a dinner date?', 'The city never sleeps. You can.', 'Boredom gets you ideas. Sleep!']
+  },
+  pv: {
+    t: ['Staying In{n}!', 'Enjoy the View{n}.', 'A Little Time In{n}!'],
+    s: [
+      'Get comfy & do nothing at all.',
+      'Sometimes, staying in is the best plan.',
+      'Let the world rush, you do your thing.'
+    ]
+  },
+  rv: {
+    t: ['Happy Weekend!', 'Hello{n}.', 'Take It All In{n}.'],
+    s: [
+      'Watching skyscrapers? Good plan.',
+      'Somewhere between the sky and the city.',
+      'No plans. Just a little perspective.'
+    ]
+  }
+};
+// Morning 5:00–11:59 · evening 12:00–18:59 · night 19:00–4:59.
+function _wscBucket(h) {
+  return h >= 5 && h < 12 ? 'morning' : h >= 12 && h < 19 ? 'evening' : 'night';
 }
-function _wscTitle(id, name) {
-  const first = (name || '').trim().split(/\s+/)[0];
-  return _WSC_META[id].t.replace('{n}', first ? `, ${first}` : '');
+// The scene for this moment: the ones allowed now (time of day, weekend or last working
+// day), then one of them by the date, so it holds steady through each part of the day.
+function _weekendScene(d, lwd) {
+  const bucket = _wscBucket(d.getHours());
+  const ok = _WSC_IDS.filter(id => _WSC_WHEN[id].b.includes(bucket) && (!lwd || _WSC_WHEN[id].lwd));
+  const day = Math.floor(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / 864e5);
+  return ok[(day * 7 + ['morning', 'evening', 'night'].indexOf(bucket)) % ok.length];
+}
+// A title and a line for a scene, picked at random once per opening of 5pm.
+var _wscPicks = {};
+function _wscCopy(id, name, rnd = Math.random) {
+  if (!_wscPicks[id]) _wscPicks[id] = [Math.floor(rnd() * 3), Math.floor(rnd() * 3)];
+  const first = (name || '').trim().split(/\s+/)[0],
+    [ti, si] = _wscPicks[id];
+  return { t: _WSC_COPY[id].t[ti].replace('{n}', first ? `, ${first}` : ''), s: _WSC_COPY[id].s[si] };
+}
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) _wscPicks = {}; // opened again: a fresh greeting
+});
+// Last working day of the week (Friday, or Saturday on a 6-day week).
+function _isLastWorkday(key) {
+  const d = new Date(key + 'T12:00');
+  d.setDate(d.getDate() + 1);
+  return !isWeekendKey(key) && isWeekendKey(dateKey(d));
+}
+// On the last working day the weekend card takes over once the day is done: the
+// session has ended and either the target was met or it ran past the shift.
+function _lwdDone() {
+  const tk = todayKey();
+  if (loginDate || !_isLastWorkday(tk)) return false;
+  const log = dayLog(tk) || {};
+  if (!(log.checkoutTime || log.checkoutDisplay) || log.override === 'holiday' || log.override === 'leave')
+    return false;
+  const c = cfg(),
+    target = c.dailyH * 3600 * (log.override === 'halfday' ? 0.5 : 1);
+  if ((log.hoursWorked || 0) * 3600 >= target - 60) return true;
+  const end = parse(c.shiftEnd || ''),
+    out = log.checkoutTime ? log.checkoutTime.split(':').map(Number) : null;
+  return !!(end && out && out[0] * 60 + out[1] >= end.getHours() * 60 + end.getMinutes());
+}
+// Weekend card for today: a weekend day with nothing running, or a finished last working day.
+function _weekendMode() {
+  return (isWeekend() && !loginDate) || _lwdDone();
+}
+// Tiny gusts of wind: short curls drawn in and out at random spots and times (user
+// 2026-11-22: not straight lines, not across the whole sky, invisible now and then).
+function _wscGusts(n, x0, y0, w, h) {
+  const SHAPES = [
+    'M0 6 C8 0 16 12 26 6 S42 0 52 5',
+    'M0 4 C10 10 18 0 28 5 C36 9 44 2 50 6',
+    'M0 8 C10 8 16 0 24 2 C32 4 30 12 22 10'
+  ];
+  let g = '';
+  for (let i = 0; i < n; i++) {
+    const x = (x0 + Math.random() * w).toFixed(0),
+      y = (y0 + Math.random() * h).toFixed(0),
+      s = (0.6 + Math.random() * 0.7).toFixed(2);
+    g += `<g transform="translate(${x} ${y}) scale(${s})"><path class="gust" pathLength="100" d="${SHAPES[i % 3]}" style="--d:${(7 + Math.random() * 8).toFixed(1)}s;animation-delay:${(-Math.random() * 14).toFixed(1)}s"/></g>`;
+  }
+  return g;
 }
 var _WSC_BIRD =
   '<svg viewBox="0 0 24 10" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M1 6q5-5 11 1q6-6 11-1"/></svg>';
@@ -6365,7 +6460,8 @@ function _wscPark() {
       sky +
         city +
         park +
-        '<line class="wind" x1="186" y1="18" x2="236" y2="18"/><line class="wind" x1="230" y1="34" x2="292" y2="34" style="animation-delay:-2s"/><line class="wind" x1="176" y1="48" x2="214" y2="48" style="animation-delay:-4s"/><ellipse class="leafy" cx="196" cy="88" rx="2.4" ry="1.2"/><ellipse class="leafy" cx="240" cy="78" rx="2.2" ry="1.1" style="animation-delay:-1.6s"/><ellipse class="leafy" cx="300" cy="94" rx="2.4" ry="1.2" style="animation-delay:-3.2s"/><ellipse class="leafy" cx="184" cy="70" rx="2" ry="1" style="animation-delay:-4.8s"/>',
+        _wscGusts(6, 176, 6, 200, 70) +
+        '<ellipse class="leafy" cx="196" cy="88" rx="2.4" ry="1.2"/><ellipse class="leafy" cx="240" cy="78" rx="2.2" ry="1.1" style="animation-delay:-1.6s"/><ellipse class="leafy" cx="300" cy="94" rx="2.4" ry="1.2" style="animation-delay:-3.2s"/><ellipse class="leafy" cx="184" cy="70" rx="2" ry="1" style="animation-delay:-4.8s"/>',
       '<path d="M190 150 l4 -16 h18 l4 16Z" fill="var(--pot)"/><path d="M203 134 C194 120 188 116 184 118 C190 122 196 128 201 135Z M203 134 C208 118 216 112 222 114 C216 120 210 126 205 135Z M203 134 C202 120 204 110 207 106 C208 116 206 126 204 135Z" fill="var(--leaf)"/>'
     ) + '<div class="grain"></div>'
   );
@@ -6383,7 +6479,7 @@ function _wscRooftops() {
     '<rect class="rwin" x="184" y="132" width="5" height="6"/><rect class="rwin" x="196" y="132" width="5" height="6" opacity=".6"/><rect class="rwin" x="296" y="132" width="5" height="6"/><rect class="rwin" x="352" y="128" width="5" height="6"/><rect class="rwin" x="364" y="128" width="5" height="6" opacity=".7"/>' +
     // The air: chimney smoke drifting downwind and a few streaks of wind.
     '<circle class="puff" cx="256" cy="88" r="5"/><circle class="puff" cx="256" cy="88" r="5" style="animation-delay:-2s"/><circle class="puff" cx="256" cy="88" r="5" style="animation-delay:-4s"/>' +
-    '<line class="wind" x1="200" y1="26" x2="248" y2="26"/><line class="wind" x1="240" y1="40" x2="300" y2="40" style="animation-delay:-2.4s"/><line class="wind" x1="180" y1="70" x2="222" y2="70" style="animation-delay:-4.8s"/>';
+    _wscGusts(6, 176, 6, 200, 60);
   return (
     _wscWindow(
       'wscRw',
@@ -6403,7 +6499,7 @@ var _WSC_CITY_TOPS =
   '<rect class="neon" x="161" y="100" width="16" height="2.5" rx="1" fill="#ff5fa2"/><rect class="neon k2" x="284" y="110" width="14" height="2.5" rx="1" fill="#5fd8ff"/>';
 var _WSC_HTML = {
   gh: () =>
-    `<div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div><div class="sun"></div>${_wscHills('--hill1', '--hill2')}<svg class="full gusts" viewBox="0 0 400 140" preserveAspectRatio="none"><path d="M-20 34 C60 18 120 54 200 36 S330 18 420 40"/><path d="M-20 72 C70 56 140 88 230 68 S350 54 420 74" style="animation-delay:-2.3s"/><path d="M-20 52 C50 42 110 66 190 52 S320 38 420 58" style="animation-delay:-4.6s"/></svg><span class="bird">${_WSC_BIRD}</span><span class="bird k2">${_WSC_BIRD}</span><div class="grain"></div>`,
+    `<div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div><div class="sun"></div>${_wscHills('--hill1', '--hill2')}<svg class="full gusts" viewBox="0 0 400 140" preserveAspectRatio="xMidYMid slice">${_wscGusts(8, 10, 12, 360, 70)}</svg><span class="bird">${_WSC_BIRD}</span><span class="bird k2">${_WSC_BIRD}</span><div class="grain"></div>`,
   ml: () => {
     let s = '';
     [
@@ -6461,9 +6557,10 @@ var _WSC_HTML = {
     ].forEach(
       ([x, y], i) => (m += `<span class="mote" style="left:${x}%;top:${y}px;animation-delay:${-i * 1.1}s"></span>`)
     );
-    const planter =
-      '<svg class="planter" viewBox="0 0 64 104" aria-hidden="true"><path d="M32 0 L14 60 M32 0 L50 60 M32 0 V60" stroke="var(--rope)" stroke-width="1.2" fill="none"/><path d="M12 60 h40 l-5 20 h-30z" fill="var(--pot-c)"/><g fill="var(--leaf-c)"><ellipse cx="18" cy="60" rx="9" ry="4" transform="rotate(-20 18 60)"/><ellipse cx="46" cy="59" rx="9" ry="4" transform="rotate(25 46 59)"/><ellipse cx="32" cy="56" rx="8" ry="4"/><ellipse cx="12" cy="74" rx="3" ry="6"/><ellipse cx="10" cy="88" rx="3" ry="5"/><ellipse cx="52" cy="76" rx="3" ry="6"/><ellipse cx="54" cy="92" rx="3" ry="5"/></g><path d="M12 64 C9 76 9 88 10 96 M52 64 C55 78 55 88 54 98" stroke="var(--leaf-c)" stroke-width="1.2" fill="none"/></svg>';
-    return `<div class="shaft"></div><div class="pane"></div><div class="pane h"></div><div class="leaves">${l.slice(0, half)}</div><div class="leaves k2">${l.slice(half)}</div>${m}${planter}<div class="grain"></div>`;
+    // A dark red cup of coffee in the shade, bottom left, steam curling up (user 2026-11-22).
+    const cup =
+      '<svg class="cup" viewBox="0 0 56 64" aria-hidden="true"><path class="steam" pathLength="100" d="M20 30 C16 24 24 20 20 13 C17 8 21 4 20 1"/><path class="steam k2" pathLength="100" d="M27 30 C31 23 23 19 27 12 C30 7 26 4 27 1"/><path class="steam k3" pathLength="100" d="M34 30 C30 25 37 21 34 15"/><ellipse cx="25" cy="60" rx="20" ry="3" fill="var(--cup-sh)"/><ellipse cx="25" cy="56" rx="17" ry="3.2" fill="var(--cup2)"/><path d="M12 34 h26 v13 a7 7 0 0 1 -7 7 h-12 a7 7 0 0 1 -7 -7z" fill="var(--cup)"/><path d="M38 37 h3 a5 5 0 0 1 0 10 h-3" fill="none" stroke="var(--cup)" stroke-width="3"/><path d="M14 36 v10" stroke="var(--cup-hi)" stroke-width="1.4" stroke-linecap="round"/><ellipse cx="25" cy="34" rx="13" ry="2.2" fill="var(--coffee)"/></svg>';
+    return `<div class="shaft"></div><div class="pane"></div><div class="pane h"></div><div class="leaves">${l.slice(0, half)}</div><div class="leaves k2">${l.slice(half)}</div>${m}${cup}<div class="grain"></div>`;
   },
   cw: () => {
     // Two rows of buildings; lit windows on the near row, two of them switching.
@@ -6531,7 +6628,8 @@ var _WSC_HTML = {
   pv: () => _wscPark(),
   rv: () => _wscRooftops()
 };
-var _wscIO = null;
+var _wscIO = null,
+  _wscSeen = false;
 // Puts the day's scene in the Today card (or takes it out). Rebuilt only when the scene changes.
 function _paintWeekendScene(id) {
   const card = el('homeCard');
@@ -6541,9 +6639,19 @@ function _paintWeekendScene(id) {
   if (!id) {
     box?.remove();
     card.classList.remove('has-scene');
+    _wscSeen = true;
     return;
   }
+  const arriving = !box && _wscSeen;
+  _wscSeen = true;
   card.classList.add('has-scene', 'sc-' + id);
+  if (arriving) {
+    // The weekend just began (the last working day ended, or midnight): a slow, soft arrival.
+    card.classList.remove('wk-arrive');
+    void card.offsetWidth;
+    card.classList.add('wk-arrive');
+    setTimeout(() => card.classList.remove('wk-arrive'), 1600);
+  }
   if (box?.dataset.id === id) return;
   if (!box) {
     box = document.createElement('div');
@@ -6719,7 +6827,7 @@ function selectDay() {
   const _ov = dayLog(key)?.override;
   const _infoType = loginDate
     ? null
-    : isWeekendKey(key)
+    : isWeekendKey(key) || _lwdDone()
       ? 'weekend'
       : _ov === 'holiday'
         ? 'holiday'

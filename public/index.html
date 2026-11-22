@@ -5275,28 +5275,7 @@
       }
       /* ── Scene motion, round 2 (user 2026-11-22: every scene needs life) ── */
       /* Golden Hour: curved gusts flowing across, birds flap as they glide. */
-      #homeCard.sc-gh .wsc .gusts path {
-        fill: none;
-        stroke: var(--gust);
-        stroke-width: 1.4;
-        stroke-linecap: round;
-        stroke-dasharray: 46 360;
-        animation: wsc-gust 7s linear infinite;
-      }
-      @keyframes wsc-gust {
-        0% {
-          stroke-dashoffset: 406;
-          opacity: 0;
-        }
-        15%,
-        75% {
-          opacity: 1;
-        }
-        100% {
-          stroke-dashoffset: 0;
-          opacity: 0;
-        }
-      }
+
       #homeCard.sc-gh .wsc .bird svg {
         display: block;
         transform-origin: 50% 70%;
@@ -5367,7 +5346,7 @@
         --beam: rgba(255, 255, 255, 0.38);
         --plane: #ffd1d1;
       }
-      /* Slow Morning: a hanging planter swings, leaf shadows stir, dust drifts in the light. */
+      /* Slow Morning: leaf shadows stir, dust drifts in the light. */
       #homeCard.sc-dl .wsc .leaves {
         animation: wsc-stir 5.5s ease-in-out infinite alternate;
       }
@@ -5406,23 +5385,7 @@
           opacity: 0;
         }
       }
-      #homeCard.sc-dl .wsc .planter {
-        position: absolute;
-        right: 26px;
-        top: 0;
-        width: 64px;
-        height: 104px;
-        transform-origin: 50% 0;
-        animation: wsc-swing 6s ease-in-out infinite alternate;
-      }
-      @keyframes wsc-swing {
-        from {
-          transform: rotate(-2.5deg);
-        }
-        to {
-          transform: rotate(2.5deg);
-        }
-      }
+
       .dark #homeCard.sc-dl {
         --mote: rgba(255, 220, 170, 0.85);
         --rope: #8a7058;
@@ -5531,6 +5494,138 @@
       #homeCard.sc-rv .wsc .rim {
         opacity: 0.5;
         filter: drop-shadow(0 0 1.5px var(--rim));
+      }
+      /* Weekend greeting line, gusts, coffee cup and the arrival (user 2026-11-22). */
+      .td-hd-desc {
+        margin: 6px 0 0;
+        max-width: 340px;
+        font-size: 13px;
+        line-height: 1.35;
+        color: var(--hd-sub, var(--muted-fg));
+      }
+      #homeCard.has-scene .td-hd-txt {
+        flex: 1;
+      }
+      .td-hd-desc[hidden] {
+        display: none;
+      }
+      #homeCard .wsc .gust {
+        fill: none;
+        stroke: var(--gust, var(--wind));
+        stroke-width: 1.3;
+        stroke-linecap: round;
+        stroke-dasharray: 100;
+        stroke-dashoffset: 100;
+        animation: wsc-whiff var(--d, 9s) ease-in-out infinite;
+      }
+      @keyframes wsc-whiff {
+        0% {
+          stroke-dashoffset: 100;
+          opacity: 0;
+          transform: translateX(0);
+        }
+        6% {
+          opacity: 1;
+        }
+        22% {
+          stroke-dashoffset: 0;
+        }
+        40% {
+          stroke-dashoffset: -100;
+          opacity: 0;
+          transform: translateX(18px);
+        }
+        100% {
+          stroke-dashoffset: -100;
+          opacity: 0;
+          transform: translateX(18px);
+        }
+      }
+      #homeCard.sc-dl .wsc .cup {
+        position: absolute;
+        left: 14px;
+        top: 80px;
+        width: 50px;
+        height: 58px;
+        opacity: var(--cup-o);
+      }
+      #homeCard.sc-dl .wsc .steam {
+        fill: none;
+        stroke: var(--steam);
+        stroke-width: 1.6;
+        stroke-linecap: round;
+        stroke-dasharray: 40 60;
+        animation: wsc-steam 3.6s ease-in-out infinite;
+      }
+      #homeCard.sc-dl .wsc .steam.k2 {
+        animation-delay: -1.2s;
+      }
+      #homeCard.sc-dl .wsc .steam.k3 {
+        animation-delay: -2.4s;
+      }
+      @keyframes wsc-steam {
+        0% {
+          stroke-dashoffset: 40;
+          opacity: 0;
+          transform: translateY(4px);
+        }
+        30% {
+          opacity: 1;
+        }
+        100% {
+          stroke-dashoffset: -60;
+          opacity: 0;
+          transform: translateY(-4px);
+        }
+      }
+      .dark #homeCard.sc-dl {
+        --cup: #4c1a1d;
+        --cup2: #3a1416;
+        --cup-hi: rgba(255, 180, 140, 0.25);
+        --coffee: #120705;
+        --cup-sh: rgba(0, 0, 0, 0.35);
+        --steam: rgba(255, 230, 210, 0.4);
+        --cup-o: 1;
+      }
+      html:not(.dark) #homeCard.sc-dl {
+        --cup: #6e2622;
+        --cup2: #5a1f1c;
+        --cup-hi: rgba(255, 220, 190, 0.45);
+        --coffee: #2a0f0a;
+        --cup-sh: rgba(90, 50, 20, 0.25);
+        --steam: rgba(255, 255, 255, 0.85);
+        --cup-o: 0.7;
+      }
+      #homeCard.wk-arrive .wsc {
+        animation: wk-scene-in 1.2s cubic-bezier(0.16, 1, 0.3, 1);
+      }
+      #homeCard.wk-arrive .td-hd-txt,
+      #homeCard.wk-arrive #wkndSum {
+        animation: wk-rise-in 0.8s cubic-bezier(0.16, 1, 0.3, 1) both;
+      }
+      #homeCard.wk-arrive #wkndSum {
+        animation-delay: 0.25s;
+      }
+      @keyframes wk-scene-in {
+        from {
+          opacity: 0;
+          transform: scale(1.06);
+          filter: blur(10px);
+        }
+      }
+      @keyframes wk-rise-in {
+        from {
+          opacity: 0;
+          transform: translateY(10px);
+          filter: blur(4px);
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        #homeCard.wk-arrive .wsc,
+        #homeCard.wk-arrive .td-hd-txt,
+        #homeCard.wk-arrive #wkndSum {
+          animation: none;
+        }
       }
 
       .ws-cap {
@@ -18230,6 +18325,7 @@
                   <div class="td-hd-txt">
                     <h2 class="td-hd-title" id="tdGreet">Good morning!</h2>
                     <p class="td-hd-date" id="tdDate"></p>
+                    <p class="td-hd-desc" id="tdDesc" hidden></p>
                   </div>
                   <div class="dt-wrap" id="dtWrap">
                     <button

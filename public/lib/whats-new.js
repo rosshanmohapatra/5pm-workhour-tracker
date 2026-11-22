@@ -7,6 +7,40 @@
 // bug fixes as "Fixed <problem>". No em dashes.
 window.WHATS_NEW = [
   {
+    version: '1.2.35',
+    improvements: [
+      {
+        icon: 'palette',
+        title: 'Redesigned',
+        line: 'Today card start, Notifications panel, Backup and Restore, Report a Bug, Weekend card, toasts, tooltips and buttons.'
+      },
+      {
+        icon: 'calendar',
+        title: 'Weekend work counts',
+        line: 'A Saturday or Sunday you worked now shows as an extra bar and counts toward your week.'
+      },
+      {
+        icon: 'home',
+        title: 'Merge a backup',
+        line: 'Importing a backup can now add its days to your log instead of replacing it.'
+      },
+      {
+        icon: 'shield',
+        title: 'Error reports',
+        line: '5pm now reports crashes so they get fixed faster. No personal data is sent.'
+      }
+    ],
+    fixes: [
+      'Fixed sheets closing instantly on phones.',
+      'Fixed Update Login Time reading 10:00 at night as morning.',
+      'Fixed very short sessions being saved as 0h 00m.',
+      "Fixed Update Entry showing seconds you didn't type.",
+      'Fixed Cancel and Save having different sizes in the Salary Cycle picker.',
+      'Fixed Settings search matching text inside tooltips.',
+      'Fixed the Your Activity calendar opening away from its button.'
+    ]
+  },
+  {
     version: '1.2.34',
     improvements: [
       { icon: 'clock', title: 'Today card', line: 'Just today, with a big countdown to when you can leave.' },

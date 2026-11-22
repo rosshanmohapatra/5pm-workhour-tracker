@@ -13,7 +13,7 @@
 (function () {
   if (!window.Sentry) return;
   // Keep in step with APP_VERSION in lib/pages/index-app.js (a test checks it).
-  var VERSION = '1.2.34';
+  var VERSION = '1.2.35';
   var host = location.hostname;
   var environment = window.__TAURI__
     ? 'desktop'

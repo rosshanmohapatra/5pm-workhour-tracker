@@ -6,6 +6,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+## [1.2.35] - 2026-11-22
+
 ### Added
 
 - Already working? opens a start-time field right in the Today card, with a rolling countdown to when you can leave.

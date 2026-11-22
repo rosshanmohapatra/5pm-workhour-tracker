@@ -34,7 +34,8 @@ PLACEHOLDER = re.compile(r"('?)\$\{([^{}]*)\}('?)")
 
 
 def key_for(event, code):
-    return 'h' + hashlib.sha1(f'{event}:{code}'.encode()).hexdigest()[:10]
+    # Not security: SHA-1 only builds short, stable handler names (h + 10 hex). Reviewed 2026-11-22.
+    return 'h' + hashlib.sha1(f'{event}:{code}'.encode()).hexdigest()[:10]  # nosemgrep
 
 
 def convert_handlers(text, table, in_js):

@@ -13827,7 +13827,7 @@ el('whatsNewBtn')?.addEventListener('click', () => openWhatsNew());
   window.Sheet?.attach(ov.querySelector('.email-modal'), {
     close: closeWhatsNew,
     isOpen: () => ov.classList.contains('open'),
-    scroller: ov.querySelector('.email-modal')
+    scroller: ov.querySelector('.wn-body')
   });
   // After launch modals (recovery, week plan) have had their turn.
   setTimeout(_wnMaybeShow, 2500);

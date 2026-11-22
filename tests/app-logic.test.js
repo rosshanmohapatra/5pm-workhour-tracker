@@ -3745,3 +3745,11 @@ test('Last working day: the weekend card once the day is done (target met or pas
   assert.ok(HTML.includes('#homeCard.wk-arrive .wsc {')); // the arrival transition
   assert.ok(HTML.includes('id="tdDesc"'));
 });
+
+test("What's New: Explore 5pm sits in a bottom panel that never scrolls away (2026-11-22)", () => {
+  const HTML = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
+  assert.ok(HTML.includes('id="wnContinue">Explore 5pm</button>'));
+  assert.ok(HTML.includes('<div class="wn-foot">'));
+  assert.ok(HTML.includes('#whatsNewOverlay .wn-body {') && HTML.includes('overflow: hidden !important;'));
+  assert.match(SRC, /scroller: ov\.querySelector\('\.wn-body'\)/);
+});

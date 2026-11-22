@@ -11549,10 +11549,32 @@
         border-radius: 50%;
         background: var(--muted-fg);
       }
+      /* The list scrolls on its own; the button sits in a bottom panel that never
+       scrolls away (user 2026-11-22). */
+      #whatsNewOverlay .wn-modal {
+        display: flex;
+        flex-direction: column;
+        overflow: hidden !important;
+      }
+      #whatsNewOverlay .wn-head {
+        flex: none;
+      }
+      #whatsNewOverlay .wn-body {
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        padding-bottom: 4px;
+      }
+      .wn-foot {
+        flex: none;
+        margin-top: 16px;
+        padding-top: 14px;
+        border-top: 1px solid var(--border);
+      }
       .wn-continue {
         width: 100%;
         height: 44px;
-        margin-top: 22px;
       }
       @media (max-width: 640px) {
         .wn-continue {
@@ -23138,7 +23160,9 @@
           </div>
         </div>
         <div class="wn-body" id="wnBody"></div>
-        <button type="button" class="btn btn-primary wn-continue" id="wnContinue">Continue</button>
+        <div class="wn-foot">
+          <button type="button" class="btn btn-primary wn-continue" id="wnContinue">Explore 5pm</button>
+        </div>
       </div>
     </div>
 
